@@ -440,22 +440,65 @@ namespace PPApp
             lblCostExpectedOutput.Text = batchSize.ToString("N2").TrimEnd('0').TrimEnd('.') + " " + outAbbr;
 
             // Input batch size = sum of BOM quantities grouped by UOM
-            var uomTotals = new System.Collections.Generic.Dictionary<string, decimal>(
+            // Normalise quantities to canonical units within each family
+            // Family map: abbr (lower) -> (family, multiplier to canonical unit)
+            var unitFamilies = new System.Collections.Generic.Dictionary<string,
+                System.Tuple<string, decimal>>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                // Weight family -> kg
+                { "kg",   System.Tuple.Create("kg",    1m)        },
+                { "g",    System.Tuple.Create("kg",    0.001m)    },
+                { "mg",   System.Tuple.Create("kg",    0.000001m) },
+                { "ton",  System.Tuple.Create("kg",    1000m)     },
+                { "tonne",System.Tuple.Create("kg",    1000m)     },
+                { "lb",   System.Tuple.Create("kg",    0.453592m) },
+                // Volume family -> l
+                { "l",    System.Tuple.Create("l",     1m)        },
+                { "litre",System.Tuple.Create("l",     1m)        },
+                { "ltr",  System.Tuple.Create("l",     1m)        },
+                { "ml",   System.Tuple.Create("l",     0.001m)    },
+                // Length family -> m
+                { "m",    System.Tuple.Create("m",     1m)        },
+                { "cm",   System.Tuple.Create("m",     0.01m)     },
+                { "mm",   System.Tuple.Create("m",     0.001m)    },
+            };
+
+            // Accumulate totals in canonical units per family; unknown units kept separate
+            var canonicalTotals = new System.Collections.Generic.Dictionary<string, decimal>(
                 System.StringComparer.OrdinalIgnoreCase);
+            var unknownTotals = new System.Collections.Generic.Dictionary<string, decimal>(
+                System.StringComparer.OrdinalIgnoreCase);
+
             foreach (DataRow row in bom.Rows)
             {
                 decimal qty;
                 string abbr = row["Abbreviation"].ToString().Trim();
                 if (string.IsNullOrEmpty(abbr)) abbr = "units";
-                if (decimal.TryParse(row["Quantity"].ToString(), out qty))
+                if (!decimal.TryParse(row["Quantity"].ToString(), out qty)) continue;
+
+                System.Tuple<string, decimal> mapping;
+                if (unitFamilies.TryGetValue(abbr, out mapping))
                 {
-                    if (uomTotals.ContainsKey(abbr)) uomTotals[abbr] += qty;
-                    else uomTotals[abbr] = qty;
+                    string canonical = mapping.Item1;
+                    decimal multiplier = mapping.Item2;
+                    if (canonicalTotals.ContainsKey(canonical))
+                        canonicalTotals[canonical] += qty * multiplier;
+                    else
+                        canonicalTotals[canonical] = qty * multiplier;
+                }
+                else
+                {
+                    if (unknownTotals.ContainsKey(abbr)) unknownTotals[abbr] += qty;
+                    else unknownTotals[abbr] = qty;
                 }
             }
+
             var parts = new System.Collections.Generic.List<string>();
-            foreach (var kv in uomTotals)
-                parts.Add(kv.Value.ToString("N2").TrimEnd('0').TrimEnd('.') + " " + kv.Key);
+            foreach (var kv in canonicalTotals)
+                parts.Add(kv.Value.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + kv.Key);
+            foreach (var kv in unknownTotals)
+                parts.Add(kv.Value.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + kv.Key);
+
             lblCostBatchSize.Text = parts.Count > 0 ? string.Join(" + ", parts) : "—";
 
             lblCostBOMLines.Text = bom.Rows.Count + " ingredient" + (bom.Rows.Count == 1 ? "" : "s");

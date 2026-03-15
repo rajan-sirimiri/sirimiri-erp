@@ -150,7 +150,7 @@ namespace PPApp.DAL
         public static string GenerateProductCode()
         {
             object val = ExecuteScalar(
-                "SELECT MAX(CAST(SUBSTRING(ProductCode,3) AS SIGNED)) " +
+                "SELECT MAX(CAST(SUBSTRING(ProductCode,4) AS SIGNED)) " +
                 "FROM PP_Products WHERE ProductCode LIKE 'FG-%';");
             int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(val) + 1;
             return "FG-" + next.ToString("D4");
