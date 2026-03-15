@@ -230,12 +230,61 @@ namespace PPApp.DAL
                 "  WHEN 'RM' THEN r.RMCode " +
                 "  WHEN 'PM' THEN p.PMCode " +
                 "  WHEN 'CN' THEN c.ConsumableCode " +
-                "  ELSE '?' END AS MaterialCode " +
+                "  ELSE '?' END AS MaterialCode, " +
+                "CASE b.MaterialType " +
+                "  WHEN 'RM' THEN " +
+                "    IFNULL(( " +
+                "      SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "      FROM (SELECT QtyActualReceived, Rate FROM MM_RawInward " +
+                "            WHERE RMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "            ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "    ), IFNULL(os.Rate, 0)) " +
+                "  WHEN 'PM' THEN " +
+                "    IFNULL(( " +
+                "      SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "      FROM (SELECT QtyActualReceived, Rate FROM MM_PackingInward " +
+                "            WHERE PMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "            ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "    ), IFNULL(os.Rate, 0)) " +
+                "  WHEN 'CN' THEN " +
+                "    IFNULL(( " +
+                "      SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "      FROM (SELECT QtyActualReceived, Rate FROM MM_ConsumableInward " +
+                "            WHERE ConsumableID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "            ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "    ), IFNULL(os.Rate, 0)) " +
+                "  ELSE 0 END AS UnitRate, " +
+                "CASE b.MaterialType " +
+                "  WHEN 'RM' THEN " +
+                "    CASE WHEN EXISTS(SELECT 1 FROM MM_RawInward " +
+                "         WHERE RMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0) THEN 1 " +
+                "         WHEN os.Rate IS NOT NULL THEN 2 ELSE 0 END " +
+                "  WHEN 'PM' THEN " +
+                "    CASE WHEN EXISTS(SELECT 1 FROM MM_PackingInward " +
+                "         WHERE PMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0) THEN 1 " +
+                "         WHEN os.Rate IS NOT NULL THEN 2 ELSE 0 END " +
+                "  WHEN 'CN' THEN " +
+                "    CASE WHEN EXISTS(SELECT 1 FROM MM_ConsumableInward " +
+                "         WHERE ConsumableID=b.MaterialID AND QtyActualReceived>0 AND Rate>0) THEN 1 " +
+                "         WHEN os.Rate IS NOT NULL THEN 2 ELSE 0 END " +
+                "  ELSE 0 END AS HasRate, " +
+                "CASE b.MaterialType " +
+                "  WHEN 'RM' THEN (SELECT COUNT(*) FROM " +
+                "    (SELECT 1 FROM MM_RawInward WHERE RMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "     ORDER BY InwardDate DESC LIMIT 3) g) " +
+                "  WHEN 'PM' THEN (SELECT COUNT(*) FROM " +
+                "    (SELECT 1 FROM MM_PackingInward WHERE PMID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "     ORDER BY InwardDate DESC LIMIT 3) g) " +
+                "  WHEN 'CN' THEN (SELECT COUNT(*) FROM " +
+                "    (SELECT 1 FROM MM_ConsumableInward WHERE ConsumableID=b.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "     ORDER BY InwardDate DESC LIMIT 3) g) " +
+                "  ELSE 0 END AS GRNCount " +
                 "FROM PP_BOM b " +
                 "JOIN MM_UOM u ON u.UOMID=b.UOMID " +
                 "LEFT JOIN MM_RawMaterials    r ON b.MaterialType='RM' AND r.RMID=b.MaterialID " +
                 "LEFT JOIN MM_PackingMaterials p ON b.MaterialType='PM' AND p.PMID=b.MaterialID " +
                 "LEFT JOIN MM_Consumables      c ON b.MaterialType='CN' AND c.ConsumableID=b.MaterialID " +
+                "LEFT JOIN MM_OpeningStock     os ON os.MaterialType=b.MaterialType AND os.MaterialID=b.MaterialID " +
                 "WHERE b.ProductID=?pid ORDER BY b.MaterialType, MaterialName;",
                 new MySqlParameter("?pid", productId));
         }

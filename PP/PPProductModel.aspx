@@ -486,29 +486,51 @@
                         </div>
                     </div>
 
-                    <!-- Rate inputs -->
+                    <!-- Material Rates from Opening Stock -->
                     <div class="cost-card">
-                        <div class="cost-card-title">Input Rates (&#x20B9; per UOM)</div>
-                        <div style="font-size:10px; color:var(--text-dim); margin-bottom:10px;">Enter average purchase rates to compute costs</div>
+                        <div class="cost-card-title">Material Rates</div>
+                        <div style="font-size:10px; color:var(--text-dim); margin-bottom:10px;">
+                            Rates auto-calculated from last 3 GRNs (weighted avg). Falls back to Opening Stock if no GRNs exist.
+                            <a href="../MM/MMRawMaterial.aspx" target="_blank" style="color:var(--blue);">Update in MM &#8599;</a>
+                        </div>
 
                         <asp:Repeater ID="rptCostRates" runat="server">
                             <ItemTemplate>
                                 <div class="cost-input-group">
-                                    <label>
-                                        <span class='mat-type-pill pill-<%# Eval("MaterialType").ToString().ToLower() %>' style="margin-right:4px;"><%# Eval("MaterialType") %></span>
-                                        <%# Eval("MaterialName") %>
-                                        <span style="color:var(--text-dim); font-weight:400;">(<%# Eval("Abbreviation") %>)</span>
-                                    </label>
-                                    <input type="number" step="0.01" min="0"
-                                        id='rate_<%# Eval("BOMID") %>'
-                                        name='rate_<%# Eval("BOMID") %>'
-                                        placeholder="0.00"
-                                        onchange="recalcCosts()"
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                        <label style="margin-bottom:0; flex:1;">
+                                            <span class='mat-type-pill pill-<%# Eval("MaterialType").ToString().ToLower() %>' style="margin-right:4px;"><%# Eval("MaterialType") %></span>
+                                            <%# Eval("MaterialName") %>
+                                            <span style="color:var(--text-dim); font-weight:400;">(<%# Eval("Abbreviation") %>)</span>
+                                        </label>
+                                        <span style="font-size:12px; font-weight:600; color:<%# Convert.ToInt32(Eval("HasRate")) >= 1 ? "var(--blue)" : "#e74c3c" %>; white-space:nowrap;">
+                                            <%# Convert.ToInt32(Eval("HasRate")) >= 1
+                                                ? "&#x20B9; " + string.Format("{0:N2}", Eval("UnitRate")) + " / " + Eval("Abbreviation")
+                                                : "&#9888; No rate" %>
+                                        </span>
+                                    </div>
+                                    <div style="font-size:10px; margin-top:3px; color:var(--text-dim);">
+                                        <%# Convert.ToInt32(Eval("HasRate")) == 1
+                                            ? "Weighted avg of last " + Eval("GRNCount") + " GRN" + (Convert.ToInt32(Eval("GRNCount")) == 1 ? "" : "s")
+                                            : Convert.ToInt32(Eval("HasRate")) == 2
+                                                ? "From Opening Stock (no GRNs yet)"
+                                                : "<span style=\"color:#e74c3c;\">No GRNs or Opening Stock found — go to MM to add</span>" %>
+                                    </div>
+                                    <!-- Hidden inputs carry rate+qty for JS calculation -->
+                                    <input type="hidden"
                                         data-qty='<%# Eval("Quantity") %>'
+                                        data-rate='<%# Eval("UnitRate") %>'
+                                        data-type='<%# Eval("MaterialType") %>'
                                         data-bomid='<%# Eval("BOMID") %>' />
                                 </div>
                             </ItemTemplate>
                         </asp:Repeater>
+                    </div>
+
+                    <!-- Missing rates warning -->
+                    <div id="costMissingWarn" style="display:none; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:12px; color:#c0392b;">
+                        &#9888; Some materials are missing opening stock rates. Costs shown may be incomplete.
+                        Go to <a href="../MM/MMRawMaterial.aspx" target="_blank" style="color:#c0392b; font-weight:600;">MM &rarr; Raw Material</a> and record opening stock with rates.
                     </div>
 
                     <!-- Computed costs -->
@@ -543,8 +565,8 @@
                     </div>
 
                     <div style="font-size:10px; color:var(--text-dim); line-height:1.6; padding:0 2px;">
-                        * Cost calculations are indicative based on rates entered above.<br/>
-                        * RM Cost/kg = Total RM cost &divide; total RM kg in BOM.<br/>
+                        * Rates = weighted average of last 3 GRNs (Qty &times; Rate). Falls back to Opening Stock if no GRNs.<br/>
+                        * RM Cost/UOM = Total RM cost &divide; total RM quantity in BOM.<br/>
                         * Unit Cost = Total Batch Cost &divide; Batch Size.
                     </div>
 
@@ -622,21 +644,18 @@ function filterProdList(val) {
 var batchSize = parseFloat('<%# BatchSizeForCost %>') || 1;
 
 function recalcCosts() {
-    var rmCost = 0, pmCost = 0, cnCost = 0, rmKg = 0, rmTotalQty = 0;
+    var rmCost = 0, pmCost = 0, cnCost = 0, rmTotalQty = 0;
+    var missingRates = [];
 
     document.querySelectorAll('input[data-bomid]').forEach(function(inp) {
-        var rate = parseFloat(inp.value) || 0;
-        var qty  = parseFloat(inp.getAttribute('data-qty')) || 0;
-        var id   = inp.id; // rate_BOMID
-        var row  = inp.closest('.cost-input-group');
-        if (!row) return;
-        var pill = row.querySelector('.mat-type-pill');
-        if (!pill) return;
-        var type = pill.innerText.trim().toUpperCase();
+        var rate = parseFloat(inp.getAttribute('data-rate')) || 0;
+        var qty  = parseFloat(inp.getAttribute('data-qty'))  || 0;
+        var type = (inp.getAttribute('data-type') || '').toUpperCase();
         var lineCost = rate * qty;
         if      (type === 'RM') { rmCost += lineCost; rmTotalQty += qty; }
         else if (type === 'PM') { pmCost += lineCost; }
         else if (type === 'CN') { cnCost += lineCost; }
+        if (rate === 0) missingRates.push(type);
     });
 
     var total    = rmCost + pmCost + cnCost;
@@ -649,12 +668,21 @@ function recalcCosts() {
     setText('lblTotalBatch',  '\u20B9 ' + total.toFixed(2));
     setText('lblRMPerKg',     '\u20B9 ' + rmPerKg.toFixed(2));
     setText('lblUnitCost',    '\u20B9 ' + unitCost.toFixed(2));
+
+    // Show warning if any rates are missing
+    var warn = document.getElementById('costMissingWarn');
+    if (warn) {
+        warn.style.display = missingRates.length > 0 ? 'block' : 'none';
+    }
 }
 
 function setText(id, val) {
     var el = document.getElementById(id);
     if (el) el.innerText = val;
 }
+
+// Auto-calculate on page load
+window.addEventListener('load', function() { recalcCosts(); });
 </script>
 </body>
 </html>
