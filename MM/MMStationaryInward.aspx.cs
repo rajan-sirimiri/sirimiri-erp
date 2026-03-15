@@ -1,0 +1,319 @@
+using System;
+using System.Data;
+using System.Text;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using MMApp.DAL;
+
+namespace MMApp
+{
+    public partial class MMStationaryInward : Page
+    {
+        protected Label              lblNavUser;
+        protected Label              lblGRNNo;
+        protected Label              lblAlert;
+        protected Label              lblCount;
+        protected Label              lblRecSupplier;
+        protected Label              lblRecTotal;
+        protected HiddenField        hfInwardID;
+        protected HiddenField        hfSupplierID;
+        protected HiddenField        hfTaxable;
+        protected HiddenField        hfGSTAmount;
+        protected HiddenField        hfTotal;
+        protected Panel              pnlAlert;
+        protected Panel              pnlEmpty;
+        protected Panel              pnlRecEmpty;
+        protected Panel              pnlRecList;
+        protected Button             btnSupplierTrigger;
+        protected DropDownList       ddlItem;
+        protected DropDownList       ddlSupplier;
+        protected DropDownList       ddlInvoiceUOM;
+        protected DropDownList       ddlReceivedUOM;
+        protected DropDownList       ddlStdUOM;
+        protected TextBox            txtGRNDate;
+        protected TextBox            txtInvoiceNo;
+        protected TextBox            txtInvoiceDate;
+        protected TextBox            txtPONo;
+        protected TextBox            txtQtyInvoice;
+        protected TextBox            txtQtyReceived;
+        protected TextBox            txtQtyUOM;
+        protected TextBox            txtRate;
+        protected TextBox            txtHSN;
+        protected TextBox            txtGSTRate;
+        protected TextBox            txtTransport;
+        protected TextBox            txtRemarks;
+        protected TextBox            txtFromDate;
+        protected TextBox            txtToDate;
+        protected CheckBox           chkTransportInInvoice;
+        protected CheckBox           chkTransportInGST;
+        protected CheckBox           chkQC;
+        protected Button             btnReceive;
+        protected Button             btnReject;
+        protected Button             btnClear;
+        protected Button             btnFilter;
+        protected Repeater           rptGRN;
+        protected Repeater           rptRecoverables;
+
+        protected string ItemDataJson = "{}"; // JSON for inline script
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (Session["MM_UserID"] == null) { Response.Redirect("MMLogin.aspx"); return; }
+            lblNavUser.Text = Session["MM_FullName"]?.ToString() ?? "";
+
+            if (!IsPostBack)
+            {
+                LoadDropdowns();
+                lblGRNNo.Text    = MMDatabaseHelper.GenerateGRNNumber("ST");
+                txtGRNDate.Text  = DateTime.Today.ToString("yyyy-MM-dd");
+                txtFromDate.Text = DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd");
+                txtToDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
+                LoadGRNList();
+                LoadRecoverables(0);
+            }
+            else
+            {
+                BuildItemJson();
+                RebindSupplierDropdown();
+            }
+        }
+
+        private void LoadDropdowns()
+        {
+            DataTable itemDt = MMDatabaseHelper.GetActiveStationaries();
+            ddlItem.DataSource     = itemDt;
+            ddlItem.DataTextField  = "StationaryName";
+            ddlItem.DataValueField = "StationaryID";
+            ddlItem.DataBind();
+            ddlItem.Items.Insert(0, new ListItem("-- Select Item --", "0"));
+
+            DataTable supDt = MMDatabaseHelper.GetActiveSuppliers();
+            ddlSupplier.DataSource     = supDt;
+            ddlSupplier.DataTextField  = "SupplierName";
+            ddlSupplier.DataValueField = "SupplierID";
+            ddlSupplier.DataBind();
+            ddlSupplier.Items.Insert(0, new ListItem("-- Select Supplier --", "0"));
+
+            ddlInvoiceUOM.DataSource     = MMDatabaseHelper.GetActiveUOM();
+            ddlInvoiceUOM.DataTextField  = "Abbreviation";
+            ddlInvoiceUOM.DataValueField = "UOMID";
+            ddlInvoiceUOM.DataBind();
+            ddlInvoiceUOM.Items.Insert(0, new ListItem("UOM", "0"));
+
+            ddlReceivedUOM.DataSource     = MMDatabaseHelper.GetActiveUOM();
+            ddlReceivedUOM.DataTextField  = "Abbreviation";
+            ddlReceivedUOM.DataValueField = "UOMID";
+            ddlReceivedUOM.DataBind();
+            ddlReceivedUOM.Items.Insert(0, new ListItem("UOM", "0"));
+
+            ddlStdUOM.DataSource     = MMDatabaseHelper.GetActiveUOM();
+            ddlStdUOM.DataTextField  = "Abbreviation";
+            ddlStdUOM.DataValueField = "UOMID";
+            ddlStdUOM.DataBind();
+            ddlStdUOM.Items.Insert(0, new ListItem("UOM", "0"));
+
+            BuildItemJson();
+        }
+
+        private void BuildItemJson()
+        {
+            DataTable dt = MMDatabaseHelper.GetAllStationaries();
+            var sb = new StringBuilder("{");
+            foreach (DataRow r in dt.Rows)
+            {
+                string hsn = r["HSNCode"] == DBNull.Value ? "" : r["HSNCode"].ToString();
+                string gst = r["GSTRate"] == DBNull.Value ? "" : r["GSTRate"].ToString();
+                string uom = r["Abbreviation"].ToString();
+                sb.AppendFormat("\"{0}\":{{\"hsn\":\"{1}\",\"gst\":\"{2}\",\"uom\":\"{3}\"}},",
+                    r["StationaryID"], hsn, gst, uom);
+            }
+            if (sb.Length > 1) sb.Length--;
+            sb.Append("}");
+            ItemDataJson = sb.ToString();
+        }
+
+        private void RebindSupplierDropdown()
+        {
+            DataTable supDt = MMDatabaseHelper.GetActiveSuppliers();
+            ddlSupplier.DataSource     = supDt;
+            ddlSupplier.DataTextField  = "SupplierName";
+            ddlSupplier.DataValueField = "SupplierID";
+            ddlSupplier.DataBind();
+            ddlSupplier.Items.Insert(0, new ListItem("-- Select Supplier --", "0"));
+        }
+
+        private void LoadRecoverables(int supplierId)
+        {
+            if (supplierId <= 0)
+            {
+                lblRecSupplier.Text = "-- Select a supplier --";
+                pnlRecList.Visible  = false;
+                pnlRecEmpty.Visible = true;
+                return;
+            }
+            if (ddlSupplier.Items.FindByValue(supplierId.ToString()) != null)
+                lblRecSupplier.Text = ddlSupplier.Items.FindByValue(supplierId.ToString()).Text;
+
+            DataTable dt = MMDatabaseHelper.GetSupplierStationaryRecoverables(supplierId);
+            if (dt.Rows.Count > 0)
+            {
+                rptRecoverables.DataSource = dt;
+                rptRecoverables.DataBind();
+                pnlRecList.Visible  = true;
+                pnlRecEmpty.Visible = false;
+                decimal total = 0;
+                foreach (DataRow r in dt.Rows)
+                    total += r["ShortageValue"] == DBNull.Value ? 0 : Convert.ToDecimal(r["ShortageValue"]);
+                lblRecTotal.Text = total.ToString("N2");
+            }
+            else
+            {
+                pnlRecList.Visible  = false;
+                pnlRecEmpty.Visible = true;
+            }
+        }
+
+        private void LoadGRNList()
+        {
+            DateTime from = DateTime.Today.AddMonths(-1);
+            DateTime to   = DateTime.Today;
+            if (!string.IsNullOrEmpty(txtFromDate.Text)) DateTime.TryParse(txtFromDate.Text, out from);
+            if (!string.IsNullOrEmpty(txtToDate.Text))   DateTime.TryParse(txtToDate.Text,   out to);
+
+            DataTable dt = MMDatabaseHelper.GetStationaryInwardList(from, to);
+            if (dt.Rows.Count > 0)
+            {
+                rptGRN.DataSource = dt;
+                rptGRN.DataBind();
+                pnlEmpty.Visible = false;
+                lblCount.Text = dt.Rows.Count + " record" + (dt.Rows.Count == 1 ? "" : "s");
+            }
+            else
+            {
+                rptGRN.DataSource = null;
+                rptGRN.DataBind();
+                pnlEmpty.Visible = true;
+                lblCount.Text = "0 records";
+            }
+        }
+
+        private void ShowAlert(string msg, bool success)
+        {
+            pnlAlert.Visible = true;
+            lblAlert.Text    = msg;
+            pnlAlert.CssClass = "alert " + (success ? "alert-success" : "alert-danger");
+        }
+
+        protected void btnSupplierTrigger_Click(object sender, EventArgs e)
+        {
+            int supId;
+            if (int.TryParse(hfSupplierID.Value, out supId) && supId > 0)
+                LoadRecoverables(supId);
+            else
+                LoadRecoverables(0);
+            LoadGRNList();
+        }
+
+        protected void btnReceive_Click(object sender, EventArgs e)
+        {
+            if (!ValidateForm()) return;
+            SaveGRN("Received");
+        }
+
+        protected void btnReject_Click(object sender, EventArgs e)
+        {
+            ClearForm();
+            ShowAlert("GRN entry discarded -- goods rejected.", false);
+        }
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            ClearForm();
+            pnlAlert.Visible = false;
+        }
+
+        protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
+
+        private bool ValidateForm()
+        {
+            if (ddlItem.SelectedValue == "0")             { ShowAlert("Please select a Stationary/Other Item.", false); return false; }
+            if (ddlSupplier.SelectedValue == "0")         { ShowAlert("Please select a Supplier.", false); return false; }
+            if (string.IsNullOrEmpty(txtGRNDate.Text))    { ShowAlert("GRN Date is required.", false); return false; }
+            if (string.IsNullOrEmpty(txtQtyInvoice.Text)) { ShowAlert("Invoice Qty is required.", false); return false; }
+            if (string.IsNullOrEmpty(txtQtyReceived.Text)){ ShowAlert("Actual Received Qty is required.", false); return false; }
+            if (string.IsNullOrEmpty(txtQtyUOM.Text))     { ShowAlert("Qty in Stock UOM is required.", false); return false; }
+            if (string.IsNullOrEmpty(txtRate.Text))       { ShowAlert("Unit Price is required.", false); return false; }
+            return true;
+        }
+
+        private void SaveGRN(string status)
+        {
+            try
+            {
+                string    grnNo   = lblGRNNo.Text;
+                DateTime  grnDate = DateTime.Parse(txtGRNDate.Text);
+                DateTime? invDate = null;
+                if (!string.IsNullOrEmpty(txtInvoiceDate.Text))
+                    invDate = DateTime.Parse(txtInvoiceDate.Text);
+
+                int     itemId      = Convert.ToInt32(ddlItem.SelectedValue);
+                int     supId       = Convert.ToInt32(ddlSupplier.SelectedValue);
+                decimal qtyInvoice  = Convert.ToDecimal(txtQtyInvoice.Text);
+                decimal qtyReceived = Convert.ToDecimal(txtQtyReceived.Text);
+                decimal qtyUOM      = Convert.ToDecimal(txtQtyUOM.Text);
+                decimal rate        = Convert.ToDecimal(txtRate.Text);
+                decimal transport   = string.IsNullOrEmpty(txtTransport.Text) ? 0 : Convert.ToDecimal(txtTransport.Text);
+                decimal? gstRate    = null;
+                decimal  gstParsed;
+                if (decimal.TryParse(txtGSTRate.Text, out gstParsed)) gstRate = gstParsed;
+
+                decimal gstAmt = Convert.ToDecimal(hfGSTAmount.Value);
+                decimal total  = Convert.ToDecimal(hfTotal.Value);
+                int     userId = Convert.ToInt32(Session["MM_UserID"]);
+
+                MMDatabaseHelper.AddStationaryInward(
+                    grnNo, grnDate, invDate,
+                    txtInvoiceNo.Text.Trim(), supId, itemId,
+                    qtyInvoice, qtyReceived, qtyUOM, rate,
+                    txtHSN.Text.Trim(), gstRate, gstAmt,
+                    transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
+                    total, txtPONo.Text.Trim(), txtRemarks.Text.Trim(),
+                    chkQC.Checked, status, userId);
+
+                ShowAlert("GRN " + grnNo + " saved -- goods received.", true);
+                ClearForm();
+                LoadGRNList();
+                LoadRecoverables(0);
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+        }
+
+        private void ClearForm()
+        {
+            hfInwardID.Value             = "0";
+            ddlItem.SelectedIndex        = 0;
+            ddlSupplier.SelectedIndex    = 0;
+            ddlInvoiceUOM.SelectedIndex  = 0;
+            ddlReceivedUOM.SelectedIndex = 0;
+            ddlStdUOM.SelectedIndex      = 0;
+            txtGRNDate.Text              = DateTime.Today.ToString("yyyy-MM-dd");
+            txtInvoiceNo.Text            = "";
+            txtInvoiceDate.Text          = "";
+            txtPONo.Text                 = "";
+            txtQtyInvoice.Text           = "";
+            txtQtyReceived.Text          = "";
+            txtQtyUOM.Text               = "";
+            txtRate.Text                 = "";
+            txtHSN.Text                  = "";
+            txtGSTRate.Text              = "";
+            txtTransport.Text            = "";
+            txtRemarks.Text              = "";
+            chkTransportInInvoice.Checked = false;
+            chkTransportInGST.Checked     = false;
+            chkQC.Checked                 = false;
+            hfTaxable.Value              = "0";
+            hfGSTAmount.Value            = "0";
+            hfTotal.Value                = "0";
+            lblGRNNo.Text = MMDatabaseHelper.GenerateGRNNumber("ST");
+        }
+    }
+}

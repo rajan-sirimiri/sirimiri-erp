@@ -1,0 +1,21 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+Publish/
+
+# NuGet packages
+packages/
+
+# Zip files
+*.zip
+
+# Backup files
+*.bak
+*BAK*

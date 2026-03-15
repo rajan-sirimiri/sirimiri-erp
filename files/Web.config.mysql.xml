@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Web.config changes for MySQL
+  Replace the existing <connectionStrings> section with this.
+  Also add the DbProviderFactory entry under <system.data>.
+-->
+<configuration>
+
+  <connectionStrings>
+    <!--
+      Server   = MySQL host (localhost or IP)
+      Database = your database name
+      Uid      = MySQL username
+      Pwd      = MySQL password
+      SslMode  = None (for local dev); use Required for production
+    -->
+    <add name="StockDBConnection"
+         connectionString="Server=localhost;Database=StockDB;Uid=root;Pwd=YourPasswordHere;SslMode=None;CharSet=utf8mb4;"
+         providerName="MySql.Data.MySqlClient" />
+  </connectionStrings>
+
+  <system.data>
+    <DbProviderFactories>
+      <remove invariant="MySql.Data.MySqlClient" />
+      <add name="MySQL Data Provider"
+           invariant="MySql.Data.MySqlClient"
+           description=".NET Framework Data Provider for MySQL"
+           type="MySql.Data.MySqlClient.MySqlClientFactory, MySql.Data" />
+    </DbProviderFactories>
+  </system.data>
+
+</configuration>

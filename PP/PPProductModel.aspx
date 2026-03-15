@@ -1,0 +1,660 @@
+<%@ Page Language="C#" AutoEventWireup="true" Inherits="PPApp.PPProductModel" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Modelling &mdash; PP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg:#f4f5f7; --surface:#ffffff; --border:#e2e4e8; --border-light:#f0f1f3;
+            --accent:#1a7a4a; --accent-dark:#145e38; --accent-light:rgba(26,122,74,0.10);
+            --blue:#1e78cc; --blue-light:rgba(30,120,204,0.10);
+            --amber:#b8860b; --amber-light:rgba(184,134,11,0.10);
+            --red:#cc1e1e; --red-light:rgba(204,30,30,0.08);
+            --text:#1a1a1a; --text-muted:#606878; --text-dim:#9aa0ac;
+            --radius:10px; --radius-sm:6px;
+        }
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; font-size:14px; }
+
+        /* ── NAV ── */
+        nav { background:#1a1a1a; display:flex; align-items:center; padding:0 24px; height:50px; gap:4px; position:sticky; top:0; z-index:200; }
+        .nav-brand { font-family:'Bebas Neue',sans-serif; font-size:17px; color:#fff; letter-spacing:.1em; margin-right:16px; }
+        .nav-item { color:#999; text-decoration:none; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:5px 10px; border-radius:5px; transition:all .2s; }
+        .nav-item:hover,.nav-item.active { color:#fff; background:rgba(255,255,255,.08); }
+        .nav-sep { color:#333; margin:0 2px; font-size:13px; }
+        .nav-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+        .nav-user { font-size:11px; color:#777; }
+        .nav-logout { font-size:11px; color:#666; text-decoration:none; padding:4px 10px; border:1px solid #333; border-radius:5px; transition:all .2s; }
+        .nav-logout:hover { color:var(--accent); border-color:var(--accent); }
+
+        /* ── PAGE HEADER ── */
+        .page-header { background:var(--surface); border-bottom:2px solid var(--accent); padding:18px 28px; display:flex; align-items:center; gap:14px; }
+        .page-header-icon { width:40px; height:40px; border-radius:9px; background:var(--accent-light); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+        .page-title { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:.07em; line-height:1; }
+        .page-title span { color:var(--accent); }
+        .page-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+        /* ── THREE PANEL LAYOUT ── */
+        .workspace {
+            display:grid;
+            grid-template-columns: 340px 1fr 300px;
+            gap:0;
+            height:calc(100vh - 114px);
+            overflow:hidden;
+        }
+
+        /* ── PANEL SHARED ── */
+        .panel { display:flex; flex-direction:column; overflow:hidden; border-right:1px solid var(--border); }
+        .panel:last-child { border-right:none; }
+        .panel-head {
+            padding:14px 18px 12px;
+            border-bottom:1px solid var(--border);
+            background:var(--surface);
+            flex-shrink:0;
+        }
+        .panel-head-row { display:flex; align-items:center; justify-content:space-between; }
+        .panel-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-dim); margin-bottom:2px; }
+        .panel-title { font-family:'Bebas Neue',sans-serif; font-size:19px; letter-spacing:.06em; }
+        .panel-title span { color:var(--accent); }
+        .panel-body { flex:1; overflow-y:auto; padding:16px 18px; background:var(--bg); }
+        .panel-body::-webkit-scrollbar { width:4px; }
+        .panel-body::-webkit-scrollbar-thumb { background:#ddd; border-radius:4px; }
+
+        /* ── ALERT ── */
+        .alert { padding:10px 14px; border-radius:var(--radius-sm); font-size:12px; margin-bottom:14px; }
+        .alert-success { background:rgba(26,122,74,.10); color:var(--accent); border:1px solid rgba(26,122,74,.25); }
+        .alert-danger  { background:var(--red-light); color:var(--red); border:1px solid rgba(204,30,30,.2); }
+
+        /* ── FORM ELEMENTS ── */
+        .form-group { margin-bottom:13px; }
+        .form-group-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:13px; }
+        label { display:block; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; }
+        label .req { color:var(--red); margin-left:2px; }
+        input[type=text], input[type=number], select, textarea {
+            width:100%; padding:8px 11px; border:1.5px solid var(--border);
+            border-radius:var(--radius-sm); font-family:'DM Sans',sans-serif;
+            font-size:13px; color:var(--text); background:#fafafa;
+            transition:border-color .2s, background .2s; outline:none;
+        }
+        input:focus, select:focus, textarea:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px var(--accent-light); }
+        input[readonly] { background:#f0f1f3; color:var(--text-muted); cursor:not-allowed; }
+        input[readonly]:focus { border-color:var(--border); box-shadow:none; }
+        textarea { resize:vertical; min-height:60px; }
+        select option { padding:6px; }
+        .field-hint { font-size:10px; color:var(--text-dim); margin-top:2px; }
+
+        /* ── SECTION DIVIDER ── */
+        .section-div { font-size:9px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--text-dim); margin:16px 0 10px; display:flex; align-items:center; gap:8px; }
+        .section-div::after { content:''; flex:1; height:1px; background:var(--border); }
+
+        /* ── BUTTONS ── */
+        .btn { padding:9px 18px; border-radius:var(--radius-sm); font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:none; transition:all .2s; }
+        .btn-sm { padding:6px 12px; font-size:11px; }
+        .btn-primary  { background:var(--accent); color:#fff; }
+        .btn-primary:hover  { background:var(--accent-dark); }
+        .btn-secondary { background:transparent; border:1.5px solid var(--border); color:var(--text-muted); }
+        .btn-secondary:hover { border-color:var(--text-muted); color:var(--text); }
+        .btn-danger   { background:transparent; border:1.5px solid #ffcccc; color:var(--red); }
+        .btn-danger:hover { background:#fff5f5; }
+        .btn-blue     { background:var(--blue); color:#fff; }
+        .btn-blue:hover { background:#1560a8; }
+        .btn-amber    { background:var(--amber); color:#fff; }
+        .btn-amber:hover { background:#8a6408; }
+        .btn-row { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+
+        /* ── PRODUCT IMAGE UPLOAD ── */
+        .img-upload-box {
+            border:2px dashed var(--border); border-radius:var(--radius);
+            padding:16px; text-align:center; cursor:pointer;
+            transition:border-color .2s, background .2s; background:#fafafa;
+            position:relative; overflow:hidden;
+        }
+        .img-upload-box:hover { border-color:var(--accent); background:#f0faf4; }
+        .img-upload-box input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+        .img-preview { width:100%; max-height:120px; object-fit:contain; border-radius:6px; display:none; }
+        .img-placeholder { font-size:28px; margin-bottom:4px; }
+        .img-placeholder-text { font-size:11px; color:var(--text-dim); }
+
+        /* ── PRODUCT LIST (panel 1 bottom) ── */
+        .prod-list { margin-top:0; }
+        .prod-list-header { display:flex; align-items:center; justify-content:space-between; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); border-top:2px solid var(--border); flex-shrink:0; }
+        .prod-list-title { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:.06em; }
+        .prod-count { font-size:10px; color:var(--text-dim); background:var(--bg); padding:2px 8px; border-radius:20px; border:1px solid var(--border); }
+        .search-box { padding:8px 12px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+        .search-box input { padding:7px 10px; font-size:12px; border-radius:var(--radius-sm); }
+        .prod-list-scroll { flex:1; overflow-y:auto; }
+        .prod-list-scroll::-webkit-scrollbar { width:3px; }
+        .prod-list-scroll::-webkit-scrollbar-thumb { background:#ddd; }
+        .prod-row { padding:10px 18px; border-bottom:1px solid var(--border-light); cursor:pointer; transition:background .15s; display:flex; align-items:center; gap:10px; }
+        .prod-row:hover { background:#f0faf4; }
+        .prod-row.selected { background:var(--accent-light); border-left:3px solid var(--accent); }
+        .prod-row-img { width:36px; height:36px; border-radius:6px; object-fit:cover; background:#f0f0f0; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; overflow:hidden; }
+        .prod-row-img img { width:100%; height:100%; object-fit:cover; }
+        .prod-code { font-size:10px; font-weight:700; color:var(--text-dim); }
+        .prod-name { font-size:13px; font-weight:500; color:var(--text); }
+        .prod-type-badge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; }
+        .type-core     { background:var(--accent-light); color:var(--accent); }
+        .type-assembled { background:var(--blue-light); color:var(--blue); }
+        .type-conversion { background:#fff3e0; color:#e65100; }
+        .badge-active   { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; background:var(--accent-light); color:var(--accent); }
+        .badge-inactive { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; background:#f0f0f0; color:var(--text-dim); }
+
+        /* ── BOM PANEL (panel 2) ── */
+        .bom-product-banner {
+            background:var(--surface); border:1px solid var(--border);
+            border-radius:var(--radius); padding:12px 14px; margin-bottom:14px;
+            display:flex; align-items:center; gap:12px;
+        }
+        .bom-product-banner-icon { font-size:22px; }
+        .bom-product-name { font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:.05em; }
+        .bom-product-meta { font-size:11px; color:var(--text-muted); }
+        .bom-uom-note { font-size:11px; color:var(--blue); font-weight:600; margin-top:2px; }
+
+        /* Add ingredient row */
+        .add-ing-grid { display:grid; grid-template-columns:1fr 80px 100px auto; gap:8px; align-items:end; margin-bottom:10px; }
+        .add-ing-grid .btn { height:36px; padding:0 14px; align-self:end; white-space:nowrap; }
+
+        /* BOM table */
+        .bom-table { width:100%; border-collapse:collapse; }
+        .bom-table th { padding:8px 10px; text-align:left; font-size:9px; font-weight:700; letter-spacing:.10em; text-transform:uppercase; color:var(--text-dim); background:#fafafa; border-bottom:1px solid var(--border); }
+        .bom-table td { padding:9px 10px; font-size:12px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
+        .bom-table tr:last-child td { border-bottom:none; }
+        .bom-table tr:hover td { background:#fafafa; }
+        .mat-type-pill { font-size:9px; font-weight:700; padding:2px 6px; border-radius:8px; }
+        .pill-rm { background:var(--accent-light); color:var(--accent); }
+        .pill-pm { background:var(--blue-light); color:var(--blue); }
+        .pill-cn { background:var(--amber-light); color:var(--amber); }
+        .del-btn { background:none; border:none; cursor:pointer; color:#ccc; font-size:14px; padding:2px 6px; transition:color .2s; }
+        .del-btn:hover { color:var(--red); }
+        .bom-empty { text-align:center; padding:32px 16px; color:var(--text-dim); font-size:12px; }
+
+        /* BOM save strip */
+        .bom-save-strip { padding:12px 18px; background:var(--surface); border-top:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+        .bom-count-note { font-size:11px; color:var(--text-muted); }
+
+        /* ── COST PANEL (panel 3) ── */
+        .cost-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:14px; }
+        .cost-card-title { font-size:10px; font-weight:700; letter-spacing:.10em; text-transform:uppercase; color:var(--text-dim); margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+        .cost-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .cost-label { font-size:12px; color:var(--text-muted); }
+        .cost-value { font-size:14px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+        .cost-value.big { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:.04em; color:var(--accent); }
+        .cost-value.highlight { color:var(--blue); }
+        .cost-divider { height:1px; background:var(--border); margin:10px 0; }
+        .cost-input-group { margin-bottom:10px; }
+
+        .no-product-state { text-align:center; padding:40px 16px; color:var(--text-dim); }
+        .no-product-state .big-icon { font-size:40px; margin-bottom:10px; }
+        .no-product-state p { font-size:12px; line-height:1.6; }
+
+        /* ── HIDDEN FILE INPUT WORKAROUND ── */
+        .file-input-hidden { display:none; }
+
+        @media(max-width:1100px) {
+            .workspace { grid-template-columns:300px 1fr 260px; }
+        }
+        @media(max-width:860px) {
+            .workspace { grid-template-columns:1fr; height:auto; overflow:visible; }
+            .panel { border-right:none; border-bottom:1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+<form id="form1" runat="server" enctype="multipart/form-data">
+
+    <nav>
+        <a href="PPHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
+        <a href="/ERPHome.aspx" class="nav-item">&#x2302; ERP</a>
+        <span class="nav-sep">›</span>
+        <a href="PPHome.aspx" class="nav-item">Home</a>
+        <span class="nav-sep">›</span>
+        <span class="nav-item active">Product Modelling</span>
+        <div class="nav-right">
+            <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
+            <a href="PPLogout.aspx" class="nav-logout" onclick="return confirm('Sign out?')">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <div class="page-header-icon">&#x1F9EA;</div>
+        <div>
+            <div class="page-title">Product <span>Modelling</span></div>
+            <div class="page-sub">Define finished goods, bill of materials and cost structure</div>
+        </div>
+    </div>
+
+    <div class="workspace">
+
+        <!-- ═══════════════════════════════════════════════
+             PANEL 1 — PRODUCT FORM + LIST
+        ════════════════════════════════════════════════ -->
+        <div class="panel" style="background:var(--bg);">
+
+            <!-- Form area -->
+            <div class="panel-head">
+                <div class="panel-label">Section 1</div>
+                <div class="panel-title">Product <span>Master</span></div>
+            </div>
+            <div class="panel-body" style="flex:0 0 auto; max-height:calc(100% - 260px); overflow-y:auto;">
+
+                <asp:Panel ID="pnlAlert" runat="server" Visible="false">
+                    <div class="alert">
+                        <asp:Label ID="lblAlert" runat="server" />
+                    </div>
+                </asp:Panel>
+
+                <asp:HiddenField ID="hfProductID" runat="server" Value="0" />
+                <asp:HiddenField ID="hfImagePath" runat="server" Value="" />
+
+                <div class="form-group">
+                    <label>Product Code</label>
+                    <asp:TextBox ID="txtCode" runat="server" ReadOnly="true" placeholder="Auto-generated" />
+                </div>
+                <div class="form-group">
+                    <label>Product Name <span class="req">*</span></label>
+                    <asp:TextBox ID="txtName" runat="server" MaxLength="200" placeholder="e.g. Millet Energy Bar" />
+                </div>
+                <div class="form-group-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Product Type <span class="req">*</span></label>
+                        <asp:DropDownList ID="ddlProductType" runat="server" onchange="onProductTypeChange(this.value);">
+                            <asp:ListItem Value="">-- Select --</asp:ListItem>
+                            <asp:ListItem Value="Core">Core</asp:ListItem>
+                            <asp:ListItem Value="Assembled">Assembled</asp:ListItem>
+                            <asp:ListItem Value="Conversion">Conversion</asp:ListItem>
+                        </asp:DropDownList>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Production UOM</label>
+                        <div id="divProdUOMStatic" style="display:flex;align-items:center;height:38px;padding:0 12px;background:#f0faf5;border:1px solid #c3ece0;border-radius:8px;font-weight:700;color:var(--green);font-size:13px;letter-spacing:.04em;">
+                            Batches
+                        </div>
+                        <asp:DropDownList ID="ddlProdUOM" runat="server" style="display:none;" />
+                    </div>
+                </div>
+
+                <div class="form-group-row" style="margin-top:13px;">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>HSN Code</label>
+                        <asp:TextBox ID="txtHSN" runat="server" MaxLength="20" placeholder="e.g. 2106" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>GST Rate (%)</label>
+                        <asp:TextBox ID="txtGSTRate" runat="server" MaxLength="6" placeholder="e.g. 12" />
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:13px;">
+                    <label>Expected Qty Output (per batch) <span class="req">*</span></label>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <asp:TextBox ID="txtBatchSize" runat="server" MaxLength="12" placeholder="e.g. 100" style="flex:1;" />
+                        <asp:DropDownList ID="ddlOutputUOM" runat="server" style="width:130px;" />
+                    </div>
+                    <span class="field-hint" id="batchHint">Quantity and UOM of finished product per one batch</span>
+                </div>
+
+                <div class="section-div">Product Image</div>
+                <div class="img-upload-box" onclick="document.getElementById('fileImage').click()">
+                    <input type="file" id="fileImage" name="fileImage" accept="image/*" onchange="previewImage(this)" class="file-input-hidden" />
+                    <img id="imgPreview" class="img-preview" src="#" alt="Preview" />
+                    <div id="imgPlaceholder">
+                        <div class="img-placeholder">&#x1F5BC;&#xFE0F;</div>
+                        <div class="img-placeholder-text">Click to upload product image<br/><span style="font-size:9px;">PNG, JPG up to 2MB</span></div>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <asp:Button ID="btnSave" runat="server" Text="Save Product" CssClass="btn btn-primary" OnClick="btnSave_Click" />
+                    <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false" />
+                    <asp:Button ID="btnToggleActive" runat="server" Text="Deactivate" CssClass="btn btn-danger" OnClick="btnToggleActive_Click" CausesValidation="false" Visible="false" />
+                </div>
+            </div>
+
+            <!-- Product List -->
+            <div class="prod-list-header" style="flex-shrink:0;">
+                <span class="prod-list-title">Products</span>
+                <asp:Label ID="lblCount" runat="server" CssClass="prod-count" Text="0" />
+            </div>
+            <div class="search-box" style="flex-shrink:0;">
+                <input type="text" id="prodSearch" placeholder="&#x1F50D; Search products..." onkeyup="filterProdList(this.value)" />
+            </div>
+            <div class="prod-list-scroll" style="flex:1; overflow-y:auto;">
+                <asp:Repeater ID="rptProducts" runat="server" OnItemCommand="rptProducts_ItemCommand">
+                    <ItemTemplate>
+                        <asp:LinkButton runat="server" CommandName="Select" CommandArgument='<%# Eval("ProductID") %>'
+                            CausesValidation="false"
+                            CssClass='prod-row <%# GetSelectedClass(Eval("ProductID")) %>'
+                            style="display:flex; text-decoration:none; color:inherit; width:100%;">
+                            <div class="prod-row-img">
+                                <%# string.IsNullOrEmpty(Eval("ImagePath") as string) ? "&#x1F9EA;" : "<img src='" + Eval("ImagePath") + "' />" %>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div class="prod-code"><%# Eval("ProductCode") %></div>
+                                <div class="prod-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%# Eval("ProductName") %></div>
+                                <span class='prod-type-badge <%# Eval("ProductType").ToString() == "Core" ? "type-core" : Eval("ProductType").ToString() == "Conversion" ? "type-conversion" : "type-assembled" %>'><%# Eval("ProductType") %></span>
+                            </div>
+                        </asp:LinkButton>
+                    </ItemTemplate>
+                </asp:Repeater>
+                <asp:Panel ID="pnlEmpty" runat="server" Visible="false">
+                    <div class="bom-empty">No products yet. Add your first product.</div>
+                </asp:Panel>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════
+             PANEL 2 — BOM / INGREDIENTS
+        ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-head">
+                <div class="panel-label">Section 2 &mdash; Bill of Materials</div>
+                <div class="panel-title">Ingredients &amp; <span>Components</span></div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">BOM quantities are always per one Production UOM</div>
+            </div>
+
+            <div class="panel-body" style="flex:1; overflow-y:auto;">
+                <asp:Panel ID="pnlNoBOM" runat="server" Visible="true">
+                    <div class="no-product-state">
+                        <div class="big-icon">&#x1F4CB;</div>
+                        <p>Select a product from the left panel<br/>to view or edit its Bill of Materials.</p>
+                    </div>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlBOM" runat="server" Visible="false">
+
+                    <!-- Product banner -->
+                    <div class="bom-product-banner">
+                        <div class="bom-product-banner-icon">&#x1F9EA;</div>
+                        <div>
+                            <div class="bom-product-name"><asp:Label ID="lblBOMProductName" runat="server" /></div>
+                            <div class="bom-product-meta">
+                                <asp:Label ID="lblBOMProductCode" runat="server" />
+                                &nbsp;&bull;&nbsp;
+                                <asp:Label ID="lblBOMProductType" runat="server" />
+                            </div>
+                            <div class="bom-uom-note">BOM per 1 Batch</div>
+                        </div>
+                    </div>
+
+                    <!-- Add ingredient row -->
+                    <div class="section-div">Add Ingredient</div>
+                    <div class="add-ing-grid">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Material Type</label>
+                            <asp:DropDownList ID="ddlMatType" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlMatType_Changed">
+                                <asp:ListItem Value="">-- Type --</asp:ListItem>
+                                <asp:ListItem Value="RM">Raw Material</asp:ListItem>
+                                <asp:ListItem Value="PM">Packing Material</asp:ListItem>
+                                <asp:ListItem Value="CN">Consumable</asp:ListItem>
+                            </asp:DropDownList>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Qty</label>
+                            <asp:TextBox ID="txtIngQty" runat="server" MaxLength="10" placeholder="0.000" />
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>UOM</label>
+                            <asp:DropDownList ID="ddlIngUOM" runat="server" onchange="syncConversionUOM();" />
+                        </div>
+                        <asp:Button ID="btnAddIng" runat="server" Text="+ Add" CssClass="btn btn-blue btn-sm" OnClick="btnAddIng_Click" CausesValidation="false" />
+                    </div>
+                    <div class="form-group">
+                        <label>Material <span class="req">*</span></label>
+                        <asp:DropDownList ID="ddlMaterial" runat="server" />
+                    </div>
+
+                    <!-- BOM table -->
+                    <div class="section-div">Current BOM</div>
+                    <asp:Panel ID="pnlBOMEmpty" runat="server" Visible="true">
+                        <div class="bom-empty">&#x1F4CB; No ingredients added yet.</div>
+                    </asp:Panel>
+                    <asp:Panel ID="pnlBOMTable" runat="server" Visible="false">
+                        <table class="bom-table" id="bomTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Material</th>
+                                    <th>Qty</th>
+                                    <th>UOM</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <asp:Repeater ID="rptBOM" runat="server" OnItemCommand="rptBOM_ItemCommand">
+                                    <ItemTemplate>
+                                        <tr>
+                                            <td><span class='mat-type-pill pill-<%# Eval("MaterialType").ToString().ToLower() %>'><%# Eval("MaterialType") %></span></td>
+                                            <td>
+                                                <div style="font-weight:500;font-size:12px;"><%# Eval("MaterialName") %></div>
+                                                <div style="font-size:10px;color:var(--text-dim);"><%# Eval("MaterialCode") %></div>
+                                            </td>
+                                            <td style="font-variant-numeric:tabular-nums;"><%# string.Format("{0:N3}", Eval("Quantity")) %></td>
+                                            <td style="font-size:11px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>
+                                            <td>
+                                                <asp:LinkButton runat="server" CommandName="DeleteBOM" CommandArgument='<%# Eval("BOMID") %>'
+                                                    CssClass="del-btn" CausesValidation="false"
+                                                    OnClientClick="return confirm('Remove this ingredient?')">&#x2715;</asp:LinkButton>
+                                            </td>
+                                        </tr>
+                                    </ItemTemplate>
+                                </asp:Repeater>
+                            </tbody>
+                        </table>
+                    </asp:Panel>
+                </asp:Panel>
+            </div>
+
+            <!-- BOM save strip -->
+            <div class="bom-save-strip">
+                <asp:Label ID="lblBOMCount" runat="server" CssClass="bom-count-note" Text="" />
+                <asp:Button ID="btnSaveBOM" runat="server" Text="Save BOM" CssClass="btn btn-blue" OnClick="btnSaveBOM_Click" CausesValidation="false" Visible="false" />
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════
+             PANEL 3 — COST ELEMENTS
+        ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-head">
+                <div class="panel-label">Section 3</div>
+                <div class="panel-title">Cost <span>Elements</span></div>
+            </div>
+            <div class="panel-body">
+
+                <asp:Panel ID="pnlNoCost" runat="server" Visible="true">
+                    <div class="no-product-state">
+                        <div class="big-icon">&#x1F4B0;</div>
+                        <p>Select a product and complete its BOM<br/>to see cost calculations.</p>
+                    </div>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlCost" runat="server" Visible="false">
+
+                    <!-- Batch summary -->
+                    <div class="cost-card">
+                        <div class="cost-card-title">Batch Summary</div>
+                        <div class="cost-row">
+                            <span class="cost-label">Batch Size</span>
+                            <span class="cost-value"><asp:Label ID="lblCostBatchSize" runat="server" Text="—" /></span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label">BOM Lines</span>
+                            <span class="cost-value"><asp:Label ID="lblCostBOMLines" runat="server" Text="0" /></span>
+                        </div>
+                    </div>
+
+                    <!-- Rate inputs -->
+                    <div class="cost-card">
+                        <div class="cost-card-title">Input Rates (&#x20B9; per UOM)</div>
+                        <div style="font-size:10px; color:var(--text-dim); margin-bottom:10px;">Enter average purchase rates to compute costs</div>
+
+                        <asp:Repeater ID="rptCostRates" runat="server">
+                            <ItemTemplate>
+                                <div class="cost-input-group">
+                                    <label>
+                                        <span class='mat-type-pill pill-<%# Eval("MaterialType").ToString().ToLower() %>' style="margin-right:4px;"><%# Eval("MaterialType") %></span>
+                                        <%# Eval("MaterialName") %>
+                                        <span style="color:var(--text-dim); font-weight:400;">(<%# Eval("Abbreviation") %>)</span>
+                                    </label>
+                                    <input type="number" step="0.01" min="0"
+                                        id='rate_<%# Eval("BOMID") %>'
+                                        name='rate_<%# Eval("BOMID") %>'
+                                        placeholder="0.00"
+                                        onchange="recalcCosts()"
+                                        data-qty='<%# Eval("Quantity") %>'
+                                        data-bomid='<%# Eval("BOMID") %>' />
+                                </div>
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+
+                    <!-- Computed costs -->
+                    <div class="cost-card">
+                        <div class="cost-card-title">Computed Costs</div>
+                        <div class="cost-row">
+                            <span class="cost-label">RM Cost / Batch</span>
+                            <span class="cost-value highlight" id="lblRMCostBatch">&#x20B9; 0.00</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label">PM Cost / Batch</span>
+                            <span class="cost-value highlight" id="lblPMCostBatch">&#x20B9; 0.00</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label">Consumable Cost / Batch</span>
+                            <span class="cost-value highlight" id="lblCNCostBatch">&#x20B9; 0.00</span>
+                        </div>
+                        <div class="cost-divider"></div>
+                        <div class="cost-row">
+                            <span class="cost-label" style="font-weight:600;">Total Material Cost / Batch</span>
+                            <span class="cost-value big" id="lblTotalBatch">&#x20B9; 0.00</span>
+                        </div>
+                        <div class="cost-divider"></div>
+                        <div class="cost-row">
+                            <span class="cost-label">RM Cost / kg</span>
+                            <span class="cost-value" id="lblRMPerKg">&#x20B9; 0.00</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label">Expected Unit Cost</span>
+                            <span class="cost-value" id="lblUnitCost">&#x20B9; 0.00</span>
+                        </div>
+                    </div>
+
+                    <div style="font-size:10px; color:var(--text-dim); line-height:1.6; padding:0 2px;">
+                        * Cost calculations are indicative based on rates entered above.<br/>
+                        * RM Cost/kg = Total RM cost &divide; total RM kg in BOM.<br/>
+                        * Unit Cost = Total Batch Cost &divide; Batch Size.
+                    </div>
+
+                </asp:Panel>
+            </div>
+        </div>
+
+    </div><!-- /workspace -->
+
+</form>
+
+<script>
+// ── PRODUCT TYPE CHANGE ────────────────────────────────────
+function onProductTypeChange(type) {
+    var staticDiv = document.getElementById('divProdUOMStatic');
+    var ddlProd   = document.getElementById('<%= ddlProdUOM.ClientID %>');
+    if (staticDiv && ddlProd) {
+        if (type === 'Conversion') {
+            staticDiv.style.display = 'none';
+            ddlProd.style.display   = 'block';
+        } else {
+            staticDiv.style.display = 'flex';
+            ddlProd.style.display   = 'none';
+        }
+    }
+    var hint = document.getElementById('batchHint');
+    if (hint) {
+        hint.innerText = (type === 'Conversion')
+            ? 'Output qty and UOM — UOM auto-syncs with RM ingredient UOM'
+            : 'Quantity and UOM of finished product per one batch';
+    }
+}
+
+// ── CONVERSION UOM SYNC ────────────────────────────────────
+function syncConversionUOM() {
+    var type = document.getElementById('<%= ddlProductType.ClientID %>').value;
+    if (type !== 'Conversion') return;
+    var ingUOM = document.getElementById('<%= ddlIngUOM.ClientID %>');
+    var outUOM = document.getElementById('<%= ddlOutputUOM.ClientID %>');
+    if (ingUOM && outUOM && ingUOM.value !== '0') {
+        outUOM.value = ingUOM.value;
+    }
+}
+
+// ── IMAGE PREVIEW ──────────────────────────────────────────
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = document.getElementById('imgPreview');
+            var ph  = document.getElementById('imgPlaceholder');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            ph.style.display  = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// ── PRODUCT LIST FILTER ────────────────────────────────────
+// ── INIT ON LOAD ──────────────────────────────────────────
+window.addEventListener('load', function() {
+    var ddlType = document.getElementById('<%= ddlProductType.ClientID %>');
+    if (ddlType) onProductTypeChange(ddlType.value);
+});
+
+function filterProdList(val) {
+    val = val.toLowerCase();
+    document.querySelectorAll('.prod-row').forEach(function(r) {
+        r.style.display = r.innerText.toLowerCase().includes(val) ? 'flex' : 'none';
+    });
+}
+
+// ── COST RECALCULATION ─────────────────────────────────────
+var batchSize = parseFloat('<%# BatchSizeForCost %>') || 1;
+
+function recalcCosts() {
+    var rmCost = 0, pmCost = 0, cnCost = 0, rmKg = 0, rmTotalQty = 0;
+
+    document.querySelectorAll('input[data-bomid]').forEach(function(inp) {
+        var rate = parseFloat(inp.value) || 0;
+        var qty  = parseFloat(inp.getAttribute('data-qty')) || 0;
+        var id   = inp.id; // rate_BOMID
+        var row  = inp.closest('.cost-input-group');
+        if (!row) return;
+        var pill = row.querySelector('.mat-type-pill');
+        if (!pill) return;
+        var type = pill.innerText.trim().toUpperCase();
+        var lineCost = rate * qty;
+        if      (type === 'RM') { rmCost += lineCost; rmTotalQty += qty; }
+        else if (type === 'PM') { pmCost += lineCost; }
+        else if (type === 'CN') { cnCost += lineCost; }
+    });
+
+    var total    = rmCost + pmCost + cnCost;
+    var rmPerKg  = rmTotalQty > 0 ? rmCost / rmTotalQty : 0;
+    var unitCost = batchSize  > 0 ? total  / batchSize  : 0;
+
+    setText('lblRMCostBatch', '\u20B9 ' + rmCost.toFixed(2));
+    setText('lblPMCostBatch', '\u20B9 ' + pmCost.toFixed(2));
+    setText('lblCNCostBatch', '\u20B9 ' + cnCost.toFixed(2));
+    setText('lblTotalBatch',  '\u20B9 ' + total.toFixed(2));
+    setText('lblRMPerKg',     '\u20B9 ' + rmPerKg.toFixed(2));
+    setText('lblUnitCost',    '\u20B9 ' + unitCost.toFixed(2));
+}
+
+function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.innerText = val;
+}
+</script>
+</body>
+</html>
