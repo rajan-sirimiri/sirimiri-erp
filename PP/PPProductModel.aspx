@@ -40,7 +40,7 @@
         /* ── THREE PANEL LAYOUT ── */
         .workspace {
             display:grid;
-            grid-template-columns: 340px 1fr 300px;
+            grid-template-columns: 420px 1fr 300px;
             gap:0;
             height:calc(100vh - 114px);
             overflow:hidden;
@@ -114,7 +114,7 @@
         }
         .img-upload-box:hover { border-color:var(--accent); background:#f0faf4; }
         .img-upload-box input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-        .img-preview { width:100%; max-height:120px; object-fit:contain; border-radius:6px; display:none; }
+        .img-preview { width:100%; max-height:140px; object-fit:contain; border-radius:6px; display:none; }
         .img-placeholder { font-size:28px; margin-bottom:4px; }
         .img-placeholder-text { font-size:11px; color:var(--text-dim); }
 
@@ -194,7 +194,7 @@
         .file-input-hidden { display:none; }
 
         @media(max-width:1100px) {
-            .workspace { grid-template-columns:300px 1fr 260px; }
+            .workspace { grid-template-columns:360px 1fr 260px; }
         }
         @media(max-width:860px) {
             .workspace { grid-template-columns:1fr; height:auto; overflow:visible; }
@@ -294,16 +294,6 @@
                         <asp:DropDownList ID="ddlOutputUOM" runat="server" style="width:130px;" />
                     </div>
                     <span class="field-hint" id="batchHint">Quantity and UOM of finished product per one batch</span>
-                </div>
-
-                <div class="section-div">Product Image</div>
-                <div class="img-upload-box" onclick="document.getElementById('fileImage').click()">
-                    <input type="file" id="fileImage" name="fileImage" accept="image/*" onchange="previewImage(this)" class="file-input-hidden" />
-                    <img id="imgPreview" class="img-preview" src="#" alt="Preview" />
-                    <div id="imgPlaceholder">
-                        <div class="img-placeholder">&#x1F5BC;&#xFE0F;</div>
-                        <div class="img-placeholder-text">Click to upload product image<br/><span style="font-size:9px;">PNG, JPG up to 2MB</span></div>
-                    </div>
                 </div>
 
                 <div class="btn-row">
@@ -463,6 +453,19 @@
                 <div class="panel-title">Cost <span>Elements</span></div>
             </div>
             <div class="panel-body">
+
+                <!-- Product Image -->
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;">Product Image</div>
+                    <div class="img-upload-box" onclick="document.getElementById('fileImage').click()" style="margin-bottom:0;">
+                        <input type="file" id="fileImage" name="fileImage" accept="image/*" onchange="previewImage(this)" class="file-input-hidden" />
+                        <img id="imgPreview" class="img-preview" src="#" alt="Preview" />
+                        <div id="imgPlaceholder">
+                            <div class="img-placeholder">&#x1F5BC;&#xFE0F;</div>
+                            <div class="img-placeholder-text">Click to upload product image<br/><span style="font-size:9px;">PNG, JPG up to 2MB</span></div>
+                        </div>
+                    </div>
+                </div>
 
                 <asp:Panel ID="pnlNoCost" runat="server" Visible="true">
                     <div class="no-product-state">
