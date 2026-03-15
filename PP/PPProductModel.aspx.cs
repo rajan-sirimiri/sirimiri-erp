@@ -53,6 +53,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.Label          lblCostBatchSize;
         protected global::System.Web.UI.WebControls.Repeater       rptCostRates;
         protected global::System.Web.UI.WebControls.Label          lblCostBOMLines;
+        protected global::System.Web.UI.WebControls.Label          lblCostExpectedOutput;
 
 
         protected void Page_Load(object sender, EventArgs e)
@@ -432,13 +433,33 @@ namespace PPApp
             pnlNoCost.Visible = false;
             pnlCost.Visible   = true;
 
+            // Expected output per batch (from product record)
             decimal batchSize;
             decimal.TryParse(product["BatchSize"].ToString(), out batchSize);
             string outAbbr = ddlOutputUOM.SelectedItem != null ? ddlOutputUOM.SelectedItem.Text : "units";
-            string prodAbbr = ddlProdUOM.Visible && ddlProdUOM.SelectedItem != null ? ddlProdUOM.SelectedItem.Text : "Batch";
-            lblCostBatchSize.Text = batchSize.ToString("N0") + " " + outAbbr + " per " + prodAbbr;
-            lblCostBOMLines.Text  = bom.Rows.Count.ToString();
-            BatchSizeForCost      = batchSize.ToString();
+            lblCostExpectedOutput.Text = batchSize.ToString("N2").TrimEnd('0').TrimEnd('.') + " " + outAbbr;
+
+            // Input batch size = sum of BOM quantities grouped by UOM
+            var uomTotals = new System.Collections.Generic.Dictionary<string, decimal>(
+                System.StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in bom.Rows)
+            {
+                decimal qty;
+                string abbr = row["Abbreviation"].ToString().Trim();
+                if (string.IsNullOrEmpty(abbr)) abbr = "units";
+                if (decimal.TryParse(row["Quantity"].ToString(), out qty))
+                {
+                    if (uomTotals.ContainsKey(abbr)) uomTotals[abbr] += qty;
+                    else uomTotals[abbr] = qty;
+                }
+            }
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (var kv in uomTotals)
+                parts.Add(kv.Value.ToString("N2").TrimEnd('0').TrimEnd('.') + " " + kv.Key);
+            lblCostBatchSize.Text = parts.Count > 0 ? string.Join(" + ", parts) : "—";
+
+            lblCostBOMLines.Text = bom.Rows.Count + " ingredient" + (bom.Rows.Count == 1 ? "" : "s");
+            BatchSizeForCost     = batchSize.ToString();
 
             rptCostRates.DataSource = bom;
             rptCostRates.DataBind();

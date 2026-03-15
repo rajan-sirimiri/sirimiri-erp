@@ -477,11 +477,23 @@
                     <div class="cost-card">
                         <div class="cost-card-title">Batch Summary</div>
                         <div class="cost-row">
-                            <span class="cost-label">Batch Size</span>
+                            <span class="cost-label" style="font-weight:600;">Input Batch Size</span>
                             <span class="cost-value"><asp:Label ID="lblCostBatchSize" runat="server" Text="—" /></span>
                         </div>
-                        <div class="cost-row">
-                            <span class="cost-label">BOM Lines</span>
+                        <div style="font-size:10px; color:var(--text-dim); margin:-6px 0 10px 0;">
+                            Total quantity of all ingredients in one batch
+                        </div>
+                        <div class="cost-divider"></div>
+                        <div class="cost-row" style="margin-top:10px;">
+                            <span class="cost-label" style="font-weight:600;">Expected Output per Batch</span>
+                            <span class="cost-value highlight"><asp:Label ID="lblCostExpectedOutput" runat="server" Text="—" /></span>
+                        </div>
+                        <div style="font-size:10px; color:var(--text-dim); margin:-6px 0 10px 0;">
+                            Finished goods quantity produced per batch
+                        </div>
+                        <div class="cost-divider"></div>
+                        <div class="cost-row" style="margin-top:10px;">
+                            <span class="cost-label">Ingredients</span>
                             <span class="cost-value"><asp:Label ID="lblCostBOMLines" runat="server" Text="0" /></span>
                         </div>
                     </div>
