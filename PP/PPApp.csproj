@@ -66,9 +66,15 @@
     </Compile>
     <Content Include="Global.asax" />
     <Content Include="PPDailyPlan.aspx" />
+    <Content Include="PPDailyPlanPrint.aspx" />
     <Content Include="PPLogin.aspx" />
     <Compile Include="PPDailyPlan.aspx.cs">
       <DependentUpon>PPDailyPlan.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PPDailyPlanPrint.aspx.cs">
+      <DependentUpon>PPDailyPlanPrint.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="PPLogin.aspx.cs">
       <DependentUpon>PPLogin.aspx</DependentUpon>

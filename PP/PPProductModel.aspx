@@ -238,7 +238,7 @@
                 <div class="panel-label">Section 1</div>
                 <div class="panel-title">Product <span>Master</span></div>
             </div>
-            <div class="panel-body" style="flex:0 0 auto; max-height:calc(100% - 260px); overflow-y:auto;">
+            <div class="panel-body" style="flex:0 0 auto; max-height:calc(100% - 380px); overflow-y:auto;">
 
                 <asp:Panel ID="pnlAlert" runat="server" Visible="false">
                     <div class="alert">
@@ -272,7 +272,7 @@
                         <div id="divProdUOMStatic" style="display:flex;align-items:center;height:38px;padding:0 12px;background:#f0faf5;border:1px solid #c3ece0;border-radius:8px;font-weight:700;color:var(--green);font-size:13px;letter-spacing:.04em;">
                             Batches
                         </div>
-                        <asp:DropDownList ID="ddlProdUOM" runat="server" style="display:none;" />
+                        <asp:DropDownList ID="ddlProdUOM" runat="server" EnableViewState="false" style="display:none;" />
                     </div>
                 </div>
 
@@ -291,7 +291,7 @@
                     <label>Expected Qty Output (per batch) <span class="req">*</span></label>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <asp:TextBox ID="txtBatchSize" runat="server" MaxLength="12" placeholder="e.g. 100" style="flex:1;" />
-                        <asp:DropDownList ID="ddlOutputUOM" runat="server" style="width:130px;" />
+                        <asp:DropDownList ID="ddlOutputUOM" runat="server" EnableViewState="false" style="width:130px;" />
                     </div>
                     <span class="field-hint" id="batchHint">Quantity and UOM of finished product per one batch</span>
                 </div>
@@ -387,7 +387,7 @@
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>UOM</label>
-                            <asp:DropDownList ID="ddlIngUOM" runat="server" onchange="syncConversionUOM();" />
+                            <asp:DropDownList ID="ddlIngUOM" runat="server" EnableViewState="false" onchange="syncConversionUOM();" />
                         </div>
                         <asp:Button ID="btnAddIng" runat="server" Text="+ Add" CssClass="btn btn-blue btn-sm" OnClick="btnAddIng_Click" CausesValidation="false" />
                     </div>

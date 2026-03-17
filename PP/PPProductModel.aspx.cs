@@ -91,41 +91,39 @@ namespace PPApp
         {
             var dt = PPDatabaseHelper.GetActiveUOM();
 
-            // Preserve posted values before rebinding so selections survive postback
-            string selOutput = ddlOutputUOM.SelectedValue;
-            string selProd   = ddlProdUOM.SelectedValue;
-            string selIng    = ddlIngUOM.SelectedValue;
+            // ViewState is disabled on these dropdowns (set in ASPX)
+            // so DataBind is safe and we restore from raw form post
+            BindDropdown(ddlIngUOM,    dt, "Abbreviation", "UOMID", "-- UOM --");
+            BindDropdown(ddlProdUOM,   dt, "Abbreviation", "UOMID", "-- UOM --");
+            BindDropdown(ddlOutputUOM, dt, "Abbreviation", "UOMID", "-- UOM --");
 
-            ddlIngUOM.DataSource     = dt;
-            ddlIngUOM.DataTextField  = "Abbreviation";
-            ddlIngUOM.DataValueField = "UOMID";
-            ddlIngUOM.DataBind();
-            ddlIngUOM.Items.Insert(0, new ListItem("-- UOM --", "0"));
-
-            // Conversion Production UOM uses same list
-            ddlProdUOM.DataSource     = dt;
-            ddlProdUOM.DataTextField  = "Abbreviation";
-            ddlProdUOM.DataValueField = "UOMID";
-            ddlProdUOM.DataBind();
-            ddlProdUOM.Items.Insert(0, new ListItem("-- UOM --", "0"));
-
-            // Output UOM uses same list
-            ddlOutputUOM.DataSource     = dt;
-            ddlOutputUOM.DataTextField  = "Abbreviation";
-            ddlOutputUOM.DataValueField = "UOMID";
-            ddlOutputUOM.DataBind();
-            ddlOutputUOM.Items.Insert(0, new ListItem("-- UOM --", "0"));
-
-            // Restore selections after rebind
             if (IsPostBack)
             {
-                if (ddlOutputUOM.Items.FindByValue(selOutput) != null)
-                    ddlOutputUOM.SelectedValue = selOutput;
-                if (ddlProdUOM.Items.FindByValue(selProd) != null)
-                    ddlProdUOM.SelectedValue = selProd;
-                if (ddlIngUOM.Items.FindByValue(selIng) != null)
-                    ddlIngUOM.SelectedValue = selIng;
+                TrySetValue(ddlOutputUOM, Request.Form[ddlOutputUOM.UniqueID]);
+                TrySetValue(ddlProdUOM,   Request.Form[ddlProdUOM.UniqueID]);
+                TrySetValue(ddlIngUOM,    Request.Form[ddlIngUOM.UniqueID]);
             }
+        }
+
+        private void BindDropdown(System.Web.UI.WebControls.DropDownList ddl,
+            System.Data.DataTable dt, string textField, string valueField, string defaultText)
+        {
+            // Bypass DataBind entirely — build items manually to avoid
+            // ViewState re-applying stale SelectedValue during PerformDataBinding
+            ddl.Items.Clear();
+            ddl.Items.Add(new ListItem(defaultText, "0"));
+            foreach (System.Data.DataRow row in dt.Rows)
+            {
+                ddl.Items.Add(new ListItem(
+                    row[textField].ToString(),
+                    row[valueField].ToString()));
+            }
+        }
+
+        private void TrySetValue(System.Web.UI.WebControls.DropDownList ddl, string value)
+        {
+            if (!string.IsNullOrEmpty(value) && ddl.Items.FindByValue(value) != null)
+                ddl.SelectedValue = value;
         }
 
         // ── PRODUCT LIST ─────────────────────────────────────────────────────

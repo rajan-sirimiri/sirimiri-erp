@@ -44,6 +44,7 @@ namespace PPApp
         // Action buttons
         protected Button         btnConfirm;
         protected Button         btnDraft;
+        protected System.Web.UI.WebControls.HyperLink lnkPDF;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -86,6 +87,10 @@ namespace PPApp
 
             // Load RM status
             BindRMStatus(planId);
+
+            // Update PDF download link with current date
+            if (lnkPDF != null)
+                lnkPDF.NavigateUrl = "PPDailyPlanPrint.aspx?date=" + planDate.ToString("yyyy-MM-dd");
         }
 
         private void LoadProductDropdowns()

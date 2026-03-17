@@ -46,6 +46,8 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
 .btn-draft{background:#fff3cd;color:#856404;border:1.5px solid #ffc107;}
 .btn-today{background:var(--blue);color:#fff;}
 .btn-today:hover{background:#1f6fa3;}
+.btn-pdf{background:#e74c3c;color:#fff;}
+.btn-pdf:hover{background:#c0392b;}
 
 /* ALERT */
 .alert{padding:10px 16px;border-radius:8px;font-size:13px;margin:10px 20px 0;}
@@ -160,6 +162,8 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
             OnClick="btnConfirm_Click" CausesValidation="false"/>
         <asp:Button ID="btnDraft" runat="server" Text="Revert to Draft" CssClass="btn btn-draft"
             OnClick="btnDraft_Click" CausesValidation="false" Visible="false"/>
+        <asp:HyperLink ID="lnkPDF" runat="server" CssClass="btn btn-pdf"
+            Target="_blank" Text="&#128438; Download PDF"/>
     </div>
 </div>
 
