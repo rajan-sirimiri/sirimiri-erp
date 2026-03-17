@@ -62,9 +62,11 @@ namespace PPApp
 
             lblNavUser.Text = Session["PP_FullName"] as string ?? "";
 
+            // LoadIngUOM must run on every postback so ddlOutputUOM/ddlProdUOM
+            // always have items — otherwise SelectedValue cannot be restored
+            LoadIngUOM();
             if (!IsPostBack)
             {
-                LoadIngUOM();
                 BindProductList();
             }
         }
@@ -88,6 +90,12 @@ namespace PPApp
         private void LoadIngUOM()
         {
             var dt = PPDatabaseHelper.GetActiveUOM();
+
+            // Preserve posted values before rebinding so selections survive postback
+            string selOutput = ddlOutputUOM.SelectedValue;
+            string selProd   = ddlProdUOM.SelectedValue;
+            string selIng    = ddlIngUOM.SelectedValue;
+
             ddlIngUOM.DataSource     = dt;
             ddlIngUOM.DataTextField  = "Abbreviation";
             ddlIngUOM.DataValueField = "UOMID";
@@ -107,6 +115,17 @@ namespace PPApp
             ddlOutputUOM.DataValueField = "UOMID";
             ddlOutputUOM.DataBind();
             ddlOutputUOM.Items.Insert(0, new ListItem("-- UOM --", "0"));
+
+            // Restore selections after rebind
+            if (IsPostBack)
+            {
+                if (ddlOutputUOM.Items.FindByValue(selOutput) != null)
+                    ddlOutputUOM.SelectedValue = selOutput;
+                if (ddlProdUOM.Items.FindByValue(selProd) != null)
+                    ddlProdUOM.SelectedValue = selProd;
+                if (ddlIngUOM.Items.FindByValue(selIng) != null)
+                    ddlIngUOM.SelectedValue = selIng;
+            }
         }
 
         // ── PRODUCT LIST ─────────────────────────────────────────────────────
