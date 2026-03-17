@@ -480,5 +480,124 @@ namespace PPApp.DAL
                 "GROUP BY c.ConsumableID, c.ConsumableCode, c.ConsumableName, u.Abbreviation " +
                 "ORDER BY c.ConsumableName;");
         }
+
+        // ── DAILY PRODUCTION PLAN ─────────────────────────────────────────────
+
+        // Get or create the plan record for a given date; returns PlanID
+        public static int GetOrCreateDailyPlan(DateTime planDate, int userId)
+        {
+            var existing = ExecuteQueryRow(
+                "SELECT PlanID FROM PP_DailyPlan WHERE PlanDate=?dt;",
+                new MySqlParameter("?dt", planDate.Date));
+            if (existing != null)
+                return Convert.ToInt32(existing["PlanID"]);
+
+            ExecuteNonQuery(
+                "INSERT INTO PP_DailyPlan (PlanDate, Status, CreatedBy) VALUES (?dt,'Draft',?by);",
+                new MySqlParameter("?dt", planDate.Date),
+                new MySqlParameter("?by", userId));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static DataRow GetDailyPlan(DateTime planDate)
+        {
+            return ExecuteQueryRow(
+                "SELECT PlanID, PlanDate, Status FROM PP_DailyPlan WHERE PlanDate=?dt;",
+                new MySqlParameter("?dt", planDate.Date));
+        }
+
+        public static void SetDailyPlanStatus(int planId, string status)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_DailyPlan SET Status=?s WHERE PlanID=?id;",
+                new MySqlParameter("?s",  status),
+                new MySqlParameter("?id", planId));
+        }
+
+        // Get all rows for a plan, for both shifts
+        public static DataTable GetDailyPlanRows(int planId)
+        {
+            return ExecuteQuery(
+                "SELECT r.RowID, r.PlanID, r.Shift, r.ProductID, r.Batches, r.SortOrder, " +
+                "p.ProductName, p.ProductCode, p.BatchSize, " +
+                "ou.Abbreviation AS OutputAbbr, " +
+                "pu.Abbreviation AS ProdAbbr " +
+                "FROM PP_DailyPlanRow r " +
+                "JOIN PP_Products p  ON p.ProductID=r.ProductID " +
+                "JOIN MM_UOM ou ON ou.UOMID=p.OutputUOMID " +
+                "JOIN MM_UOM pu ON pu.UOMID=p.ProdUOMID " +
+                "WHERE r.PlanID=?pid " +
+                "ORDER BY r.Shift, r.SortOrder, r.RowID;",
+                new MySqlParameter("?pid", planId));
+        }
+
+        // Add a new row to a plan
+        public static int AddDailyPlanRow(int planId, int shift, int productId, decimal batches)
+        {
+            // SortOrder = next available within this shift
+            object maxOrder = ExecuteScalar(
+                "SELECT IFNULL(MAX(SortOrder),0)+1 FROM PP_DailyPlanRow " +
+                "WHERE PlanID=?pid AND Shift=?sh;",
+                new MySqlParameter("?pid", planId),
+                new MySqlParameter("?sh",  shift));
+            int sortOrder = Convert.ToInt32(maxOrder);
+
+            ExecuteNonQuery(
+                "INSERT INTO PP_DailyPlanRow (PlanID, Shift, ProductID, Batches, SortOrder) " +
+                "VALUES (?pid,?sh,?prod,?bat,?so);",
+                new MySqlParameter("?pid",  planId),
+                new MySqlParameter("?sh",   shift),
+                new MySqlParameter("?prod", productId),
+                new MySqlParameter("?bat",  batches),
+                new MySqlParameter("?so",   sortOrder));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        // Update batches for an existing row
+        public static void UpdateDailyPlanRowBatches(int rowId, decimal batches)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_DailyPlanRow SET Batches=?bat WHERE RowID=?id;",
+                new MySqlParameter("?bat", batches),
+                new MySqlParameter("?id",  rowId));
+        }
+
+        // Delete a row
+        public static void DeleteDailyPlanRow(int rowId)
+        {
+            ExecuteNonQuery(
+                "DELETE FROM PP_DailyPlanRow WHERE RowID=?id;",
+                new MySqlParameter("?id", rowId));
+        }
+
+        // RM Requirement vs Stock for a given plan
+        // Required = SUM(BOM.Quantity * DailyPlanRow.Batches) across all shifts
+        // Stock    = OpeningStock.Quantity + SUM(MM_RawInward.QtyActualReceived)
+        // Shortfall = Required - Stock (negative means surplus)
+        public static DataTable GetRMRequirementVsStock(int planId)
+        {
+            return ExecuteQuery(
+                "SELECT " +
+                "  r.RMCode, r.RMName, u.Abbreviation, " +
+                "  SUM(b.Quantity * pr.Batches) AS Required, " +
+                "  IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0) AS InStock, " +
+                "  (SUM(b.Quantity * pr.Batches)) - " +
+                "    (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
+                "FROM PP_DailyPlanRow pr " +
+                "JOIN PP_BOM b ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
+                "JOIN MM_RawMaterials r ON r.RMID = b.MaterialID " +
+                "JOIN MM_UOM u ON u.UOMID = r.UOMID " +
+                "LEFT JOIN MM_OpeningStock os " +
+                "  ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID " +
+                "LEFT JOIN ( " +
+                "  SELECT RMID, SUM(QtyActualReceived) AS TotalGRN " +
+                "  FROM MM_RawInward GROUP BY RMID " +
+                ") grn ON grn.RMID = r.RMID " +
+                "WHERE pr.PlanID = ?pid " +
+                "GROUP BY r.RMID, r.RMCode, r.RMName, u.Abbreviation, " +
+                "         os.Quantity, grn.TotalGRN " +
+                "ORDER BY r.RMName;",
+                new MySqlParameter("?pid", planId));
+        }
     }
 }

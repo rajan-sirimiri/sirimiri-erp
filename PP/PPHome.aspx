@@ -135,7 +135,7 @@
             <span class="nav-item">Masters <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
                 <a href="PPProductModel.aspx">Product Modelling</a>
-                <a href="PPProductionPlan.aspx">Production Planning</a>
+                <a href="PPDailyPlan.aspx">Production Planning</a>
             </div>
         </div>
         <div class="nav-group">
@@ -173,7 +173,7 @@
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a href="PPProductionPlan.aspx" class="menu-card cat-master">
+            <a href="PPDailyPlan.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4C5;</div>
                 <div>
                     <div class="menu-title">Production<br/>Planning</div>
