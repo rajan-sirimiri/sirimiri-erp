@@ -565,6 +565,11 @@ namespace PPApp.DAL
         // Delete a row
         public static void DeleteDailyPlanRow(int rowId)
         {
+            // Delete dependent production order first (if exists and still Pending)
+            ExecuteNonQuery(
+                "DELETE FROM PP_ProductionOrder WHERE PlanRowID=?id AND Status='Pending';",
+                new MySqlParameter("?id", rowId));
+            // Now safe to delete the plan row
             ExecuteNonQuery(
                 "DELETE FROM PP_DailyPlanRow WHERE RowID=?id;",
                 new MySqlParameter("?id", rowId));
