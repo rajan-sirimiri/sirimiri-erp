@@ -1,0 +1,242 @@
+using System;
+using System.Data;
+using System.Text;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using PPApp.DAL;
+
+namespace PPApp
+{
+    public partial class PPProductionOrder : Page
+    {
+        private int    UserID   => Convert.ToInt32(Session["PP_UserID"]);
+        private string FullName => Session["PP_FullName"]?.ToString() ?? "";
+
+        protected Label     lblNavUser;
+        protected Label     lblTodayDate;
+        protected Label     lblPlanStatus;
+        protected Label     lblAlert;
+        protected Panel     pnlAlert;
+        protected HiddenField hfPlanID;
+        protected HiddenField hfActiveShift;
+
+        // Shift tabs
+        protected LinkButton btnShift1Tab;
+        protected LinkButton btnShift2Tab;
+
+        // Order repeaters
+        protected Repeater  rptShift1Orders;
+        protected Repeater  rptShift2Orders;
+        protected Panel     pnlShift1Empty;
+        protected Panel     pnlShift2Empty;
+        protected Panel     pnlNoplan;
+
+        // Progress panel
+        protected Repeater  rptProgress;
+        protected Panel     pnlProgressEmpty;
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
+            lblNavUser.Text = FullName;
+            lblTodayDate.Text = DateTime.Today.ToString("dddd, dd MMM yyyy").ToUpper();
+
+            if (!IsPostBack)
+            {
+                hfActiveShift.Value = "1";
+                LoadPage();
+            }
+        }
+
+        private void LoadPage()
+        {
+            DateTime today = DateTime.Today;
+
+            // Check if plan exists for today
+            DataRow plan = PPDatabaseHelper.GetDailyPlan(today);
+            if (plan == null)
+            {
+                pnlNoplan.Visible = true;
+                lblPlanStatus.Text = "No Plan";
+                lblPlanStatus.CssClass = "status-badge draft";
+                hfPlanID.Value = "0";
+                return;
+            }
+
+            pnlNoplan.Visible = false;
+            int planId = Convert.ToInt32(plan["PlanID"]);
+            hfPlanID.Value = planId.ToString();
+
+            string status = plan["Status"].ToString();
+            lblPlanStatus.Text = status;
+            lblPlanStatus.CssClass = status == "Confirmed"
+                ? "status-badge confirmed" : "status-badge draft";
+
+            // Load orders for both shifts
+            BindShiftOrders(planId, today);
+
+            // Load progress panel
+            BindProgress(today);
+
+            // Set active tab highlight
+            SetActiveTab(hfActiveShift.Value == "2" ? 2 : 1);
+        }
+
+        private void BindShiftOrders(int planId, DateTime today)
+        {
+            var s1 = PPDatabaseHelper.GetOrCreateProductionOrders(planId, 1, today, UserID);
+            var s2 = PPDatabaseHelper.GetOrCreateProductionOrders(planId, 2, today, UserID);
+
+            rptShift1Orders.DataSource = s1; rptShift1Orders.DataBind();
+            rptShift2Orders.DataSource = s2; rptShift2Orders.DataBind();
+
+            pnlShift1Empty.Visible = s1.Rows.Count == 0;
+            pnlShift2Empty.Visible = s2.Rows.Count == 0;
+        }
+
+        private void BindProgress(DateTime today)
+        {
+            var dt = PPDatabaseHelper.GetTodayOrderProgress(today);
+            pnlProgressEmpty.Visible = dt.Rows.Count == 0;
+            rptProgress.DataSource   = dt;
+            rptProgress.DataBind();
+        }
+
+        private void SetActiveTab(int shift)
+        {
+            hfActiveShift.Value = shift.ToString();
+            if (btnShift1Tab != null)
+                btnShift1Tab.CssClass = shift == 1 ? "shift-tab active" : "shift-tab";
+            if (btnShift2Tab != null)
+                btnShift2Tab.CssClass = shift == 2 ? "shift-tab active s2" : "shift-tab s2";
+        }
+
+        // ── TAB SWITCH ───────────────────────────────────────────────────────
+        protected void btnShift1_Click(object sender, EventArgs e)
+        {
+            SetActiveTab(1);
+            BindProgress(DateTime.Today);
+        }
+
+        protected void btnShift2_Click(object sender, EventArgs e)
+        {
+            SetActiveTab(2);
+            BindProgress(DateTime.Today);
+        }
+
+        // ── INITIATE ORDER ───────────────────────────────────────────────────
+        protected void rptShift1Orders_ItemCommand(object source, RepeaterCommandEventArgs e)
+            => HandleItemCommand(e);
+
+        protected void rptShift2Orders_ItemCommand(object source, RepeaterCommandEventArgs e)
+            => HandleItemCommand(e);
+
+        private void HandleItemCommand(RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "Initiate")
+            {
+                int orderId = Convert.ToInt32(e.CommandArgument);
+
+                // Save revised batches if provided
+                var item = e.Item;
+                var txtRevised = item.FindControl("txtRevised") as TextBox;
+                if (txtRevised != null && !string.IsNullOrEmpty(txtRevised.Text.Trim()))
+                {
+                    decimal revised;
+                    if (decimal.TryParse(txtRevised.Text.Trim(), out revised) && revised > 0)
+                        PPDatabaseHelper.UpdateRevisedBatches(orderId, revised);
+                }
+
+                bool ok = PPDatabaseHelper.InitiateOrder(orderId);
+                if (ok)
+                {
+                    ShowAlert("Production initiated successfully. Redirecting to Execution...", true);
+                    // Reload then redirect
+                    LoadPage();
+                    // Redirect to execution with orderID
+                    Response.Redirect("PPProductionExecution.aspx?orderid=" + orderId);
+                }
+                else
+                {
+                    ShowAlert("Could not initiate — order may already be in progress.", false);
+                    LoadPage();
+                }
+            }
+        }
+
+        // ── HELPERS ──────────────────────────────────────────────────────────
+        protected string StatusClass(object status)
+        {
+            switch (status?.ToString() ?? "")
+            {
+                case "Initiated":   return "badge-initiated";
+                case "InProgress":  return "badge-inprogress";
+                case "Completed":   return "badge-completed";
+                default:            return "badge-pending";
+            }
+        }
+
+        protected string ButtonLabel(object status)
+        {
+            switch (status?.ToString() ?? "")
+            {
+                case "Initiated":  return "In Progress";
+                case "InProgress": return "In Progress";
+                case "Completed":  return "Completed";
+                default:           return "Initiate Production";
+            }
+        }
+
+        protected bool CanInitiate(object status)
+            => status?.ToString() == "Pending";
+
+        protected string FormatOutput(object batches, object batchSize, object abbr)
+        {
+            try
+            {
+                decimal b  = Convert.ToDecimal(batches);
+                decimal bs = Convert.ToDecimal(batchSize);
+                return (b * bs).ToString("0.###") + " " + abbr?.ToString();
+            }
+            catch { return "—"; }
+        }
+
+        protected string BuildRMEstimate(object orderIdObj)
+        {
+            try
+            {
+                int orderId = Convert.ToInt32(orderIdObj);
+                var dt = PPDatabaseHelper.GetOrderRMEstimate(orderId);
+                if (dt.Rows.Count == 0) return "<span style='color:var(--text-dim)'>No BOM defined</span>";
+
+                var sb = new StringBuilder();
+                foreach (DataRow row in dt.Rows)
+                {
+                    decimal qty   = Convert.ToDecimal(row["EstimatedQty"]);
+                    string  rmUom = row["RM_UOM"].ToString().Trim().ToLower();
+
+                    // Normalise units
+                    if      (rmUom == "g")  { qty = qty / 1000m; rmUom = "kg"; }
+                    else if (rmUom == "mg") { qty = qty / 1000000m; rmUom = "kg"; }
+                    else if (rmUom == "ml") { qty = qty / 1000m; rmUom = "l"; }
+
+                    sb.AppendFormat(
+                        "<div class='rm-est-row'><span class='rm-est-name'>{0}</span>" +
+                        "<span class='rm-est-qty'>{1} {2}</span></div>",
+                        System.Web.HttpUtility.HtmlEncode(row["RMName"].ToString()),
+                        qty.ToString("0.###"),
+                        rmUom.ToUpper());
+                }
+                return sb.ToString();
+            }
+            catch { return "—"; }
+        }
+
+        private void ShowAlert(string msg, bool success)
+        {
+            lblAlert.Text     = msg;
+            pnlAlert.CssClass = "alert " + (success ? "alert-success" : "alert-danger");
+            pnlAlert.Visible  = true;
+        }
+    }
+}

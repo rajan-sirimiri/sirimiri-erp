@@ -578,15 +578,40 @@ namespace PPApp.DAL
         {
             return ExecuteQuery(
                 "SELECT " +
-                "  r.RMCode, r.RMName, u.Abbreviation, " +
-                "  SUM(b.Quantity * pr.Batches) AS Required, " +
+                "  r.RMCode, r.RMName, " +
+                "  urm.Abbreviation, " +
+                "  SUM( " +
+                "    b.Quantity * pr.Batches * " +
+                "    CASE " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo') THEN 0.000001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram') THEN 1000 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter') AND LOWER(TRIM(urm.Abbreviation)) IN ('ml','millilitre') THEN 1000 " +
+                "      ELSE 1 " +
+                "    END " +
+                "  ) AS Required, " +
                 "  IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0) AS InStock, " +
-                "  (SUM(b.Quantity * pr.Batches)) - " +
-                "    (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
+                "  SUM( " +
+                "    b.Quantity * pr.Batches * " +
+                "    CASE " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo') THEN 0.000001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram') THEN 1000 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter') AND LOWER(TRIM(urm.Abbreviation)) IN ('ml','millilitre') THEN 1000 " +
+                "      ELSE 1 " +
+                "    END " +
+                "  ) - (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
                 "FROM PP_DailyPlanRow pr " +
-                "JOIN PP_BOM b ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
+                "JOIN PP_BOM b     ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
+                "JOIN MM_UOM ubom  ON ubom.UOMID = b.UOMID " +
                 "JOIN MM_RawMaterials r ON r.RMID = b.MaterialID " +
-                "JOIN MM_UOM u ON u.UOMID = r.UOMID " +
+                "JOIN MM_UOM urm   ON urm.UOMID = r.UOMID " +
                 "LEFT JOIN MM_OpeningStock os " +
                 "  ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID " +
                 "LEFT JOIN ( " +
@@ -594,133 +619,10 @@ namespace PPApp.DAL
                 "  FROM MM_RawInward GROUP BY RMID " +
                 ") grn ON grn.RMID = r.RMID " +
                 "WHERE pr.PlanID = ?pid " +
-                "GROUP BY r.RMID, r.RMCode, r.RMName, u.Abbreviation, " +
+                "GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, " +
                 "         os.Quantity, grn.TotalGRN " +
                 "ORDER BY r.RMName;",
                 new MySqlParameter("?pid", planId));
-        }
-
-        // ── PRODUCTION ORDER ──────────────────────────────────────────────────
-
-        // Get or create order rows for today from the daily plan
-        // Returns all order rows for the given plan + shift
-        public static DataTable GetOrCreateProductionOrders(int planId, int shift, 
-            DateTime orderDate, int userId)
-        {
-            // Create missing order rows from plan rows
-            ExecuteNonQuery(
-                "INSERT IGNORE INTO PP_ProductionOrder " +
-                "(PlanID, PlanRowID, Shift, ProductID, OrderedBatches, Status, OrderDate, CreatedBy) " +
-                "SELECT r.PlanID, r.RowID, r.Shift, r.ProductID, r.Batches, 'Pending', ?dt, ?by " +
-                "FROM PP_DailyPlanRow r " +
-                "WHERE r.PlanID = ?pid AND r.Shift = ?sh;",
-                new MySqlParameter("?dt",  orderDate.Date),
-                new MySqlParameter("?by",  userId),
-                new MySqlParameter("?pid", planId),
-                new MySqlParameter("?sh",  shift));
-
-            return ExecuteQuery(
-                "SELECT o.OrderID, o.PlanRowID, o.Shift, o.ProductID, " +
-                "o.OrderedBatches, o.RevisedBatches, o.Status, o.InitiatedAt, " +
-                "p.ProductName, p.ProductCode, p.BatchSize, " +
-                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
-                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches " +
-                "FROM PP_ProductionOrder o " +
-                "JOIN PP_Products p  ON p.ProductID  = o.ProductID " +
-                "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
-                "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
-                "WHERE o.PlanID = ?pid AND o.Shift = ?sh " +
-                "ORDER BY o.OrderID;",
-                new MySqlParameter("?pid", planId),
-                new MySqlParameter("?sh",  shift));
-        }
-
-        public static DataRow GetProductionOrder(int orderId)
-        {
-            return ExecuteQueryRow(
-                "SELECT o.*, p.ProductName, p.ProductCode, p.BatchSize, " +
-                "ou.Abbreviation AS OutputAbbr " +
-                "FROM PP_ProductionOrder o " +
-                "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
-                "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
-                "WHERE o.OrderID = ?id;",
-                new MySqlParameter("?id", orderId));
-        }
-
-        // Update revised batches (only if not yet Initiated)
-        public static bool UpdateRevisedBatches(int orderId, decimal revisedBatches)
-        {
-            ExecuteNonQuery(
-                "UPDATE PP_ProductionOrder " +
-                "SET RevisedBatches = ?rb " +
-                "WHERE OrderID = ?id AND Status = 'Pending';",
-                new MySqlParameter("?rb", revisedBatches),
-                new MySqlParameter("?id", orderId));
-            // Check if update took effect
-            var row = ExecuteQueryRow(
-                "SELECT Status FROM PP_ProductionOrder WHERE OrderID=?id;",
-                new MySqlParameter("?id", orderId));
-            return row != null && row["Status"].ToString() == "Pending";
-        }
-
-        // Initiate a production order
-        public static bool InitiateOrder(int orderId)
-        {
-            ExecuteNonQuery(
-                "UPDATE PP_ProductionOrder " +
-                "SET Status = 'Initiated', InitiatedAt = NOW() " +
-                "WHERE OrderID = ?id AND Status = 'Pending';",
-                new MySqlParameter("?id", orderId));
-            // Verify status changed
-            var row = ExecuteQueryRow(
-                "SELECT Status FROM PP_ProductionOrder WHERE OrderID=?id;",
-                new MySqlParameter("?id", orderId));
-            return row != null && row["Status"].ToString() == "Initiated";
-        }
-
-        // Get progress for all initiated/in-progress orders for today
-        public static DataTable GetTodayOrderProgress(DateTime orderDate)
-        {
-            return ExecuteQuery(
-                "SELECT o.OrderID, o.Shift, o.Status, o.InitiatedAt, " +
-                "o.ProductID, p.ProductName, p.ProductCode, p.BatchSize, " +
-                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr " +
-                "FROM PP_ProductionOrder o " +
-                "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
-                "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
-                "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
-                "WHERE o.OrderDate = ?dt " +
-                "AND o.Status IN ('Initiated','InProgress','Completed') " +
-                "ORDER BY o.Shift, o.InitiatedAt;",
-                new MySqlParameter("?dt", orderDate.Date));
-        }
-
-        // Get RM consumption estimate for an order (BOM x effective batches)
-        public static DataTable GetOrderRMEstimate(int orderId)
-        {
-            return ExecuteQuery(
-                "SELECT r.RMName, r.RMCode, " +
-                "urm.Abbreviation AS RM_UOM, ubom.Abbreviation AS BOM_UOM, " +
-                "b.Quantity * IFNULL(o.RevisedBatches, o.OrderedBatches) * " +
-                "CASE " +
-                "  WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
-                "  WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') " +
-                "       AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
-                "  WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') " +
-                "       AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.000001 " +
-                "  WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') " +
-                "       AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
-                "  ELSE 1 " +
-                "END AS EstimatedQty " +
-                "FROM PP_ProductionOrder o " +
-                "JOIN PP_BOM b ON b.ProductID = o.ProductID AND b.MaterialType = 'RM' " +
-                "JOIN MM_RawMaterials r  ON r.RMID = b.MaterialID " +
-                "JOIN MM_UOM urm ON urm.UOMID = r.UOMID " +
-                "JOIN MM_UOM ubom ON ubom.UOMID = b.UOMID " +
-                "WHERE o.OrderID = ?id " +
-                "ORDER BY r.RMName;",
-                new MySqlParameter("?id", orderId));
         }
     }
 }

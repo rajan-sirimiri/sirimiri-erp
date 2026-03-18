@@ -273,42 +273,46 @@ namespace PPApp
         protected string FormatDecimal(object val)
         {
             decimal d;
-            if (val == null || !decimal.TryParse(val.ToString(), out d)) return "0";
-            return d.ToString("N2").TrimEnd('0').TrimEnd('.');
+            if (val == null) return "0";
+            if (!decimal.TryParse(val.ToString(),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out d)) return "0";
+            return d.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
+                    .TrimEnd('0').TrimEnd('.');
         }
 
-        // Normalise quantity to a friendlier unit and return "value UOM"
-        // e.g. 5000 g -> "5 kg", 1500 ml -> "1.5 l", 500 kg -> "500 kg"
+        // Normalise quantity to canonical unit ALWAYS (regardless of value size)
+        // Required and InStock both come from DB already in RM master UOM
+        // So we just display with the canonical version of that UOM label
         protected string FormatQtyWithUOM(object val, object uomObj)
         {
+            if (val == null || val == DBNull.Value) return "0";
             decimal d;
-            if (val == null || !decimal.TryParse(val.ToString(), out d)) return "0";
+            try { d = Convert.ToDecimal(val); }
+            catch { return "0"; }
             string uom = uomObj?.ToString().Trim().ToLower() ?? "";
 
-            // Normalise small units to larger canonical units
-            if (uom == "g" && d >= 1000)
-            { d = d / 1000m; uom = "kg"; }
-            else if (uom == "mg" && d >= 1000000)
-            { d = d / 1000000m; uom = "kg"; }
-            else if (uom == "mg" && d >= 1000)
-            { d = d / 1000m; uom = "g"; }
-            else if (uom == "ml" && d >= 1000)
-            { d = d / 1000m; uom = "l"; }
+            // Always normalise to canonical unit
+            if      (uom == "g")  { d = d / 1000m;    uom = "kg"; }
+            else if (uom == "mg") { d = d / 1000000m; uom = "kg"; }
+            else if (uom == "ml") { d = d / 1000m;    uom = "l";  }
 
-            return d.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + uom.ToUpper();
+            return d.ToString("0.###") + " " + uom.ToUpper();
         }
 
         protected string ShortfallClass(object val)
         {
-            decimal d;
-            if (val == null || !decimal.TryParse(val.ToString(), out d)) return "";
-            return d > 0 ? "shortfall" : d < 0 ? "surplus" : "";
+            if (val == null || val == DBNull.Value) return "";
+            try { decimal d = Convert.ToDecimal(val); return d > 0 ? "shortfall" : d < 0 ? "surplus" : ""; }
+            catch { return ""; }
         }
 
         protected string ShortfallDisplay(object val, object uomObj)
         {
+            if (val == null || val == DBNull.Value) return "—";
             decimal d;
-            if (val == null || !decimal.TryParse(val.ToString(), out d)) return "—";
+            try { d = Convert.ToDecimal(val); }
+            catch { return "—"; }
             if (d > 0) return FormatQtyWithUOM(d, uomObj) + " SHORT";
             if (d < 0) return FormatQtyWithUOM(Math.Abs(d), uomObj) + " surplus";
             return "OK";

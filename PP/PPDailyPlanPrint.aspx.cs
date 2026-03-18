@@ -182,10 +182,10 @@ namespace PPApp
         private string FormatQtyWithUOM(decimal val, string uom)
         {
             string u = (uom ?? "").Trim().ToLower();
-            if (u == "g"  && val >= 1000)    { val = val / 1000m;    u = "kg"; }
-            else if (u == "mg" && val >= 1000000) { val = val / 1000000m; u = "kg"; }
-            else if (u == "mg" && val >= 1000)    { val = val / 1000m;    u = "g";  }
-            else if (u == "ml" && val >= 1000)    { val = val / 1000m;    u = "l";  }
+            // Always normalise — no threshold check
+            if      (u == "g")  { val = val / 1000m;    u = "kg"; }
+            else if (u == "mg") { val = val / 1000000m; u = "kg"; }
+            else if (u == "ml") { val = val / 1000m;    u = "l";  }
             return val.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + u.ToUpper();
         }
 
