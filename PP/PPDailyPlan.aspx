@@ -167,7 +167,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
     </div>
 </div>
 
-<asp:Panel ID="pnlAlert" runat="server" Visible="false">
+<asp:Panel ID="pnlAlert" runat="server" Visible="false" style="margin:10px 20px 0;">
     <asp:Label ID="lblAlert" runat="server"/>
 </asp:Panel>
 
@@ -215,8 +215,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
                         <td>
                             <asp:LinkButton runat="server" CommandName="Delete"
                                 CommandArgument='<%# Eval("RowID") %>'
-                                CssClass="del-btn" CausesValidation="false"
-                                OnClientClick="return confirm('Remove this row?')">&#x2715;</asp:LinkButton>
+                                CssClass="del-btn" CausesValidation="false">&#x2715;</asp:LinkButton>
                         </td>
                     </tr>
                 </ItemTemplate>
@@ -274,8 +273,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
                         <td>
                             <asp:LinkButton runat="server" CommandName="Delete"
                                 CommandArgument='<%# Eval("RowID") %>'
-                                CssClass="del-btn" CausesValidation="false"
-                                OnClientClick="return confirm('Remove this row?')">&#x2715;</asp:LinkButton>
+                                CssClass="del-btn" CausesValidation="false">&#x2715;</asp:LinkButton>
                         </td>
                     </tr>
                 </ItemTemplate>

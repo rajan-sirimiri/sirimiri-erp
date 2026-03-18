@@ -184,20 +184,30 @@ namespace PPApp
         // ── DELETE ROW ───────────────────────────────────────────────────────
         protected void rptShift1_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            if (e.CommandName == "Delete")
-            {
-                PPDatabaseHelper.DeleteDailyPlanRow(Convert.ToInt32(e.CommandArgument));
-                RefreshAll(GetPlanId());
-            }
+            if (e.CommandName == "Delete") DeletePlanRow(e.CommandArgument);
         }
 
         protected void rptShift2_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            if (e.CommandName == "Delete")
+            if (e.CommandName == "Delete") DeletePlanRow(e.CommandArgument);
+        }
+
+        private void DeletePlanRow(object rowIdObj)
+        {
+            int rowId = Convert.ToInt32(rowIdObj);
+
+            // Block deletion if production order is Initiated or beyond
+            string orderStatus = PPDatabaseHelper.GetPlanRowOrderStatus(rowId);
+            if (orderStatus != null && orderStatus != "Pending")
             {
-                PPDatabaseHelper.DeleteDailyPlanRow(Convert.ToInt32(e.CommandArgument));
-                RefreshAll(GetPlanId());
+                RefreshAll(GetPlanId(), clearAlert: false);
+                ShowAlert("This product cannot be removed from the plan because its Production Order is currently <strong>" +
+                    orderStatus + "</strong>. To make changes, please go to the Production Order screen and cancel the order first.", false);
+                return;
             }
+
+            PPDatabaseHelper.DeleteDailyPlanRow(rowId);
+            RefreshAll(GetPlanId());
         }
 
         // ── CONFIRM / DRAFT ──────────────────────────────────────────────────
@@ -254,19 +264,30 @@ namespace PPApp
             return true;
         }
 
-        private void RefreshAll(int planId)
+        private void RefreshAll(int planId, bool clearAlert = true)
         {
             LoadProductDropdowns();
             BindShiftRepeaters(planId);
             BindRMStatus(planId);
-            pnlAlert.Visible = false;
+            if (clearAlert) pnlAlert.Visible = false;
         }
 
         private void ShowAlert(string msg, bool success)
         {
-            lblAlert.Text     = msg;
-            pnlAlert.CssClass = "alert " + (success ? "alert-success" : "alert-danger");
-            pnlAlert.Visible  = true;
+            string icon   = success ? "&#10003;" : "&#9888;";
+            string bg     = success ? "#d1f5e0" : "#fdf3f2";
+            string color  = success ? "#155724" : "#842029";
+            string border = success ? "#a3d9b1" : "#f5c2c7";
+
+            lblAlert.Text = string.Format(
+                "<div style='display:flex;align-items:flex-start;gap:10px;padding:12px 16px;" +
+                "border-radius:10px;font-size:13px;line-height:1.6;" +
+                "background:{0};color:{1};border:1px solid {2};'>" +
+                "<span style='font-size:16px;flex-shrink:0;margin-top:1px;'>{3}</span>" +
+                "<span>{4}</span></div>",
+                bg, color, border, icon, msg);
+
+            pnlAlert.Visible = true;
         }
 
         // Used in ASPX repeater binding

@@ -563,13 +563,22 @@ namespace PPApp.DAL
         }
 
         // Delete a row
+        // Returns the order status for a plan row, or null if no order exists
+        public static string GetPlanRowOrderStatus(int rowId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT Status FROM PP_ProductionOrder WHERE PlanRowID=?id LIMIT 1;",
+                new MySqlParameter("?id", rowId));
+            return row != null ? row["Status"].ToString() : null;
+        }
+
         public static void DeleteDailyPlanRow(int rowId)
         {
-            // Delete dependent production order first (if exists and still Pending)
+            // Delete dependent production order only if still Pending
             ExecuteNonQuery(
                 "DELETE FROM PP_ProductionOrder WHERE PlanRowID=?id AND Status='Pending';",
                 new MySqlParameter("?id", rowId));
-            // Now safe to delete the plan row
+            // Delete the plan row
             ExecuteNonQuery(
                 "DELETE FROM PP_DailyPlanRow WHERE RowID=?id;",
                 new MySqlParameter("?id", rowId));
