@@ -583,15 +583,39 @@ namespace PPApp.DAL
         {
             return ExecuteQuery(
                 "SELECT " +
-                "  r.RMCode, r.RMName, u.Abbreviation, " +
-                "  SUM(b.Quantity * pr.Batches) AS Required, " +
+                "  r.RMCode, r.RMName, urm.Abbreviation, " +
+                "  SUM(b.Quantity * pr.Batches * " +
+                "    CASE " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.000001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams') THEN 1000 " +
+                "      ELSE 1 " +
+                "    END) AS Required, " +
                 "  IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0) AS InStock, " +
-                "  (SUM(b.Quantity * pr.Batches)) - " +
-                "    (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
+                "  SUM(b.Quantity * pr.Batches * " +
+                "    CASE " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.000001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
+                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram') " +
+                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams') THEN 1000 " +
+                "      ELSE 1 " +
+                "    END) - (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
                 "FROM PP_DailyPlanRow pr " +
-                "JOIN PP_BOM b ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
+                "JOIN PP_BOM b     ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
+                "JOIN MM_UOM ubom  ON ubom.UOMID = b.UOMID " +
                 "JOIN MM_RawMaterials r ON r.RMID = b.MaterialID " +
-                "JOIN MM_UOM u ON u.UOMID = r.UOMID " +
+                "JOIN MM_UOM urm   ON urm.UOMID = r.UOMID " +
                 "LEFT JOIN MM_OpeningStock os " +
                 "  ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID " +
                 "LEFT JOIN ( " +
@@ -599,7 +623,7 @@ namespace PPApp.DAL
                 "  FROM MM_RawInward GROUP BY RMID " +
                 ") grn ON grn.RMID = r.RMID " +
                 "WHERE pr.PlanID = ?pid " +
-                "GROUP BY r.RMID, r.RMCode, r.RMName, u.Abbreviation, " +
+                "GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, " +
                 "         os.Quantity, grn.TotalGRN " +
                 "ORDER BY r.RMName;",
                 new MySqlParameter("?pid", planId));
