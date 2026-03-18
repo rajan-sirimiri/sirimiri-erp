@@ -277,6 +277,27 @@ namespace PPApp
             return d.ToString("N2").TrimEnd('0').TrimEnd('.');
         }
 
+        // Normalise quantity to a friendlier unit and return "value UOM"
+        // e.g. 5000 g -> "5 kg", 1500 ml -> "1.5 l", 500 kg -> "500 kg"
+        protected string FormatQtyWithUOM(object val, object uomObj)
+        {
+            decimal d;
+            if (val == null || !decimal.TryParse(val.ToString(), out d)) return "0";
+            string uom = uomObj?.ToString().Trim().ToLower() ?? "";
+
+            // Normalise small units to larger canonical units
+            if (uom == "g" && d >= 1000)
+            { d = d / 1000m; uom = "kg"; }
+            else if (uom == "mg" && d >= 1000000)
+            { d = d / 1000000m; uom = "kg"; }
+            else if (uom == "mg" && d >= 1000)
+            { d = d / 1000m; uom = "g"; }
+            else if (uom == "ml" && d >= 1000)
+            { d = d / 1000m; uom = "l"; }
+
+            return d.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + uom.ToUpper();
+        }
+
         protected string ShortfallClass(object val)
         {
             decimal d;
@@ -284,12 +305,12 @@ namespace PPApp
             return d > 0 ? "shortfall" : d < 0 ? "surplus" : "";
         }
 
-        protected string ShortfallDisplay(object val)
+        protected string ShortfallDisplay(object val, object uomObj)
         {
             decimal d;
             if (val == null || !decimal.TryParse(val.ToString(), out d)) return "—";
-            if (d > 0) return FormatDecimal(d) + " SHORT";
-            if (d < 0) return FormatDecimal(Math.Abs(d)) + " surplus";
+            if (d > 0) return FormatQtyWithUOM(d, uomObj) + " SHORT";
+            if (d < 0) return FormatQtyWithUOM(Math.Abs(d), uomObj) + " surplus";
             return "OK";
         }
     }

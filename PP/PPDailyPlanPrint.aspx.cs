@@ -92,7 +92,6 @@ namespace PPApp
             sb.Append("<tr>");
             sb.Append("<th>Product</th>");
             sb.Append("<th class='num'>Qty</th>");
-            sb.Append("<th class='num'>UOM</th>");
             sb.Append("<th class='num'>Expected Output</th>");
             sb.Append("</tr>");
 
@@ -139,7 +138,6 @@ namespace PPApp
             sb.Append("<table>");
             sb.Append("<tr>");
             sb.Append("<th>Raw Material</th>");
-            sb.Append("<th class='num'>UOM</th>");
             sb.Append("<th class='num'>Required</th>");
             sb.Append("<th class='num'>In Stock</th>");
             sb.Append("<th class='num'>Shortfall / Surplus</th>");
@@ -161,10 +159,15 @@ namespace PPApp
                 sb.AppendFormat("<td><div class='prod-name'>{0}</div><div class='prod-code'>{1}</div></td>",
                     Encode(r["RMName"].ToString()),
                     Encode(r["RMCode"].ToString()));
-                sb.AppendFormat("<td class='num'>{0}</td>", Encode(r["Abbreviation"].ToString()));
-                sb.AppendFormat("<td class='num'>{0}</td>", FormatDecimal(required));
-                sb.AppendFormat("<td class='num'>{0}</td>", FormatDecimal(inStock));
-                sb.AppendFormat("<td class='num {0}'>{1}</td>", sfClass, sfText);
+                string abbr = r["Abbreviation"].ToString();
+                sb.AppendFormat("<td class='num'>{0}</td>", FormatQtyWithUOM(required, abbr));
+                sb.AppendFormat("<td class='num'>{0}</td>", FormatQtyWithUOM(inStock, abbr));
+                string sfFormatted = shortfall > 0
+                    ? FormatQtyWithUOM(shortfall, abbr) + " SHORT"
+                    : shortfall < 0
+                        ? FormatQtyWithUOM(Math.Abs(shortfall), abbr) + " surplus"
+                        : "OK";
+                sb.AppendFormat("<td class='num {0}'>{1}</td>", sfClass, sfFormatted);
                 sb.Append("</tr>");
             }
             sb.Append("</table>");
@@ -174,6 +177,16 @@ namespace PPApp
         private string FormatDecimal(decimal val)
         {
             return val.ToString("N2").TrimEnd('0').TrimEnd('.');
+        }
+
+        private string FormatQtyWithUOM(decimal val, string uom)
+        {
+            string u = (uom ?? "").Trim().ToLower();
+            if (u == "g"  && val >= 1000)    { val = val / 1000m;    u = "kg"; }
+            else if (u == "mg" && val >= 1000000) { val = val / 1000000m; u = "kg"; }
+            else if (u == "mg" && val >= 1000)    { val = val / 1000m;    u = "g";  }
+            else if (u == "ml" && val >= 1000)    { val = val / 1000m;    u = "l";  }
+            return val.ToString("N3").TrimEnd('0').TrimEnd('.') + " " + u.ToUpper();
         }
 
         private string Encode(string s)

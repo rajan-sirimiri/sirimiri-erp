@@ -308,7 +308,6 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
                     <table class="rm-table">
                     <tr>
                         <th>Raw Material</th>
-                        <th>UOM</th>
                         <th>Required</th>
                         <th>In Stock</th>
                         <th>Shortfall / Surplus</th>
@@ -320,11 +319,10 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
                             <div class="rm-name"><%# Eval("RMName") %></div>
                             <div class="rm-code"><%# Eval("RMCode") %></div>
                         </td>
-                        <td><span class="rm-uom"><%# Eval("Abbreviation") %></span></td>
-                        <td><%# FormatDecimal(Eval("Required")) %></td>
-                        <td><%# FormatDecimal(Eval("InStock")) %></td>
+                        <td><%# FormatQtyWithUOM(Eval("Required"), Eval("Abbreviation")) %></td>
+                        <td><%# FormatQtyWithUOM(Eval("InStock"),  Eval("Abbreviation")) %></td>
                         <td class='<%# ShortfallClass(Eval("Shortfall")) %>'>
-                            <%# ShortfallDisplay(Eval("Shortfall")) %>
+                            <%# ShortfallDisplay(Eval("Shortfall"), Eval("Abbreviation")) %>
                         </td>
                     </tr>
                 </ItemTemplate>
