@@ -217,9 +217,13 @@ namespace PPApp
         // ── START BATCH ───────────────────────────────────────────────────────
         protected void btnStart_Click(object sender, EventArgs e)
         {
-            int orderId    = Convert.ToInt32(hfOrderID.Value);
-            int batchNo    = Convert.ToInt32(hfCurrentBatch.Value);
-            int totalBatches = Convert.ToInt32(hfTotalBatches.Value);
+            // Read from Request.Form — hidden fields may be reset by Page_Load before handler runs
+            int orderId      = ReadIntFromForm(hfOrderID);
+            int batchNo      = ReadIntFromForm(hfCurrentBatch);
+            int totalBatches = ReadIntFromForm(hfTotalBatches);
+
+            if (orderId == 0) { ShowAlert("No product loaded. Please select and Load a product first.", false); return; }
+            if (batchNo  == 0) batchNo = 1;
 
             // Guard: no batch already in progress
             if (PPDatabaseHelper.GetActiveBatch(orderId) != null)
@@ -227,25 +231,18 @@ namespace PPApp
 
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
+            hfOrderID.Value     = orderId.ToString();
 
             pnlOutput.Visible = false;
             ClientScript.RegisterStartupScript(GetType(), "startWheel",
                 "window.batchRunning=true; window.batchNum='" + batchNo +
                 "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
-            // Page_Load will call LoadOrder on next postback via hfOrderID
         }
 
         // ── END BATCH ─────────────────────────────────────────────────────────
         protected void btnEnd_Click(object sender, EventArgs e)
         {
-            // Read orderId from Request.Form directly — hidden field may have been reset by Page_Load
-            int orderId = Convert.ToInt32(hfOrderID.Value);
-            if (orderId == 0)
-            {
-                // Try reading from form directly
-                string raw = Request.Form[hfOrderID.UniqueID];
-                orderId = string.IsNullOrEmpty(raw) ? 0 : Convert.ToInt32(raw);
-            }
+            int orderId = ReadIntFromForm(hfOrderID);
             if (orderId == 0) { ShowAlert("Please load a product first.", false); return; }
 
             // Always look up active batch from DB — don't rely on hidden field
@@ -291,6 +288,18 @@ namespace PPApp
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────────
+
+        // Read integer from hidden field — falls back to raw form post value
+        // Needed because Page_Load runs before button handlers and can reset fields
+        private int ReadIntFromForm(HiddenField field)
+        {
+            // Try the field value first (set by Page_Load)
+            int val = Convert.ToInt32(field.Value);
+            if (val > 0) return val;
+            // Fall back to raw posted form value
+            string raw = Request.Form[field.UniqueID];
+            return string.IsNullOrEmpty(raw) ? 0 : Convert.ToInt32(raw);
+        }
         private void ReloadHistory(int orderId)
         {
             var history = PPDatabaseHelper.GetBatchHistory(orderId);
