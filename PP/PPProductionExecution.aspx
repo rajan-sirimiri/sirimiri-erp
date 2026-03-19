@@ -439,68 +439,58 @@ function updateGearText() {
     }
 }
 
-// Called by server RegisterStartupScript
+// Called by server RegisterStartupScript — runs during page parse, DOM not ready yet
+// Just set flags; DOMContentLoaded handler will apply them
 function startWheel() {
-    window.batchRunning = true;
-    targetSpeed = 0.9;
-    var svg = document.getElementById('gearSvg');
-    if (svg) svg.classList.add('spinning');
-    var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    updateGearText();
+    window.batchRunning  = true;
+    window.serverState   = 'running';
 }
 
 function stopWheel(readyForNext) {
-    targetSpeed = 0;
-    document.getElementById('gearSvg').classList.remove('spinning');
+    window.batchRunning  = false;
+    window.serverState   = readyForNext ? 'ready' : 'ended';
+}
+
+function applyServerState() {
+    var svg = document.getElementById('gearSvg');
     var lbl = document.getElementById('gearStatusLabel');
     var out = document.getElementById('<%= pnlOutput.ClientID %>');
-    if (readyForNext) {
-        if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
+    var state = window.serverState || 'ready';
+
+    if (state === 'running') {
+        targetSpeed = 0.9;
+        if (svg) svg.classList.add('spinning');
+        if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
         if (out) out.style.display = 'none';
-    } else {
+    } else if (state === 'ended') {
+        targetSpeed = 0;
+        if (svg) svg.classList.remove('spinning');
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
         if (out) out.style.display = 'block';
+    } else {
+        targetSpeed = 0;
+        if (svg) svg.classList.remove('spinning');
+        if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'none';
     }
     updateGearText();
 }
 
-// OnClientClick handlers — just visual, postback handles logic
+// OnClientClick handlers — immediate visual feedback before postback
 function startWheelAnim() {
-    window.batchRunning = true;
-    targetSpeed = 0.9;
-    var svg = document.getElementById('gearSvg');
-    if (svg) svg.classList.add('spinning');
-    var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    updateGearText();
+    window.serverState = 'running';
+    applyServerState();
     return true;
 }
 function stopWheelAnim() {
-    window.batchRunning = false;
-    targetSpeed = 0;
-    var svg = document.getElementById('gearSvg');
-    if (svg) svg.classList.remove('spinning');
-    var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-    var out = document.getElementById('<%= pnlOutput.ClientID %>');
-    if (out) out.style.display = 'block';
+    window.serverState = 'ended';
+    applyServerState();
     return true;
 }
 
-// Start animation loop immediately — before load event
-animateGear();
-
-window.addEventListener('load', function() {
-    updateGearText();
-    // Apply server state after DOM is ready
-    if (window.batchRunning) {
-        targetSpeed = 0.9;
-        var svg = document.getElementById('gearSvg');
-        if (svg) svg.classList.add('spinning');
-        var lbl = document.getElementById('gearStatusLabel');
-        if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    animateGear();
+    applyServerState();
 });
 </script>
 </body>
