@@ -136,14 +136,11 @@ namespace PPApp
 
         private void LoadOrder(int orderId, int shift)
         {
-            // Get order details from product dropdown data
-            var orders = PPDatabaseHelper.GetInitiatedOrdersForShift(shift, PPDatabaseHelper.TodayIST());
-            DataRow order = null;
-            foreach (DataRow r in orders.Rows)
-                if (Convert.ToInt32(r["OrderID"]) == orderId) { order = r; break; }
+            // Direct DB lookup — works regardless of order status or shift
+            DataRow order = PPDatabaseHelper.GetProductionOrderById(orderId);
 
             if (order == null)
-            { ShowAlert("Order not found or already completed.", false); return; }
+            { ShowAlert("Order not found.", false); return; }
 
             int    totalBatches = Convert.ToInt32(Convert.ToDecimal(order["EffectiveBatches"]));
             string status       = order["Status"].ToString();
@@ -241,13 +238,20 @@ namespace PPApp
         // ── END BATCH ─────────────────────────────────────────────────────────
         protected void btnEnd_Click(object sender, EventArgs e)
         {
+            // Read orderId from Request.Form directly — hidden field may have been reset by Page_Load
             int orderId = Convert.ToInt32(hfOrderID.Value);
+            if (orderId == 0)
+            {
+                // Try reading from form directly
+                string raw = Request.Form[hfOrderID.UniqueID];
+                orderId = string.IsNullOrEmpty(raw) ? 0 : Convert.ToInt32(raw);
+            }
             if (orderId == 0) { ShowAlert("Please load a product first.", false); return; }
 
             // Always look up active batch from DB — don't rely on hidden field
             DataRow activeBatch = PPDatabaseHelper.GetActiveBatch(orderId);
             if (activeBatch == null)
-            { ShowAlert("No batch is currently running for this product.", false); return; }
+            { ShowAlert("No batch found for OrderID " + orderId + ". Please press START first.", false); return; }
 
             int execId = Convert.ToInt32(activeBatch["ExecutionID"]);
             hfExecutionID.Value = execId.ToString();

@@ -423,10 +423,16 @@ namespace PPApp.DAL
         public static DataRow GetProductionOrderById(int orderId)
         {
             return ExecuteQueryRow(
-                "SELECT po.*, pr.ProductName, pr.ProductCode FROM PP_ProductionOrder po " +
-                "JOIN PP_Products pr ON pr.ProductID=po.ProductID " +
-                "WHERE po.OrderID=?id;",
-                new MySqlParameter("?id", orderId));
+                "SELECT o.OrderID, o.ProductID, o.Shift, o.Status, " +
+                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
+                "p.ProductName, p.ProductCode, p.BatchSize, " +
+                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr " +
+                "FROM PP_ProductionOrder o " +
+                "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
+                "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
+                "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
+                "WHERE o.OrderID = ?oid;",
+                new MySqlParameter("?oid", orderId));
         }
 
         public static string GenerateOrderNo()
