@@ -840,6 +840,15 @@ namespace PPApp.DAL
         // Start a new batch
         public static int StartBatch(int orderId, int batchNo, int userId)
         {
+            // Check for duplicate before inserting — unique key (OrderID, BatchNo)
+            var existing = ExecuteQueryRow(
+                "SELECT ExecutionID FROM PP_BatchExecution " +
+                "WHERE OrderID=?oid AND BatchNo=?bno;",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?bno", batchNo));
+            if (existing != null)
+                return Convert.ToInt32(existing["ExecutionID"]); // already started
+
             ExecuteNonQuery(
                 "INSERT INTO PP_BatchExecution " +
                 "(OrderID, BatchNo, StartTime, Status, CreatedBy) " +
