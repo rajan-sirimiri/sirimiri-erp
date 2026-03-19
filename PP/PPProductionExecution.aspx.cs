@@ -103,7 +103,10 @@ namespace PPApp
             { ShowAlert("Please select a product.", false); return; }
 
             int orderId = Convert.ToInt32(selectedVal);
-            hfOrderID.Value = orderId.ToString(); // persist for subsequent postbacks
+            hfOrderID.Value = orderId.ToString();
+            Session["PP_ExecOrderID"]   = orderId;
+            Session["PP_ExecShift"]     = shift;
+            Session["PP_ExecTotalBats"] = 0; // will be set by LoadOrder
             LoadOrder(orderId, shift);
         }
 
@@ -151,10 +154,12 @@ namespace PPApp
                                      status == "InProgress" ? "status-inprogress" : "status-initiated";
             lblInfoDate.Text      = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
 
-            // Store state
+            // Store state in both hidden fields AND session
             hfOrderID.Value      = orderId.ToString();
             hfTotalBatches.Value = totalBatches.ToString();
             lblOutputUnit.Text   = outAbbr;
+            Session["PP_ExecOrderID"]   = orderId;
+            Session["PP_ExecTotalBats"] = totalBatches;
 
             // Count completed batches
             var history = PPDatabaseHelper.GetBatchHistory(orderId);
@@ -232,7 +237,12 @@ namespace PPApp
             int batchNo      = ReadIntFromForm(hfCurrentBatch);
             int totalBatches = ReadIntFromForm(hfTotalBatches);
 
-            if (orderId == 0) { ShowAlert("No product loaded. Please select and Load a product first.", false); return; }
+            if (orderId == 0) { 
+                ShowAlert("START pressed — orderId=0. hfOrderID.Value=" + hfOrderID.Value + 
+                    " Form=" + Request.Form[hfOrderID.UniqueID] + 
+                    " Session=" + Session["PP_ExecOrderID"], false); 
+                return; 
+            }
             if (batchNo  == 0) batchNo = 1;
 
             // Guard: no batch already in progress
@@ -337,12 +347,19 @@ namespace PPApp
         // Needed because Page_Load runs before button handlers and can reset fields
         private int ReadIntFromForm(HiddenField field)
         {
-            // Try the field value first (set by Page_Load)
+            // 1. Try hidden field value (from ViewState)
             int val = Convert.ToInt32(field.Value);
             if (val > 0) return val;
-            // Fall back to raw posted form value
+            // 2. Try raw posted form value
             string raw = Request.Form[field.UniqueID];
-            return string.IsNullOrEmpty(raw) ? 0 : Convert.ToInt32(raw);
+            if (!string.IsNullOrEmpty(raw) && raw != "0")
+                return Convert.ToInt32(raw);
+            // 3. Session fallback for critical fields
+            if (field.ID == "hfOrderID" && Session["PP_ExecOrderID"] != null)
+                return Convert.ToInt32(Session["PP_ExecOrderID"]);
+            if (field.ID == "hfTotalBatches" && Session["PP_ExecTotalBats"] != null)
+                return Convert.ToInt32(Session["PP_ExecTotalBats"]);
+            return 0;
         }
         private void ReloadHistory(int orderId)
         {
