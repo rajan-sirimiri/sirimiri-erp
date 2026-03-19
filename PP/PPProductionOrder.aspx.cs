@@ -72,6 +72,22 @@ namespace PPApp
             lblPlanStatus.CssClass = status == "Confirmed"
                 ? "status-badge confirmed" : "status-badge draft";
 
+            // Block production orders until plan is confirmed
+            if (status != "Confirmed")
+            {
+                pnlNoplan.Visible = true;
+                pnlNoplan.Controls.Clear();
+                pnlNoplan.Controls.Add(new System.Web.UI.LiteralControl(
+                    "<div class='no-plan-warn'>" +
+                    "&#9888;&nbsp; The production plan for today is currently in <strong>Draft</strong> status. " +
+                    "Production orders can only be created after the plan is <strong>Confirmed</strong>. " +
+                    "Please go to <a href='PPDailyPlan.aspx'>Production Planning</a> and confirm the plan first." +
+                    "</div>"));
+                return;
+            }
+
+            pnlNoplan.Visible = false;
+
             // Load orders for both shifts
             BindShiftOrders(planId, today);
 
