@@ -142,6 +142,7 @@
             <span class="nav-item">Transactions <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
                 <a href="PPProductionOrder.aspx">Production Order</a>
+                <a href="PPProductionExecution.aspx">Production Execution</a>
             </div>
         </div>
         <div class="nav-group">
@@ -191,6 +192,14 @@
                 <div>
                     <div class="menu-title">Production<br/>Order</div>
                     <div class="menu-desc">Raise and track production orders, batch quantities and target dates</div>
+                </div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a href="PPProductionExecution.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x2699;&#xFE0F;</div>
+                <div>
+                    <div class="menu-title">Production<br/>Execution</div>
+                    <div class="menu-desc">Execute and track each batch in real time — record actual output and completion</div>
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
