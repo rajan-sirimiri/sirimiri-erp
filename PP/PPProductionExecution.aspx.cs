@@ -26,6 +26,7 @@ namespace PPApp
         protected Panel          pnlInfo;
         protected Label          lblInfoProduct;
         protected Label          lblInfoCode;
+        protected Label          lblInfoBatches;
         protected Label          lblInfoOutput;
         protected Label          lblInfoStatus;
         protected Label          lblInfoDate;
@@ -148,6 +149,7 @@ namespace PPApp
             lblInfoCode.Text      = order["ProductCode"].ToString();
             decimal batchSize     = Convert.ToDecimal(order["BatchSize"]);
             string outAbbr        = order["OutputAbbr"].ToString();
+            if (lblInfoBatches != null) lblInfoBatches.Text = totalBatches.ToString();
             lblInfoOutput.Text    = batchSize.ToString("0.###") + " " + outAbbr + " per batch";
             lblInfoStatus.Text    = status;
             lblInfoStatus.CssClass = status == "Completed" ? "status-completed" :
@@ -237,12 +239,7 @@ namespace PPApp
             int batchNo      = ReadIntFromForm(hfCurrentBatch);
             int totalBatches = ReadIntFromForm(hfTotalBatches);
 
-            if (orderId == 0) { 
-                ShowAlert("START pressed — orderId=0. hfOrderID.Value=" + hfOrderID.Value + 
-                    " Form=" + Request.Form[hfOrderID.UniqueID] + 
-                    " Session=" + Session["PP_ExecOrderID"], false); 
-                return; 
-            }
+            if (orderId == 0) { ShowAlert("No product loaded. Please select and Load a product first.", false); return; }
             if (batchNo  == 0) batchNo = 1;
 
             // Guard: no batch already in progress
