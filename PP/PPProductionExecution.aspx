@@ -106,12 +106,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .btn-label{font-size:10px;letter-spacing:.06em;}
 
 /* GEAR WHEEL */
-.gear-wrap{position:relative;width:200px;height:200px;flex-shrink:0;}
-#gearSvg{width:200px;height:200px;transition:filter .3s;}
+.gear-wrap{position:relative;width:260px;height:260px;flex-shrink:0;}
+#gearSvg{width:260px;height:260px;transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 12px rgba(69,90,100,.5));}
 .gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     text-align:center;pointer-events:none;}
-.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:28px;
+.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:34px;
     letter-spacing:.04em;color:#fff;line-height:1;}
 .gear-batch-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.06em;
     text-transform:uppercase;margin-top:2px;}
@@ -267,19 +267,20 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <div class="gear-wrap">
                     <svg id="gearSvg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                         <defs>
-                            <radialGradient id="gearGrad" cx="40%" cy="35%">
-                                <stop offset="0%" stop-color="#78909c"/>
-                                <stop offset="100%" stop-color="#263238"/>
+                            <radialGradient id="gearGrad" cx="35%" cy="30%">
+                                <stop offset="0%" stop-color="#b08d57"/>
+                                <stop offset="50%" stop-color="#8b6914"/>
+                                <stop offset="100%" stop-color="#4a3500"/>
                             </radialGradient>
-                            <radialGradient id="centerGrad" cx="40%" cy="35%">
-                                <stop offset="0%" stop-color="#37474f"/>
-                                <stop offset="100%" stop-color="#1a2327"/>
+                            <radialGradient id="centerGrad" cx="35%" cy="30%">
+                                <stop offset="0%" stop-color="#5c4200"/>
+                                <stop offset="100%" stop-color="#2a1d00"/>
                             </radialGradient>
                         </defs>
                         <!-- Gear teeth group — rotates -->
                         <g id="gearGroup" transform="translate(100,100)">
                             <!-- Gear teeth (12 teeth) -->
-                            <g fill="url(#gearGrad)" stroke="#1a2327" stroke-width="0.5">
+                            <g fill="url(#gearGrad)" stroke="#2a1d00" stroke-width="0.5">
                                 <rect x="-8" y="-98" width="16" height="20" rx="3"/>
                                 <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(30)"/>
                                 <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(60)"/>
@@ -294,19 +295,19 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(330)"/>
                             </g>
                             <!-- Main gear body -->
-                            <circle r="82" fill="url(#gearGrad)" stroke="#1a2327" stroke-width="1"/>
+                            <circle r="82" fill="url(#gearGrad)" stroke="#2a1d00" stroke-width="1"/>
                             <!-- Inner ring -->
-                            <circle r="68" fill="none" stroke="#78909c" stroke-width="2" opacity="0.4"/>
+                            <circle r="68" fill="none" stroke="#d4a843" stroke-width="1.5" opacity="0.35"/>
                             <!-- Spokes -->
-                            <g stroke="#546e7a" stroke-width="3" opacity="0.5">
+                            <g stroke="#c9952a" stroke-width="3" opacity="0.4">
                                 <line x1="0" y1="-60" x2="0" y2="60"/>
                                 <line x1="-60" y1="0" x2="60" y2="0"/>
                                 <line x1="-42" y1="-42" x2="42" y2="42"/>
                                 <line x1="42" y1="-42" x2="-42" y2="42"/>
                             </g>
                             <!-- Center hub -->
-                            <circle r="38" fill="url(#centerGrad)" stroke="#546e7a" stroke-width="1.5"/>
-                            <circle r="6" fill="#78909c"/>
+                            <circle r="38" fill="url(#centerGrad)" stroke="#b08d57" stroke-width="1.5"/>
+                            <circle r="6" fill="#d4a843"/>
                         </g>
                     </svg>
                     <!-- Text overlay on gear -->
@@ -428,8 +429,8 @@ function updateGearText() {
     var subEl = document.getElementById('gearBatchSub');
     if (!numEl || !subEl) return;
     if (totalBat && totalBat !== '0') {
-        numEl.innerText = 'BATCH ' + batchNum;
-        subEl.innerText = batchNum + ' OF ' + totalBat;
+        numEl.innerText = 'B' + window.batchNum;
+        subEl.innerText = window.batchNum + ' OF ' + window.totalBat;
     } else {
         numEl.innerText = '—';
         subEl.innerText = 'READY';
@@ -454,7 +455,7 @@ function startWheel() {
     var svg      = document.getElementById('gearSvg');
 
     // Start spinning immediately on click (before postback)
-    targetSpeed = 1.2;
+    targetSpeed = 0.9;
     window.batchRunning = true;
 
     if (startBtn) startBtn.disabled = true;
@@ -493,7 +494,7 @@ window.addEventListener('load', function() {
 
     if (window.batchRunning) {
         // Server says batch is in progress — spin
-        targetSpeed = 1.2;
+        targetSpeed = 0.9;
         if (startBtn) startBtn.disabled = true;
         if (endBtn)   endBtn.disabled   = false;
         if (label)  { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }

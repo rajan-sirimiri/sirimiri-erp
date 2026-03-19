@@ -64,6 +64,7 @@ namespace PPApp
                 pnlInfo.Visible      = false;
                 pnlExecution.Visible = false;
                 pnlNoOrder.Visible   = false;
+                LoadProductDropdown(1);  // Pre-load Shift 1 products on first visit
             }
         }
 
