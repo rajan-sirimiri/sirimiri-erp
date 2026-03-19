@@ -80,13 +80,13 @@ namespace PPApp
                     var item = ddlProduct.Items.FindByValue(selectedOrderId);
                     if (item != null) item.Selected = true;
                 }
-
-                // Restore order panel if an order was previously loaded
-                int orderId = Convert.ToInt32(hfOrderID.Value);
+                // Restore panel visibility from hidden fields without touching output state
+                int orderId = ReadIntFromForm(hfOrderID);
                 if (orderId > 0)
                 {
-                    LoadOrder(orderId, shift);
-                    // Output panel visibility is controlled by btnEnd_Click via _showOutputPanel
+                    pnlInfo.Visible = true;
+                    pnlExecution.Style["display"] = "block";
+                    pnlNoOrder.Visible = false;
                 }
             }
         }
@@ -240,17 +240,14 @@ namespace PPApp
             { ShowAlert("A batch is already in progress.", false); return; }
 
             // Show exactly what we're passing to StartBatch
-            ShowAlert("DEBUG: orderId=" + orderId + " batchNo=" + batchNo + 
-                      " UserID=" + UserID + " totalBatches=" + totalBatches, true);
-
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
             hfOrderID.Value     = orderId.ToString();
 
-            ShowAlert("DEBUG: StartBatch returned execId=" + execId, true);
-
             pnlOutput.Style["display"] = "none";
-            ClientScript.RegisterStartupScript(GetType(), "startWheel",
+            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
+            // Override wheel script set by LoadOrder — batch just started
+            ClientScript.RegisterStartupScript(GetType(), "wheelState",
                 "window.batchRunning=true; window.batchNum='" + batchNo +
                 "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
         }
