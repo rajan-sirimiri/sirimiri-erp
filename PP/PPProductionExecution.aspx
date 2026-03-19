@@ -1,4 +1,4 @@
-<%@ Page Language="C#" AutoEventWireup="true" Inherits="PPApp.PPProductionExecution" %>
+<%@ Page Language="C#" AutoEventWireup="true" Inherits="PPApp.PPProductionExecution" EnableEventValidation="false" %>
 <!DOCTYPE html>
 <html lang="en">
 <head runat="server">
@@ -322,7 +322,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
                     OnClientClick="stopWheel(); return true;"
-                    Text="&#9646;&#9646;&#xA;END" Enabled="false"/>
+                    Text="&#9646;&#9646;&#xA;END"/>
 
             </div>
 
