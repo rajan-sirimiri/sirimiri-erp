@@ -39,7 +39,7 @@ namespace PPApp
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
             lblNavUser.Text = FullName;
-            lblTodayDate.Text = DateTime.Today.ToString("dddd, dd MMM yyyy").ToUpper();
+            lblTodayDate.Text = PPDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper();
 
             if (!IsPostBack)
             {
@@ -50,7 +50,7 @@ namespace PPApp
 
         private void LoadPage()
         {
-            DateTime today = DateTime.Today;
+            DateTime today = PPDatabaseHelper.TodayIST();
 
             // Check if plan exists for today
             DataRow plan = PPDatabaseHelper.GetDailyPlan(today);
@@ -115,13 +115,13 @@ namespace PPApp
         protected void btnShift1_Click(object sender, EventArgs e)
         {
             SetActiveTab(1);
-            BindProgress(DateTime.Today);
+            BindProgress(PPDatabaseHelper.TodayIST());
         }
 
         protected void btnShift2_Click(object sender, EventArgs e)
         {
             SetActiveTab(2);
-            BindProgress(DateTime.Today);
+            BindProgress(PPDatabaseHelper.TodayIST());
         }
 
         // ── INITIATE ORDER ───────────────────────────────────────────────────

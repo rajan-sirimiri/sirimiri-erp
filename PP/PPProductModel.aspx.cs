@@ -202,7 +202,7 @@ namespace PPApp
                 string uploadDir = Server.MapPath("~/ProductImages/");
                 if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
                 string ext      = Path.GetExtension(fileImage.FileName);
-                string fileName = "prod_" + DateTime.Now.Ticks + ext;
+                string fileName = "prod_" + PPDatabaseHelper.NowIST().Ticks + ext;
                 fileImage.SaveAs(Path.Combine(uploadDir, fileName));
                 imagePath = "ProductImages/" + fileName;
             }

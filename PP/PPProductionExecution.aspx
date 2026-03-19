@@ -1,0 +1,500 @@
+<%@ Page Language="C#" AutoEventWireup="true" Inherits="PPApp.PPProductionExecution" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sirimiri PP — Production Execution</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+    --accent:#2ecc71; --accent-dark:#27ae60; --accent-light:#eafaf1;
+    --blue:#2980b9;   --blue-light:#eaf4fb;
+    --red:#e74c3c;    --red-light:#fdf3f2;
+    --orange:#e67e22; --orange-light:#fef5ec;
+    --gear:#455a64;   --gear-dark:#263238;   --gear-shine:#78909c;
+    --text:#1a1a1a;   --text-muted:#666;     --text-dim:#999;
+    --bg:#f0f0f0;     --surface:#fff;        --border:#e0e0e0;
+    --radius:14px;    --nav-h:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* NAV */
+nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;padding:0 20px;gap:12px;}
+.nav-logo{background:#fff;border-radius:6px;padding:3px 8px;display:flex;align-items:center;}
+.nav-logo img{height:26px;object-fit:contain;}
+.nav-title{color:#fff;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.08em;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.nav-user{color:rgba(255,255,255,.8);font-size:12px;}
+.nav-link{color:#fff;font-size:12px;font-weight:600;text-decoration:none;opacity:.8;}
+.nav-link:hover{opacity:1;}
+
+/* DATE BAR */
+.date-bar{background:var(--surface);border-bottom:2px solid #1a1a1a;
+    padding:10px 20px;font-family:'Bebas Neue',sans-serif;
+    font-size:16px;letter-spacing:.06em;color:var(--text-muted);}
+
+/* ALERT */
+.alert-wrap{padding:0 20px;margin-top:10px;}
+
+/* SELECTION BAR */
+.select-bar{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.select-bar label{font-size:12px;font-weight:700;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--text-muted);}
+.select-bar select{border:1.5px solid var(--border);border-radius:8px;
+    padding:8px 12px;font-size:13px;font-family:inherit;background:#fff;min-width:200px;}
+.select-bar select:focus{outline:none;border-color:var(--accent);}
+.btn-load{background:#1a1a1a;color:#fff;border:none;border-radius:8px;
+    padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
+.btn-load:hover{background:#333;}
+
+/* PAGE BODY */
+.page-body{max-width:900px;margin:0 auto;padding:24px 20px 60px;}
+
+/* INFO PANEL */
+.info-panel{background:var(--surface);border-radius:var(--radius);
+    box-shadow:0 2px 12px rgba(0,0,0,.07);padding:20px 24px;
+    margin-bottom:40px;display:grid;
+    grid-template-columns:1fr auto;gap:16px;align-items:center;}
+.info-left{}
+.info-product{font-family:'Bebas Neue',sans-serif;font-size:26px;
+    letter-spacing:.06em;color:var(--text);}
+.info-code{font-size:11px;color:var(--text-dim);margin-bottom:12px;}
+.info-stats{display:flex;gap:24px;flex-wrap:wrap;}
+.info-stat{font-size:12px;}
+.info-stat-val{font-weight:700;font-size:14px;color:var(--text);}
+.info-stat-lbl{color:var(--text-muted);}
+.info-right{text-align:right;}
+.info-batches{font-family:'Bebas Neue',sans-serif;font-size:48px;
+    letter-spacing:.04em;line-height:1;color:var(--accent-dark);}
+.info-batches-lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.info-completed{font-size:12px;color:var(--text-muted);margin-top:4px;}
+.status-initiated{background:var(--orange-light);color:var(--orange);
+    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+.status-inprogress{background:var(--blue-light);color:var(--blue);
+    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+.status-completed{background:var(--accent-light);color:var(--accent-dark);
+    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+
+/* EXECUTION PANEL */
+.exec-panel{background:var(--surface);border-radius:var(--radius);
+    box-shadow:0 2px 16px rgba(0,0,0,.08);padding:32px 24px;margin-bottom:32px;}
+.exec-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;
+    color:var(--text);margin-bottom:32px;text-align:center;}
+
+/* GEAR AREA */
+.gear-area{display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:40px;}
+
+/* START / END BUTTONS */
+.btn-start{background:var(--accent);color:#fff;border:none;border-radius:50%;
+    width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
+    letter-spacing:.04em;box-shadow:0 4px 16px rgba(46,204,113,.4);
+    transition:all .2s;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:4px;}
+.btn-start:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(46,204,113,.5);}
+.btn-start:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
+.btn-end{background:var(--red);color:#fff;border:none;border-radius:50%;
+    width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
+    letter-spacing:.04em;box-shadow:0 4px 16px rgba(231,76,60,.4);
+    transition:all .2s;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:4px;}
+.btn-end:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(231,76,60,.5);}
+.btn-end:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
+.btn-icon{font-size:22px;line-height:1;}
+.btn-label{font-size:10px;letter-spacing:.06em;}
+
+/* GEAR WHEEL */
+.gear-wrap{position:relative;width:200px;height:200px;flex-shrink:0;}
+#gearSvg{width:200px;height:200px;transition:filter .3s;}
+#gearSvg.spinning{filter:drop-shadow(0 0 12px rgba(69,90,100,.5));}
+.gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    text-align:center;pointer-events:none;}
+.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:28px;
+    letter-spacing:.04em;color:#fff;line-height:1;}
+.gear-batch-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.06em;
+    text-transform:uppercase;margin-top:2px;}
+.gear-status-label{font-size:11px;font-weight:700;text-align:center;
+    margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--text-muted);}
+.gear-status-label.running{color:var(--accent-dark);}
+.gear-status-label.stopped{color:var(--text-dim);}
+
+/* OUTPUT PANEL */
+.output-panel{background:#f8fffe;border:2px solid var(--accent);border-radius:var(--radius);
+    padding:20px 24px;margin-top:8px;}
+.output-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.06em;
+    color:var(--accent-dark);margin-bottom:16px;}
+.output-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group label{font-size:11px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;}
+.form-group input, .form-group textarea{width:100%;border:1.5px solid var(--border);
+    border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;background:#fff;}
+.form-group input:focus, .form-group textarea:focus{outline:none;border-color:var(--accent);}
+.output-unit{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.btn-save-output{background:var(--accent-dark);color:#fff;border:none;border-radius:8px;
+    padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;
+    letter-spacing:.04em;}
+.btn-save-output:hover{background:var(--accent);}
+
+/* BATCH HISTORY */
+.history-section{background:var(--surface);border-radius:var(--radius);
+    box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;}
+.history-head{padding:14px 20px;border-bottom:2px solid var(--border);
+    display:flex;align-items:center;gap:10px;}
+.history-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;}
+.history-table{width:100%;border-collapse:collapse;font-size:13px;}
+.history-table th{font-size:10px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--text-dim);padding:10px 16px;
+    border-bottom:1px solid var(--border);text-align:left;}
+.history-table td{padding:10px 16px;border-bottom:1px solid var(--border);}
+.history-table tr:last-child td{border-bottom:none;}
+.batch-no{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text-dim);}
+.badge-done{background:var(--accent-light);color:var(--accent-dark);
+    font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.badge-running{background:var(--orange-light);color:var(--orange);
+    font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.empty-history{text-align:center;padding:32px;color:var(--text-dim);font-size:13px;}
+.no-order-msg{text-align:center;padding:40px;color:var(--text-dim);font-size:13px;}
+.no-order-icon{font-size:40px;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<form id="form1" runat="server">
+
+<asp:HiddenField ID="hfOrderID"      runat="server" Value="0"/>
+<asp:HiddenField ID="hfExecutionID"  runat="server" Value="0"/>
+<asp:HiddenField ID="hfTotalBatches" runat="server" Value="0"/>
+<asp:HiddenField ID="hfCurrentBatch" runat="server" Value="1"/>
+
+<nav>
+    <a href="PPHome.aspx" class="nav-logo">
+        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+    </a>
+    <span class="nav-title">Production Execution</span>
+    <div class="nav-right">
+        <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
+        <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
+        <a href="PPLogout.aspx" class="nav-link" onclick="return confirm('Sign out?')">Sign Out</a>
+    </div>
+</nav>
+
+<div class="date-bar">
+    <asp:Label ID="lblTodayDate" runat="server"/>
+    &nbsp;&mdash;&nbsp; TODAY'S EXECUTION
+</div>
+
+<!-- ALERT -->
+<div class="alert-wrap">
+    <asp:Panel ID="pnlAlert" runat="server" Visible="false">
+        <asp:Label ID="lblAlert" runat="server"/>
+    </asp:Panel>
+</div>
+
+<!-- SELECTION BAR -->
+<div class="select-bar">
+    <label>Shift</label>
+    <asp:DropDownList ID="ddlShift" runat="server" AutoPostBack="true"
+        OnSelectedIndexChanged="ddlShift_Changed">
+        <asp:ListItem Value="1">Shift 1 — Morning</asp:ListItem>
+        <asp:ListItem Value="2">Shift 2 — Evening</asp:ListItem>
+    </asp:DropDownList>
+
+    <label>Product</label>
+    <asp:DropDownList ID="ddlProduct" runat="server">
+        <asp:ListItem Value="0">-- Select Product --</asp:ListItem>
+    </asp:DropDownList>
+
+    <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
+        OnClick="btnLoad_Click" CausesValidation="false"/>
+</div>
+
+<div class="page-body">
+
+    <!-- INFO PANEL -->
+    <asp:Panel ID="pnlInfo" runat="server" Visible="false">
+        <div class="info-panel">
+            <div class="info-left">
+                <div class="info-product">
+                    <asp:Label ID="lblInfoProduct" runat="server"/>
+                </div>
+                <div class="info-code">
+                    <asp:Label ID="lblInfoCode" runat="server"/>
+                    &nbsp;|&nbsp;
+                    <asp:Label ID="lblInfoDate" runat="server"/>
+                    &nbsp;|&nbsp;
+                    <asp:Label ID="lblInfoStatus" runat="server"/>
+                </div>
+                <div class="info-stats">
+                    <div class="info-stat">
+                        <div class="info-stat-val"><asp:Label ID="lblInfoOutput" runat="server"/></div>
+                        <div class="info-stat-lbl">Expected Output</div>
+                    </div>
+                </div>
+            </div>
+            <div class="info-right">
+                <div class="info-batches"><asp:Label ID="lblInfoBatches" runat="server"/></div>
+                <div class="info-batches-lbl">Total Batches</div>
+                <div class="info-completed"><asp:Label ID="lblInfoCompleted" runat="server"/></div>
+            </div>
+        </div>
+    </asp:Panel>
+
+    <!-- NO ORDER STATE -->
+    <asp:Panel ID="pnlNoOrder" runat="server" Visible="false">
+        <div class="no-order-msg">
+            <div class="no-order-icon">&#x23F3;</div>
+            <div>Select a Shift and Product above to begin execution.</div>
+        </div>
+    </asp:Panel>
+
+    <!-- EXECUTION PANEL -->
+    <asp:Panel ID="pnlExecution" runat="server" Visible="false">
+        <div class="exec-panel">
+            <div class="exec-title">Batch Execution</div>
+
+            <!-- GEAR AREA -->
+            <div class="gear-area">
+
+                <!-- START BUTTON -->
+                <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
+                    OnClick="btnStart_Click" CausesValidation="false"
+                    Text="&#9654;&#xA;START"/>
+
+                <!-- GEAR WHEEL SVG -->
+                <div class="gear-wrap">
+                    <svg id="gearSvg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="gearGrad" cx="40%" cy="35%">
+                                <stop offset="0%" stop-color="#78909c"/>
+                                <stop offset="100%" stop-color="#263238"/>
+                            </radialGradient>
+                            <radialGradient id="centerGrad" cx="40%" cy="35%">
+                                <stop offset="0%" stop-color="#37474f"/>
+                                <stop offset="100%" stop-color="#1a2327"/>
+                            </radialGradient>
+                        </defs>
+                        <!-- Gear teeth group — rotates -->
+                        <g id="gearGroup" transform="translate(100,100)">
+                            <!-- Gear teeth (12 teeth) -->
+                            <g fill="url(#gearGrad)" stroke="#1a2327" stroke-width="0.5">
+                                <rect x="-8" y="-98" width="16" height="20" rx="3"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(30)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(60)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(90)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(120)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(150)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(180)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(210)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(240)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(270)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(300)"/>
+                                <rect x="-8" y="-98" width="16" height="20" rx="3" transform="rotate(330)"/>
+                            </g>
+                            <!-- Main gear body -->
+                            <circle r="82" fill="url(#gearGrad)" stroke="#1a2327" stroke-width="1"/>
+                            <!-- Inner ring -->
+                            <circle r="68" fill="none" stroke="#78909c" stroke-width="2" opacity="0.4"/>
+                            <!-- Spokes -->
+                            <g stroke="#546e7a" stroke-width="3" opacity="0.5">
+                                <line x1="0" y1="-60" x2="0" y2="60"/>
+                                <line x1="-60" y1="0" x2="60" y2="0"/>
+                                <line x1="-42" y1="-42" x2="42" y2="42"/>
+                                <line x1="42" y1="-42" x2="-42" y2="42"/>
+                            </g>
+                            <!-- Center hub -->
+                            <circle r="38" fill="url(#centerGrad)" stroke="#546e7a" stroke-width="1.5"/>
+                            <circle r="6" fill="#78909c"/>
+                        </g>
+                    </svg>
+                    <!-- Text overlay on gear -->
+                    <div class="gear-center-text">
+                        <div class="gear-batch-num" id="gearBatchNum">—</div>
+                        <div class="gear-batch-sub" id="gearBatchSub">READY</div>
+                    </div>
+                </div>
+
+                <!-- END BUTTON -->
+                <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
+                    OnClick="btnEnd_Click" CausesValidation="false"
+                    Text="&#9646;&#9646;&#xA;END" Enabled="false"/>
+
+            </div>
+
+            <div class="gear-status-label stopped" id="gearStatusLabel">
+                READY TO START
+            </div>
+
+            <!-- OUTPUT PANEL — unlocks after END -->
+            <asp:Panel ID="pnlOutput" runat="server" Visible="false">
+                <div class="output-panel" style="margin-top:28px;">
+                    <div class="output-title">Record Batch Output</div>
+                    <div class="output-grid">
+                        <div class="form-group">
+                            <label>Actual Output <span style="color:#e74c3c">*</span></label>
+                            <asp:TextBox ID="txtActualOutput" runat="server"
+                                placeholder="e.g. 115.5" MaxLength="10"/>
+                            <div class="output-unit">
+                                Unit: <asp:Label ID="lblOutputUnit" runat="server"/>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Remarks (if any issue)</label>
+                            <asp:TextBox ID="txtRemarks" runat="server"
+                                placeholder="Optional — note any issues"
+                                MaxLength="300"/>
+                        </div>
+                    </div>
+                    <asp:Button ID="btnSaveOutput" runat="server"
+                        Text="Save &amp; Complete Batch"
+                        CssClass="btn-save-output"
+                        OnClick="btnSaveOutput_Click"
+                        CausesValidation="false"/>
+                </div>
+            </asp:Panel>
+
+        </div>
+    </asp:Panel>
+
+    <!-- BATCH HISTORY -->
+    <asp:Panel ID="pnlInfo2" runat="server">
+        <div class="history-section" style="display:<%# pnlInfo.Visible ? "block" : "none" %>">
+            <div class="history-head">
+                <span style="font-size:20px;">&#128203;</span>
+                <span class="history-title">Batch History</span>
+            </div>
+
+            <asp:Panel ID="pnlHistoryEmpty" runat="server" Visible="true">
+                <div class="empty-history">No batches started yet for this order.</div>
+            </asp:Panel>
+
+            <asp:Repeater ID="rptHistory" runat="server">
+                <HeaderTemplate>
+                    <table class="history-table">
+                    <tr>
+                        <th>#</th>
+                        <th>Started</th>
+                        <th>Completed</th>
+                        <th>Duration</th>
+                        <th>Actual Output</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </HeaderTemplate>
+                <ItemTemplate>
+                    <tr>
+                        <td><span class="batch-no"><%# Eval("BatchNo") %></span></td>
+                        <td><%# FormatTime(Eval("StartTime")) %></td>
+                        <td><%# FormatTime(Eval("EndTime")) %></td>
+                        <td><%# Eval("EndTime") != DBNull.Value
+                            ? Math.Round((Convert.ToDateTime(Eval("EndTime")) - Convert.ToDateTime(Eval("StartTime"))).TotalMinutes, 0) + " min"
+                            : "—" %></td>
+                        <td><%# FormatOutput(Eval("ActualOutput"), "") %></td>
+                        <td>
+                            <span class='<%# Eval("Status").ToString()=="Completed" ? "badge-done" : "badge-running" %>'>
+                                <%# Eval("Status") %>
+                            </span>
+                        </td>
+                        <td style="color:var(--text-muted);font-size:12px;">
+                            <%# Eval("Remarks") == DBNull.Value ? "—" : Eval("Remarks") %>
+                        </td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></table></FooterTemplate>
+            </asp:Repeater>
+        </div>
+    </asp:Panel>
+
+</div><!-- /page-body -->
+
+</form>
+
+<script>
+// ── GEAR WHEEL ANIMATION ──────────────────────────────────
+var gearAngle    = 0;
+var gearSpeed    = 0;
+var targetSpeed  = 0;
+var animFrame    = null;
+window.batchRunning = false;
+
+var batchNum  = '<%= hfCurrentBatch.Value %>';
+var totalBat  = '<%= hfTotalBatches.Value %>';
+
+function updateGearText() {
+    var numEl = document.getElementById('gearBatchNum');
+    var subEl = document.getElementById('gearBatchSub');
+    if (!numEl || !subEl) return;
+    if (totalBat && totalBat !== '0') {
+        numEl.innerText = 'BATCH ' + batchNum;
+        subEl.innerText = batchNum + ' OF ' + totalBat;
+    } else {
+        numEl.innerText = '—';
+        subEl.innerText = 'READY';
+    }
+}
+
+function animateGear() {
+    // Ease toward target speed
+    gearSpeed += (targetSpeed - gearSpeed) * 0.03;
+    gearAngle  = (gearAngle + gearSpeed) % 360;
+
+    var g = document.getElementById('gearGroup');
+    if (g) g.setAttribute('transform', 'translate(100,100) rotate(' + gearAngle + ')');
+
+    animFrame = requestAnimationFrame(animateGear);
+}
+
+function startWheel() {
+    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
+    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
+    var label    = document.getElementById('gearStatusLabel');
+    var svg      = document.getElementById('gearSvg');
+
+    targetSpeed = 1.2;   // slow and steady
+    window.batchRunning = true;
+
+    if (startBtn) startBtn.disabled = true;
+    if (endBtn)   endBtn.disabled   = false;
+    if (label)  { label.innerText   = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
+    if (svg)      svg.classList.add('spinning');
+
+    updateGearText();
+}
+
+function stopWheel() {
+    targetSpeed = 0;
+    window.batchRunning = false;
+
+    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
+    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
+    var label    = document.getElementById('gearStatusLabel');
+    var svg      = document.getElementById('gearSvg');
+
+    if (endBtn)   endBtn.disabled   = true;
+    if (label)  { label.innerText   = 'BATCH ENDED — ENTER OUTPUT'; label.className = 'gear-status-label stopped'; }
+    if (svg)      svg.classList.remove('spinning');
+    // Start button stays disabled until output is saved
+    if (startBtn) startBtn.disabled = true;
+}
+
+// Init on load
+window.addEventListener('load', function() {
+    updateGearText();
+    animateGear();
+    if (!window.batchRunning) {
+        // Check if output panel is visible (batch ended, awaiting output)
+        var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
+        var label    = document.getElementById('gearStatusLabel');
+        var startBtn = document.getElementById('<%= btnStart.ClientID %>');
+        if (outPanel && outPanel.style.display !== 'none') {
+            stopWheel();
+        } else if (startBtn) {
+            startBtn.disabled = false;
+            if (label) label.innerText = 'READY TO START';
+        }
+    }
+});
+</script>
+</body>
+</html>

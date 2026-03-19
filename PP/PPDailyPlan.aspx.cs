@@ -54,7 +54,7 @@ namespace PPApp
             if (!IsPostBack)
             {
                 // Default to today
-                DateTime planDate = DateTime.Today;
+                DateTime planDate = PPDatabaseHelper.TodayIST();
                 if (!string.IsNullOrEmpty(Request.QueryString["date"]))
                     DateTime.TryParse(Request.QueryString["date"], out planDate);
 
@@ -236,8 +236,8 @@ namespace PPApp
         protected void btnNextDay_Click(object sender, EventArgs e) => NavigateDay(1);
         protected void btnToday_Click(object sender, EventArgs e)
         {
-            hfPlanDate.Value = DateTime.Today.ToString("yyyy-MM-dd");
-            LoadPlanForDate(DateTime.Today);
+            hfPlanDate.Value = PPDatabaseHelper.TodayIST().ToString("yyyy-MM-dd");
+            LoadPlanForDate(PPDatabaseHelper.TodayIST());
         }
 
         private void NavigateDay(int delta)

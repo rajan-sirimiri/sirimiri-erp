@@ -12,6 +12,32 @@ namespace PPApp.DAL
         private static string ConnStr =>
             ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
 
+        // ── IST HELPER ───────────────────────────────────────────────────────
+        // Always use this instead of DateTime.Now to ensure IST regardless of server timezone
+        public static DateTime NowIST()
+        {
+            try
+            {
+                var ist = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ist);
+            }
+            catch
+            {
+                // Fallback for Linux servers where TZ id is different
+                try
+                {
+                    var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+                    return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ist);
+                }
+                catch
+                {
+                    return DateTime.UtcNow.AddHours(5).AddMinutes(30);
+                }
+            }
+        }
+
+        public static DateTime TodayIST() => NowIST().Date;
+
         private static MySqlConnection OpenConnection()
         {
             var conn = new MySqlConnection(ConnStr);
@@ -71,7 +97,8 @@ namespace PPApp.DAL
         public static void UpdateLastLogin(int userId)
         {
             ExecuteNonQuery(
-                "UPDATE Users SET LastLogin=NOW() WHERE UserID=?id;",
+                "UPDATE Users SET LastLogin=?now WHERE UserID=?id;",
+                new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?id", userId));
         }
 
@@ -706,8 +733,9 @@ namespace PPApp.DAL
         {
             ExecuteNonQuery(
                 "UPDATE PP_ProductionOrder " +
-                "SET Status = 'Initiated', InitiatedAt = NOW() " +
+                "SET Status = 'Initiated', InitiatedAt = ?now " +
                 "WHERE OrderID = ?id AND Status = 'Pending';",
+                new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?id", orderId));
             // Verify status changed
             var row = ExecuteQueryRow(
@@ -759,6 +787,105 @@ namespace PPApp.DAL
                 "WHERE o.OrderID = ?id " +
                 "ORDER BY r.RMName;",
                 new MySqlParameter("?id", orderId));
+        }
+
+        // ── BATCH EXECUTION ───────────────────────────────────────────────────
+
+        // Get initiated orders for today for a given shift — for the product dropdown
+        public static DataTable GetInitiatedOrdersForShift(int shift, DateTime orderDate)
+        {
+            return ExecuteQuery(
+                "SELECT o.OrderID, o.ProductID, p.ProductName, p.ProductCode, " +
+                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
+                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status " +
+                "FROM PP_ProductionOrder o " +
+                "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
+                "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
+                "WHERE o.Shift = ?sh AND o.OrderDate = ?dt " +
+                "AND o.Status IN ('Initiated','InProgress') " +
+                "ORDER BY p.ProductName;",
+                new MySqlParameter("?sh", shift),
+                new MySqlParameter("?dt", orderDate.Date));
+        }
+
+        // Get full execution state for an order
+        public static DataTable GetBatchHistory(int orderId)
+        {
+            return ExecuteQuery(
+                "SELECT ExecutionID, BatchNo, StartTime, EndTime, " +
+                "ActualOutput, Remarks, Status " +
+                "FROM PP_BatchExecution " +
+                "WHERE OrderID = ?oid " +
+                "ORDER BY BatchNo;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Get the current in-progress batch for an order (if any)
+        public static DataRow GetActiveBatch(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT ExecutionID, BatchNo, StartTime, Status " +
+                "FROM PP_BatchExecution " +
+                "WHERE OrderID = ?oid AND Status = 'InProgress' " +
+                "ORDER BY BatchNo DESC LIMIT 1;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Start a new batch
+        public static int StartBatch(int orderId, int batchNo, int userId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PP_BatchExecution " +
+                "(OrderID, BatchNo, StartTime, Status, CreatedBy) " +
+                "VALUES (?oid, ?bno, ?now, 'InProgress', ?by);",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?bno", batchNo),
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by",  userId));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        // End a batch — marks EndTime, updates order to InProgress
+        public static void EndBatch(int executionId, int orderId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_BatchExecution SET EndTime = ?now " +
+                "WHERE ExecutionID = ?eid;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?eid", executionId));
+            // Update order status to InProgress immediately
+            ExecuteNonQuery(
+                "UPDATE PP_ProductionOrder SET Status = 'InProgress' " +
+                "WHERE OrderID = ?oid AND Status = 'Initiated';",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Save actual output for a completed batch
+        public static void SaveBatchOutput(int executionId, decimal actualOutput,
+            string remarks, int orderId, int totalBatches)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_BatchExecution " +
+                "SET ActualOutput = ?ao, Remarks = ?rem, Status = 'Completed' " +
+                "WHERE ExecutionID = ?eid;",
+                new MySqlParameter("?ao",  actualOutput),
+                new MySqlParameter("?rem", string.IsNullOrEmpty(remarks) ? (object)DBNull.Value : remarks),
+                new MySqlParameter("?eid", executionId));
+
+            // Check if all batches are done — auto-complete the order
+            object completedCount = ExecuteScalar(
+                "SELECT COUNT(*) FROM PP_BatchExecution " +
+                "WHERE OrderID = ?oid AND Status = 'Completed';",
+                new MySqlParameter("?oid", orderId));
+            if (Convert.ToInt32(completedCount) >= totalBatches)
+            {
+                ExecuteNonQuery(
+                    "UPDATE PP_ProductionOrder " +
+                    "SET Status = 'Completed', CompletedAt = ?nowc " +
+                    "WHERE OrderID = ?oid;",
+                    new MySqlParameter("?nowc", NowIST()),
+                    new MySqlParameter("?oid", orderId));
+            }
         }
     }
 }

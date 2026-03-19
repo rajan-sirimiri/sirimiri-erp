@@ -25,7 +25,7 @@ namespace PPApp
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
 
             // Read date from query string
-            DateTime planDate = DateTime.Today;
+            DateTime planDate = PPDatabaseHelper.TodayIST();
             if (!string.IsNullOrEmpty(Request.QueryString["date"]))
                 DateTime.TryParse(Request.QueryString["date"], out planDate);
 
@@ -36,7 +36,7 @@ namespace PPApp
                 // No plan exists for this date
                 litTitle.Text     = planDate.ToString("dd MMM yyyy");
                 litPlanDate.Text  = planDate.ToString("dddd, dd MMMM yyyy").ToUpper();
-                litGenerated.Text = DateTime.Now.ToString("dd MMM yyyy, hh:mm tt");
+                litGenerated.Text = PPDatabaseHelper.NowIST().ToString("dd MMM yyyy, hh:mm tt");
                 litStatus.Text    = "<span class='plan-status status-draft'>DRAFT</span>";
                 litS1Summary.Text = "No products scheduled.";
                 litS2Summary.Text = "No products scheduled.";
@@ -53,7 +53,7 @@ namespace PPApp
             // Header
             litTitle.Text     = planDate.ToString("dd MMM yyyy");
             litPlanDate.Text  = planDate.ToString("dddd, dd MMMM yyyy").ToUpper();
-            litGenerated.Text = DateTime.Now.ToString("dd MMM yyyy, hh:mm tt");
+            litGenerated.Text = PPDatabaseHelper.NowIST().ToString("dd MMM yyyy, hh:mm tt");
             litUser.Text      = Session["PP_FullName"]?.ToString() ?? "";
             litStatus.Text    = status == "Confirmed"
                 ? "<span class='plan-status status-confirmed'>CONFIRMED</span>"
