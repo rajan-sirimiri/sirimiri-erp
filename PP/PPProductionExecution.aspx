@@ -413,7 +413,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 </div><!-- /page-body -->
 
-</form>
 
 <script>
 // ── GEAR ANIMATION ──────────────────────────────────────────────────────────
@@ -452,10 +451,16 @@ function stopWheel(readyForNext) {
 }
 
 function applyServerState() {
-    var svg = document.getElementById('gearSvg');
-    var lbl = document.getElementById('gearStatusLabel');
-    var out = document.getElementById('<%= pnlOutput.ClientID %>');
+    var svg   = document.getElementById('gearSvg');
+    var lbl   = document.getElementById('gearStatusLabel');
+    var out   = document.getElementById('pnlOutput');
+    var btnS  = document.getElementById('<%= btnStart.ClientID %>');
+    var btnE  = document.getElementById('<%= btnEnd.ClientID %>');
     var state = window.serverState || 'ready';
+
+    // Visual button states — buttons stay enabled server-side, JS controls appearance
+    if (btnS) { btnS.style.opacity = state === 'ready' ? '1' : '0.4'; btnS.style.cursor = state === 'ready' ? 'pointer' : 'not-allowed'; }
+    if (btnE) { btnE.style.opacity = state === 'running' ? '1' : '0.4'; btnE.style.cursor = state === 'running' ? 'pointer' : 'not-allowed'; }
 
     if (state === 'running') {
         targetSpeed = 0.9;
@@ -493,5 +498,6 @@ document.addEventListener('DOMContentLoaded', function() {
     applyServerState();
 });
 </script>
+</form>
 </body>
 </html>

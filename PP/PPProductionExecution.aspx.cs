@@ -184,9 +184,10 @@ namespace PPApp
             hfTotalBatches.Value = total.ToString();
             hfExecutionID.Value  = execId.ToString();
 
-            // Button states
-            btnStart.Enabled = (state == "ready");
-            btnEnd.Enabled   = (state == "running");
+            // Buttons always enabled — JS controls visual disabled state via CSS
+            // This ensures postbacks always fire regardless of visual state
+            btnStart.Enabled = true;
+            btnEnd.Enabled   = true;
 
             // JS wheel state
             string js = state == "running"
