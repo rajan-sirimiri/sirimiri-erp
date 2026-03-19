@@ -464,6 +464,10 @@ function startWheel() {
     if (label)    { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
     if (svg)        svg.classList.add('spinning');
 
+    // Hide output panel when starting
+    var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
+    if (outPanel) outPanel.style.display = 'none';
+
     updateGearText();
 }
 
@@ -472,15 +476,19 @@ function stopWheel() {
     targetSpeed = 0;
     window.batchRunning = false;
 
-    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
-    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
-    var label    = document.getElementById('gearStatusLabel');
-    var svg      = document.getElementById('gearSvg');
+    var startBtn  = document.getElementById('<%= btnStart.ClientID %>');
+    var endBtn    = document.getElementById('<%= btnEnd.ClientID %>');
+    var label     = document.getElementById('gearStatusLabel');
+    var svg       = document.getElementById('gearSvg');
+    var outPanel  = document.getElementById('<%= pnlOutput.ClientID %>');
 
     if (endBtn)   endBtn.disabled = true;
     if (startBtn) startBtn.disabled = true;
     if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
     if (svg)      svg.classList.remove('spinning');
+
+    // Show output panel directly — no need to wait for postback
+    if (outPanel) outPanel.style.display = 'block';
 }
 
 // Init on load — restore state from server
