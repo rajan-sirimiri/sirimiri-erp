@@ -65,7 +65,7 @@ namespace PPApp
             if (!IsPostBack)
             {
                 pnlInfo.Visible      = false;
-                pnlExecution.Visible = false;
+                pnlExecution.Style["display"] = "none";
                 pnlNoOrder.Visible   = false;
                 LoadProductDropdown(shift);
             }
@@ -88,7 +88,7 @@ namespace PPApp
                     // If END was just pressed, keep output panel visible
                     if (hfShowOutput.Value == "1")
                     {
-                        pnlOutput.Visible    = true;
+                        pnlOutput.Style["display"] = "block";
                         hfShowOutput.Value   = "0";
                         txtActualOutput.Text = "";
                         txtRemarks.Text      = "";
@@ -118,7 +118,7 @@ namespace PPApp
             // Reload product dropdown for selected shift
             LoadProductDropdown(Convert.ToInt32(ddlShift.SelectedValue));
             pnlInfo.Visible      = false;
-            pnlExecution.Visible = false;
+            pnlExecution.Style["display"] = "none";
         }
 
         private void LoadProductDropdown(int shift)
@@ -175,13 +175,13 @@ namespace PPApp
 
             if (status == "Completed")
             {
-                pnlExecution.Visible = false;
+                pnlExecution.Style["display"] = "none";
                 pnlNoOrder.Visible   = false;
                 ShowAlert("All " + totalBatches + " batches completed for this product.", true);
             }
             else
             {
-                pnlExecution.Visible = true;
+                pnlExecution.Style["display"] = "block";
                 pnlNoOrder.Visible   = false;
 
                 if (activeBatch != null)
@@ -190,7 +190,7 @@ namespace PPApp
                     int batchNo = Convert.ToInt32(activeBatch["BatchNo"]);
                     hfExecutionID.Value = activeBatch["ExecutionID"].ToString();
                     hfCurrentBatch.Value = batchNo.ToString();
-                    pnlOutput.Visible = false;
+                    pnlOutput.Style["display"] = "none";
                     ClientScript.RegisterStartupScript(GetType(), "startWheel",
                         "window.batchRunning=true; window.batchNum='" + batchNo +
                         "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
@@ -201,7 +201,7 @@ namespace PPApp
                     int nextBatch = completedBatches + 1;
                     hfCurrentBatch.Value = nextBatch.ToString();
                     hfExecutionID.Value  = "0";
-                    pnlOutput.Visible = false;
+                    pnlOutput.Style["display"] = "none";
                     ClientScript.RegisterStartupScript(GetType(), "stopWheel",
                         "window.batchRunning=false; window.batchNum='" + nextBatch +
                         "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
@@ -229,11 +229,17 @@ namespace PPApp
             if (PPDatabaseHelper.GetActiveBatch(orderId) != null)
             { ShowAlert("A batch is already in progress.", false); return; }
 
+            // Show exactly what we're passing to StartBatch
+            ShowAlert("DEBUG: orderId=" + orderId + " batchNo=" + batchNo + 
+                      " UserID=" + UserID + " totalBatches=" + totalBatches, true);
+
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
             hfOrderID.Value     = orderId.ToString();
 
-            pnlOutput.Visible = false;
+            ShowAlert("DEBUG: StartBatch returned execId=" + execId, true);
+
+            pnlOutput.Style["display"] = "none";
             ClientScript.RegisterStartupScript(GetType(), "startWheel",
                 "window.batchRunning=true; window.batchNum='" + batchNo +
                 "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
@@ -280,7 +286,7 @@ namespace PPApp
                 txtRemarks.Text.Trim(), orderId, totalBatches);
 
             hfExecutionID.Value = "0";
-            pnlOutput.Visible   = false;
+            pnlOutput.Style["display"] = "none";
             ShowAlert("Batch completed and saved successfully.", true);
 
             // Reload
