@@ -440,7 +440,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 </div>
 
 <script>
-var _pendingBtn = null;
+var _pendingHref = null;
 
 function confirmInitiate(btn) {
     var row     = btn.closest('tr');
@@ -460,19 +460,27 @@ function confirmInitiate(btn) {
         'You are about to initiate production of <strong>' + batches +
         ' batches</strong>.<br/>Once confirmed, you will be redirected to Production Execution.';
 
-    _pendingBtn = btn;
+    // ASP.NET LinkButton renders as <a href="javascript:__doPostBack(...)">
+    // Store the href so we can execute it after modal confirmation
+    _pendingHref = btn.href;
+
     document.getElementById('initiateModal').classList.add('visible');
     return false;
 }
 
 function closeInitiateModal() {
     document.getElementById('initiateModal').classList.remove('visible');
-    _pendingBtn = null;
+    _pendingHref = null;
 }
 
 function doInitiate() {
+    var href = _pendingHref;
     closeInitiateModal();
-    if (_pendingBtn) setTimeout(function(){ _pendingBtn.click(); }, 50);
+    if (href) {
+        // Strip "javascript:" prefix and eval the postback call
+        var js = href.replace(/^javascript:/i, '');
+        eval(js);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
