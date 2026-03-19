@@ -204,31 +204,35 @@ namespace PPApp
                 "window.batchRunning=true; window.batchNum='" + batchNo +
                 "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
 
-            ReloadHistory(orderId);
+            // Reload so pnlExecution stays visible and hfExecutionID persists
+            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
         }
 
         // ── END BATCH ─────────────────────────────────────────────────────────
         protected void btnEnd_Click(object sender, EventArgs e)
         {
-            int execId  = Convert.ToInt32(hfExecutionID.Value);
             int orderId = Convert.ToInt32(hfOrderID.Value);
+            if (orderId == 0) { ShowAlert("Please load a product first.", false); return; }
 
-            if (execId == 0) { ShowAlert("No batch is currently running.", false); return; }
+            // Always look up active batch from DB — don't rely on hidden field
+            DataRow activeBatch = PPDatabaseHelper.GetActiveBatch(orderId);
+            if (activeBatch == null)
+            { ShowAlert("No batch is currently running for this product.", false); return; }
+
+            int execId = Convert.ToInt32(activeBatch["ExecutionID"]);
+            hfExecutionID.Value = execId.ToString();
 
             PPDatabaseHelper.EndBatch(execId, orderId);
 
             // Stop wheel, unlock output panel
-            pnlOutput.Visible     = true;
-            txtActualOutput.Text  = "";
-            txtRemarks.Text       = "";
-
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
                 "window.batchRunning=false; stopWheel();", true);
 
-            ReloadHistory(orderId);
-            // Reload order info to update status
+            // Reload order then keep output panel visible
             LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
-            pnlOutput.Visible = true; // keep visible after reload
+            pnlOutput.Visible    = true;
+            txtActualOutput.Text = "";
+            txtRemarks.Text      = "";
         }
 
         // ── SAVE OUTPUT ───────────────────────────────────────────────────────
