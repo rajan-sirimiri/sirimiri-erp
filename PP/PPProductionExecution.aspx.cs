@@ -288,38 +288,47 @@ namespace PPApp
         // ── SAVE OUTPUT ───────────────────────────────────────────────────────
         protected void btnSaveOutput_Click(object sender, EventArgs e)
         {
-            int execId       = ReadIntFromForm(hfExecutionID);
             int orderId      = ReadIntFromForm(hfOrderID);
             int totalBatches = ReadIntFromForm(hfTotalBatches);
+            int currentBatch = ReadIntFromForm(hfCurrentBatch); // batch being saved
 
-            // If execId still 0, look up the ended batch from DB
-            if (execId == 0 && orderId > 0)
+            // Look up the ended batch from DB — most reliable source
+            int execId = 0;
+            if (orderId > 0)
             {
                 DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
                 if (ended != null) execId = Convert.ToInt32(ended["ExecutionID"]);
             }
+            if (execId == 0) execId = ReadIntFromForm(hfExecutionID);
+
+            if (execId == 0) { ShowAlert("Cannot find batch to save. Please try again.", false); return; }
+            if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
             decimal actualOutput;
             if (!decimal.TryParse(txtActualOutput.Text.Trim(), out actualOutput) || actualOutput <= 0)
             { ShowAlert("Please enter a valid actual output quantity.", false); return; }
 
+            if (totalBatches == 0) totalBatches = Convert.ToInt32(
+                Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
+
             PPDatabaseHelper.SaveBatchOutput(execId, actualOutput,
                 txtRemarks.Text.Trim(), orderId, totalBatches);
 
-            hfExecutionID.Value = "0";
+            int nextBatch = currentBatch + 1;
+            hfCurrentBatch.Value = nextBatch.ToString();
+            hfExecutionID.Value  = "0";
             pnlOutput.Style["display"] = "none";
-            ShowAlert("Batch " + ReadIntFromForm(hfCurrentBatch) + " completed successfully.", true);
 
-            // Reload order to get updated batch count
-            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
-            // Override wheel script — ready for next batch
-            int savedBatch  = ReadIntFromForm(hfCurrentBatch);
-            int nextBatchNo = savedBatch + 1;
-            int tot         = ReadIntFromForm(hfTotalBatches);
+            ShowAlert("Batch " + currentBatch + " of " + totalBatches + " completed successfully.", true);
+
+            // Register wheel for next batch
             ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                "window.batchNum='" + nextBatchNo + "';" +
-                "window.totalBat='" + tot + "';" +
+                "window.batchNum='" + nextBatch + "';" +
+                "window.totalBat='" + totalBatches + "';" +
                 "stopWheel(true);", true);
+
+            // Reload order to update history and info panel
+            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────────
