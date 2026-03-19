@@ -260,6 +260,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- START BUTTON -->
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
+                    OnClientClick="startWheel(); return true;"
                     Text="&#9654;&#xA;START"/>
 
                 <!-- GEAR WHEEL SVG -->
@@ -318,6 +319,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
+                    OnClientClick="stopWheel(); return true;"
                     Text="&#9646;&#9646;&#xA;END" Enabled="false"/>
 
             </div>
@@ -451,18 +453,20 @@ function startWheel() {
     var label    = document.getElementById('gearStatusLabel');
     var svg      = document.getElementById('gearSvg');
 
-    targetSpeed = 1.2;   // slow and steady
+    // Start spinning immediately on click (before postback)
+    targetSpeed = 1.2;
     window.batchRunning = true;
 
     if (startBtn) startBtn.disabled = true;
-    if (endBtn)   endBtn.disabled   = false;
-    if (label)  { label.innerText   = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
-    if (svg)      svg.classList.add('spinning');
+    if (endBtn)   { endBtn.disabled = false; endBtn.style.background = 'var(--red)'; }
+    if (label)    { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
+    if (svg)        svg.classList.add('spinning');
 
     updateGearText();
 }
 
 function stopWheel() {
+    // Slow down then stop
     targetSpeed = 0;
     window.batchRunning = false;
 
@@ -471,28 +475,41 @@ function stopWheel() {
     var label    = document.getElementById('gearStatusLabel');
     var svg      = document.getElementById('gearSvg');
 
-    if (endBtn)   endBtn.disabled   = true;
-    if (label)  { label.innerText   = 'BATCH ENDED — ENTER OUTPUT'; label.className = 'gear-status-label stopped'; }
-    if (svg)      svg.classList.remove('spinning');
-    // Start button stays disabled until output is saved
+    if (endBtn)   endBtn.disabled = true;
     if (startBtn) startBtn.disabled = true;
+    if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
+    if (svg)      svg.classList.remove('spinning');
 }
 
-// Init on load
+// Init on load — restore state from server
 window.addEventListener('load', function() {
     updateGearText();
     animateGear();
-    if (!window.batchRunning) {
-        // Check if output panel is visible (batch ended, awaiting output)
-        var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
-        var label    = document.getElementById('gearStatusLabel');
-        var startBtn = document.getElementById('<%= btnStart.ClientID %>');
-        if (outPanel && outPanel.style.display !== 'none') {
-            stopWheel();
-        } else if (startBtn) {
-            startBtn.disabled = false;
-            if (label) label.innerText = 'READY TO START';
-        }
+
+    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
+    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
+    var label    = document.getElementById('gearStatusLabel');
+    var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
+
+    if (window.batchRunning) {
+        // Server says batch is in progress — spin
+        targetSpeed = 1.2;
+        if (startBtn) startBtn.disabled = true;
+        if (endBtn)   endBtn.disabled   = false;
+        if (label)  { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
+        document.getElementById('gearSvg').classList.add('spinning');
+    } else if (outPanel && outPanel.style.display !== 'none') {
+        // Batch ended — awaiting output entry
+        targetSpeed = 0;
+        if (startBtn) startBtn.disabled = true;
+        if (endBtn)   endBtn.disabled   = true;
+        if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
+    } else {
+        // Ready to start next batch
+        targetSpeed = 0;
+        if (startBtn) startBtn.disabled = false;
+        if (endBtn)   endBtn.disabled   = true;
+        if (label)  { label.innerText = 'READY TO START'; label.className = 'gear-status-label stopped'; }
     }
 });
 </script>
