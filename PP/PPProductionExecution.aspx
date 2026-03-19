@@ -321,7 +321,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
-                    OnClientClick="stopWheel(); return true;"
+                    OnClientClick="stopWheel(false); return true;"
                     Text="&#9646;&#9646;&#xA;END"/>
 
             </div>
@@ -455,20 +455,22 @@ function startWheel() {
     var label    = document.getElementById('gearStatusLabel');
     var svg      = document.getElementById('gearSvg');
 
-    // Start spinning immediately on click (before postback)
+    // Visual feedback immediately
     targetSpeed = 0.9;
     window.batchRunning = true;
 
-    if (startBtn) startBtn.disabled = true;
+    // NOTE: Do NOT disable startBtn here — disabled buttons cannot submit forms
+    // Disable it after a tiny delay so the form posts first
     if (endBtn)   { endBtn.disabled = false; endBtn.style.background = 'var(--red)'; }
     if (label)    { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
     if (svg)        svg.classList.add('spinning');
 
-    // Hide output panel when starting
     var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
     if (outPanel) outPanel.style.display = 'none';
 
     updateGearText();
+    // Disable after form has had time to submit
+    setTimeout(function() { if (startBtn) startBtn.disabled = true; }, 100);
 }
 
 function stopWheel(readyForNext) {
@@ -494,9 +496,11 @@ function stopWheel(readyForNext) {
         if (outPanel) outPanel.style.display = 'none';
     } else {
         // END pressed — awaiting output entry
-        if (startBtn) startBtn.disabled = true;
+        // NOTE: Do NOT disable startBtn here — it would prevent form submission
         if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
         if (outPanel) outPanel.style.display = 'block';
+        // Disable startBtn after form posts
+        setTimeout(function() { if (startBtn) startBtn.disabled = true; }, 100);
     }
 }
 
