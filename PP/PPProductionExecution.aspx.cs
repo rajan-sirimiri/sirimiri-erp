@@ -10,84 +10,63 @@ namespace PPApp
     {
         private int    UserID   => Convert.ToInt32(Session["PP_UserID"]);
         private string FullName => Session["PP_FullName"]?.ToString() ?? "";
-        private bool   _showOutputPanel = false;  // set by btnEnd_Click, read in PreRender
 
-        protected Label          lblNavUser;
-        protected Label          lblTodayDate;
-        protected Label          lblAlert;
-        protected Panel          pnlAlert;
+        // All control declarations
+        protected Label         lblNavUser;
+        protected Label         lblTodayDate;
+        protected Label         lblAlert;
+        protected Panel         pnlAlert;
+        protected DropDownList  ddlShift;
+        protected DropDownList  ddlProduct;
+        protected Button        btnLoad;
+        protected Panel         pnlInfo;
+        protected Label         lblInfoProduct;
+        protected Label         lblInfoCode;
+        protected Label         lblInfoBatches;
+        protected Label         lblInfoOutput;
+        protected Label         lblInfoStatus;
+        protected Label         lblInfoDate;
+        protected Label         lblInfoCompleted;
+        protected Panel         pnlExecution;
+        protected Panel         pnlNoOrder;
+        protected HiddenField   hfOrderID;
+        protected HiddenField   hfExecutionID;
+        protected HiddenField   hfTotalBatches;
+        protected HiddenField   hfCurrentBatch;
+        protected HiddenField   hfShowOutput;
+        protected HiddenField   hfState;  // "ready" | "running" | "ended"
+        protected Button        btnStart;
+        protected Button        btnEnd;
+        protected Panel         pnlOutput;
+        protected TextBox       txtActualOutput;
+        protected Label         lblOutputUnit;
+        protected TextBox       txtRemarks;
+        protected Button        btnSaveOutput;
+        protected Repeater      rptHistory;
+        protected Panel         pnlHistoryEmpty;
 
-        // Selection bar
-        protected DropDownList   ddlShift;
-        protected DropDownList   ddlProduct;
-        protected Button         btnLoad;
-
-        // Info panel
-        protected Panel          pnlInfo;
-        protected Label          lblInfoProduct;
-        protected Label          lblInfoCode;
-        protected Label          lblInfoBatches;
-        protected Label          lblInfoOutput;
-        protected Label          lblInfoStatus;
-        protected Label          lblInfoDate;
-        protected Label          lblInfoCompleted;
-
-        // Execution panel
-        protected Panel          pnlExecution;
-        protected Panel          pnlNoOrder;
-        protected HiddenField    hfOrderID;
-        protected HiddenField    hfExecutionID;
-        protected HiddenField    hfTotalBatches;
-        protected HiddenField    hfCurrentBatch;
-        protected HiddenField    hfShowOutput;
-
-        // Gear animation area (labels driven by JS via ClientScript)
-        protected Button         btnStart;
-        protected Button         btnEnd;
-
-        // Output panel
-        protected Panel          pnlOutput;
-        protected TextBox        txtActualOutput;
-        protected Label          lblOutputUnit;
-        protected TextBox        txtRemarks;
-        protected Button         btnSaveOutput;
-
-        // Batch history
-        protected Repeater       rptHistory;
-        protected Panel          pnlHistoryEmpty;
-
+        // ── PAGE LOAD ─────────────────────────────────────────────────────────
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
             lblNavUser.Text   = FullName;
             lblTodayDate.Text = PPDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper();
 
-            int shift = Convert.ToInt32(ddlShift.SelectedValue);
-
             if (!IsPostBack)
             {
-                pnlInfo.Visible      = false;
+                pnlInfo.Visible = false;
                 pnlExecution.Style["display"] = "none";
-                pnlNoOrder.Visible   = false;
-                LoadProductDropdown(shift);
+                LoadProductDropdown(1);
             }
             else
             {
-                // Reload dropdown but preserve the selected value
-                string selectedOrderId = Request.Form[ddlProduct.UniqueID];
-                LoadProductDropdown(shift);
-                if (!string.IsNullOrEmpty(selectedOrderId) && selectedOrderId != "0")
+                // Preserve dropdown selection
+                string selVal = Request.Form[ddlProduct.UniqueID];
+                LoadProductDropdown(Convert.ToInt32(ddlShift.SelectedValue));
+                if (!string.IsNullOrEmpty(selVal) && selVal != "0")
                 {
-                    var item = ddlProduct.Items.FindByValue(selectedOrderId);
+                    var item = ddlProduct.Items.FindByValue(selVal);
                     if (item != null) item.Selected = true;
-                }
-                // Restore panel visibility from hidden fields without touching output state
-                int orderId = ReadIntFromForm(hfOrderID);
-                if (orderId > 0)
-                {
-                    pnlInfo.Visible = true;
-                    pnlExecution.Style["display"] = "block";
-                    pnlNoOrder.Visible = false;
                 }
             }
         }
@@ -96,293 +75,197 @@ namespace PPApp
         protected void btnLoad_Click(object sender, EventArgs e)
         {
             pnlAlert.Visible = false;
-            int shift = Convert.ToInt32(ddlShift.SelectedValue);
-
-            // Read directly from form post — dropdown may have been cleared by Page_Load
-            string selectedVal = Request.Form[ddlProduct.UniqueID];
-            if (string.IsNullOrEmpty(selectedVal) || selectedVal == "0")
+            string selVal = Request.Form[ddlProduct.UniqueID];
+            if (string.IsNullOrEmpty(selVal) || selVal == "0")
             { ShowAlert("Please select a product.", false); return; }
 
-            int orderId = Convert.ToInt32(selectedVal);
-            hfOrderID.Value = orderId.ToString();
-            Session["PP_ExecOrderID"]   = orderId;
-            Session["PP_ExecShift"]     = shift;
-            Session["PP_ExecTotalBats"] = 0; // will be set by LoadOrder
-            LoadOrder(orderId, shift);
+            int orderId = Convert.ToInt32(selVal);
+            // Store in session — most reliable across postbacks
+            Session["PE_OrderID"] = orderId;
+            Session["PE_Shift"]   = Convert.ToInt32(ddlShift.SelectedValue);
+            RenderOrder(orderId);
         }
 
         protected void ddlShift_Changed(object sender, EventArgs e)
         {
-            // Reload product dropdown for selected shift
             LoadProductDropdown(Convert.ToInt32(ddlShift.SelectedValue));
-            pnlInfo.Visible      = false;
+            pnlInfo.Visible = false;
             pnlExecution.Style["display"] = "none";
+            Session.Remove("PE_OrderID");
         }
 
         private void LoadProductDropdown(int shift)
         {
             var dt = PPDatabaseHelper.GetInitiatedOrdersForShift(shift, PPDatabaseHelper.TodayIST());
             ddlProduct.Items.Clear();
-            ddlProduct.Items.Add(new ListItem("-- Select Product --", "0"));
-            foreach (DataRow row in dt.Rows)
-            {
-                string label = row["ProductName"].ToString() +
-                    " (" + row["EffectiveBatches"].ToString() + " batches)";
-                ddlProduct.Items.Add(new ListItem(label, row["OrderID"].ToString()));
-            }
+            ddlProduct.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Product --", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlProduct.Items.Add(new System.Web.UI.WebControls.ListItem(
+                    r["ProductName"].ToString() + " (" + r["EffectiveBatches"] + " batches)",
+                    r["OrderID"].ToString()));
         }
 
-        private void LoadOrder(int orderId, int shift)
+        // ── RENDER ORDER ──────────────────────────────────────────────────────
+        // Single method that reads DB state and renders everything correctly
+        private void RenderOrder(int orderId)
         {
-            // Direct DB lookup — works regardless of order status or shift
             DataRow order = PPDatabaseHelper.GetProductionOrderById(orderId);
+            if (order == null) { ShowAlert("Order not found.", false); return; }
 
-            if (order == null)
-            { ShowAlert("Order not found.", false); return; }
-
-            int    totalBatches = Convert.ToInt32(Convert.ToDecimal(order["EffectiveBatches"]));
-            string status       = order["Status"].ToString();
+            int    total  = Convert.ToInt32(Convert.ToDecimal(order["EffectiveBatches"]));
+            string status = order["Status"].ToString();
+            string outAbbr = order["OutputAbbr"].ToString();
 
             // Info panel
-            pnlInfo.Visible       = true;
-            lblInfoProduct.Text   = order["ProductName"].ToString();
-            lblInfoCode.Text      = order["ProductCode"].ToString();
-            decimal batchSize     = Convert.ToDecimal(order["BatchSize"]);
-            string outAbbr        = order["OutputAbbr"].ToString();
-            if (lblInfoBatches != null) lblInfoBatches.Text = totalBatches.ToString();
-            lblInfoOutput.Text    = batchSize.ToString("0.###") + " " + outAbbr + " per batch";
-            lblInfoStatus.Text    = status;
+            pnlInfo.Visible        = true;
+            lblInfoProduct.Text    = order["ProductName"].ToString();
+            lblInfoCode.Text       = order["ProductCode"].ToString();
+            if (lblInfoBatches != null) lblInfoBatches.Text = total.ToString();
+            lblInfoOutput.Text     = Convert.ToDecimal(order["BatchSize"]).ToString("0.###") + " " + outAbbr + " per batch";
+            lblInfoStatus.Text     = status;
             lblInfoStatus.CssClass = status == "Completed" ? "status-completed" :
                                      status == "InProgress" ? "status-inprogress" : "status-initiated";
-            lblInfoDate.Text      = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
+            lblInfoDate.Text       = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
+            lblOutputUnit.Text     = outAbbr;
 
-            // Store state in both hidden fields AND session
-            hfOrderID.Value      = orderId.ToString();
-            hfTotalBatches.Value = totalBatches.ToString();
-            lblOutputUnit.Text   = outAbbr;
-            Session["PP_ExecOrderID"]   = orderId;
-            Session["PP_ExecTotalBats"] = totalBatches;
-
-            // Count completed batches
+            // Count completed
             var history = PPDatabaseHelper.GetBatchHistory(orderId);
-            int completedBatches = 0;
+            int done = 0;
             foreach (DataRow r in history.Rows)
-                if (r["Status"].ToString() == "Completed") completedBatches++;
-
-            lblInfoCompleted.Text = completedBatches + " of " + totalBatches + " batches done";
-
-            // Check for active batch
-            DataRow activeBatch = PPDatabaseHelper.GetActiveBatch(orderId);
-
-            if (status == "Completed")
-            {
-                pnlExecution.Style["display"] = "none";
-                pnlNoOrder.Visible   = false;
-                ShowAlert("All " + totalBatches + " batches completed for this product.", true);
-            }
-            else
-            {
-                pnlExecution.Style["display"] = "block";
-                pnlNoOrder.Visible   = false;
-
-                if (activeBatch != null)
-                {
-                    // Batch actively running — wheel spinning
-                    int batchNo = Convert.ToInt32(activeBatch["BatchNo"]);
-                    hfExecutionID.Value  = activeBatch["ExecutionID"].ToString();
-                    hfCurrentBatch.Value = batchNo.ToString();
-                    pnlOutput.Style["display"] = "none";
-                    btnStart.Enabled = false;
-                    btnEnd.Enabled   = true;
-                    ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                        "window.batchRunning=true; window.batchNum='" + batchNo +
-                        "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
-                }
-                else
-                {
-                    // Check if a batch was ended and awaiting output
-                    DataRow endedBatch = PPDatabaseHelper.GetEndedBatch(orderId);
-                    if (endedBatch != null)
-                    {
-                        // END was pressed — show output panel
-                        int batchNo = Convert.ToInt32(endedBatch["BatchNo"]);
-                        hfExecutionID.Value  = endedBatch["ExecutionID"].ToString();
-                        hfCurrentBatch.Value = batchNo.ToString();
-                        _showOutputPanel = true;
-                        btnStart.Enabled = false;
-                        btnEnd.Enabled   = false;
-                        ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                            "window.batchNum='" + batchNo +
-                            "'; window.totalBat='" + totalBatches + "'; stopWheel(false);", true);
-                    }
-                    else
-                    {
-                        // No active or ended batch — ready to start next
-                        int nextBatch = completedBatches + 1;
-                        hfCurrentBatch.Value = nextBatch.ToString();
-                        hfExecutionID.Value  = "0";
-                        pnlOutput.Style["display"] = "none";
-                        btnStart.Enabled = true;
-                        btnEnd.Enabled   = false;
-                        ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                            "window.batchNum='" + nextBatch +
-                            "'; window.totalBat='" + totalBatches + "'; stopWheel(true);", true);
-                    }
-                }
-            }
+                if (r["Status"].ToString() == "Completed") done++;
+            lblInfoCompleted.Text = done + " of " + total + " batches done";
 
             // Bind history
             rptHistory.DataSource = history;
             rptHistory.DataBind();
             pnlHistoryEmpty.Visible = history.Rows.Count == 0;
+
+            if (status == "Completed")
+            {
+                pnlExecution.Style["display"] = "none";
+                ShowAlert("All " + total + " batches completed!", true);
+                return;
+            }
+
+            pnlExecution.Style["display"] = "block";
+
+            // Determine current batch state from DB
+            DataRow active = PPDatabaseHelper.GetActiveBatch(orderId);
+            DataRow ended  = PPDatabaseHelper.GetEndedBatch(orderId);
+            int nextBatch  = done + 1;
+
+            if (active != null)
+            {
+                // Batch running
+                int bno = Convert.ToInt32(active["BatchNo"]);
+                SetState("running", orderId, bno, total, Convert.ToInt32(active["ExecutionID"]));
+                pnlOutput.Style["display"] = "none";
+            }
+            else if (ended != null)
+            {
+                // Batch ended — awaiting output
+                int bno = Convert.ToInt32(ended["BatchNo"]);
+                SetState("ended", orderId, bno, total, Convert.ToInt32(ended["ExecutionID"]));
+                pnlOutput.Style["display"] = "block";
+            }
+            else
+            {
+                // Ready for next batch
+                SetState("ready", orderId, nextBatch, total, 0);
+                pnlOutput.Style["display"] = "none";
+            }
+        }
+
+        private void SetState(string state, int orderId, int batchNo, int total, int execId)
+        {
+            hfState.Value        = state;
+            hfOrderID.Value      = orderId.ToString();
+            hfCurrentBatch.Value = batchNo.ToString();
+            hfTotalBatches.Value = total.ToString();
+            hfExecutionID.Value  = execId.ToString();
+
+            // Button states
+            btnStart.Enabled = (state == "ready");
+            btnEnd.Enabled   = (state == "running");
+
+            // JS wheel state
+            string js = state == "running"
+                ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
+                : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");";
+            ClientScript.RegisterStartupScript(GetType(), "ws", js, true);
         }
 
         // ── START BATCH ───────────────────────────────────────────────────────
         protected void btnStart_Click(object sender, EventArgs e)
         {
-            // Read from Request.Form — hidden fields may be reset by Page_Load before handler runs
-            int orderId      = ReadIntFromForm(hfOrderID);
-            int batchNo      = ReadIntFromForm(hfCurrentBatch);
-            int totalBatches = ReadIntFromForm(hfTotalBatches);
+            int orderId = GetOrderId();
+            if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
+            int batchNo = Convert.ToInt32(hfCurrentBatch.Value);
+            if (batchNo == 0) batchNo = 1;
 
-            if (orderId == 0) { ShowAlert("No product loaded. Please select and Load a product first.", false); return; }
-            if (batchNo  == 0) batchNo = 1;
-
-            // Guard: no batch already in progress
+            // Verify no batch already running
             if (PPDatabaseHelper.GetActiveBatch(orderId) != null)
-            { ShowAlert("A batch is already in progress.", false); return; }
+            { ShowAlert("A batch is already in progress.", false); RenderOrder(orderId); return; }
 
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
-            hfExecutionID.Value = execId.ToString();
-            hfOrderID.Value     = orderId.ToString();
-            ShowAlert("B" + batchNo + " started. execId=" + execId + " orderId=" + orderId, true);
-
-            pnlOutput.Style["display"] = "none";
-            // Set button states from server — END enabled, START disabled
-            btnStart.Enabled = false;
-            btnEnd.Enabled   = true;
-            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
-            // Override wheel script set by LoadOrder — batch just started
-            ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                "window.batchRunning=true; window.batchNum='" + batchNo +
-                "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
+            ShowAlert("Batch " + batchNo + " started.", true);
+            RenderOrder(orderId);
         }
 
         // ── END BATCH ─────────────────────────────────────────────────────────
         protected void btnEnd_Click(object sender, EventArgs e)
         {
-            int orderId = ReadIntFromForm(hfOrderID);
-            if (orderId == 0) { ShowAlert("Please load a product first.", false); return; }
+            int orderId = GetOrderId();
+            if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
-            // Always look up active batch from DB — don't rely on hidden field
-            DataRow activeBatch = PPDatabaseHelper.GetActiveBatch(orderId);
-            if (activeBatch == null)
-            { ShowAlert("No batch found for OrderID " + orderId + ". Please press START first.", false); return; }
+            DataRow active = PPDatabaseHelper.GetActiveBatch(orderId);
+            if (active == null) { ShowAlert("No batch is running.", false); RenderOrder(orderId); return; }
 
-            int execId = Convert.ToInt32(activeBatch["ExecutionID"]);
-            hfExecutionID.Value = execId.ToString();
-
+            int execId = Convert.ToInt32(active["ExecutionID"]);
             PPDatabaseHelper.EndBatch(execId, orderId);
-            ShowAlert("Batch ended. execId=" + execId + " orderId=" + orderId, true);
-
-            // Set button states from server
-            btnEnd.Enabled   = false;
-            btnStart.Enabled = false;
-
-            // Stop wheel, unlock output panel
-            ClientScript.RegisterStartupScript(GetType(), "stopWheel",
-                "window.batchRunning=false; stopWheel(false);", true);
-
-            // Show output panel — set flag, PreRender will apply it
-            _showOutputPanel     = true;
-            txtActualOutput.Text = "";
-            txtRemarks.Text      = "";
-        }
-
-        protected override void OnPreRender(EventArgs e)
-        {
-            base.OnPreRender(e);
-            // Apply output panel visibility after all handlers have run
-            if (_showOutputPanel)
-                pnlOutput.Style["display"] = "block";
+            RenderOrder(orderId);
+            // Output panel shown by RenderOrder detecting 'ended' state
         }
 
         // ── SAVE OUTPUT ───────────────────────────────────────────────────────
         protected void btnSaveOutput_Click(object sender, EventArgs e)
         {
-            int orderId      = ReadIntFromForm(hfOrderID);
-            int totalBatches = ReadIntFromForm(hfTotalBatches);
-            int currentBatch = ReadIntFromForm(hfCurrentBatch); // batch being saved
-
-            // Look up the ended batch from DB — most reliable source
-            int execId = 0;
-            if (orderId > 0)
-            {
-                DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
-                if (ended != null) execId = Convert.ToInt32(ended["ExecutionID"]);
-            }
-            if (execId == 0) execId = ReadIntFromForm(hfExecutionID);
-
-            if (execId == 0) { ShowAlert("Cannot save: orderId=" + orderId + " execId=" + execId + " currentBatch=" + currentBatch, false); return; }
+            int orderId = GetOrderId();
             if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
-            decimal actualOutput;
-            if (!decimal.TryParse(txtActualOutput.Text.Trim(), out actualOutput) || actualOutput <= 0)
-            { ShowAlert("Please enter a valid actual output quantity.", false); return; }
+            DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
+            if (ended == null) { ShowAlert("No batch awaiting output.", false); return; }
 
-            if (totalBatches == 0) totalBatches = Convert.ToInt32(
+            decimal output;
+            if (!decimal.TryParse(txtActualOutput.Text.Trim(), out output) || output <= 0)
+            { ShowAlert("Please enter a valid output quantity.", false); return; }
+
+            int execId      = Convert.ToInt32(ended["ExecutionID"]);
+            int batchNo     = Convert.ToInt32(ended["BatchNo"]);
+            int total       = Convert.ToInt32(hfTotalBatches.Value);
+            if (total == 0) total = Convert.ToInt32(
                 Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
 
-            PPDatabaseHelper.SaveBatchOutput(execId, actualOutput,
-                txtRemarks.Text.Trim(), orderId, totalBatches);
-
-            int nextBatch = currentBatch + 1;
-            hfCurrentBatch.Value = nextBatch.ToString();
-            hfExecutionID.Value  = "0";
-            pnlOutput.Style["display"] = "none";
-
-            ShowAlert("Batch " + currentBatch + " of " + totalBatches + " completed successfully.", true);
-
-            // Re-enable START for next batch
-            btnStart.Enabled = true;
-            btnEnd.Enabled   = false;
-
-            // Register wheel for next batch
-            ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                "window.batchNum='" + nextBatch + "';" +
-                "window.totalBat='" + totalBatches + "';" +
-                "stopWheel(true);", true);
-
-            // Reload order to update history and info panel
-            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
+            PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
+            ShowAlert("Batch " + batchNo + " of " + total + " saved successfully.", true);
+            txtActualOutput.Text = "";
+            txtRemarks.Text      = "";
+            RenderOrder(orderId);
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────────
-
-        // Read integer from hidden field — falls back to raw form post value
-        // Needed because Page_Load runs before button handlers and can reset fields
-        private int ReadIntFromForm(HiddenField field)
+        private int GetOrderId()
         {
-            // 1. Try hidden field value (from ViewState)
-            int val = Convert.ToInt32(field.Value);
-            if (val > 0) return val;
-            // 2. Try raw posted form value
-            string raw = Request.Form[field.UniqueID];
-            if (!string.IsNullOrEmpty(raw) && raw != "0")
-                return Convert.ToInt32(raw);
-            // 3. Session fallback for critical fields
-            if (field.ID == "hfOrderID" && Session["PP_ExecOrderID"] != null)
-                return Convert.ToInt32(Session["PP_ExecOrderID"]);
-            if (field.ID == "hfTotalBatches" && Session["PP_ExecTotalBats"] != null)
-                return Convert.ToInt32(Session["PP_ExecTotalBats"]);
+            // Session is the most reliable store across postbacks
+            if (Session["PE_OrderID"] != null)
+                return Convert.ToInt32(Session["PE_OrderID"]);
+            // Fallback to hidden field
+            string v = hfOrderID.Value;
+            if (!string.IsNullOrEmpty(v) && v != "0") return Convert.ToInt32(v);
+            // Fallback to form post
+            string f = Request.Form[hfOrderID.UniqueID];
+            if (!string.IsNullOrEmpty(f) && f != "0") return Convert.ToInt32(f);
             return 0;
-        }
-        private void ReloadHistory(int orderId)
-        {
-            var history = PPDatabaseHelper.GetBatchHistory(orderId);
-            rptHistory.DataSource = history;
-            rptHistory.DataBind();
-            pnlHistoryEmpty.Visible = history.Rows.Count == 0;
         }
 
         protected string FormatTime(object val)
@@ -399,18 +282,17 @@ namespace PPApp
 
         private void ShowAlert(string msg, bool success)
         {
-            string icon   = success ? "&#10003;" : "&#9888;";
-            string bg     = success ? "#d1f5e0" : "#fdf3f2";
-            string color  = success ? "#155724" : "#842029";
-            string border = success ? "#a3d9b1" : "#f5c2c7";
-
+            string icon = success ? "&#10003;" : "&#9888;";
+            string bg   = success ? "#d1f5e0" : "#fdf3f2";
+            string col  = success ? "#155724" : "#842029";
+            string bdr  = success ? "#a3d9b1" : "#f5c2c7";
             lblAlert.Text = string.Format(
                 "<div style='display:flex;align-items:flex-start;gap:10px;padding:12px 16px;" +
                 "border-radius:10px;font-size:13px;line-height:1.6;" +
                 "background:{0};color:{1};border:1px solid {2};'>" +
                 "<span style='font-size:16px;flex-shrink:0;'>{3}</span>" +
                 "<span>{4}</span></div>",
-                bg, color, border, icon, msg);
+                bg, col, bdr, icon, msg);
             pnlAlert.Visible = true;
         }
     }

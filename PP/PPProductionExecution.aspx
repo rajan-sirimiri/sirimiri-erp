@@ -168,6 +168,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <asp:HiddenField ID="hfTotalBatches" runat="server" Value="0"/>
 <asp:HiddenField ID="hfCurrentBatch" runat="server" Value="1"/>
 <asp:HiddenField ID="hfShowOutput"   runat="server" Value="0"/>
+<asp:HiddenField ID="hfState"        runat="server" Value="ready"/>
 
 <nav>
     <a href="PPHome.aspx" class="nav-logo">
@@ -261,7 +262,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- START BUTTON -->
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
-                    OnClientClick="startWheel(); return true;"
+                    OnClientClick="startWheelAnim(); return true;"
                     Text="&#9654;&#xA;START"/>
 
                 <!-- GEAR WHEEL SVG -->
@@ -321,7 +322,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
-                    OnClientClick="stopWheel(false); return true;"
+                    OnClientClick="stopWheelAnim(); return true;"
                     Text="&#9646;&#9646;&#xA;END"/>
 
             </div>
@@ -415,113 +416,60 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 </form>
 
 <script>
-// ── GEAR WHEEL ANIMATION ──────────────────────────────────
-var gearAngle    = 0;
-var gearSpeed    = 0;
-var targetSpeed  = 0;
-var animFrame    = null;
-window.batchRunning = false;
+// ── GEAR ANIMATION ──────────────────────────────────────────────────────────
+var gearAngle = 0, gearSpeed = 0, targetSpeed = 0;
 
-window.batchNum = window.batchNum || '<%= hfCurrentBatch.Value %>';
-window.totalBat = window.totalBat || '<%= hfTotalBatches.Value %>';
+function animateGear() {
+    gearSpeed += (targetSpeed - gearSpeed) * 0.03;
+    gearAngle  = (gearAngle + gearSpeed) % 360;
+    var g = document.getElementById('gearGroup');
+    if (g) g.setAttribute('transform', 'translate(100,100) rotate(' + gearAngle + ')');
+    requestAnimationFrame(animateGear);
+}
 
 function updateGearText() {
-    var numEl = document.getElementById('gearBatchNum');
-    var subEl = document.getElementById('gearBatchSub');
-    if (!numEl || !subEl) return;
-    if (totalBat && totalBat !== '0') {
-        numEl.innerText = 'B' + window.batchNum;
-        subEl.innerText = window.batchNum + ' OF ' + window.totalBat;
+    var n = document.getElementById('gearBatchNum');
+    var s = document.getElementById('gearBatchSub');
+    if (!n || !s) return;
+    if (window.totalBat && window.totalBat !== '0') {
+        n.innerText = 'B' + window.batchNum;
+        s.innerText = window.batchNum + ' OF ' + window.totalBat;
     } else {
-        numEl.innerText = '—';
-        subEl.innerText = 'READY';
+        n.innerText = '—'; s.innerText = 'READY';
     }
 }
 
-function animateGear() {
-    // Ease toward target speed
-    gearSpeed += (targetSpeed - gearSpeed) * 0.03;
-    gearAngle  = (gearAngle + gearSpeed) % 360;
-
-    var g = document.getElementById('gearGroup');
-    if (g) g.setAttribute('transform', 'translate(100,100) rotate(' + gearAngle + ')');
-
-    animFrame = requestAnimationFrame(animateGear);
-}
-
+// Called by server RegisterStartupScript
 function startWheel() {
-    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
-    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
-    var label    = document.getElementById('gearStatusLabel');
-    var svg      = document.getElementById('gearSvg');
-
-    // Visual feedback immediately
     targetSpeed = 0.9;
-    window.batchRunning = true;
-
-    // NOTE: Do NOT disable startBtn here — disabled buttons cannot submit forms
-    // Disable it after a tiny delay so the form posts first
-    if (endBtn)   { endBtn.disabled = false; endBtn.style.background = 'var(--red)'; }
-    if (label)    { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
-    if (svg)        svg.classList.add('spinning');
-
-    var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
-    if (outPanel) outPanel.style.display = 'none';
-
+    document.getElementById('gearSvg').classList.add('spinning');
+    var lbl = document.getElementById('gearStatusLabel');
+    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
     updateGearText();
 }
 
 function stopWheel(readyForNext) {
-    // Slow down then stop
     targetSpeed = 0;
-    window.batchRunning = false;
-
-    var startBtn  = document.getElementById('<%= btnStart.ClientID %>');
-    var endBtn    = document.getElementById('<%= btnEnd.ClientID %>');
-    var label     = document.getElementById('gearStatusLabel');
-    var svg       = document.getElementById('gearSvg');
-    var outPanel  = document.getElementById('<%= pnlOutput.ClientID %>');
-
-    if (endBtn)   endBtn.disabled = true;
-    if (svg)      svg.classList.remove('spinning');
-
-    updateGearText();  // refresh B2, B3 etc on gear face
-
+    document.getElementById('gearSvg').classList.remove('spinning');
+    var lbl = document.getElementById('gearStatusLabel');
+    var out = document.getElementById('<%= pnlOutput.ClientID %>');
     if (readyForNext) {
-        // Batch saved — ready to start next batch
-        if (startBtn) startBtn.disabled = false;
-        if (label)  { label.innerText = 'READY TO START'; label.className = 'gear-status-label stopped'; }
-        if (outPanel) outPanel.style.display = 'none';
+        if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'none';
     } else {
-        // END pressed — awaiting output entry
-        // NOTE: Do NOT disable startBtn here — it would prevent form submission
-        if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
-        if (outPanel) outPanel.style.display = 'block';
+        if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'block';
     }
+    updateGearText();
 }
 
-// Init on load — restore state from server
+// OnClientClick handlers — just visual, postback handles logic
+function startWheelAnim() { targetSpeed = 0.9; updateGearText(); return true; }
+function stopWheelAnim()  { targetSpeed = 0;   return true; }
+
 window.addEventListener('load', function() {
-    updateGearText();
     animateGear();
-
-    var startBtn = document.getElementById('<%= btnStart.ClientID %>');
-    var endBtn   = document.getElementById('<%= btnEnd.ClientID %>');
-    var label    = document.getElementById('gearStatusLabel');
-    var outPanel = document.getElementById('<%= pnlOutput.ClientID %>');
-
-    if (window.batchRunning) {
-        // Server says batch is in progress — spin
-        targetSpeed = 0.9;
-        if (startBtn) startBtn.disabled = true;
-        if (endBtn)   endBtn.disabled   = false;
-        if (label)  { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
-        document.getElementById('gearSvg').classList.add('spinning');
-    } else if (outPanel && outPanel.style.display !== 'none') {
-        stopWheel(false);  // batch ended, awaiting output
-    } else {
-        stopWheel(true);   // ready for next batch
-    }
+    updateGearText();
 });
 </script>
 </body>
