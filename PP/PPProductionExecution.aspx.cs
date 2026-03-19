@@ -10,6 +10,7 @@ namespace PPApp
     {
         private int    UserID   => Convert.ToInt32(Session["PP_UserID"]);
         private string FullName => Session["PP_FullName"]?.ToString() ?? "";
+        private bool   _showOutputPanel = false;  // set by btnEnd_Click, read in PreRender
 
         protected Label          lblNavUser;
         protected Label          lblTodayDate;
@@ -85,14 +86,7 @@ namespace PPApp
                 if (orderId > 0)
                 {
                     LoadOrder(orderId, shift);
-                    // If END was just pressed, keep output panel visible
-                    if (hfShowOutput.Value == "1")
-                    {
-                        pnlOutput.Style["display"] = "block";
-                        hfShowOutput.Value   = "0";
-                        txtActualOutput.Text = "";
-                        txtRemarks.Text      = "";
-                    }
+                    // Output panel visibility is controlled by btnEnd_Click via _showOutputPanel
                 }
             }
         }
@@ -186,25 +180,41 @@ namespace PPApp
 
                 if (activeBatch != null)
                 {
-                    // Batch in progress — wheel should be spinning
+                    // Batch actively running — wheel spinning
                     int batchNo = Convert.ToInt32(activeBatch["BatchNo"]);
-                    hfExecutionID.Value = activeBatch["ExecutionID"].ToString();
+                    hfExecutionID.Value  = activeBatch["ExecutionID"].ToString();
                     hfCurrentBatch.Value = batchNo.ToString();
                     pnlOutput.Style["display"] = "none";
-                    ClientScript.RegisterStartupScript(GetType(), "startWheel",
+                    ClientScript.RegisterStartupScript(GetType(), "wheelState",
                         "window.batchRunning=true; window.batchNum='" + batchNo +
                         "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
                 }
                 else
                 {
-                    // No active batch — ready to start next
-                    int nextBatch = completedBatches + 1;
-                    hfCurrentBatch.Value = nextBatch.ToString();
-                    hfExecutionID.Value  = "0";
-                    pnlOutput.Style["display"] = "none";
-                    ClientScript.RegisterStartupScript(GetType(), "stopWheel",
-                        "window.batchRunning=false; window.batchNum='" + nextBatch +
-                        "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
+                    // Check if a batch was ended and awaiting output
+                    DataRow endedBatch = PPDatabaseHelper.GetEndedBatch(orderId);
+                    if (endedBatch != null)
+                    {
+                        // END was pressed — show output panel
+                        int batchNo = Convert.ToInt32(endedBatch["BatchNo"]);
+                        hfExecutionID.Value  = endedBatch["ExecutionID"].ToString();
+                        hfCurrentBatch.Value = batchNo.ToString();
+                        _showOutputPanel = true;
+                        ClientScript.RegisterStartupScript(GetType(), "wheelState",
+                            "window.batchRunning=false; window.batchNum='" + batchNo +
+                            "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
+                    }
+                    else
+                    {
+                        // No active or ended batch — ready to start next
+                        int nextBatch = completedBatches + 1;
+                        hfCurrentBatch.Value = nextBatch.ToString();
+                        hfExecutionID.Value  = "0";
+                        pnlOutput.Style["display"] = "none";
+                        ClientScript.RegisterStartupScript(GetType(), "wheelState",
+                            "window.batchRunning=false; window.batchNum='" + nextBatch +
+                            "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
+                    }
                 }
             }
 
@@ -265,10 +275,18 @@ namespace PPApp
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
                 "window.batchRunning=false; stopWheel();", true);
 
-            // Signal Page_Load to show output panel
-            hfShowOutput.Value   = "1";
+            // Show output panel — set flag, PreRender will apply it
+            _showOutputPanel     = true;
             txtActualOutput.Text = "";
             txtRemarks.Text      = "";
+        }
+
+        protected override void OnPreRender(EventArgs e)
+        {
+            base.OnPreRender(e);
+            // Apply output panel visibility after all handlers have run
+            if (_showOutputPanel)
+                pnlOutput.Style["display"] = "block";
         }
 
         // ── SAVE OUTPUT ───────────────────────────────────────────────────────

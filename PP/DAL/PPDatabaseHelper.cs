@@ -837,6 +837,17 @@ namespace PPApp.DAL
                 new MySqlParameter("?oid", orderId));
         }
 
+        // Get batch that has been ended but output not yet saved
+        public static DataRow GetEndedBatch(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT ExecutionID, BatchNo, StartTime, EndTime, Status " +
+                "FROM PP_BatchExecution " +
+                "WHERE OrderID = ?oid AND Status = 'Ended' " +
+                "ORDER BY BatchNo DESC LIMIT 1;",
+                new MySqlParameter("?oid", orderId));
+        }
+
         // Start a new batch
         public static int StartBatch(int orderId, int batchNo, int userId)
         {
@@ -863,8 +874,9 @@ namespace PPApp.DAL
         // End a batch — marks EndTime, updates order to InProgress
         public static void EndBatch(int executionId, int orderId)
         {
+            // Mark as 'Ended' — awaiting output entry. GetActiveBatch looks for 'InProgress' only.
             ExecuteNonQuery(
-                "UPDATE PP_BatchExecution SET EndTime = ?now " +
+                "UPDATE PP_BatchExecution SET EndTime = ?now, Status = 'Ended' " +
                 "WHERE ExecutionID = ?eid;",
                 new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?eid", executionId));
@@ -882,7 +894,7 @@ namespace PPApp.DAL
             ExecuteNonQuery(
                 "UPDATE PP_BatchExecution " +
                 "SET ActualOutput = ?ao, Remarks = ?rem, Status = 'Completed' " +
-                "WHERE ExecutionID = ?eid;",
+                "WHERE ExecutionID = ?eid AND Status IN ('Ended','InProgress');",
                 new MySqlParameter("?ao",  actualOutput),
                 new MySqlParameter("?rem", string.IsNullOrEmpty(remarks) ? (object)DBNull.Value : remarks),
                 new MySqlParameter("?eid", executionId));
