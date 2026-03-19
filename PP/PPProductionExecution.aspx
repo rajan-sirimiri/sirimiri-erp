@@ -350,7 +350,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                         </div>
                     </div>
                     <asp:Button ID="btnSaveOutput" runat="server"
-                        Text="Save &amp; Complete Batch"
+                        Text="Save &amp; Move to Packing"
                         CssClass="btn-save-output"
                         OnClick="btnSaveOutput_Click"
                         CausesValidation="false"/>
