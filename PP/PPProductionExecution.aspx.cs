@@ -192,6 +192,8 @@ namespace PPApp
                     hfExecutionID.Value  = activeBatch["ExecutionID"].ToString();
                     hfCurrentBatch.Value = batchNo.ToString();
                     pnlOutput.Style["display"] = "none";
+                    btnStart.Enabled = false;
+                    btnEnd.Enabled   = true;
                     ClientScript.RegisterStartupScript(GetType(), "wheelState",
                         "window.batchRunning=true; window.batchNum='" + batchNo +
                         "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
@@ -207,6 +209,8 @@ namespace PPApp
                         hfExecutionID.Value  = endedBatch["ExecutionID"].ToString();
                         hfCurrentBatch.Value = batchNo.ToString();
                         _showOutputPanel = true;
+                        btnStart.Enabled = false;
+                        btnEnd.Enabled   = false;
                         ClientScript.RegisterStartupScript(GetType(), "wheelState",
                             "window.batchNum='" + batchNo +
                             "'; window.totalBat='" + totalBatches + "'; stopWheel(false);", true);
@@ -218,6 +222,8 @@ namespace PPApp
                         hfCurrentBatch.Value = nextBatch.ToString();
                         hfExecutionID.Value  = "0";
                         pnlOutput.Style["display"] = "none";
+                        btnStart.Enabled = true;
+                        btnEnd.Enabled   = false;
                         ClientScript.RegisterStartupScript(GetType(), "wheelState",
                             "window.batchNum='" + nextBatch +
                             "'; window.totalBat='" + totalBatches + "'; stopWheel(true);", true);
@@ -252,6 +258,9 @@ namespace PPApp
             ShowAlert("B" + batchNo + " started. execId=" + execId + " orderId=" + orderId, true);
 
             pnlOutput.Style["display"] = "none";
+            // Set button states from server — END enabled, START disabled
+            btnStart.Enabled = false;
+            btnEnd.Enabled   = true;
             LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
             // Override wheel script set by LoadOrder — batch just started
             ClientScript.RegisterStartupScript(GetType(), "wheelState",
@@ -275,6 +284,10 @@ namespace PPApp
 
             PPDatabaseHelper.EndBatch(execId, orderId);
             ShowAlert("Batch ended. execId=" + execId + " orderId=" + orderId, true);
+
+            // Set button states from server
+            btnEnd.Enabled   = false;
+            btnStart.Enabled = false;
 
             // Stop wheel, unlock output panel
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
@@ -329,6 +342,10 @@ namespace PPApp
             pnlOutput.Style["display"] = "none";
 
             ShowAlert("Batch " + currentBatch + " of " + totalBatches + " completed successfully.", true);
+
+            // Re-enable START for next batch
+            btnStart.Enabled = true;
+            btnEnd.Enabled   = false;
 
             // Register wheel for next batch
             ClientScript.RegisterStartupScript(GetType(), "wheelState",

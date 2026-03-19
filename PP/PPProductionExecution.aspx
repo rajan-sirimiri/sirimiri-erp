@@ -469,8 +469,6 @@ function startWheel() {
     if (outPanel) outPanel.style.display = 'none';
 
     updateGearText();
-    // Disable after form has had time to submit
-    setTimeout(function() { if (startBtn) startBtn.disabled = true; }, 100);
 }
 
 function stopWheel(readyForNext) {
@@ -499,8 +497,6 @@ function stopWheel(readyForNext) {
         // NOTE: Do NOT disable startBtn here — it would prevent form submission
         if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
         if (outPanel) outPanel.style.display = 'block';
-        // Disable startBtn after form posts
-        setTimeout(function() { if (startBtn) startBtn.disabled = true; }, 100);
     }
 }
 
