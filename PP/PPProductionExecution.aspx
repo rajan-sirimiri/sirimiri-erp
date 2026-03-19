@@ -167,6 +167,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <asp:HiddenField ID="hfExecutionID"  runat="server" Value="0"/>
 <asp:HiddenField ID="hfTotalBatches" runat="server" Value="0"/>
 <asp:HiddenField ID="hfCurrentBatch" runat="server" Value="1"/>
+<asp:HiddenField ID="hfShowOutput"   runat="server" Value="0"/>
 
 <nav>
     <a href="PPHome.aspx" class="nav-logo">

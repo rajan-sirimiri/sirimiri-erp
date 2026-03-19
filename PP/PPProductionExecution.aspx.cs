@@ -37,6 +37,7 @@ namespace PPApp
         protected HiddenField    hfExecutionID;
         protected HiddenField    hfTotalBatches;
         protected HiddenField    hfCurrentBatch;
+        protected HiddenField    hfShowOutput;
 
         // Gear animation area (labels driven by JS via ClientScript)
         protected Button         btnStart;
@@ -56,15 +57,43 @@ namespace PPApp
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
-            lblNavUser.Text  = FullName;
+            lblNavUser.Text   = FullName;
             lblTodayDate.Text = PPDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper();
+
+            int shift = Convert.ToInt32(ddlShift.SelectedValue);
 
             if (!IsPostBack)
             {
                 pnlInfo.Visible      = false;
                 pnlExecution.Visible = false;
                 pnlNoOrder.Visible   = false;
-                LoadProductDropdown(1);  // Pre-load Shift 1 products on first visit
+                LoadProductDropdown(shift);
+            }
+            else
+            {
+                // Reload dropdown but preserve the selected value
+                string selectedOrderId = Request.Form[ddlProduct.UniqueID];
+                LoadProductDropdown(shift);
+                if (!string.IsNullOrEmpty(selectedOrderId) && selectedOrderId != "0")
+                {
+                    var item = ddlProduct.Items.FindByValue(selectedOrderId);
+                    if (item != null) item.Selected = true;
+                }
+
+                // Restore order panel if an order was previously loaded
+                int orderId = Convert.ToInt32(hfOrderID.Value);
+                if (orderId > 0)
+                {
+                    LoadOrder(orderId, shift);
+                    // If END was just pressed, keep output panel visible
+                    if (hfShowOutput.Value == "1")
+                    {
+                        pnlOutput.Visible    = true;
+                        hfShowOutput.Value   = "0";
+                        txtActualOutput.Text = "";
+                        txtRemarks.Text      = "";
+                    }
+                }
             }
         }
 
@@ -74,10 +103,13 @@ namespace PPApp
             pnlAlert.Visible = false;
             int shift = Convert.ToInt32(ddlShift.SelectedValue);
 
-            if (ddlProduct.SelectedValue == "0")
+            // Read directly from form post — dropdown may have been cleared by Page_Load
+            string selectedVal = Request.Form[ddlProduct.UniqueID];
+            if (string.IsNullOrEmpty(selectedVal) || selectedVal == "0")
             { ShowAlert("Please select a product.", false); return; }
 
-            int orderId = Convert.ToInt32(ddlProduct.SelectedValue);
+            int orderId = Convert.ToInt32(selectedVal);
+            hfOrderID.Value = orderId.ToString(); // persist for subsequent postbacks
             LoadOrder(orderId, shift);
         }
 
@@ -203,9 +235,7 @@ namespace PPApp
             ClientScript.RegisterStartupScript(GetType(), "startWheel",
                 "window.batchRunning=true; window.batchNum='" + batchNo +
                 "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
-
-            // Reload so pnlExecution stays visible and hfExecutionID persists
-            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
+            // Page_Load will call LoadOrder on next postback via hfOrderID
         }
 
         // ── END BATCH ─────────────────────────────────────────────────────────
@@ -228,9 +258,8 @@ namespace PPApp
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
                 "window.batchRunning=false; stopWheel();", true);
 
-            // Reload order then keep output panel visible
-            LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
-            pnlOutput.Visible    = true;
+            // Signal Page_Load to show output panel
+            hfShowOutput.Value   = "1";
             txtActualOutput.Text = "";
             txtRemarks.Text      = "";
         }
