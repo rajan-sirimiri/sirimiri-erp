@@ -201,8 +201,8 @@ namespace PPApp
                         hfCurrentBatch.Value = batchNo.ToString();
                         _showOutputPanel = true;
                         ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                            "window.batchRunning=false; window.batchNum='" + batchNo +
-                            "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
+                            "window.batchNum='" + batchNo +
+                            "'; window.totalBat='" + totalBatches + "'; stopWheel(false);", true);
                     }
                     else
                     {
@@ -212,8 +212,8 @@ namespace PPApp
                         hfExecutionID.Value  = "0";
                         pnlOutput.Style["display"] = "none";
                         ClientScript.RegisterStartupScript(GetType(), "wheelState",
-                            "window.batchRunning=false; window.batchNum='" + nextBatch +
-                            "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
+                            "window.batchNum='" + nextBatch +
+                            "'; window.totalBat='" + totalBatches + "'; stopWheel(true);", true);
                     }
                 }
             }
@@ -239,16 +239,7 @@ namespace PPApp
             if (PPDatabaseHelper.GetActiveBatch(orderId) != null)
             { ShowAlert("A batch is already in progress.", false); return; }
 
-            // Diagnostic — show what we're passing
-            ShowAlert("START: orderId=" + orderId + " batchNo=" + batchNo + " userID=" + UserID, true);
-            int execId = 0;
-            try {
-                execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
-                ShowAlert("StartBatch OK: execId=" + execId, true);
-            } catch (Exception ex) {
-                ShowAlert("StartBatch FAILED: " + ex.Message, false);
-                return;
-            }
+            int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
             hfOrderID.Value     = orderId.ToString();
 
@@ -278,7 +269,7 @@ namespace PPApp
 
             // Stop wheel, unlock output panel
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
-                "window.batchRunning=false; stopWheel();", true);
+                "window.batchRunning=false; stopWheel(false);", true);
 
             // Show output panel — set flag, PreRender will apply it
             _showOutputPanel     = true;
@@ -317,10 +308,18 @@ namespace PPApp
 
             hfExecutionID.Value = "0";
             pnlOutput.Style["display"] = "none";
-            ShowAlert("Batch completed and saved successfully.", true);
+            ShowAlert("Batch " + ReadIntFromForm(hfCurrentBatch) + " completed successfully.", true);
 
-            // Reload
+            // Reload order to get updated batch count
             LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
+            // Override wheel script — ready for next batch
+            int savedBatch  = ReadIntFromForm(hfCurrentBatch);
+            int nextBatchNo = savedBatch + 1;
+            int tot         = ReadIntFromForm(hfTotalBatches);
+            ClientScript.RegisterStartupScript(GetType(), "wheelState",
+                "window.batchNum='" + nextBatchNo + "';" +
+                "window.totalBat='" + tot + "';" +
+                "stopWheel(true);", true);
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────────

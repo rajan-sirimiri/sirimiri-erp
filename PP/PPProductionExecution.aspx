@@ -471,7 +471,7 @@ function startWheel() {
     updateGearText();
 }
 
-function stopWheel() {
+function stopWheel(readyForNext) {
     // Slow down then stop
     targetSpeed = 0;
     window.batchRunning = false;
@@ -483,12 +483,21 @@ function stopWheel() {
     var outPanel  = document.getElementById('<%= pnlOutput.ClientID %>');
 
     if (endBtn)   endBtn.disabled = true;
-    if (startBtn) startBtn.disabled = true;
-    if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
     if (svg)      svg.classList.remove('spinning');
 
-    // Show output panel directly — no need to wait for postback
-    if (outPanel) outPanel.style.display = 'block';
+    updateGearText();  // refresh B2, B3 etc on gear face
+
+    if (readyForNext) {
+        // Batch saved — ready to start next batch
+        if (startBtn) startBtn.disabled = false;
+        if (label)  { label.innerText = 'READY TO START'; label.className = 'gear-status-label stopped'; }
+        if (outPanel) outPanel.style.display = 'none';
+    } else {
+        // END pressed — awaiting output entry
+        if (startBtn) startBtn.disabled = true;
+        if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
+        if (outPanel) outPanel.style.display = 'block';
+    }
 }
 
 // Init on load — restore state from server
@@ -509,17 +518,9 @@ window.addEventListener('load', function() {
         if (label)  { label.innerText = 'IN PROGRESS...'; label.className = 'gear-status-label running'; }
         document.getElementById('gearSvg').classList.add('spinning');
     } else if (outPanel && outPanel.style.display !== 'none') {
-        // Batch ended — awaiting output entry
-        targetSpeed = 0;
-        if (startBtn) startBtn.disabled = true;
-        if (endBtn)   endBtn.disabled   = true;
-        if (label)  { label.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; label.className = 'gear-status-label stopped'; }
+        stopWheel(false);  // batch ended, awaiting output
     } else {
-        // Ready to start next batch
-        targetSpeed = 0;
-        if (startBtn) startBtn.disabled = false;
-        if (endBtn)   endBtn.disabled   = true;
-        if (label)  { label.innerText = 'READY TO START'; label.className = 'gear-status-label stopped'; }
+        stopWheel(true);   // ready for next batch
     }
 });
 </script>
