@@ -488,10 +488,12 @@ function stopWheelAnim() {
     return true;
 }
 
+// Start animation loop immediately — before load event
+animateGear();
+
 window.addEventListener('load', function() {
-    animateGear();
     updateGearText();
-    // Restore spinning state if server says batch is running
+    // Apply server state after DOM is ready
     if (window.batchRunning) {
         targetSpeed = 0.9;
         var svg = document.getElementById('gearSvg');
