@@ -141,6 +141,26 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     .split{grid-template-columns:1fr;height:auto;}
     .pane{height:auto;}
 }
+
+/* CONFIRMATION MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
+    z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.visible{display:flex;}
+.modal-box{background:#fff;border-radius:16px;padding:28px 28px 22px;
+    max-width:420px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.2);animation:slideUp .2s ease;}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-icon{font-size:34px;margin-bottom:10px;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.06em;
+    margin-bottom:8px;color:#1a1a1a;}
+.modal-product{font-size:14px;font-weight:600;color:var(--accent-dark);margin-bottom:6px;}
+.modal-detail{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.modal-btn-cancel{background:#f0f0f0;color:#555;border:none;border-radius:8px;
+    padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;}
+.modal-btn-cancel:hover{background:#e0e0e0;}
+.modal-btn-confirm{background:var(--accent);color:#fff;border:none;border-radius:8px;
+    padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.03em;}
+.modal-btn-confirm:hover{background:var(--accent-dark);}
 </style>
 </head>
 <body>
@@ -405,17 +425,61 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 </form>
 
+<!-- INITIATE CONFIRMATION MODAL -->
+<div class="modal-overlay" id="initiateModal">
+    <div class="modal-box">
+        <div class="modal-icon">&#x2699;&#xFE0F;</div>
+        <div class="modal-title">Initiate Production</div>
+        <div class="modal-product" id="modalProduct"></div>
+        <div class="modal-detail" id="modalDetail"></div>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn-cancel" onclick="closeInitiateModal()">Cancel</button>
+            <button type="button" class="modal-btn-confirm" onclick="doInitiate()">Initiate Production</button>
+        </div>
+    </div>
+</div>
+
 <script>
+var _pendingBtn = null;
+
 function confirmInitiate(btn) {
-    var row  = btn.closest('tr');
-    var name = row ? row.querySelector('.prod-name') : null;
-    var prod = name ? name.innerText : 'this product';
-    var rev  = row ? row.querySelector('.revised-input') : null;
-    var batches = rev && rev.value ? rev.value : 
-                  row ? (row.querySelector('.batch-num') || {}).innerText : '?';
-    return confirm('Initiate production of ' + prod + '?\n\nBatches: ' + batches + 
-                   '\n\nThis will start the production order and redirect to Execution.');
+    var row     = btn.closest('tr');
+    var nameEl  = row ? row.querySelector('.prod-name') : null;
+    var codeEl  = row ? row.querySelector('.prod-code') : null;
+    var revEl   = row ? row.querySelector('.revised-input') : null;
+    var batchEl = row ? row.querySelector('.batch-num') : null;
+
+    var prod    = nameEl ? nameEl.innerText.trim() : 'this product';
+    var code    = codeEl ? codeEl.innerText.trim() : '';
+    var batches = (revEl && revEl.value.trim()) ? revEl.value.trim()
+                : (batchEl ? batchEl.innerText.trim() : '?');
+
+    document.getElementById('modalProduct').innerText =
+        prod + (code ? '  —  ' + code : '');
+    document.getElementById('modalDetail').innerHTML =
+        'You are about to initiate production of <strong>' + batches +
+        ' batches</strong>.<br/>Once confirmed, you will be redirected to Production Execution.';
+
+    _pendingBtn = btn;
+    document.getElementById('initiateModal').classList.add('visible');
+    return false;
 }
+
+function closeInitiateModal() {
+    document.getElementById('initiateModal').classList.remove('visible');
+    _pendingBtn = null;
+}
+
+function doInitiate() {
+    closeInitiateModal();
+    if (_pendingBtn) setTimeout(function(){ _pendingBtn.click(); }, 50);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('initiateModal').addEventListener('click', function(e) {
+        if (e.target === this) closeInitiateModal();
+    });
+});
 
 // Tab switching — show/hide shift divs
 document.addEventListener('DOMContentLoaded', function() {

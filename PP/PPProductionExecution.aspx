@@ -418,8 +418,8 @@ var targetSpeed  = 0;
 var animFrame    = null;
 window.batchRunning = false;
 
-var batchNum  = '<%= hfCurrentBatch.Value %>';
-var totalBat  = '<%= hfTotalBatches.Value %>';
+window.batchNum = window.batchNum || '<%= hfCurrentBatch.Value %>';
+window.totalBat = window.totalBat || '<%= hfTotalBatches.Value %>';
 
 function updateGearText() {
     var numEl = document.getElementById('gearBatchNum');

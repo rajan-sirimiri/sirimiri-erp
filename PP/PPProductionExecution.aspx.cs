@@ -25,7 +25,6 @@ namespace PPApp
         protected Panel          pnlInfo;
         protected Label          lblInfoProduct;
         protected Label          lblInfoCode;
-        protected Label          lblInfoBatches;
         protected Label          lblInfoOutput;
         protected Label          lblInfoStatus;
         protected Label          lblInfoDate;
@@ -39,11 +38,9 @@ namespace PPApp
         protected HiddenField    hfTotalBatches;
         protected HiddenField    hfCurrentBatch;
 
-        // Gear animation area
-        protected Label          lblBatchProgress;
-        protected Panel          pnlStartBtn;
-        protected Panel          pnlEndBtn;
-        protected Panel          pnlGearStatus;
+        // Gear animation area (labels driven by JS via ClientScript)
+        protected Button         btnStart;
+        protected Button         btnEnd;
 
         // Output panel
         protected Panel          pnlOutput;
@@ -122,7 +119,6 @@ namespace PPApp
             pnlInfo.Visible       = true;
             lblInfoProduct.Text   = order["ProductName"].ToString();
             lblInfoCode.Text      = order["ProductCode"].ToString();
-            lblInfoBatches.Text   = totalBatches.ToString();
             decimal batchSize     = Convert.ToDecimal(order["BatchSize"]);
             string outAbbr        = order["OutputAbbr"].ToString();
             lblInfoOutput.Text    = batchSize.ToString("0.###") + " " + outAbbr + " per batch";
@@ -164,11 +160,10 @@ namespace PPApp
                     int batchNo = Convert.ToInt32(activeBatch["BatchNo"]);
                     hfExecutionID.Value = activeBatch["ExecutionID"].ToString();
                     hfCurrentBatch.Value = batchNo.ToString();
-                    lblBatchProgress.Text = "BATCH " + batchNo + " OF " + totalBatches;
                     pnlOutput.Visible = false;
-                    // JS will start the wheel via startup script
                     ClientScript.RegisterStartupScript(GetType(), "startWheel",
-                        "window.batchRunning=true; startWheel();", true);
+                        "window.batchRunning=true; window.batchNum='" + batchNo +
+                        "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
                 }
                 else
                 {
@@ -176,10 +171,10 @@ namespace PPApp
                     int nextBatch = completedBatches + 1;
                     hfCurrentBatch.Value = nextBatch.ToString();
                     hfExecutionID.Value  = "0";
-                    lblBatchProgress.Text = "BATCH " + nextBatch + " OF " + totalBatches;
                     pnlOutput.Visible = false;
                     ClientScript.RegisterStartupScript(GetType(), "stopWheel",
-                        "window.batchRunning=false; stopWheel();", true);
+                        "window.batchRunning=false; window.batchNum='" + nextBatch +
+                        "'; window.totalBat='" + totalBatches + "'; stopWheel();", true);
                 }
             }
 
@@ -203,12 +198,10 @@ namespace PPApp
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
 
-            lblBatchProgress.Text = "BATCH " + batchNo + " OF " + totalBatches;
-            pnlOutput.Visible     = false;
-
-            // Tell JS to spin the wheel
+            pnlOutput.Visible = false;
             ClientScript.RegisterStartupScript(GetType(), "startWheel",
-                "window.batchRunning=true; startWheel();", true);
+                "window.batchRunning=true; window.batchNum='" + batchNo +
+                "'; window.totalBat='" + totalBatches + "'; startWheel();", true);
 
             ReloadHistory(orderId);
         }
