@@ -239,8 +239,16 @@ namespace PPApp
             if (PPDatabaseHelper.GetActiveBatch(orderId) != null)
             { ShowAlert("A batch is already in progress.", false); return; }
 
-            // Show exactly what we're passing to StartBatch
-            int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
+            // Diagnostic — show what we're passing
+            ShowAlert("START: orderId=" + orderId + " batchNo=" + batchNo + " userID=" + UserID, true);
+            int execId = 0;
+            try {
+                execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
+                ShowAlert("StartBatch OK: execId=" + execId, true);
+            } catch (Exception ex) {
+                ShowAlert("StartBatch FAILED: " + ex.Message, false);
+                return;
+            }
             hfExecutionID.Value = execId.ToString();
             hfOrderID.Value     = orderId.ToString();
 
