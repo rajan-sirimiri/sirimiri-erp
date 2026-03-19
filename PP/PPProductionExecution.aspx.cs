@@ -289,9 +289,16 @@ namespace PPApp
         // ── SAVE OUTPUT ───────────────────────────────────────────────────────
         protected void btnSaveOutput_Click(object sender, EventArgs e)
         {
-            int execId       = Convert.ToInt32(hfExecutionID.Value);
-            int orderId      = Convert.ToInt32(hfOrderID.Value);
-            int totalBatches = Convert.ToInt32(hfTotalBatches.Value);
+            int execId       = ReadIntFromForm(hfExecutionID);
+            int orderId      = ReadIntFromForm(hfOrderID);
+            int totalBatches = ReadIntFromForm(hfTotalBatches);
+
+            // If execId still 0, look up the ended batch from DB
+            if (execId == 0 && orderId > 0)
+            {
+                DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
+                if (ended != null) execId = Convert.ToInt32(ended["ExecutionID"]);
+            }
 
             decimal actualOutput;
             if (!decimal.TryParse(txtActualOutput.Text.Trim(), out actualOutput) || actualOutput <= 0)
