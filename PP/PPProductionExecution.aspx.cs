@@ -249,6 +249,7 @@ namespace PPApp
             int execId = PPDatabaseHelper.StartBatch(orderId, batchNo, UserID);
             hfExecutionID.Value = execId.ToString();
             hfOrderID.Value     = orderId.ToString();
+            ShowAlert("B" + batchNo + " started. execId=" + execId + " orderId=" + orderId, true);
 
             pnlOutput.Style["display"] = "none";
             LoadOrder(orderId, Convert.ToInt32(ddlShift.SelectedValue));
@@ -273,6 +274,7 @@ namespace PPApp
             hfExecutionID.Value = execId.ToString();
 
             PPDatabaseHelper.EndBatch(execId, orderId);
+            ShowAlert("Batch ended. execId=" + execId + " orderId=" + orderId, true);
 
             // Stop wheel, unlock output panel
             ClientScript.RegisterStartupScript(GetType(), "stopWheel",
@@ -308,7 +310,7 @@ namespace PPApp
             }
             if (execId == 0) execId = ReadIntFromForm(hfExecutionID);
 
-            if (execId == 0) { ShowAlert("Cannot find batch to save. Please try again.", false); return; }
+            if (execId == 0) { ShowAlert("Cannot save: orderId=" + orderId + " execId=" + execId + " currentBatch=" + currentBatch, false); return; }
             if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
             decimal actualOutput;
