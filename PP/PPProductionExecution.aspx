@@ -441,8 +441,10 @@ function updateGearText() {
 
 // Called by server RegisterStartupScript
 function startWheel() {
+    window.batchRunning = true;
     targetSpeed = 0.9;
-    document.getElementById('gearSvg').classList.add('spinning');
+    var svg = document.getElementById('gearSvg');
+    if (svg) svg.classList.add('spinning');
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
     updateGearText();
@@ -464,12 +466,39 @@ function stopWheel(readyForNext) {
 }
 
 // OnClientClick handlers — just visual, postback handles logic
-function startWheelAnim() { targetSpeed = 0.9; updateGearText(); return true; }
-function stopWheelAnim()  { targetSpeed = 0;   return true; }
+function startWheelAnim() {
+    window.batchRunning = true;
+    targetSpeed = 0.9;
+    var svg = document.getElementById('gearSvg');
+    if (svg) svg.classList.add('spinning');
+    var lbl = document.getElementById('gearStatusLabel');
+    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+    updateGearText();
+    return true;
+}
+function stopWheelAnim() {
+    window.batchRunning = false;
+    targetSpeed = 0;
+    var svg = document.getElementById('gearSvg');
+    if (svg) svg.classList.remove('spinning');
+    var lbl = document.getElementById('gearStatusLabel');
+    if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+    var out = document.getElementById('<%= pnlOutput.ClientID %>');
+    if (out) out.style.display = 'block';
+    return true;
+}
 
 window.addEventListener('load', function() {
     animateGear();
     updateGearText();
+    // Restore spinning state if server says batch is running
+    if (window.batchRunning) {
+        targetSpeed = 0.9;
+        var svg = document.getElementById('gearSvg');
+        if (svg) svg.classList.add('spinning');
+        var lbl = document.getElementById('gearStatusLabel');
+        if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+    }
 });
 </script>
 </body>
