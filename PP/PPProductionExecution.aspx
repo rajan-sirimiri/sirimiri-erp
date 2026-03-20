@@ -268,9 +268,9 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- GEAR WHEEL SVG -->
                 <div class="gear-wrap">
                     <!-- Ship wheel image rotates on batch execution -->
-                    <img id="gearSvg" src="progress_wheel.jpg"
+                    <img id="gearSvg" src="progress_wheel.png"
                          style="width:260px;height:260px;object-fit:contain;
-                                transition:filter .3s;border-radius:50%;"
+                                transition:filter .3s;"
                          alt="Production Wheel"/>
                     <!-- Text overlay on wheel -->
                     <div class="gear-center-text">
