@@ -112,17 +112,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
 .gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;pointer-events:none;
-    background:rgba(255,255,255,0.92);
-    border-radius:50%;
-    width:110px;height:110px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    box-shadow:0 2px 12px rgba(0,0,0,0.18), inset 0 1px 3px rgba(255,255,255,0.8);
-    border:2px solid rgba(255,255,255,0.6);}
-.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:36px;
-    letter-spacing:.04em;color:#4a2800;line-height:1;}
-.gear-batch-sub{font-size:10px;color:#7a4a10;letter-spacing:.06em;
-    text-transform:uppercase;margin-top:2px;font-weight:700;}
+    text-align:center;pointer-events:none;}
+.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:34px;
+    letter-spacing:.04em;color:#fff;line-height:1;}
+.gear-batch-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.06em;
+    text-transform:uppercase;margin-top:2px;}
 .gear-status-label{font-size:11px;font-weight:700;text-align:center;
     margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--text-muted);}
@@ -270,6 +264,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- START BUTTON -->
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
+                    UseSubmitBehavior="false"
                     OnClientClick="return startWheelAnim();"
                     Text="&#9654;&#xA;START"/>
 
@@ -279,14 +274,17 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
                     <!-- Text overlay on wheel -->
                     <div class="gear-center-text">
-                        <div class="gear-batch-num" id="gearBatchNum">—</div>
-                        <div class="gear-batch-sub" id="gearBatchSub">READY</div>
+                        <div class="gear-batch-num" id="gearBatchNum"
+                             style="color:#4a2800;text-shadow:0 1px 3px rgba(255,255,255,.8);">—</div>
+                        <div class="gear-batch-sub" id="gearBatchSub"
+                             style="color:#6b3a00;text-shadow:0 1px 2px rgba(255,255,255,.8);">READY</div>
                     </div>
                 </div>
 
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
+                    UseSubmitBehavior="false"
                     OnClientClick="return stopWheelAnim();"
                     Text="&#9646;&#9646;&#xA;END"/>
 
@@ -297,7 +295,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </div>
 
             <!-- OUTPUT PANEL — unlocks after END -->
-            <asp:Panel ID="pnlOutput" runat="server" Visible="false">
+            <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none">
                 <div class="output-panel" style="margin-top:28px;">
                     <div class="output-title">Record Batch Output</div>
                     <div class="output-grid">
@@ -403,49 +401,57 @@ function updateGearText() {
     }
 }
 
-// Called by RegisterStartupScript — runs before DOM is ready, just set flags
+// Set by RegisterStartupScript before DOM ready — just store state
 function startWheel() { window.serverState = 'running'; }
 function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
 
-// Apply visual state based on what server told us — called on window.load
 function applyState() {
+    var img = document.getElementById('gearSvg');
     var lbl = document.getElementById('gearStatusLabel');
+    var out = document.getElementById('pnlOutput');
     var s   = window.serverState || 'ready';
 
     if (s === 'running') {
         targetSpeed = 0.9;
         if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+        if (out) out.style.display = 'none';
     } else if (s === 'ended') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'block';
     } else if (s === 'stopped') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'none';
     } else {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'none';
     }
     updateGearText();
 }
 
-// OnClientClick — ONLY visual feedback, no state management, no cursor changes
-// Returning true allows the normal form submit to proceed
+// OnClientClick — pure visual animation only, NO button state changes
+// Server controls which buttons are enabled via Enabled property
 function startWheelAnim() {
     targetSpeed = 0.9;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    return true;
+    return true;  // allow postback
 }
 function stopWheelAnim() {
     targetSpeed = 0;
+    var out = document.getElementById('pnlOutput');
+    if (out) out.style.display = 'block';
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-    return true;
+    return true;  // allow postback
 }
 
 window.addEventListener('load', function() {
-    animateGear();
-    applyState();
+    animateGear();   // start loop
+    applyState();    // apply server state (RegisterStartupScript already ran)
+    updateGearText();
 });
 </script>
 </form>
