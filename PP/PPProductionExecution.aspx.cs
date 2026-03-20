@@ -151,8 +151,8 @@ namespace PPApp
             {
                 pnlExecution.Style["display"] = "block";
                 SetState("ready", orderId, done + 1, total, 0);
-                btnStart.Enabled = false;
-                btnEnd.Enabled   = false;
+                btnStart.Enabled = true;
+                btnEnd.Enabled   = true;
                 ClientScript.RegisterStartupScript(GetType(), "ws",
                     "window.serverState='stopped';applyServerState();", true);
                 ShowAlert("&#9654; This production order is currently <strong>Stopped</strong>. " +
@@ -197,10 +197,10 @@ namespace PPApp
             hfTotalBatches.Value = total.ToString();
             hfExecutionID.Value  = execId.ToString();
 
-            // UseSubmitBehavior=false means disabled buttons still fire via JS __doPostBack
-            // So we can safely use Enabled for visual state without blocking postback
-            btnStart.Enabled = (state == "ready");
-            btnEnd.Enabled   = (state == "running");
+            // Buttons always enabled — JS controls visual state via CSS opacity
+            // Guards are in the C# handlers (GetActiveBatch / GetEndedBatch checks)
+            btnStart.Enabled = true;
+            btnEnd.Enabled   = true;
 
             // JS wheel state
             string js = state == "running"
