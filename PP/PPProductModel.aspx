@@ -460,6 +460,9 @@
                     <div class="img-upload-box" onclick="document.getElementById('fileImage').click()" style="margin-bottom:0;">
                         <input type="file" id="fileImage" name="fileImage" accept="image/*" onchange="previewImage(this)" class="file-input-hidden" />
                         <img id="imgPreview" class="img-preview" src="#" alt="Preview" />
+                        <asp:Image ID="imgSaved" runat="server" CssClass="img-preview"
+                            Visible="false" AlternateText="Product Image"
+                            style="width:100%;max-height:140px;object-fit:contain;border-radius:6px;"/>
                         <div id="imgPlaceholder">
                             <div class="img-placeholder">&#x1F5BC;&#xFE0F;</div>
                             <div class="img-placeholder-text">Click to upload product image<br/><span style="font-size:9px;">PNG, JPG up to 2MB</span></div>

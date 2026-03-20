@@ -27,6 +27,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.DropDownList   ddlProdUOM;
         protected global::System.Web.UI.WebControls.HiddenField    hfProductID;
         protected global::System.Web.UI.WebControls.HiddenField    hfImagePath;
+        protected global::System.Web.UI.WebControls.Image          imgSaved;
         protected global::System.Web.UI.WebControls.Button         btnSave;
         protected global::System.Web.UI.WebControls.Button         btnClear;
         protected global::System.Web.UI.WebControls.Button         btnToggleActive;
@@ -199,12 +200,24 @@ namespace PPApp
             var fileImage = Request.Files["fileImage"];
             if (fileImage != null && fileImage.ContentLength > 0)
             {
-                string uploadDir = Server.MapPath("~/ProductImages/");
-                if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-                string ext      = Path.GetExtension(fileImage.FileName);
-                string fileName = "prod_" + PPDatabaseHelper.NowIST().Ticks + ext;
-                fileImage.SaveAs(Path.Combine(uploadDir, fileName));
-                imagePath = "ProductImages/" + fileName;
+                try
+                {
+                    string uploadDir = Server.MapPath("~/ProductImages/");
+                    if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+                    string ext      = Path.GetExtension(fileImage.FileName).ToLower();
+                    // Only allow image extensions
+                    if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".webp")
+                    { ShowAlert("Invalid image format. Use JPG, PNG, GIF or WebP.", false); return; }
+                    string fileName = "prod_" + PPDatabaseHelper.NowIST().Ticks + ext;
+                    string fullPath = Path.Combine(uploadDir, fileName);
+                    fileImage.SaveAs(fullPath);
+                    imagePath = "ProductImages/" + fileName;
+                }
+                catch (Exception imgEx)
+                {
+                    ShowAlert("Image upload failed: " + imgEx.Message + " — product will be saved without image.", false);
+                    imagePath = hfImagePath.Value; // keep existing image if any
+                }
             }
 
             int productId = GetSelectedProductId();
@@ -275,7 +288,20 @@ namespace PPApp
             txtHSN.Text          = row["HSNCode"] == DBNull.Value ? "" : row["HSNCode"].ToString();
             txtGSTRate.Text      = row["GSTRate"] == DBNull.Value ? "" : row["GSTRate"].ToString();
             txtBatchSize.Text    = row["BatchSize"].ToString();
-            hfImagePath.Value    = row["ImagePath"] == DBNull.Value ? "" : row["ImagePath"].ToString();
+            string imgPath       = row["ImagePath"] == DBNull.Value ? "" : row["ImagePath"].ToString();
+            hfImagePath.Value    = imgPath;
+            if (!string.IsNullOrEmpty(imgPath))
+            {
+                imgSaved.ImageUrl = "~/" + imgPath;
+                imgSaved.Visible  = true;
+                ClientScript.RegisterStartupScript(GetType(), "hidePlaceholder",
+                    "var ph=document.getElementById('imgPlaceholder'); if(ph) ph.style.display='none';" +
+                    "var ip=document.getElementById('imgPreview'); if(ip) ip.style.display='none';", true);
+            }
+            else
+            {
+                imgSaved.Visible = false;
+            }
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
             // Restore output UOM
@@ -300,6 +326,7 @@ namespace PPApp
         {
             hfProductID.Value    = "0";
             hfImagePath.Value    = "";
+            if (imgSaved != null) imgSaved.Visible = false;
             txtCode.Text         = "";
             txtName.Text         = "";
             txtHSN.Text          = "";
