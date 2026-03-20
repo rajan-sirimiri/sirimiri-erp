@@ -149,13 +149,12 @@ namespace PPApp
 
         private void HandleItemCommand(RepeaterCommandEventArgs e)
         {
+            int orderId = Convert.ToInt32(e.CommandArgument);
+
             if (e.CommandName == "Initiate")
             {
-                int orderId = Convert.ToInt32(e.CommandArgument);
-
                 // Save revised batches if provided
-                var item = e.Item;
-                var txtRevised = item.FindControl("txtRevised") as TextBox;
+                var txtRevised = e.Item.FindControl("txtRevised") as TextBox;
                 if (txtRevised != null && !string.IsNullOrEmpty(txtRevised.Text.Trim()))
                 {
                     decimal revised;
@@ -166,10 +165,8 @@ namespace PPApp
                 bool ok = PPDatabaseHelper.InitiateOrder(orderId);
                 if (ok)
                 {
-                    ShowAlert("Production initiated successfully. Redirecting to Execution...", true);
-                    // Reload then redirect
+                    ShowAlert("Production initiated. Redirecting to Execution...", true);
                     LoadPage();
-                    // Redirect to execution with orderID
                     Response.Redirect("PPProductionExecution.aspx?orderid=" + orderId);
                 }
                 else
@@ -178,6 +175,46 @@ namespace PPApp
                     LoadPage();
                 }
             }
+            else if (e.CommandName == "SaveRevised")
+            {
+                var txtRevised = e.Item.FindControl("txtRevised") as TextBox;
+                if (txtRevised == null) { LoadPage(); return; }
+                decimal revised;
+                if (!decimal.TryParse(txtRevised.Text.Trim(), out revised) || revised <= 0)
+                { ShowAlert("Please enter a valid number of batches.", false); LoadPage(); return; }
+
+                // Validate: revised cannot be less than completed batches
+                int completed = GetCompletedBatches(orderId);
+                if (revised < completed)
+                {
+                    ShowAlert("Revised batches cannot be less than completed batches (" + completed + ").", false);
+                    LoadPage(); return;
+                }
+                PPDatabaseHelper.UpdateRevisedBatches(orderId, revised);
+                ShowAlert("Revised batches updated to " + revised + ".", true);
+                LoadPage();
+            }
+            else if (e.CommandName == "Stop")
+            {
+                PPDatabaseHelper.StopOrder(orderId);
+                ShowAlert("Production stopped.", false);
+                LoadPage();
+            }
+            else if (e.CommandName == "Resume")
+            {
+                PPDatabaseHelper.ResumeOrder(orderId);
+                ShowAlert("Production resumed.", true);
+                LoadPage();
+            }
+        }
+
+        private int GetCompletedBatches(int orderId)
+        {
+            var dt = PPDatabaseHelper.GetBatchHistory(orderId);
+            int count = 0;
+            foreach (DataRow r in dt.Rows)
+                if (r["Status"].ToString() == "Completed") count++;
+            return count;
         }
 
         // ── HELPERS ──────────────────────────────────────────────────────────
@@ -185,10 +222,11 @@ namespace PPApp
         {
             switch (status?.ToString() ?? "")
             {
-                case "Initiated":   return "badge-initiated";
-                case "InProgress":  return "badge-inprogress";
-                case "Completed":   return "badge-completed";
-                default:            return "badge-pending";
+                case "Initiated":  return "badge-initiated";
+                case "InProgress": return "badge-inprogress";
+                case "Completed":  return "badge-completed";
+                case "Stopped":    return "badge-stopped";
+                default:           return "badge-pending";
             }
         }
 
@@ -246,6 +284,45 @@ namespace PPApp
                 return sb.ToString();
             }
             catch { return "—"; }
+        }
+
+        protected string FormatProgress(object completed, object effective, object ordered)
+        {
+            try {
+                int c = Convert.ToInt32(completed);
+                int e = Convert.ToInt32(Convert.ToDecimal(effective));
+                int o = Convert.ToInt32(Convert.ToDecimal(ordered));
+                if (e == o) return c + " / " + e;
+                return c + " / " + e + " (" + o + " ordered)";
+            } catch { return "—"; }
+        }
+
+        protected string FormatVariation(object actualOut, object batchSize, object effective, object abbr)
+        {
+            try {
+                decimal actual   = Convert.ToDecimal(actualOut);
+                decimal bsize    = Convert.ToDecimal(batchSize);
+                decimal eff      = Convert.ToDecimal(effective);
+                decimal expected = bsize * eff;
+                if (expected == 0) return "—";
+                decimal diff     = actual - expected;
+                decimal pct      = Math.Round(diff / expected * 100, 1);
+                string sign      = diff >= 0 ? "+" : "";
+                string color     = diff >= 0 ? "var(--accent-dark)" : "var(--red)";
+                return string.Format(
+                    "<span style='color:{0}'>{1}{2} {3} ({4}{5}%)</span>",
+                    color, sign, diff.ToString("0.###"), abbr, sign, pct);
+            } catch { return "—"; }
+        }
+
+        protected string ProgressBarWidth(object completed, object effective)
+        {
+            try {
+                decimal c = Convert.ToDecimal(completed);
+                decimal e = Convert.ToDecimal(effective);
+                if (e == 0) return "0";
+                return Math.Min(100, Math.Round(c / e * 100)).ToString();
+            } catch { return "0"; }
         }
 
         private void ShowAlert(string msg, bool success)

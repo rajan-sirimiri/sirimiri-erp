@@ -472,6 +472,11 @@ function applyServerState() {
         if (svg) svg.classList.remove('spinning');
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
         if (out) out.style.display = 'block';
+    } else if (state === 'stopped') {
+        targetSpeed = 0;
+        if (svg) svg.classList.remove('spinning');
+        if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
+        if (out) out.style.display = 'none';
     } else {
         targetSpeed = 0;
         if (svg) svg.classList.remove('spinning');

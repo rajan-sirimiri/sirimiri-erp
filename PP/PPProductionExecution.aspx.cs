@@ -147,6 +147,19 @@ namespace PPApp
                 return;
             }
 
+            if (status == "Stopped")
+            {
+                pnlExecution.Style["display"] = "block";
+                SetState("ready", orderId, done + 1, total, 0);
+                btnStart.Enabled = false;
+                btnEnd.Enabled   = false;
+                ClientScript.RegisterStartupScript(GetType(), "ws",
+                    "window.serverState='stopped';applyServerState();", true);
+                ShowAlert("&#9654; This production order is currently <strong>Stopped</strong>. " +
+                    "Go to Production Order to resume.", false);
+                return;
+            }
+
             pnlExecution.Style["display"] = "block";
 
             // Determine current batch state from DB

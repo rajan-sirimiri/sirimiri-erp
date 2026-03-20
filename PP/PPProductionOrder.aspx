@@ -98,6 +98,21 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     font-weight:700;padding:2px 8px;border-radius:10px;}
 .badge-completed{background:var(--accent-light);color:var(--accent-dark);font-size:10px;
     font-weight:700;padding:2px 8px;border-radius:10px;}
+.badge-stopped{background:#fff3cd;color:#856404;font-size:10px;
+    font-weight:700;padding:2px 8px;border-radius:10px;}
+.btn-stop{background:var(--red);color:#fff;border:none;border-radius:8px;
+    padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.03em;}
+.btn-stop:hover{background:#c0392b;}
+.btn-resume{background:var(--blue);color:#fff;border:none;border-radius:8px;
+    padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.03em;}
+.btn-resume:hover{background:#1f6fa3;}
+.btn-save-rev{background:#f0f0f0;color:#333;border:1px solid #ccc;border-radius:6px;
+    padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;}
+.btn-save-rev:hover{background:#e0e0e0;}
+.progress-text{font-size:12px;font-weight:700;color:var(--accent-dark);}
+.prog-bar-wrap{background:#f0f0f0;border-radius:6px;height:6px;margin:4px 0 8px;overflow:hidden;}
+.prog-bar-fill{height:100%;border-radius:6px;background:var(--accent);transition:width .3s;}
+.variation-row{font-size:12px;margin-top:4px;}
 
 /* EMPTY STATES */
 .empty-state{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px;}
@@ -233,8 +248,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                             <th>Sr</th>
                             <th>Product</th>
                             <th>Ordered</th>
-                            <th>Revised</th>
-                            <th>Status</th>
+                            <th>Revised ✓</th>
+                            <th>Progress / Status</th>
                             <th>Action</th>
                         </tr>
                     </HeaderTemplate>
@@ -250,30 +265,52 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <div class="batch-uom"><%# Eval("ProdAbbr") %></div>
                             </td>
                             <td>
-                                <asp:TextBox ID="txtRevised" runat="server"
-                                    CssClass="revised-input"
-                                    Text='<%# Eval("RevisedBatches") %>'
-                                    Enabled='<%# CanInitiate(Eval("Status")) %>'
-                                    placeholder="—"/>
+                                <div style="display:flex;gap:4px;align-items:center;justify-content:center;">
+                                    <asp:TextBox ID="txtRevised" runat="server"
+                                        CssClass="revised-input"
+                                        Text='<%# Eval("RevisedBatches") %>'
+                                        Enabled='<%# Eval("Status").ToString() != "Completed" %>'
+                                        placeholder="—"/>
+                                    <asp:LinkButton runat="server"
+                                        CommandName="SaveRevised"
+                                        CommandArgument='<%# Eval("OrderID") %>'
+                                        CssClass="btn-save-rev"
+                                        Visible='<%# Eval("Status").ToString() != "Completed" %>'
+                                        CausesValidation="false">✓</asp:LinkButton>
+                                </div>
                             </td>
                             <td>
-                                <span class='<%# StatusClass(Eval("Status")) %>'>
-                                    <%# Eval("Status") %>
-                                </span>
+                                <div class="progress-text">
+                                    <%# FormatProgress(Eval("CompletedBatches"), Eval("EffectiveBatches"), Eval("OrderedBatches")) %>
+                                </div>
+                                <div class="prog-bar-wrap">
+                                    <div class="prog-bar-fill" style="width:<%# ProgressBarWidth(Eval("CompletedBatches"), Eval("EffectiveBatches")) %>%"></div>
+                                </div>
+                                <span class='<%# StatusClass(Eval("Status")) %>'><%# Eval("Status") %></span>
                             </td>
                             <td>
-                                <%# CanInitiate(Eval("Status"))
-                                    ? "" : "" %>
                                 <asp:LinkButton runat="server"
                                     CommandName="Initiate"
                                     CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass="btn-initiate"
                                     Visible='<%# CanInitiate(Eval("Status")) %>'
-                                    OnClientClick="return confirmInitiate(this)"
-                                    CausesValidation="false">Initiate Production</asp:LinkButton>
-                                <%# !CanInitiate(Eval("Status"))
-                                    ? "<span class='btn-" + Eval("Status").ToString().ToLower() + "'>" + ButtonLabel(Eval("Status")) + "</span>"
-                                    : "" %>
+                                    OnClientClick="return confirmInitiate(this);"
+                                    CausesValidation="false">Initiate</asp:LinkButton>
+                                <asp:LinkButton runat="server"
+                                    CommandName="Stop"
+                                    CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass="btn-stop"
+                                    Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
+                                    OnClientClick="return confirm('Stop this production order?');"
+                                    CausesValidation="false">⏸ Stop</asp:LinkButton>
+                                <asp:LinkButton runat="server"
+                                    CommandName="Resume"
+                                    CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass="btn-resume"
+                                    Visible='<%# Eval("Status").ToString() == "Stopped" %>'
+                                    CausesValidation="false">▶ Resume</asp:LinkButton>
+                                <%# Eval("Status").ToString() == "Completed"
+                                    ? "<span class='badge-completed'>Completed</span>" : "" %>
                             </td>
                         </tr>
                     </ItemTemplate>
@@ -298,8 +335,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                             <th>Sr</th>
                             <th>Product</th>
                             <th>Ordered</th>
-                            <th>Revised</th>
-                            <th>Status</th>
+                            <th>Revised ✓</th>
+                            <th>Progress / Status</th>
                             <th>Action</th>
                         </tr>
                     </HeaderTemplate>
@@ -315,16 +352,28 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <div class="batch-uom"><%# Eval("ProdAbbr") %></div>
                             </td>
                             <td>
-                                <asp:TextBox ID="txtRevised" runat="server"
-                                    CssClass="revised-input"
-                                    Text='<%# Eval("RevisedBatches") %>'
-                                    Enabled='<%# CanInitiate(Eval("Status")) %>'
-                                    placeholder="—"/>
+                                <div style="display:flex;gap:4px;align-items:center;justify-content:center;">
+                                    <asp:TextBox ID="txtRevised" runat="server"
+                                        CssClass="revised-input"
+                                        Text='<%# Eval("RevisedBatches") %>'
+                                        Enabled='<%# Eval("Status").ToString() != "Completed" %>'
+                                        placeholder="—"/>
+                                    <asp:LinkButton runat="server"
+                                        CommandName="SaveRevised"
+                                        CommandArgument='<%# Eval("OrderID") %>'
+                                        CssClass="btn-save-rev"
+                                        Visible='<%# Eval("Status").ToString() != "Completed" %>'
+                                        CausesValidation="false">✓</asp:LinkButton>
+                                </div>
                             </td>
                             <td>
-                                <span class='<%# StatusClass(Eval("Status")) %>'>
-                                    <%# Eval("Status") %>
-                                </span>
+                                <div class="progress-text">
+                                    <%# FormatProgress(Eval("CompletedBatches"), Eval("EffectiveBatches"), Eval("OrderedBatches")) %>
+                                </div>
+                                <div class="prog-bar-wrap">
+                                    <div class="prog-bar-fill" style="width:<%# ProgressBarWidth(Eval("CompletedBatches"), Eval("EffectiveBatches")) %>%"></div>
+                                </div>
+                                <span class='<%# StatusClass(Eval("Status")) %>'><%# Eval("Status") %></span>
                             </td>
                             <td>
                                 <asp:LinkButton runat="server"
@@ -332,11 +381,23 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass="btn-initiate"
                                     Visible='<%# CanInitiate(Eval("Status")) %>'
-                                    OnClientClick="return confirmInitiate(this)"
-                                    CausesValidation="false">Initiate Production</asp:LinkButton>
-                                <%# !CanInitiate(Eval("Status"))
-                                    ? "<span class='btn-" + Eval("Status").ToString().ToLower() + "'>" + ButtonLabel(Eval("Status")) + "</span>"
-                                    : "" %>
+                                    OnClientClick="return confirmInitiate(this);"
+                                    CausesValidation="false">Initiate</asp:LinkButton>
+                                <asp:LinkButton runat="server"
+                                    CommandName="Stop"
+                                    CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass="btn-stop"
+                                    Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
+                                    OnClientClick="return confirm('Stop this production order?');"
+                                    CausesValidation="false">⏸ Stop</asp:LinkButton>
+                                <asp:LinkButton runat="server"
+                                    CommandName="Resume"
+                                    CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass="btn-resume"
+                                    Visible='<%# Eval("Status").ToString() == "Stopped" %>'
+                                    CausesValidation="false">▶ Resume</asp:LinkButton>
+                                <%# Eval("Status").ToString() == "Completed"
+                                    ? "<span class='badge-completed'>Completed</span>" : "" %>
                             </td>
                         </tr>
                     </ItemTemplate>
@@ -373,31 +434,51 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <div class="progress-prod-name"><%# Eval("ProductName") %></div>
                                 <div class="progress-prod-code"><%# Eval("ProductCode") %></div>
                             </div>
-                            <span class='progress-shift-badge <%# Convert.ToInt32(Eval("Shift"))==1 ? "shift1-badge" : "shift2-badge" %>'>
-                                SHIFT <%# Eval("Shift") %>
-                            </span>
+                            <div style="text-align:right;">
+                                <span class='progress-shift-badge <%# Convert.ToInt32(Eval("Shift"))==1 ? "shift1-badge" : "shift2-badge" %>'>
+                                    SHIFT <%# Eval("Shift") %>
+                                </span><br/>
+                                <span class='<%# StatusClass(Eval("Status")) %>' style="margin-top:4px;display:inline-block;">
+                                    <%# Eval("Status") %>
+                                </span>
+                            </div>
                         </div>
 
-                        <!-- Progress bar — driven by Execution module later -->
+                        <!-- Batch Progress -->
                         <div class="prog-label">
-                            <span>Progress</span>
-                            <span class='<%# StatusClass(Eval("Status")) %>'><%# Eval("Status") %></span>
+                            <span style="font-weight:600;">
+                                Batch <%# Convert.ToInt32(Eval("CompletedBatches")) %> 
+                                of <%# Convert.ToInt32(Convert.ToDecimal(Eval("EffectiveBatches"))) %>
+                                <%# Convert.ToDecimal(Eval("EffectiveBatches")) != Convert.ToDecimal(Eval("OrderedBatches"))
+                                    ? "(" + Convert.ToInt32(Convert.ToDecimal(Eval("OrderedBatches"))) + " ordered)" : "" %>
+                            </span>
+                            <span style="font-size:11px;color:var(--text-muted);">
+                                <%# ProgressBarWidth(Eval("CompletedBatches"), Eval("EffectiveBatches")) %>% done
+                            </span>
                         </div>
                         <div class="prog-bar-wrap">
-                            <div class="prog-bar-fill" style="width:<%# Eval("Status").ToString()=="Completed" ? "100" : Eval("Status").ToString()=="InProgress" ? "50" : "10" %>%"></div>
+                            <div class="prog-bar-fill" style="width:<%# ProgressBarWidth(Eval("CompletedBatches"), Eval("EffectiveBatches")) %>%"></div>
                         </div>
 
                         <!-- Stats -->
                         <div class="stat-row">
-                            <span class="stat-label">Batches Ordered</span>
-                            <span class="stat-value">
-                                <%# Eval("EffectiveBatches") %> <%# Eval("ProdAbbr") %>
-                            </span>
-                        </div>
-                        <div class="stat-row">
                             <span class="stat-label">Expected Output</span>
                             <span class="stat-value">
                                 <%# FormatOutput(Eval("EffectiveBatches"), Eval("BatchSize"), Eval("OutputAbbr")) %>
+                            </span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Actual Output</span>
+                            <span class="stat-value">
+                                <%# Convert.ToDecimal(Eval("ActualOutput")) > 0
+                                    ? Convert.ToDecimal(Eval("ActualOutput")).ToString("0.###") + " " + Eval("OutputAbbr")
+                                    : "—" %>
+                            </span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Variation</span>
+                            <span class="stat-value variation-row">
+                                <%# FormatVariation(Eval("ActualOutput"), Eval("BatchSize"), Eval("EffectiveBatches"), Eval("OutputAbbr")) %>
                             </span>
                         </div>
                         <div class="stat-row">

@@ -695,7 +695,9 @@ namespace PPApp.DAL
                 "o.OrderedBatches, o.RevisedBatches, o.Status, o.InitiatedAt, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
-                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches " +
+                "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
+                "IFNULL((SELECT COUNT(*) FROM PP_BatchExecution be " +
+                "  WHERE be.OrderID=o.OrderID AND be.Status='Completed'),0) AS CompletedBatches " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID  = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
@@ -724,7 +726,7 @@ namespace PPApp.DAL
             ExecuteNonQuery(
                 "UPDATE PP_ProductionOrder " +
                 "SET RevisedBatches = ?rb " +
-                "WHERE OrderID = ?id AND Status = 'Pending';",
+                "WHERE OrderID = ?id AND Status != 'Completed';",
                 new MySqlParameter("?rb", revisedBatches),
                 new MySqlParameter("?id", orderId));
             // Check if update took effect
@@ -732,6 +734,30 @@ namespace PPApp.DAL
                 "SELECT Status FROM PP_ProductionOrder WHERE OrderID=?id;",
                 new MySqlParameter("?id", orderId));
             return row != null && row["Status"].ToString() == "Pending";
+        }
+
+        // Stop a production order
+        public static bool StopOrder(int orderId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_ProductionOrder SET Status='Stopped' " +
+                "WHERE OrderID=?id AND Status IN ('Initiated','InProgress');",
+                new MySqlParameter("?id", orderId));
+            var row = ExecuteQueryRow("SELECT Status FROM PP_ProductionOrder WHERE OrderID=?id;",
+                new MySqlParameter("?id", orderId));
+            return row != null && row["Status"].ToString() == "Stopped";
+        }
+
+        // Resume a stopped order
+        public static bool ResumeOrder(int orderId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_ProductionOrder SET Status='InProgress' " +
+                "WHERE OrderID=?id AND Status='Stopped';",
+                new MySqlParameter("?id", orderId));
+            var row = ExecuteQueryRow("SELECT Status FROM PP_ProductionOrder WHERE OrderID=?id;",
+                new MySqlParameter("?id", orderId));
+            return row != null && row["Status"].ToString() == "InProgress";
         }
 
         // Initiate a production order
@@ -757,13 +783,19 @@ namespace PPApp.DAL
                 "SELECT o.OrderID, o.Shift, o.Status, o.InitiatedAt, " +
                 "o.ProductID, p.ProductName, p.ProductCode, p.BatchSize, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr " +
+                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
+                "IFNULL((SELECT COUNT(*) FROM PP_BatchExecution be " +
+                "  WHERE be.OrderID=o.OrderID AND be.Status='Completed'),0) AS CompletedBatches, " +
+                "IFNULL((SELECT SUM(be.ActualOutput) FROM PP_BatchExecution be " +
+                "  WHERE be.OrderID=o.OrderID AND be.Status='Completed'),0) AS ActualOutput, " +
+                "IFNULL((SELECT be.BatchNo FROM PP_BatchExecution be " +
+                "  WHERE be.OrderID=o.OrderID AND be.Status='InProgress' LIMIT 1),0) AS RunningBatchNo " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
                 "WHERE o.OrderDate = ?dt " +
-                "AND o.Status IN ('Initiated','InProgress','Completed') " +
+                "AND o.Status IN ('Initiated','InProgress','Completed','Stopped') " +
                 "ORDER BY o.Shift, o.InitiatedAt;",
                 new MySqlParameter("?dt", orderDate.Date));
         }
@@ -808,7 +840,7 @@ namespace PPApp.DAL
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "WHERE o.Shift = ?sh AND o.OrderDate = ?dt " +
-                "AND o.Status IN ('Initiated','InProgress') " +
+                "AND o.Status IN ('Initiated','InProgress','Stopped') " +
                 "ORDER BY p.ProductName;",
                 new MySqlParameter("?sh", shift),
                 new MySqlParameter("?dt", orderDate.Date));
