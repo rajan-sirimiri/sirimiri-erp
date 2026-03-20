@@ -782,6 +782,7 @@ namespace PPApp.DAL
             return ExecuteQuery(
                 "SELECT o.OrderID, o.Shift, o.Status, o.InitiatedAt, " +
                 "o.ProductID, p.ProductName, p.ProductCode, p.BatchSize, " +
+                "o.OrderedBatches, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
                 "IFNULL((SELECT COUNT(*) FROM PP_BatchExecution be " +
