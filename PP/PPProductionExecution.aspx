@@ -111,12 +111,13 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     transform-origin:center center;
     transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
-.gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;pointer-events:none;}
-.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:34px;
-    letter-spacing:.04em;color:#fff;line-height:1;}
-.gear-batch-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.06em;
-    text-transform:uppercase;margin-top:2px;}
+.batch-info-row{display:flex;align-items:baseline;justify-content:center;
+    gap:6px;margin-top:10px;}
+.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:28px;
+    letter-spacing:.04em;color:var(--accent-dark);line-height:1;}
+.gear-batch-sep{font-size:18px;color:var(--text-dim);font-weight:300;}
+.gear-batch-sub{font-size:13px;color:var(--text-muted);letter-spacing:.06em;
+    text-transform:uppercase;font-weight:600;}
 .gear-status-label{font-size:11px;font-weight:700;text-align:center;
     margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--text-muted);}
@@ -272,13 +273,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <div class="gear-wrap">
                     <!-- Ship wheel image rotates on batch execution -->
                     <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
-                    <!-- Text overlay on wheel -->
-                    <div class="gear-center-text">
-                        <div class="gear-batch-num" id="gearBatchNum"
-                             style="color:#4a2800;text-shadow:0 1px 3px rgba(255,255,255,.8);">—</div>
-                        <div class="gear-batch-sub" id="gearBatchSub"
-                             style="color:#6b3a00;text-shadow:0 1px 2px rgba(255,255,255,.8);">READY</div>
-                    </div>
                 </div>
 
                 <!-- END BUTTON -->
@@ -290,6 +284,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
             </div>
 
+            <!-- Batch number display — sits above status label -->
+            <div class="batch-info-row">
+                <span class="gear-batch-num" id="gearBatchNum">—</span>
+                <span class="gear-batch-sep">·</span>
+                <span class="gear-batch-sub" id="gearBatchSub">READY</span>
+            </div>
             <div class="gear-status-label stopped" id="gearStatusLabel">
                 READY TO START
             </div>
