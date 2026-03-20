@@ -112,19 +112,13 @@ namespace PPApp
             DataRow order = PPDatabaseHelper.GetProductionOrderById(orderId);
             if (order == null) { ShowAlert("Order not found.", false); return; }
 
-            int    total   = Convert.ToInt32(Convert.ToDecimal(order["EffectiveBatches"]));
-            string status  = order["Status"].ToString();
+            int    total  = Convert.ToInt32(Convert.ToDecimal(order["EffectiveBatches"]));
+            string status = order["Status"].ToString();
             string outAbbr = order["OutputAbbr"].ToString();
             string prodType = order["ProductType"] != DBNull.Value ? order["ProductType"].ToString() : "Core";
             bool isConversion = (prodType == "Conversion");
-
-            // Set Save button label based on product type
-            btnSaveOutput.Text = isConversion
-                ? "Save & Store as Raw Material"
-                : "Save & Move to Packing";
-
-            // Store product name and type for Save handler
-            Session["PE_ProductName"] = order["ProductName"].ToString();
+            btnSaveOutput.Text = isConversion ? "Save & Store as Raw Material" : "Save & Move to Packing";
+            Session["PE_ProductName"]  = order["ProductName"].ToString();
             Session["PE_IsConversion"] = isConversion;
 
             // Info panel
@@ -279,7 +273,6 @@ namespace PPApp
 
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
 
-            // If Conversion product — record output as internal GRN to increase RM stock
             bool isConversion = Session["PE_IsConversion"] != null && (bool)Session["PE_IsConversion"];
             if (isConversion)
             {
@@ -287,21 +280,14 @@ namespace PPApp
                 DataRow rm = PPDatabaseHelper.GetRMByName(productName);
                 if (rm != null)
                 {
-                    int rmId = Convert.ToInt32(rm["RMID"]);
-                    PPDatabaseHelper.AddInternalGRN(rmId, output, productName, orderId, batchNo, UserID);
-                    ShowAlert("Batch " + batchNo + " of " + total + " saved. " +
-                        output.ToString("0.###") + " added to " + productName + " raw material stock.", true);
+                    PPDatabaseHelper.AddInternalGRN(Convert.ToInt32(rm["RMID"]), output, productName, orderId, batchNo, UserID);
+                    ShowAlert("Batch " + batchNo + " of " + total + " saved. " + output.ToString("0.###") + " added to " + productName + " stock.", true);
                 }
                 else
-                {
-                    ShowAlert("Batch saved, but could not find Raw Material named '" + productName +
-                        "'. Please add it in MM and update stock manually.", false);
-                }
+                    ShowAlert("Batch saved, but no Raw Material named '" + productName + "' found. Update stock manually.", false);
             }
             else
-            {
                 ShowAlert("Batch " + batchNo + " of " + total + " saved successfully.", true);
-            }
 
             txtActualOutput.Text = "";
             txtRemarks.Text      = "";
