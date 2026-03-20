@@ -432,6 +432,16 @@ namespace PPApp.DAL
 
         public static void AddInternalGRN(int rmId, decimal qty, string productName, int orderNo, int batchNo, int userId)
         {
+            // Get or create the Internal Production supplier
+            object supObj = ExecuteScalar(
+                "SELECT SupplierID FROM MM_Suppliers WHERE SupplierCode = 'INT-PROD' LIMIT 1;");
+            if (supObj == null || supObj == DBNull.Value)
+                throw new Exception("Internal Production supplier not found. Please run: " +
+                    "INSERT INTO MM_Suppliers (SupplierCode, SupplierName, ContactPerson, Phone, Email, " +
+                    "Address, City, State, PinCode, GSTIN, IsActive, CreatedAt) " +
+                    "VALUES ('INT-PROD','Internal Production','System','','','','','','','',1,NOW());");
+            int supplierId = Convert.ToInt32(supObj);
+
             string grnNo   = "INT-" + NowIST().ToString("yyyyMMdd") + "-" + rmId + "-" + batchNo;
             string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
             ExecuteNonQuery(
@@ -440,12 +450,13 @@ namespace PPApp.DAL
                 " Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
                 " HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
                 " ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
-                " VALUES (?grn,?dt,'INTERNAL',NULL,NULL,?rmid," +
+                " VALUES (?grn,?dt,'INTERNAL',NULL,?sup,?rmid," +
                 " ?qty,?qty,?qty,0,0," +
                 " NULL,NULL,0,0,0,0," +
                 " 0,0,NULL,?rem,1,'Approved',?by,NOW());",
                 new MySqlParameter("?grn",  grnNo),
                 new MySqlParameter("?dt",   NowIST().Date),
+                new MySqlParameter("?sup",  supplierId),
                 new MySqlParameter("?rmid", rmId),
                 new MySqlParameter("?qty",  qty),
                 new MySqlParameter("?rem",  remarks),
