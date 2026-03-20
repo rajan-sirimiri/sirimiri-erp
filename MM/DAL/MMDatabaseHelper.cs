@@ -473,7 +473,7 @@ namespace MMApp.DAL
             return ExecuteQuery(
                 "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InwardDate, i.InvoiceDate, " +
                 "s.SupplierName, r.RMName, r.RMCode, u.Abbreviation, " +
-                "i.Quantity, i.QtyInUOM, i.Rate, i.Amount, i.GSTRate, i.GSTAmount, " +
+                "i.Quantity, i.QtyActualReceived, i.QtyInUOM, i.Rate, i.Amount, i.GSTRate, i.GSTAmount, " +
                 "i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
                 "i.HSNCode, i.PONo, i.Remarks, i.QualityCheck, i.Status, i.CreatedAt " +
                 "FROM MM_RawInward i " +
