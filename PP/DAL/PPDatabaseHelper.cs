@@ -405,38 +405,6 @@ namespace PPApp.DAL
                 new MySqlParameter("?id", planId));
         }
 
-        // ── CONVERSION PRODUCT: Store output as Raw Material stock ──────────────
-
-        public static DataRow GetRMByName(string productName)
-        {
-            return ExecuteQueryRow(
-                "SELECT RMID, RMName, UOMID FROM MM_RawMaterials " +
-                "WHERE LOWER(TRIM(RMName)) = LOWER(TRIM(?name)) AND IsActive = 1 LIMIT 1;",
-                new MySqlParameter("?name", productName));
-        }
-
-        public static void AddInternalGRN(int rmId, decimal qty, string productName, int orderNo, int batchNo, int userId)
-        {
-            string grnNo = "INT-" + NowIST().ToString("yyyyMMdd") + "-" + rmId + "-" + batchNo;
-            string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
-            ExecuteNonQuery(
-                "INSERT INTO MM_RawInward " +
-                "(GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID, " +
-                "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, " +
-                "HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST, " +
-                "ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
-                "VALUES (?grn,?dt,'INTERNAL',NULL,0,?rmid," +
-                "?qty,?qty,?qty,0,0," +
-                "NULL,NULL,0,0,0,0," +
-                "0,0,NULL,?rem,1,'Approved',?by,NOW());",
-                new MySqlParameter("?grn",  grnNo),
-                new MySqlParameter("?dt",   NowIST().Date),
-                new MySqlParameter("?rmid", rmId),
-                new MySqlParameter("?qty",  qty),
-                new MySqlParameter("?rem",  remarks),
-                new MySqlParameter("?by",   userId));
-        }
-
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
         public static DataTable GetProductionOrders(DateTime from, DateTime to)
         {
@@ -450,6 +418,38 @@ namespace PPApp.DAL
                 "ORDER BY po.OrderDate DESC;",
                 new MySqlParameter("?f", from),
                 new MySqlParameter("?t", to));
+        }
+
+        // ── CONVERSION PRODUCT ────────────────────────────────────────────────────
+
+        public static DataRow GetRMByName(string productName)
+        {
+            return ExecuteQueryRow(
+                "SELECT RMID, RMName, UOMID FROM MM_RawMaterials " +
+                "WHERE LOWER(TRIM(RMName)) = LOWER(TRIM(?name)) AND IsActive = 1 LIMIT 1;",
+                new MySqlParameter("?name", productName));
+        }
+
+        public static void AddInternalGRN(int rmId, decimal qty, string productName, int orderNo, int batchNo, int userId)
+        {
+            string grnNo   = "INT-" + NowIST().ToString("yyyyMMdd") + "-" + rmId + "-" + batchNo;
+            string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
+            ExecuteNonQuery(
+                "INSERT INTO MM_RawInward " +
+                "(GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
+                " Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
+                " HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
+                " ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
+                " VALUES (?grn,?dt,'INTERNAL',NULL,0,?rmid," +
+                " ?qty,?qty,?qty,0,0," +
+                " NULL,NULL,0,0,0,0," +
+                " 0,0,NULL,?rem,1,'Approved',?by,NOW());",
+                new MySqlParameter("?grn",  grnNo),
+                new MySqlParameter("?dt",   NowIST().Date),
+                new MySqlParameter("?rmid", rmId),
+                new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?rem",  remarks),
+                new MySqlParameter("?by",   userId));
         }
 
         public static DataRow GetProductionOrderById(int orderId)
@@ -727,38 +727,6 @@ namespace PPApp.DAL
             return ExecuteQuery(sql, new MySqlParameter("?oid", orderId));
         }
 
-
-        // ── CONVERSION PRODUCT: Store output as Raw Material stock ──────────────
-
-        public static DataRow GetRMByName(string productName)
-        {
-            return ExecuteQueryRow(
-                "SELECT RMID, RMName, UOMID FROM MM_RawMaterials " +
-                "WHERE LOWER(TRIM(RMName)) = LOWER(TRIM(?name)) AND IsActive = 1 LIMIT 1;",
-                new MySqlParameter("?name", productName));
-        }
-
-        public static void AddInternalGRN(int rmId, decimal qty, string productName, int orderNo, int batchNo, int userId)
-        {
-            string grnNo = "INT-" + NowIST().ToString("yyyyMMdd") + "-" + rmId + "-" + batchNo;
-            string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
-            ExecuteNonQuery(
-                "INSERT INTO MM_RawInward " +
-                "(GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID, " +
-                "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, " +
-                "HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST, " +
-                "ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
-                "VALUES (?grn,?dt,'INTERNAL',NULL,0,?rmid," +
-                "?qty,?qty,?qty,0,0," +
-                "NULL,NULL,0,0,0,0," +
-                "0,0,NULL,?rem,1,'Approved',?by,NOW());",
-                new MySqlParameter("?grn",  grnNo),
-                new MySqlParameter("?dt",   NowIST().Date),
-                new MySqlParameter("?rmid", rmId),
-                new MySqlParameter("?qty",  qty),
-                new MySqlParameter("?rem",  remarks),
-                new MySqlParameter("?by",   userId));
-        }
 
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
 
