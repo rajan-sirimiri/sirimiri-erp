@@ -106,8 +106,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .btn-label{font-size:10px;letter-spacing:.06em;}
 
 /* GEAR WHEEL */
-.gear-wrap{position:relative;width:260px;height:260px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-#gearSvg{width:260px;height:260px;object-fit:contain;
+.gear-wrap{position:relative;width:364px;height:364px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+#gearSvg{width:364px;height:364px;object-fit:contain;
     transform-origin:center center;
     transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
@@ -459,7 +459,7 @@ function stopWheelAnim() {
     return true;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
     animateGear();
     applyServerState();
 });
