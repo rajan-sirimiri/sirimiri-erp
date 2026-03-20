@@ -295,7 +295,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </div>
 
             <!-- OUTPUT PANEL — unlocks after END -->
-            <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
+            <asp:Panel ID="pnlOutput" runat="server" Visible="false">
                 <div class="output-panel" style="margin-top:28px;">
                     <div class="output-title">Record Batch Output</div>
                     <div class="output-grid">
@@ -406,27 +406,22 @@ function startWheel() { window.serverState = 'running'; }
 function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
 
 function applyState() {
-    var img = document.getElementById('gearSvg');
     var lbl = document.getElementById('gearStatusLabel');
-    var out = document.getElementById('pnlOutput');
     var s   = window.serverState || 'ready';
-
+    // NOTE: pnlOutput visibility is controlled ONLY by server (SetState in C#)
+    // JS never touches pnlOutput — prevents showing panel before DB write is confirmed
     if (s === 'running') {
         targetSpeed = 0.9;
         if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-        if (out) out.style.display = 'none';
     } else if (s === 'ended') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'block';
     } else if (s === 'stopped') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'none';
     } else {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'none';
     }
     updateGearText();
 }
@@ -441,10 +436,9 @@ function startWheelAnim() {
 }
 function stopWheelAnim() {
     targetSpeed = 0;
-    var out = document.getElementById('pnlOutput');
-    if (out) out.style.display = 'block';
     var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+    if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'gear-status-label stopped'; }
+    // Do NOT show pnlOutput here — server shows it only after confirmed DB write
     return true;  // allow postback
 }
 
