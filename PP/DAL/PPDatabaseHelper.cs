@@ -440,7 +440,7 @@ namespace PPApp.DAL
                 " Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
                 " HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
                 " ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
-                " VALUES (?grn,?dt,'INTERNAL',NULL,0,?rmid," +
+                " VALUES (?grn,?dt,'INTERNAL',NULL,NULL,?rmid," +
                 " ?qty,?qty,?qty,0,0," +
                 " NULL,NULL,0,0,0,0," +
                 " 0,0,NULL,?rem,1,'Approved',?by,NOW());",
