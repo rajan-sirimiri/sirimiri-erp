@@ -157,6 +157,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     .pane{height:auto;}
 }
 
+/* STOP MODAL */
+.modal-stop .modal-icon{ font-size:34px; }
+.modal-btn-stop{background:var(--red);color:#fff;border:none;border-radius:8px;
+    padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.03em;}
+.modal-btn-stop:hover{background:#c0392b;}
+
 /* CONFIRMATION MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
     z-index:1000;align-items:center;justify-content:center;}
@@ -301,7 +307,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass="btn-stop"
                                     Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
-                                    OnClientClick="return confirm('Stop this production order?');"
+                                    OnClientClick="return confirmStop(this);"
                                     CausesValidation="false">⏸ Stop</asp:LinkButton>
                                 <asp:LinkButton runat="server"
                                     CommandName="Resume"
@@ -388,7 +394,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass="btn-stop"
                                     Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
-                                    OnClientClick="return confirm('Stop this production order?');"
+                                    OnClientClick="return confirmStop(this);"
                                     CausesValidation="false">⏸ Stop</asp:LinkButton>
                                 <asp:LinkButton runat="server"
                                     CommandName="Resume"
@@ -520,6 +526,20 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     </div>
 </div>
 
+<!-- STOP CONFIRMATION MODAL -->
+<div class="modal-overlay" id="stopModal">
+    <div class="modal-box modal-stop">
+        <div class="modal-icon">⏸️</div>
+        <div class="modal-title">Stop Production</div>
+        <div class="modal-product" id="stopModalProduct"></div>
+        <div class="modal-detail">This will pause the production order. You can resume it later from this screen.</div>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn-cancel" onclick="closeStopModal()">Cancel</button>
+            <button type="button" class="modal-btn-stop" onclick="doStop()">Stop Production</button>
+        </div>
+    </div>
+</div>
+
 <script>
 var _pendingHref = null;
 
@@ -568,7 +588,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('initiateModal').addEventListener('click', function(e) {
         if (e.target === this) closeInitiateModal();
     });
+    document.getElementById('stopModal').addEventListener('click', function(e) {
+        if (e.target === this) closeStopModal();
+    });
 });
+
+var _pendingStopHref = null;
+function confirmStop(btn) {
+    var row    = btn.closest('tr');
+    var nameEl = row ? row.querySelector('.prod-name') : null;
+    document.getElementById('stopModalProduct').innerText = nameEl ? nameEl.innerText.trim() : '';
+    _pendingStopHref = btn.href;
+    document.getElementById('stopModal').classList.add('visible');
+    return false;
+}
+function closeStopModal() {
+    document.getElementById('stopModal').classList.remove('visible');
+    _pendingStopHref = null;
+}
+function doStop() {
+    var href = _pendingStopHref;
+    closeStopModal();
+    if (href) { var js = href.replace(/^javascript:/i, ''); eval(js); }
+}
 
 // Tab switching — show/hide shift divs
 document.addEventListener('DOMContentLoaded', function() {
