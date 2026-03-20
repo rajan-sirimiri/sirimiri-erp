@@ -107,8 +107,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* GEAR WHEEL */
 .gear-wrap{position:relative;width:260px;height:260px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-#gearSvg{width:260px;height:260px;transition:filter .3s;transform-origin:center center;}
-#gearSvg.spinning{filter:drop-shadow(0 0 12px rgba(69,90,100,.5));}
+#gearSvg{width:260px;height:260px;object-fit:contain;
+    transform-origin:center center;
+    transition:filter .3s;}
+#gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
 .gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     text-align:center;pointer-events:none;}
 .gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:34px;
@@ -268,10 +270,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- GEAR WHEEL SVG -->
                 <div class="gear-wrap">
                     <!-- Ship wheel image rotates on batch execution -->
-                    <img id="gearSvg" src="progress_wheel.png"
-                         style="width:260px;height:260px;object-fit:contain;
-                                transition:filter .3s;"
-                         alt="Production Wheel"/>
+                    <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
                     <!-- Text overlay on wheel -->
                     <div class="gear-center-text">
                         <div class="gear-batch-num" id="gearBatchNum"
