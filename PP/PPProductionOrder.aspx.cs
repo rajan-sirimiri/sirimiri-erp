@@ -162,6 +162,36 @@ namespace PPApp
                         PPDatabaseHelper.UpdateRevisedBatches(orderId, revised);
                 }
 
+                // Server-side stock guard
+                var sf = PPDatabaseHelper.CheckStockForOrder(orderId);
+                if (sf.Rows.Count > 0)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append("<strong>Insufficient stock — cannot initiate.</strong><br/>");
+                    sb.Append("<table style='width:100%;margin-top:8px;font-size:12px;border-collapse:collapse;'>"); 
+                    sb.Append("<tr style='font-weight:700;'>"); 
+                    sb.Append("<td style='padding:4px 6px;'>Raw Material</td>"); 
+                    sb.Append("<td style='padding:4px 6px;text-align:right;'>Required</td>"); 
+                    sb.Append("<td style='padding:4px 6px;text-align:right;'>In Stock</td>"); 
+                    sb.Append("<td style='padding:4px 6px;text-align:right;color:#c0392b;'>Shortfall</td></tr>"); 
+                    foreach (DataRow row in sf.Rows)
+                    {
+                        string u = row["RMUnit"].ToString();
+                        decimal req = Convert.ToDecimal(row["Required"]);
+                        decimal ins = Convert.ToDecimal(row["InStock"]);
+                        decimal sht = Convert.ToDecimal(row["Shortfall"]);
+                        sb.Append("<tr>");
+                        sb.Append("<td style='padding:3px 6px;'>" + System.Web.HttpUtility.HtmlEncode(row["RMName"].ToString()) + "</td>");
+                        sb.Append("<td style='padding:3px 6px;text-align:right;'>" + req.ToString("0.###") + " " + u + "</td>");
+                        sb.Append("<td style='padding:3px 6px;text-align:right;'>" + ins.ToString("0.###") + " " + u + "</td>");
+                        sb.Append("<td style='padding:3px 6px;text-align:right;color:#c0392b;font-weight:700;'>-" + sht.ToString("0.###") + " " + u + "</td>");
+                        sb.Append("</tr>");
+                    }
+                    sb.Append("</table>");
+                    ShowAlert(sb.ToString(), false);
+                    LoadPage(); return;
+                }
+
                 bool ok = PPDatabaseHelper.InitiateOrder(orderId);
                 if (ok)
                 {
@@ -284,6 +314,38 @@ namespace PPApp
                 return sb.ToString();
             }
             catch { return "—"; }
+        }
+
+        protected string GetInitiateCssClass(object st, object oid)
+        {
+            return CanInitiateWithStock(st, oid) ? "btn-initiate" : "btn-stock-short";
+        }
+
+        protected string GetInitiateLabel(object st, object oid)
+        {
+            return CanInitiateWithStock(st, oid) ? "Initiate" : "Stock Short";
+        }
+
+        protected bool CanInitiateWithStock(object statusObj, object orderIdObj)
+        {
+            if ((statusObj == null ? "" : statusObj.ToString()) != "Pending") return false;
+            try { return PPDatabaseHelper.CheckStockForOrder(Convert.ToInt32(orderIdObj)).Rows.Count == 0; }
+            catch { return false; }
+        }
+
+        protected string StockTooltip(object statusObj, object orderIdObj)
+        {
+            if ((statusObj == null ? "" : statusObj.ToString()) != "Pending") return "";
+            try
+            {
+                var sf = PPDatabaseHelper.CheckStockForOrder(Convert.ToInt32(orderIdObj));
+                if (sf.Rows.Count == 0) return "";
+                var parts = new System.Collections.Generic.List<string>();
+                foreach (DataRow r in sf.Rows)
+                    parts.Add(r["RMName"] + ": short by " + Convert.ToDecimal(r["Shortfall"]).ToString("0.###") + " " + r["RMUnit"]);
+                return "Insufficient stock: " + string.Join(", ", parts);
+            }
+            catch { return ""; }
         }
 
         protected string FormatProgress(object completed, object effective, object ordered)

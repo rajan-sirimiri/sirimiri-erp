@@ -109,6 +109,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .btn-save-rev{background:#f0f0f0;color:#333;border:1px solid #ccc;border-radius:6px;
     padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;}
 .btn-save-rev:hover{background:#e0e0e0;}
+.btn-stock-short{background:#e67e22;color:#fff;border:none;border-radius:8px;
+    padding:5px 12px;font-size:11px;font-weight:700;cursor:not-allowed;}
 .progress-text{font-size:12px;font-weight:700;color:var(--accent-dark);}
 .prog-bar-wrap{background:#f0f0f0;border-radius:6px;height:6px;margin:4px 0 8px;overflow:hidden;}
 .prog-bar-fill{height:100%;border-radius:6px;background:var(--accent);transition:width .3s;}
@@ -298,10 +300,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <asp:LinkButton runat="server"
                                     CommandName="Initiate"
                                     CommandArgument='<%# Eval("OrderID") %>'
-                                    CssClass="btn-initiate"
+                                    CssClass='<%# GetInitiateCssClass(Eval("Status"), Eval("OrderID")) %>'
                                     Visible='<%# CanInitiate(Eval("Status")) %>'
+                                    Enabled='<%# CanInitiateWithStock(Eval("Status"), Eval("OrderID")) %>'
+                                    ToolTip='<%# StockTooltip(Eval("Status"), Eval("OrderID")) %>'
                                     OnClientClick="return confirmInitiate(this);"
-                                    CausesValidation="false">Initiate</asp:LinkButton>
+                                    CausesValidation="false"><%# GetInitiateLabel(Eval("Status"), Eval("OrderID")) %></asp:LinkButton>
                                 <asp:LinkButton runat="server"
                                     CommandName="Stop"
                                     CommandArgument='<%# Eval("OrderID") %>'
@@ -385,10 +389,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <asp:LinkButton runat="server"
                                     CommandName="Initiate"
                                     CommandArgument='<%# Eval("OrderID") %>'
-                                    CssClass="btn-initiate"
+                                    CssClass='<%# GetInitiateCssClass(Eval("Status"), Eval("OrderID")) %>'
                                     Visible='<%# CanInitiate(Eval("Status")) %>'
+                                    Enabled='<%# CanInitiateWithStock(Eval("Status"), Eval("OrderID")) %>'
+                                    ToolTip='<%# StockTooltip(Eval("Status"), Eval("OrderID")) %>'
                                     OnClientClick="return confirmInitiate(this);"
-                                    CausesValidation="false">Initiate</asp:LinkButton>
+                                    CausesValidation="false"><%# GetInitiateLabel(Eval("Status"), Eval("OrderID")) %></asp:LinkButton>
                                 <asp:LinkButton runat="server"
                                     CommandName="Stop"
                                     CommandArgument='<%# Eval("OrderID") %>'

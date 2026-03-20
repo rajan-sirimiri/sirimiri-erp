@@ -623,53 +623,78 @@ namespace PPApp.DAL
         // Shortfall = Required - Stock (negative means surplus)
         public static DataTable GetRMRequirementVsStock(int planId)
         {
-            return ExecuteQuery(
-                "SELECT " +
-                "  r.RMCode, r.RMName, urm.Abbreviation, " +
-                "  SUM(b.Quantity * pr.Batches * " +
-                "    CASE " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.000001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams') THEN 1000 " +
-                "      ELSE 1 " +
-                "    END) AS Required, " +
-                "  IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0) AS InStock, " +
-                "  SUM(b.Quantity * pr.Batches * " +
-                "    CASE " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram') THEN 0.000001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter') THEN 0.001 " +
-                "      WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram') " +
-                "           AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams') THEN 1000 " +
-                "      ELSE 1 " +
-                "    END) - (IFNULL(os.Quantity, 0) + IFNULL(grn.TotalGRN, 0)) AS Shortfall " +
-                "FROM PP_DailyPlanRow pr " +
-                "JOIN PP_BOM b     ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM' " +
-                "JOIN MM_UOM ubom  ON ubom.UOMID = b.UOMID " +
-                "JOIN MM_RawMaterials r ON r.RMID = b.MaterialID " +
-                "JOIN MM_UOM urm   ON urm.UOMID = r.UOMID " +
-                "LEFT JOIN MM_OpeningStock os " +
-                "  ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID " +
-                "LEFT JOIN ( " +
-                "  SELECT RMID, SUM(QtyActualReceived) AS TotalGRN " +
-                "  FROM MM_RawInward GROUP BY RMID " +
-                ") grn ON grn.RMID = r.RMID " +
-                "WHERE pr.PlanID = ?pid " +
-                "GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, " +
-                "         os.Quantity, grn.TotalGRN " +
-                "ORDER BY r.RMName;",
-                new MySqlParameter("?pid", planId));
+            string uom =
+                "CASE" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams','grm') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram','milligrams') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') THEN 0.000001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram','milligrams') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams','grm') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams','grm') THEN 1000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams','grm') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') AND LOWER(TRIM(urm.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') THEN 1000" +
+                " ELSE 1 END";
+
+            string sql =
+                "SELECT r.RMCode, r.RMName, urm.Abbreviation," +
+                " ROUND(SUM(b.Quantity * pr.Batches * (" + uom + ")), 4) AS Required," +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0), 4) AS InStock," +
+                " ROUND(SUM(b.Quantity * pr.Batches * (" + uom + ")) - (IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0)), 4) AS Shortfall" +
+                " FROM PP_DailyPlanRow pr" +
+                " JOIN PP_BOM b ON b.ProductID = pr.ProductID AND b.MaterialType = 'RM'" +
+                " JOIN MM_UOM ubom ON ubom.UOMID = b.UOMID" +
+                " JOIN MM_RawMaterials r ON r.RMID = b.MaterialID" +
+                " JOIN MM_UOM urm ON urm.UOMID = r.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
+                " WHERE pr.PlanID = ?pid" +
+                " GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, os.Quantity, grn.TotalGRN" +
+                " ORDER BY r.RMName;";
+
+            return ExecuteQuery(sql, new MySqlParameter("?pid", planId));
         }
+
+        // Check RM stock availability for a specific production order
+        // Required = BOM qty x EffectiveBatches, converted to RM native UOM
+        // InStock  = OpeningStock + GRN received (in RM native UOM)
+        // Returns only rows where Shortfall > 0.001
+        public static DataTable CheckStockForOrder(int orderId)
+        {
+            string uom =
+                "CASE" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) = LOWER(TRIM(urm.Abbreviation)) THEN 1" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams','grm') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram','milligrams') AND LOWER(TRIM(urm.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') THEN 0.000001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('mg','milligram','milligrams') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams','grm') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') AND LOWER(TRIM(urm.Abbreviation)) IN ('g','gm','gram','grams','grm') THEN 1000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams','grm') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') THEN 0.001" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') AND LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') THEN 1000" +
+                " ELSE 1 END";
+
+            string sql =
+                "SELECT r.RMID, r.RMCode, r.RMName, urm.Abbreviation AS RMUnit," +
+                " ROUND(SUM(b.Quantity * IFNULL(o.RevisedBatches, o.OrderedBatches) * (" + uom + ")), 4) AS Required," +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0), 4) AS InStock," +
+                " ROUND(SUM(b.Quantity * IFNULL(o.RevisedBatches, o.OrderedBatches) * (" + uom + "))" +
+                "   - (IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0)), 4) AS Shortfall" +
+                " FROM PP_ProductionOrder o" +
+                " JOIN PP_BOM b ON b.ProductID = o.ProductID AND b.MaterialType = 'RM'" +
+                " JOIN MM_UOM ubom ON ubom.UOMID = b.UOMID" +
+                " JOIN MM_RawMaterials r ON r.RMID = b.MaterialID" +
+                " JOIN MM_UOM urm ON urm.UOMID = r.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
+                " WHERE o.OrderID = ?oid" +
+                " GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, os.Quantity, grn.TotalGRN" +
+                " HAVING Shortfall > 0.001" +
+                " ORDER BY r.RMName;";
+
+            return ExecuteQuery(sql, new MySqlParameter("?oid", orderId));
+        }
+
 
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
 
