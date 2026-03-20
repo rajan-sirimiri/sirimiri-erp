@@ -266,7 +266,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
                     UseSubmitBehavior="false"
-                    OnClientClick="return startWheelAnim();"
+                    OnClientClick="startWheelAnim();"
                     Text="&#9654;&#xA;START"/>
 
                 <!-- GEAR WHEEL SVG -->
@@ -279,7 +279,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
                     UseSubmitBehavior="false"
-                    OnClientClick="return stopWheelAnim();"
+                    OnClientClick="stopWheelAnim();"
                     Text="&#9646;&#9646;&#xA;END"/>
 
             </div>
