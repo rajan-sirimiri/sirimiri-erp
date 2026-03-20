@@ -475,7 +475,8 @@ namespace MMApp.DAL
                 "s.SupplierName, r.RMName, r.RMCode, u.Abbreviation, " +
                 "i.Quantity, i.QtyActualReceived, i.QtyInUOM, i.Rate, i.Amount, i.GSTRate, i.GSTAmount, " +
                 "i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
-                "i.HSNCode, i.PONo, i.Remarks, i.QualityCheck, i.Status, i.CreatedAt " +
+                "i.ShortageQty, i.ShortageValue, " +
+                "i.HSNCode, i.PONo, i.Remarks, i.QualityCheck, i.QualityCheck AS Pass, i.Status, i.CreatedAt " +
                 "FROM MM_RawInward i " +
                 "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
                 "JOIN MM_RawMaterials r ON r.RMID=i.RMID " +
