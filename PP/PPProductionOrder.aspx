@@ -478,7 +478,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                         <div class="stat-row">
                             <span class="stat-label">Variation</span>
                             <span class="stat-value variation-row">
-                                <%# FormatVariation(Eval("ActualOutput"), Eval("BatchSize"), Eval("EffectiveBatches"), Eval("OutputAbbr")) %>
+                                <%# FormatVariation(Eval("ActualOutput"), Eval("BatchSize"), Eval("CompletedBatches"), Eval("OutputAbbr")) %>
                             </span>
                         </div>
                         <div class="stat-row">

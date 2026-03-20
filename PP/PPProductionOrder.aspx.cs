@@ -297,21 +297,27 @@ namespace PPApp
             } catch { return "—"; }
         }
 
-        protected string FormatVariation(object actualOut, object batchSize, object effective, object abbr)
+        // Variation: Actual output vs Expected output for completed batches only
+        // Expected = BatchSize × CompletedBatches (apples-to-apples comparison)
+        protected string FormatVariation(object actualOut, object batchSize, object completed, object abbr)
         {
             try {
-                decimal actual   = Convert.ToDecimal(actualOut);
-                decimal bsize    = Convert.ToDecimal(batchSize);
-                decimal eff      = Convert.ToDecimal(effective);
-                decimal expected = bsize * eff;
+                decimal actual    = Convert.ToDecimal(actualOut);
+                decimal bsize     = Convert.ToDecimal(batchSize);
+                decimal done      = Convert.ToDecimal(completed);
+                if (actual == 0 || done == 0) return "—";
+                decimal expected  = bsize * done;  // expected from completed batches only
                 if (expected == 0) return "—";
-                decimal diff     = actual - expected;
-                decimal pct      = Math.Round(diff / expected * 100, 1);
-                string sign      = diff >= 0 ? "+" : "";
-                string color     = diff >= 0 ? "var(--accent-dark)" : "var(--red)";
+                decimal diff      = actual - expected;
+                decimal pct       = Math.Round(diff / expected * 100, 1);
+                string sign       = diff >= 0 ? "+" : "";
+                string color      = diff >= 0 ? "var(--accent-dark)" : "var(--red)";
                 return string.Format(
-                    "<span style='color:{0}'>{1}{2} {3} ({4}{5}%)</span>",
-                    color, sign, diff.ToString("0.###"), abbr, sign, pct);
+                    "<span style='color:{0}'>{1}{2} {3}<br/><small style='font-weight:normal;'>" +
+                    "Actual {4} vs Expected {5} {3} ({6}{7}%)</small></span>",
+                    color, sign, diff.ToString("0.###"), abbr,
+                    actual.ToString("0.###"), expected.ToString("0.###"),
+                    sign, pct);
             } catch { return "—"; }
         }
 
