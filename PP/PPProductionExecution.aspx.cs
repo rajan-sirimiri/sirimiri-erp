@@ -151,10 +151,11 @@ namespace PPApp
             {
                 pnlExecution.Style["display"] = "block";
                 SetState("ready", orderId, done + 1, total, 0);
-                btnStart.Enabled = false;
-                btnEnd.Enabled   = false;
+                btnStart.Enabled = true;
+                btnEnd.Enabled   = true;
+                pnlOutput.Visible = false;
                 ClientScript.RegisterStartupScript(GetType(), "ws",
-                    "window.serverState='stopped';applyServerState();", true);
+                    "window.serverState='stopped';applyState();", true);
                 ShowAlert("&#9654; This production order is currently <strong>Stopped</strong>. " +
                     "Go to Production Order to resume.", false);
                 return;
@@ -172,20 +173,18 @@ namespace PPApp
                 // Batch running
                 int bno = Convert.ToInt32(active["BatchNo"]);
                 SetState("running", orderId, bno, total, Convert.ToInt32(active["ExecutionID"]));
-                pnlOutput.Style["display"] = "none";
+                // pnlOutput visibility set by SetState
             }
             else if (ended != null)
             {
                 // Batch ended — awaiting output
                 int bno = Convert.ToInt32(ended["BatchNo"]);
                 SetState("ended", orderId, bno, total, Convert.ToInt32(ended["ExecutionID"]));
-                pnlOutput.Style["display"] = "block";
             }
             else
             {
                 // Ready for next batch
                 SetState("ready", orderId, nextBatch, total, 0);
-                pnlOutput.Style["display"] = "none";
             }
         }
 
@@ -197,10 +196,13 @@ namespace PPApp
             hfTotalBatches.Value = total.ToString();
             hfExecutionID.Value  = execId.ToString();
 
-            // UseSubmitBehavior=false means disabled buttons still fire via JS __doPostBack
-            // So we can safely use Enabled for visual state without blocking postback
-            btnStart.Enabled = (state == "ready");
-            btnEnd.Enabled   = (state == "running");
+            // Buttons always enabled — JS handles visual state via CSS opacity
+            // Guards are in the C# handlers themselves
+            btnStart.Enabled = true;
+            btnEnd.Enabled   = true;
+
+            // Output panel visibility controlled server-side via Visible property
+            pnlOutput.Visible = (state == "ended");
 
             // JS wheel state
             string js = state == "running"

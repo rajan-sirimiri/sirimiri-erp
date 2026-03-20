@@ -264,7 +264,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- START BUTTON -->
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
-                    UseSubmitBehavior="false"
                     OnClientClick="return startWheelAnim();"
                     Text="&#9654;&#xA;START"/>
 
@@ -284,7 +283,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
-                    UseSubmitBehavior="false"
                     OnClientClick="return stopWheelAnim();"
                     Text="&#9646;&#9646;&#xA;END"/>
 
@@ -295,7 +293,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </div>
 
             <!-- OUTPUT PANEL — unlocks after END -->
-            <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none">
+            <asp:Panel ID="pnlOutput" runat="server" Visible="false">
                 <div class="output-panel" style="margin-top:28px;">
                     <div class="output-title">Record Batch Output</div>
                     <div class="output-grid">
@@ -401,57 +399,49 @@ function updateGearText() {
     }
 }
 
-// Set by RegisterStartupScript before DOM ready — just store state
+// Called by RegisterStartupScript — runs before DOM is ready, just set flags
 function startWheel() { window.serverState = 'running'; }
 function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
 
+// Apply visual state based on what server told us — called on window.load
 function applyState() {
-    var img = document.getElementById('gearSvg');
     var lbl = document.getElementById('gearStatusLabel');
-    var out = document.getElementById('pnlOutput');
     var s   = window.serverState || 'ready';
 
     if (s === 'running') {
         targetSpeed = 0.9;
         if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-        if (out) out.style.display = 'none';
     } else if (s === 'ended') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'block';
     } else if (s === 'stopped') {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'none';
     } else {
         targetSpeed = 0;
         if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
-        if (out) out.style.display = 'none';
     }
     updateGearText();
 }
 
-// OnClientClick — pure visual animation only, NO button state changes
-// Server controls which buttons are enabled via Enabled property
+// OnClientClick — ONLY visual feedback, no state management, no cursor changes
+// Returning true allows the normal form submit to proceed
 function startWheelAnim() {
     targetSpeed = 0.9;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    return true;  // allow postback
+    return true;
 }
 function stopWheelAnim() {
     targetSpeed = 0;
-    var out = document.getElementById('pnlOutput');
-    if (out) out.style.display = 'block';
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-    return true;  // allow postback
+    return true;
 }
 
 window.addEventListener('load', function() {
-    animateGear();   // start loop
-    applyState();    // apply server state (RegisterStartupScript already ran)
-    updateGearText();
+    animateGear();
+    applyState();
 });
 </script>
 </form>
