@@ -264,7 +264,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- START BUTTON -->
                 <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
                     OnClick="btnStart_Click" CausesValidation="false"
-                    OnClientClick="startWheelAnim(); return true;"
+                    UseSubmitBehavior="false"
+                    OnClientClick="return startWheelAnim();"
                     Text="&#9654;&#xA;START"/>
 
                 <!-- GEAR WHEEL SVG -->
@@ -283,7 +284,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <!-- END BUTTON -->
                 <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
                     OnClick="btnEnd_Click" CausesValidation="false"
-                    OnClientClick="stopWheelAnim(); return true;"
+                    UseSubmitBehavior="false"
+                    OnClientClick="return stopWheelAnim();"
                     Text="&#9646;&#9646;&#xA;END"/>
 
             </div>
@@ -399,69 +401,57 @@ function updateGearText() {
     }
 }
 
-// Called by server RegisterStartupScript — runs during page parse, DOM not ready yet
-// Just set flags; DOMContentLoaded handler will apply them
-function startWheel() {
-    window.batchRunning  = true;
-    window.serverState   = 'running';
-}
+// Set by RegisterStartupScript before DOM ready — just store state
+function startWheel() { window.serverState = 'running'; }
+function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
 
-function stopWheel(readyForNext) {
-    window.batchRunning  = false;
-    window.serverState   = readyForNext ? 'ready' : 'ended';
-}
+function applyState() {
+    var img = document.getElementById('gearSvg');
+    var lbl = document.getElementById('gearStatusLabel');
+    var out = document.getElementById('pnlOutput');
+    var s   = window.serverState || 'ready';
 
-function applyServerState() {
-    var svg   = document.getElementById('gearSvg');
-    var lbl   = document.getElementById('gearStatusLabel');
-    var out   = document.getElementById('pnlOutput');
-    var btnS  = document.getElementById('<%= btnStart.ClientID %>');
-    var btnE  = document.getElementById('<%= btnEnd.ClientID %>');
-    var state = window.serverState || 'ready';
-
-    // Visual button states — buttons stay enabled server-side, JS controls appearance
-    if (btnS) { btnS.style.opacity = state === 'ready' ? '1' : '0.4'; btnS.style.cursor = state === 'ready' ? 'pointer' : 'not-allowed'; }
-    if (btnE) { btnE.style.opacity = state === 'running' ? '1' : '0.4'; btnE.style.cursor = state === 'running' ? 'pointer' : 'not-allowed'; }
-
-    if (state === 'running') {
+    if (s === 'running') {
         targetSpeed = 0.9;
-        if (svg) svg.classList.add('spinning');
         if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
         if (out) out.style.display = 'none';
-    } else if (state === 'ended') {
+    } else if (s === 'ended') {
         targetSpeed = 0;
-        if (svg) svg.classList.remove('spinning');
         if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
         if (out) out.style.display = 'block';
-    } else if (state === 'stopped') {
+    } else if (s === 'stopped') {
         targetSpeed = 0;
-        if (svg) svg.classList.remove('spinning');
         if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
         if (out) out.style.display = 'none';
     } else {
         targetSpeed = 0;
-        if (svg) svg.classList.remove('spinning');
         if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
         if (out) out.style.display = 'none';
     }
     updateGearText();
 }
 
-// OnClientClick handlers — immediate visual feedback before postback
+// OnClientClick — pure visual animation only, NO button state changes
+// Server controls which buttons are enabled via Enabled property
 function startWheelAnim() {
-    window.serverState = 'running';
-    applyServerState();
-    return true;
+    targetSpeed = 0.9;
+    var lbl = document.getElementById('gearStatusLabel');
+    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+    return true;  // allow postback
 }
 function stopWheelAnim() {
-    window.serverState = 'ended';
-    applyServerState();
-    return true;
+    targetSpeed = 0;
+    var out = document.getElementById('pnlOutput');
+    if (out) out.style.display = 'block';
+    var lbl = document.getElementById('gearStatusLabel');
+    if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+    return true;  // allow postback
 }
 
 window.addEventListener('load', function() {
-    animateGear();
-    applyServerState();
+    animateGear();   // start loop
+    applyState();    // apply server state (RegisterStartupScript already ran)
+    updateGearText();
 });
 </script>
 </form>

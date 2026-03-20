@@ -197,10 +197,10 @@ namespace PPApp
             hfTotalBatches.Value = total.ToString();
             hfExecutionID.Value  = execId.ToString();
 
-            // Buttons always enabled — JS controls visual disabled state via CSS
-            // This ensures postbacks always fire regardless of visual state
-            btnStart.Enabled = true;
-            btnEnd.Enabled   = true;
+            // UseSubmitBehavior=false means disabled buttons still fire via JS __doPostBack
+            // So we can safely use Enabled for visual state without blocking postback
+            btnStart.Enabled = (state == "ready");
+            btnEnd.Enabled   = (state == "running");
 
             // JS wheel state
             string js = state == "running"
