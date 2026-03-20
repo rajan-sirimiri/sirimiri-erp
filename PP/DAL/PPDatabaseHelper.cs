@@ -989,6 +989,163 @@ namespace PPApp.DAL
         }
 
         // Save actual output for a completed batch
+        // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────────────────
+        // Called after each batch is saved. Deducts BOM qty × 1 batch from stock FIFO.
+        // Returns list of shortfall messages if any RM has insufficient stock.
+        // Throws if stock is insufficient — caller should catch and block save.
+        public static List<string> DeductStockFIFO(int executionId, int orderId, int batchNo,
+            int productId, int userId)
+        {
+            // Get BOM — RM lines only
+            var bom = ExecuteQuery(
+                "SELECT b.MaterialID AS RMID, b.Quantity AS BOMQty," +
+                " ubom.Abbreviation AS BOMUnit, urm.Abbreviation AS RMUnit, urm.UOMID AS RMUomID" +
+                " FROM PP_BOM b" +
+                " JOIN MM_UOM ubom ON ubom.UOMID = b.UOMID" +
+                " JOIN MM_RawMaterials r ON r.RMID = b.MaterialID" +
+                " JOIN MM_UOM urm ON urm.UOMID = r.UOMID" +
+                " WHERE b.ProductID = ?pid AND b.MaterialType = 'RM';",
+                new MySqlParameter("?pid", productId));
+
+            if (bom.Rows.Count == 0)
+                return new List<string>();
+
+            var shortfalls = new List<string>();
+
+            foreach (System.Data.DataRow bomRow in bom.Rows)
+            {
+                int     rmId    = Convert.ToInt32(bomRow["RMID"]);
+                decimal bomQty  = Convert.ToDecimal(bomRow["BOMQty"]);
+                string  bomUnit = bomRow["BOMUnit"].ToString().Trim().ToLower();
+                string  rmUnit  = bomRow["RMUnit"].ToString().Trim().ToLower();
+
+                // Convert BOM qty to RM native UOM
+                decimal needed = bomQty * GetUOMConversionFactor(bomUnit, rmUnit);
+
+                // ── Pull stock sources in FIFO order ─────────────────────────
+                // 1. Opening stock (treated as oldest)
+                var openingRow = ExecuteQueryRow(
+                    "SELECT OpeningStockID, Quantity FROM MM_OpeningStock" +
+                    " WHERE MaterialType='RM' AND MaterialID=?rmid AND Quantity > 0;",
+                    new MySqlParameter("?rmid", rmId));
+
+                // 2. GRN rows oldest first (only those with remaining qty)
+                var grnRows = ExecuteQuery(
+                    "SELECT InwardID, QtyActualReceived FROM MM_RawInward" +
+                    " WHERE RMID=?rmid AND QtyActualReceived > 0" +
+                    " ORDER BY InwardDate ASC, InwardID ASC;",
+                    new MySqlParameter("?rmid", rmId));
+
+                // Calculate total available
+                decimal available = 0;
+                if (openingRow != null)
+                    available += Convert.ToDecimal(openingRow["Quantity"]);
+                foreach (System.Data.DataRow g in grnRows.Rows)
+                    available += Convert.ToDecimal(g["QtyActualReceived"]);
+
+                if (available < needed)
+                {
+                    // Get RM name for message
+                    var rmRow = ExecuteQueryRow(
+                        "SELECT RMName FROM MM_RawMaterials WHERE RMID=?id;",
+                        new MySqlParameter("?id", rmId));
+                    string rmName = rmRow != null ? rmRow["RMName"].ToString() : "RM#" + rmId;
+                    shortfalls.Add(rmName + ": need " + needed.ToString("0.###") + " " + rmUnit +
+                        ", available " + available.ToString("0.###") + " " + rmUnit);
+                    continue; // collect all shortfalls before throwing
+                }
+
+                // ── FIFO deduction ───────────────────────────────────────────
+                decimal remaining = needed;
+
+                // First: deduct from Opening Stock
+                if (openingRow != null && remaining > 0)
+                {
+                    decimal osQty   = Convert.ToDecimal(openingRow["Quantity"]);
+                    int     osId    = Convert.ToInt32(openingRow["OpeningStockID"]);
+                    decimal consume = Math.Min(osQty, remaining);
+
+                    ExecuteNonQuery(
+                        "UPDATE MM_OpeningStock SET Quantity = Quantity - ?q" +
+                        " WHERE OpeningStockID = ?id;",
+                        new MySqlParameter("?q",  consume),
+                        new MySqlParameter("?id", osId));
+
+                    InsertConsumption(executionId, orderId, batchNo, rmId,
+                        "OPENING", osId, consume, userId);
+
+                    remaining -= consume;
+                }
+
+                // Then: deduct from GRN rows oldest first
+                foreach (System.Data.DataRow grn in grnRows.Rows)
+                {
+                    if (remaining <= 0) break;
+
+                    decimal grnQty  = Convert.ToDecimal(grn["QtyActualReceived"]);
+                    int     grnId   = Convert.ToInt32(grn["InwardID"]);
+                    decimal consume = Math.Min(grnQty, remaining);
+
+                    ExecuteNonQuery(
+                        "UPDATE MM_RawInward SET QtyActualReceived = QtyActualReceived - ?q" +
+                        " WHERE InwardID = ?id;",
+                        new MySqlParameter("?q",  consume),
+                        new MySqlParameter("?id", grnId));
+
+                    InsertConsumption(executionId, orderId, batchNo, rmId,
+                        "GRN", grnId, consume, userId);
+
+                    remaining -= consume;
+                }
+            }
+
+            if (shortfalls.Count > 0)
+                throw new Exception("STOCK_SHORTFALL:" + string.Join("|", shortfalls));
+
+            return shortfalls;
+        }
+
+        private static void InsertConsumption(int executionId, int orderId, int batchNo,
+            int rmId, string sourceType, int sourceId, decimal qty, int userId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO MM_StockConsumption" +
+                " (ExecutionID, OrderID, BatchNo, RMID, SourceType, SourceID, QtyConsumed, ConsumedAt, CreatedBy)" +
+                " VALUES (?eid, ?oid, ?bno, ?rmid, ?stype, ?sid, ?qty, ?now, ?by);",
+                new MySqlParameter("?eid",   executionId),
+                new MySqlParameter("?oid",   orderId),
+                new MySqlParameter("?bno",   batchNo),
+                new MySqlParameter("?rmid",  rmId),
+                new MySqlParameter("?stype", sourceType),
+                new MySqlParameter("?sid",   sourceId),
+                new MySqlParameter("?qty",   qty),
+                new MySqlParameter("?now",   NowIST()),
+                new MySqlParameter("?by",    userId));
+        }
+
+        private static decimal GetUOMConversionFactor(string fromUnit, string toUnit)
+        {
+            if (fromUnit == toUnit) return 1m;
+            string f = fromUnit.Trim().ToLower();
+            string t = toUnit.Trim().ToLower();
+            string[] kg  = {"kg","kgs","kilo","kilogram","kilograms"};
+            string[] g   = {"g","gm","gram","grams","grm"};
+            string[] mg  = {"mg","milligram","milligrams"};
+            string[] l   = {"l","ltr","litre","liter","litres","liters"};
+            string[] ml  = {"ml","millilitre","milliliter","millilitres","milliliters"};
+            bool In(string v, string[] arr) { foreach (var a in arr) if (v==a) return true; return false; }
+            if (In(f,g)  && In(t,kg))  return 0.001m;
+            if (In(f,mg) && In(t,kg))  return 0.000001m;
+            if (In(f,mg) && In(t,g))   return 0.001m;
+            if (In(f,kg) && In(t,g))   return 1000m;
+            if (In(f,kg) && In(t,mg))  return 1000000m;
+            if (In(f,g)  && In(t,mg))  return 1000m;
+            if (In(f,ml) && In(t,l))   return 0.001m;
+            if (In(f,l)  && In(t,ml))  return 1000m;
+            return 1m; // same family or unknown — no conversion
+        }
+
+
         public static void SaveBatchOutput(int executionId, decimal actualOutput,
             string remarks, int orderId, int totalBatches)
         {

@@ -271,6 +271,23 @@ namespace PPApp
             if (total == 0) total = Convert.ToInt32(
                 Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
 
+            // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────
+            int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
+            try
+            {
+                PPDatabaseHelper.DeductStockFIFO(execId, orderId, batchNo, productId, UserID);
+            }
+            catch (Exception stockEx)
+            {
+                if (stockEx.Message.StartsWith("STOCK_SHORTFALL:"))
+                {
+                    ShowAlert("<strong>Cannot save — insufficient stock for this batch:</strong><br/>" +
+                        stockEx.Message.Substring(16).Replace("|", "<br/>"), false);
+                    return;
+                }
+                throw;
+            }
+
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
 
             bool isConversion = Session["PE_IsConversion"] != null && (bool)Session["PE_IsConversion"];
