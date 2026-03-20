@@ -295,7 +295,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </div>
 
             <!-- OUTPUT PANEL — unlocks after END -->
-            <asp:Panel ID="pnlOutput" runat="server" Visible="false">
+            <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
                 <div class="output-panel" style="margin-top:28px;">
                     <div class="output-title">Record Batch Output</div>
                     <div class="output-grid">

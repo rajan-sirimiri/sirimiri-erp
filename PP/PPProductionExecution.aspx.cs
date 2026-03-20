@@ -199,7 +199,7 @@ namespace PPApp
             btnEnd.Enabled   = true;
 
             // Output panel — only visible when batch is Ended (awaiting output entry)
-            pnlOutput.Visible = (state == "ended");
+            pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
 
             // JS wheel state
             string js = state == "running"
