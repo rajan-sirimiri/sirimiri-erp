@@ -927,7 +927,7 @@ namespace PPApp.DAL
             ExecuteNonQuery(
                 "UPDATE PP_BatchExecution " +
                 "SET ActualOutput = ?ao, Remarks = ?rem, Status = 'Completed' " +
-                "WHERE ExecutionID = ?eid AND Status IN ('Ended','InProgress');",
+                "WHERE ExecutionID = ?eid AND Status = 'Ended';",
                 new MySqlParameter("?ao",  actualOutput),
                 new MySqlParameter("?rem", string.IsNullOrEmpty(remarks) ? (object)DBNull.Value : remarks),
                 new MySqlParameter("?eid", executionId));

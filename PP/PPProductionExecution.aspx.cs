@@ -172,20 +172,17 @@ namespace PPApp
                 // Batch running
                 int bno = Convert.ToInt32(active["BatchNo"]);
                 SetState("running", orderId, bno, total, Convert.ToInt32(active["ExecutionID"]));
-                pnlOutput.Style["display"] = "none";
             }
             else if (ended != null)
             {
                 // Batch ended — awaiting output
                 int bno = Convert.ToInt32(ended["BatchNo"]);
                 SetState("ended", orderId, bno, total, Convert.ToInt32(ended["ExecutionID"]));
-                pnlOutput.Style["display"] = "block";
             }
             else
             {
                 // Ready for next batch
                 SetState("ready", orderId, nextBatch, total, 0);
-                pnlOutput.Style["display"] = "none";
             }
         }
 
@@ -197,10 +194,12 @@ namespace PPApp
             hfTotalBatches.Value = total.ToString();
             hfExecutionID.Value  = execId.ToString();
 
-            // Buttons always enabled — JS controls visual state via CSS opacity
-            // Guards are in the C# handlers (GetActiveBatch / GetEndedBatch checks)
+            // Buttons always enabled — guards are in C# handlers
             btnStart.Enabled = true;
             btnEnd.Enabled   = true;
+
+            // Output panel — only visible when batch is Ended (awaiting output entry)
+            pnlOutput.Visible = (state == "ended");
 
             // JS wheel state
             string js = state == "running"
@@ -248,7 +247,7 @@ namespace PPApp
             if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
             DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
-            if (ended == null) { ShowAlert("No batch awaiting output.", false); return; }
+            if (ended == null) { ShowAlert("No batch awaiting output. Please press END first.", false); return; }
 
             decimal output;
             if (!decimal.TryParse(txtActualOutput.Text.Trim(), out output) || output <= 0)
