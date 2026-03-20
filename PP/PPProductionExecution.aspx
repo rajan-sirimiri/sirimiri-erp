@@ -112,11 +112,17 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
 .gear-center-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;pointer-events:none;}
-.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:34px;
-    letter-spacing:.04em;color:#fff;line-height:1;}
-.gear-batch-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.06em;
-    text-transform:uppercase;margin-top:2px;}
+    text-align:center;pointer-events:none;
+    background:rgba(255,255,255,0.92);
+    border-radius:50%;
+    width:110px;height:110px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    box-shadow:0 2px 12px rgba(0,0,0,0.18), inset 0 1px 3px rgba(255,255,255,0.8);
+    border:2px solid rgba(255,255,255,0.6);}
+.gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:36px;
+    letter-spacing:.04em;color:#4a2800;line-height:1;}
+.gear-batch-sub{font-size:10px;color:#7a4a10;letter-spacing:.06em;
+    text-transform:uppercase;margin-top:2px;font-weight:700;}
 .gear-status-label{font-size:11px;font-weight:700;text-align:center;
     margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--text-muted);}
@@ -273,10 +279,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
                     <!-- Text overlay on wheel -->
                     <div class="gear-center-text">
-                        <div class="gear-batch-num" id="gearBatchNum"
-                             style="color:#4a2800;text-shadow:0 1px 3px rgba(255,255,255,.8);">—</div>
-                        <div class="gear-batch-sub" id="gearBatchSub"
-                             style="color:#6b3a00;text-shadow:0 1px 2px rgba(255,255,255,.8);">READY</div>
+                        <div class="gear-batch-num" id="gearBatchNum">—</div>
+                        <div class="gear-batch-sub" id="gearBatchSub">READY</div>
                     </div>
                 </div>
 
