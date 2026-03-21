@@ -102,6 +102,7 @@
     <Content Include="PPProductModel.aspx" />
     <Compile Include="PPPrefilledEntry.aspx.cs">
       <DependentUpon>PPPrefilledEntry.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="PPProductionExecution.aspx.cs">
       <DependentUpon>PPProductionExecution.aspx</DependentUpon>
