@@ -287,7 +287,7 @@ namespace MMApp.DAL
                 " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed" +
                 "            FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID = r.RMID" +
                 " WHERE r.IsActive = 1" +
-                " ORDER BY r.RMName;");
+                " ORDER BY CurrentStock DESC, r.RMName ASC;");
         }
 
         public static DataTable GetAllRawMaterials()
