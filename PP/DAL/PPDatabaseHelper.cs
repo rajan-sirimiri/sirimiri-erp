@@ -442,7 +442,7 @@ namespace PPApp.DAL
                     "VALUES ('INT-PROD','Internal Production','System','','','','','','','',1,NOW());");
             int supplierId = Convert.ToInt32(supObj);
 
-            string grnNo   = "INT-" + NowIST().ToString("yyyyMMdd") + "-" + rmId + "-" + batchNo;
+            string grnNo   = "INT-" + NowIST().ToString("yyyyMMddHHmmss") + "-" + rmId + "-" + batchNo;
             string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
             ExecuteNonQuery(
                 "INSERT INTO MM_RawInward " +
