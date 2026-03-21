@@ -63,12 +63,30 @@ namespace PPApp
 
             lblNavUser.Text = Session["PP_FullName"] as string ?? "";
 
-            // LoadIngUOM must run on every postback so ddlOutputUOM/ddlProdUOM
-            // always have items — otherwise SelectedValue cannot be restored
-            LoadIngUOM();
+            // Build UOM dropdown items — always needed
+            // Pass restoreFromForm=false here; event handlers (ItemCommand/btnSave)
+            // call LoadBOM then LoadSelectedProduct which sets correct DB values
+            LoadIngUOM(false);
+
             if (!IsPostBack)
             {
                 BindProductList();
+            }
+            else
+            {
+                // On postback with no product selection event (e.g. Add Ingredient),
+                // restore UOM dropdowns from form so user selections are preserved
+                int pid = GetSelectedProductId();
+                if (pid > 0)
+                {
+                    // A product is loaded — restore output UOM from DB to be safe
+                    var row = PPDatabaseHelper.GetProductById(pid);
+                    if (row != null && row["OutputUOMID"] != DBNull.Value)
+                        TrySetValue(ddlOutputUOM,
+                            Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString());
+                }
+                // Always restore ingredient UOM from form (user may be mid-entry)
+                TrySetValue(ddlIngUOM, Request.Form[ddlIngUOM.UniqueID]);
             }
         }
 
