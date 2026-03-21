@@ -291,7 +291,7 @@
                     <label>Expected Qty Output (per batch) <span class="req">*</span></label>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <asp:TextBox ID="txtBatchSize" runat="server" MaxLength="12" placeholder="e.g. 100" style="flex:1;" />
-                        <asp:DropDownList ID="ddlOutputUOM" runat="server" EnableViewState="false" style="width:130px;" />
+                        <asp:DropDownList ID="ddlOutputUOM" runat="server" style="width:130px;" />
                     </div>
                     <span class="field-hint" id="batchHint">Quantity and UOM of finished product per one batch</span>
                 </div>

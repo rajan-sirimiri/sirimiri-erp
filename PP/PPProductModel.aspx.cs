@@ -110,9 +110,12 @@ namespace PPApp
         {
             var dt = PPDatabaseHelper.GetActiveUOM();
 
-            BindDropdown(ddlIngUOM,    dt, "Abbreviation", "UOMID", "-- UOM --");
-            BindDropdown(ddlProdUOM,   dt, "Abbreviation", "UOMID", "-- UOM --");
-            BindDropdown(ddlOutputUOM, dt, "Abbreviation", "UOMID", "-- UOM --");
+            BindDropdown(ddlIngUOM,  dt, "Abbreviation", "UOMID", "-- UOM --");
+            BindDropdown(ddlProdUOM, dt, "Abbreviation", "UOMID", "-- UOM --");
+            // ddlOutputUOM is NOT rebuilt here — ViewState preserves it.
+            // It is populated only in LoadOutputUOM() called from LoadSelectedProduct.
+            if (ddlOutputUOM.Items.Count == 0) // first load only
+                BindDropdown(ddlOutputUOM, dt, "Abbreviation", "UOMID", "-- UOM --");
 
             // Only restore from form post when called from Page_Load
             // When called from LoadBOM, the caller (LoadSelectedProduct) sets values
@@ -318,11 +321,13 @@ namespace PPApp
             }
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
-            // Restore output UOM
-            if (row["OutputUOMID"] != DBNull.Value)
+            // Restore output UOM — rebuild items then set value to guarantee correct state
             {
-                string uomIdStr = Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString();
-                TrySetValue(ddlOutputUOM, uomIdStr);
+                var uomDt = PPDatabaseHelper.GetActiveUOM();
+                BindDropdown(ddlOutputUOM, uomDt, "Abbreviation", "UOMID", "-- UOM --");
+                if (row["OutputUOMID"] != DBNull.Value)
+                    TrySetValue(ddlOutputUOM,
+                        Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString());
             }
             // Production UOM is always Batches for all product types
             // No need to restore ddlProdUOM — static "Batches" label always shows
