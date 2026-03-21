@@ -103,30 +103,14 @@ namespace PPApp
                 TrySetValue(ddlOutputUOM, Request.Form[ddlOutputUOM.UniqueID]);
                 TrySetValue(ddlProdUOM,   Request.Form[ddlProdUOM.UniqueID]);
                 TrySetValue(ddlIngUOM,    Request.Form[ddlIngUOM.UniqueID]);
-                // Apply ProdUOM visibility based on currently posted product type
-                // This handles Save button clicks where no product is re-loaded from DB
-                string postedType = Request.Form[ddlProductType.UniqueID];
-                if (!string.IsNullOrEmpty(postedType))
-                    SetProdUOMVisibility(postedType);
+                // Production UOM is always Batches — dropdown always hidden
             }
         }
 
         private void SetProdUOMVisibility(string productType)
         {
-            if (productType == "Conversion")
-            {
-                ddlProdUOM.Style["display"] = "block";
-                ClientScript.RegisterStartupScript(GetType(), "prodUOMVis",
-                    "document.getElementById('divProdUOMStatic').style.display='none';" +
-                    "document.getElementById('" + ddlProdUOM.ClientID + "').style.display='block';", true);
-            }
-            else
-            {
-                ddlProdUOM.Style["display"] = "none";
-                ClientScript.RegisterStartupScript(GetType(), "prodUOMVis",
-                    "document.getElementById('divProdUOMStatic').style.display='flex';" +
-                    "document.getElementById('" + ddlProdUOM.ClientID + "').style.display='none';", true);
-            }
+            // All product types use Batches — always show static label, hide dropdown
+            ddlProdUOM.Style["display"] = "none";
         }
 
         private void BindDropdown(System.Web.UI.WebControls.DropDownList ddl,
@@ -194,17 +178,8 @@ namespace PPApp
             if (!int.TryParse(ddlOutputUOM.SelectedValue, out uomId) || uomId == 0)
             { ShowAlert("Output UOM is required.", false); return; }
 
-            // Production UOM: Conversion uses selected dropdown, others use Batches
-            int prodUomId;
-            if (type == "Conversion")
-            {
-                if (!int.TryParse(ddlProdUOM.SelectedValue, out prodUomId) || prodUomId == 0)
-                { ShowAlert("Production UOM is required for Conversion type.", false); return; }
-            }
-            else
-            {
-                prodUomId = GetBatchesUOMID();
-            }
+            // Production UOM is always Batches for all product types
+            int prodUomId = GetBatchesUOMID();
 
             decimal batchSize = 1;
             decimal.TryParse(txtBatchSize.Text.Trim(), out batchSize);
@@ -327,13 +302,9 @@ namespace PPApp
             ddlProductType.SelectedValue = row["ProductType"].ToString();
             // Restore output UOM
             try { ddlOutputUOM.SelectedValue = row["OutputUOMID"].ToString(); } catch { }
-            // Restore production UOM — use TrySetValue for safety
-            string prodUomId = row["ProdUOMID"] == DBNull.Value ? "" :
-                Convert.ToInt32(Convert.ToInt64(row["ProdUOMID"])).ToString();
-            TrySetValue(ddlProdUOM, prodUomId);
-            // Toggle visibility
+            // Production UOM is always Batches for all product types
+            // No need to restore ddlProdUOM — static "Batches" label always shows
             string prodType = row["ProductType"].ToString();
-            SetProdUOMVisibility(prodType);
 
             bool isActive = Convert.ToBoolean(row["IsActive"]);
             btnToggleActive.Text    = isActive ? "Deactivate" : "Activate";

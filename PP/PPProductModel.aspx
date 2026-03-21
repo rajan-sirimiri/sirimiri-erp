@@ -269,10 +269,10 @@
                     </div>
                     <div class="form-group" style="margin-bottom:0">
                         <label>Production UOM</label>
-                        <div id="divProdUOMStatic" style="display:flex;align-items:center;height:38px;padding:0 12px;background:#f0faf5;border:1px solid #c3ece0;border-radius:8px;font-weight:700;color:var(--green);font-size:13px;letter-spacing:.04em;">
+                        <asp:DropDownList ID="ddlProdUOM" runat="server" EnableViewState="false" style="display:none;" />
+                        <div style="display:flex;align-items:center;height:38px;padding:0 12px;background:#f0faf5;border:1px solid #c3ece0;border-radius:8px;font-weight:700;color:var(--green);font-size:13px;letter-spacing:.04em;">
                             Batches
                         </div>
-                        <asp:DropDownList ID="ddlProdUOM" runat="server" EnableViewState="false" style="display:none;" />
                     </div>
                 </div>
 
@@ -599,22 +599,10 @@
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
 function onProductTypeChange(type) {
-    var staticDiv = document.getElementById('divProdUOMStatic');
-    var ddlProd   = document.getElementById('<%= ddlProdUOM.ClientID %>');
-    if (staticDiv && ddlProd) {
-        if (type === 'Conversion') {
-            staticDiv.style.display = 'none';
-            ddlProd.style.display   = 'block';
-        } else {
-            staticDiv.style.display = 'flex';
-            ddlProd.style.display   = 'none';
-        }
-    }
+    // Production UOM is always Batches — no change needed
     var hint = document.getElementById('batchHint');
     if (hint) {
-        hint.innerText = (type === 'Conversion')
-            ? 'Output qty and UOM — UOM auto-syncs with RM ingredient UOM'
-            : 'Quantity and UOM of finished product per one batch';
+        hint.innerText = 'Quantity and UOM of finished product per one batch';
     }
 }
 
