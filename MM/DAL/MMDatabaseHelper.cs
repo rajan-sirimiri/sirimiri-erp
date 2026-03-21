@@ -265,6 +265,31 @@ namespace MMApp.DAL
         }
 
         // ── RAW MATERIAL ──────────────────────────────────────────────
+        // Raw Material Stock Report
+        // CurrentStock = OpeningStock + GRN received - Consumed (FIFO deductions)
+        public static DataTable GetRMStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT r.RMID, r.RMCode, r.RMName, u.Abbreviation AS UOM," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(con.TotalConsumed, 0)" +
+                " , 4) AS CurrentStock," +
+                " r.ReorderLevel," +
+                " NULL AS ReconStatus," +
+                " NULL AS ReconDate" +
+                " FROM MM_RawMaterials r" +
+                " JOIN MM_UOM u ON u.UOMID = r.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalReceived" +
+                "            FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed" +
+                "            FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID = r.RMID" +
+                " WHERE r.IsActive = 1" +
+                " ORDER BY r.RMName;");
+        }
+
         public static DataTable GetAllRawMaterials()
         {
             return ExecuteQuery(

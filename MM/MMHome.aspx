@@ -130,6 +130,7 @@
                 <a href="MMPackingInward.aspx">Packing Material Inward (GRN)</a>
                 <a href="MMConsumableInward.aspx">Consumable Inward (GRN)</a>
                 <a href="MMStationaryInward.aspx">Stationary &amp; Other Inward (GRN)</a>
+                <a href="MMRMStockReport.aspx">Raw Material Stock Report</a>
             </div>
         </div>
         <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
@@ -198,6 +199,11 @@
             <a id="lnkStationaryInward" href="MMStationaryInward.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Stationary &amp; Other<br/>Inward (GRN)</div><div class="menu-desc">Record stationery and misc item receipts, generate GRN numbers</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkStockReport" href="MMRMStockReport.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F4CA;</div>
+                <div><div class="menu-title">Raw Material<br/>Stock Report</div><div class="menu-desc">Current stock position with FIFO tracking — view and download as PDF</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
         </div>
