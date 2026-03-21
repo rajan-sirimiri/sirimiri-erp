@@ -714,7 +714,7 @@ namespace PPApp.DAL
                 " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('kg','kgs','kilo','kilogram','kilograms') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000000" +
                 " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('g','gm','gram','grams','grm') AND LOWER(TRIM(urm.Abbreviation)) IN ('mg','milligram','milligrams') THEN 1000" +
                 " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') AND LOWER(TRIM(urm.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') THEN 0.001" +
-                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') AND LOWER(TRIM(ubom.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') THEN 1000" +
+                " WHEN LOWER(TRIM(ubom.Abbreviation)) IN ('l','ltr','litre','liter','litres','liters') AND LOWER(TRIM(urm.Abbreviation)) IN ('ml','millilitre','milliliter','millilitres','milliliters') THEN 1000" +
                 " ELSE 1 END";
 
             string sql =
