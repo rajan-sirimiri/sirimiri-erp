@@ -529,27 +529,84 @@ function stopKeepAlive() {
     if (_keepAliveTimer) { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
 }
 
+// ── CLICK SOUND ───────────────────────────────────────────────────────────
+function playClick() {
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Sharp mechanical click: short noise burst + quick decay
+        var buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < data.length; i++) {
+            // Noise burst with exponential decay
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+        }
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        // Bandpass filter to give a mechanical 'thunk' quality
+        var filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 800;
+        filter.Q.value = 0.8;
+        src.connect(filter);
+        filter.connect(ctx.destination);
+        src.start();
+    } catch(e) {} // silently fail if audio not supported
+}
+
+// ── BUTTON STATE CONTROL ───────────────────────────────────────────────────
+function setButtonStates(state) {
+    // state: 'ready' | 'running' | 'ended' | 'stopped'
+    var btnStart = document.getElementById('<%= btnStart.ClientID %>');
+    var btnEnd   = document.getElementById('<%= btnEnd.ClientID %>');
+    if (!btnStart || !btnEnd) return;
+
+    if (state === 'running') {
+        // START grayed out and blocked, END active
+        btnStart.disabled = true;
+        btnStart.style.background = '#ccc';
+        btnStart.style.boxShadow  = 'none';
+        btnStart.style.cursor     = 'not-allowed';
+        btnStart.style.transform  = 'none';
+        btnEnd.disabled = false;
+        btnEnd.style.background = '';
+        btnEnd.style.cursor     = '';
+    } else {
+        // ready/ended/stopped: START active, END grayed
+        btnStart.disabled = false;
+        btnStart.style.background = '';
+        btnStart.style.cursor     = '';
+        btnEnd.disabled = true;
+        btnEnd.style.background = '#ccc';
+        btnEnd.style.boxShadow  = 'none';
+        btnEnd.style.cursor     = 'not-allowed';
+        btnEnd.style.transform  = 'none';
+    }
+}
+
 function startWheelAnim() {
+    playClick();
     targetSpeed = 0.9;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    startKeepAlive(); // keep session alive while batch runs
-    return true;  // allow postback
+    setButtonStates('running');
+    startKeepAlive();
+    return true;
 }
 function stopWheelAnim() {
+    playClick();
     targetSpeed = 0;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'gear-status-label stopped'; }
-    stopKeepAlive(); // batch ending — stop keepalive
-    // Do NOT show pnlOutput here — server shows it only after confirmed DB write
-    return true;  // allow postback
+    stopKeepAlive();
+    return true;
 }
 
 window.addEventListener('load', function() {
-    animateGear();   // start loop
-    applyState();    // apply server state (RegisterStartupScript already ran)
+    animateGear();
+    applyState();
     updateGearText();
-    // If page reloads while batch is running (e.g. after postback), restart keepalive
+    // Restore correct button states based on server state
+    setButtonStates(window.serverState || 'ready');
     if (window.serverState === 'running') startKeepAlive();
 });
 </script>
