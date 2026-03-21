@@ -88,22 +88,21 @@ namespace PPApp
             return 1;
         }
 
-        private void LoadIngUOM()
+        private void LoadIngUOM(bool restoreFromForm = true)
         {
             var dt = PPDatabaseHelper.GetActiveUOM();
 
-            // ViewState is disabled on these dropdowns (set in ASPX)
-            // so DataBind is safe and we restore from raw form post
             BindDropdown(ddlIngUOM,    dt, "Abbreviation", "UOMID", "-- UOM --");
             BindDropdown(ddlProdUOM,   dt, "Abbreviation", "UOMID", "-- UOM --");
             BindDropdown(ddlOutputUOM, dt, "Abbreviation", "UOMID", "-- UOM --");
 
-            if (IsPostBack)
+            // Only restore from form post when called from Page_Load
+            // When called from LoadBOM, the caller (LoadSelectedProduct) sets values
+            if (IsPostBack && restoreFromForm)
             {
                 TrySetValue(ddlOutputUOM, Request.Form[ddlOutputUOM.UniqueID]);
                 TrySetValue(ddlProdUOM,   Request.Form[ddlProdUOM.UniqueID]);
                 TrySetValue(ddlIngUOM,    Request.Form[ddlIngUOM.UniqueID]);
-                // Production UOM is always Batches — dropdown always hidden
             }
         }
 
@@ -301,10 +300,11 @@ namespace PPApp
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
             // Restore output UOM
-            // Fix int64 to int32 conversion for MySQL IDs
             if (row["OutputUOMID"] != DBNull.Value)
-                TrySetValue(ddlOutputUOM,
-                    Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString());
+            {
+                string uomIdStr = Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString();
+                TrySetValue(ddlOutputUOM, uomIdStr);
+            }
             // Production UOM is always Batches for all product types
             // No need to restore ddlProdUOM — static "Batches" label always shows
             string prodType = row["ProductType"].ToString();
@@ -447,7 +447,7 @@ namespace PPApp
                 LoadCost(row, bom);
             }
 
-            LoadIngUOM();
+            LoadIngUOM(false); // don't restore from form — values set by LoadSelectedProduct
             if (!string.IsNullOrEmpty(ddlMatType.SelectedValue))
                 LoadMaterialDropdown(ddlMatType.SelectedValue);
         }
