@@ -513,16 +513,34 @@ function applyState() {
 
 // OnClientClick — pure visual animation only, NO button state changes
 // Server controls which buttons are enabled via Enabled property
+// ── SESSION KEEPALIVE ─────────────────────────────────────────────────────
+// Pings server every 4 minutes while batch is running to prevent session timeout
+var _keepAliveTimer = null;
+
+function startKeepAlive() {
+    stopKeepAlive(); // clear any existing timer
+    _keepAliveTimer = setInterval(function() {
+        fetch('KeepAlive.ashx', { method: 'GET', cache: 'no-store' })
+            .catch(function() {}); // silently ignore errors
+    }, 4 * 60 * 1000); // every 4 minutes (session timeout is 60 min)
+}
+
+function stopKeepAlive() {
+    if (_keepAliveTimer) { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
+}
+
 function startWheelAnim() {
     targetSpeed = 0.9;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+    startKeepAlive(); // keep session alive while batch runs
     return true;  // allow postback
 }
 function stopWheelAnim() {
     targetSpeed = 0;
     var lbl = document.getElementById('gearStatusLabel');
     if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'gear-status-label stopped'; }
+    stopKeepAlive(); // batch ending — stop keepalive
     // Do NOT show pnlOutput here — server shows it only after confirmed DB write
     return true;  // allow postback
 }
@@ -531,6 +549,8 @@ window.addEventListener('load', function() {
     animateGear();   // start loop
     applyState();    // apply server state (RegisterStartupScript already ran)
     updateGearText();
+    // If page reloads while batch is running (e.g. after postback), restart keepalive
+    if (window.serverState === 'running') startKeepAlive();
 });
 </script>
 </form>
