@@ -232,8 +232,9 @@ namespace PPApp
                 }
 
                 hfImagePath.Value = imagePath;
+                LoadBOM(productId);         // rebuild dropdowns first
+                LoadSelectedProduct(productId); // then set values
                 BindProductList();
-                LoadSelectedProduct(productId);
             }
             catch (Exception ex)
             {
@@ -267,8 +268,8 @@ namespace PPApp
             {
                 int productId = Convert.ToInt32(Convert.ToInt64(e.CommandArgument));
                 hfProductID.Value = productId.ToString();
-                LoadSelectedProduct(productId);
-                LoadBOM(productId);
+                LoadBOM(productId);        // rebuilds UOM dropdowns first
+                LoadSelectedProduct(productId); // then sets correct values
                 BindProductList();
             }
         }
