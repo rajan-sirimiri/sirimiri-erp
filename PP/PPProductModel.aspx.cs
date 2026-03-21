@@ -103,21 +103,29 @@ namespace PPApp
                 TrySetValue(ddlOutputUOM, Request.Form[ddlOutputUOM.UniqueID]);
                 TrySetValue(ddlProdUOM,   Request.Form[ddlProdUOM.UniqueID]);
                 TrySetValue(ddlIngUOM,    Request.Form[ddlIngUOM.UniqueID]);
-
-                // Restore ProdUOM visibility — server-side so it persists across postbacks
+                // Apply ProdUOM visibility based on currently posted product type
+                // This handles Save button clicks where no product is re-loaded from DB
                 string postedType = Request.Form[ddlProductType.UniqueID];
-                if (postedType == "Conversion")
-                {
-                    ddlProdUOM.Style["display"] = "block";
-                    ClientScript.RegisterStartupScript(GetType(), "prodUOMShow",
-                        "document.getElementById('divProdUOMStatic').style.display='none';", true);
-                }
-                else
-                {
-                    ddlProdUOM.Style["display"] = "none";
-                    ClientScript.RegisterStartupScript(GetType(), "prodUOMShow",
-                        "document.getElementById('divProdUOMStatic').style.display='flex';", true);
-                }
+                if (!string.IsNullOrEmpty(postedType))
+                    SetProdUOMVisibility(postedType);
+            }
+        }
+
+        private void SetProdUOMVisibility(string productType)
+        {
+            if (productType == "Conversion")
+            {
+                ddlProdUOM.Style["display"] = "block";
+                ClientScript.RegisterStartupScript(GetType(), "prodUOMVis",
+                    "document.getElementById('divProdUOMStatic').style.display='none';" +
+                    "document.getElementById('" + ddlProdUOM.ClientID + "').style.display='block';", true);
+            }
+            else
+            {
+                ddlProdUOM.Style["display"] = "none";
+                ClientScript.RegisterStartupScript(GetType(), "prodUOMVis",
+                    "document.getElementById('divProdUOMStatic').style.display='flex';" +
+                    "document.getElementById('" + ddlProdUOM.ClientID + "').style.display='none';", true);
             }
         }
 
@@ -325,12 +333,7 @@ namespace PPApp
             try { ddlProdUOM.SelectedValue = row["ProdUOMID"].ToString(); } catch { }
             // Toggle visibility via JS on page load
             string prodType = row["ProductType"].ToString();
-            if (prodType == "Conversion")
-            {
-                ddlProdUOM.Style["display"]     = "";
-                ClientScript.RegisterStartupScript(this.GetType(), "prodUOMToggle",
-                    "document.getElementById('divProdUOMStatic').style.display='none';", true);
-            }
+            SetProdUOMVisibility(prodType);
 
             bool isActive = Convert.ToBoolean(row["IsActive"]);
             btnToggleActive.Text    = isActive ? "Deactivate" : "Activate";
@@ -350,9 +353,7 @@ namespace PPApp
             ddlProductType.SelectedIndex = 0;
             if (ddlOutputUOM.Items.Count > 0) ddlOutputUOM.SelectedIndex = 0;
             if (ddlProdUOM.Items.Count > 0) ddlProdUOM.SelectedIndex = 0;
-            ddlProdUOM.Style["display"] = "none";
-            ClientScript.RegisterStartupScript(this.GetType(), "prodUOMReset",
-                "document.getElementById('divProdUOMStatic').style.display='';", true);
+            SetProdUOMVisibility("Core"); // default to Core on clear
             btnToggleActive.Visible = false;
             pnlAlert.Visible = false;
         }
