@@ -156,7 +156,18 @@
 </form>
 <script>
 function printReport() {
+    // Set document title to desired filename — browsers use this as the PDF filename
+    var now = new Date();
+    var dd   = String(now.getDate()).padStart(2,'0');
+    var mm   = String(now.getMonth()+1).padStart(2,'0');
+    var yy   = String(now.getFullYear()).slice(-2);
+    var hh   = String(now.getHours()).padStart(2,'0');
+    var min  = String(now.getMinutes()).padStart(2,'0');
+    var originalTitle = document.title;
+    document.title = 'RM Stock Report ' + dd + '-' + mm + '-' + yy + ' ' + hh + '' + min;
     window.print();
+    // Restore original title after print dialog closes
+    setTimeout(function() { document.title = originalTitle; }, 2000);
 }
 </script>
 </body>
