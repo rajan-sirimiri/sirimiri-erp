@@ -85,7 +85,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     color:var(--text);margin-bottom:32px;text-align:center;}
 
 /* GEAR AREA */
-.gear-area{display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:40px;}
+.gear-area{display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:40px;flex-wrap:wrap;}
+.gear-buttons-row{display:flex;flex-direction:column;gap:24px;align-items:center;}
 
 /* START / END BUTTONS */
 .btn-start{background:var(--accent);color:#fff;border:none;border-radius:50%;
@@ -161,6 +162,91 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .empty-history{text-align:center;padding:32px;color:var(--text-dim);font-size:13px;}
 .no-order-msg{text-align:center;padding:40px;color:var(--text-dim);font-size:13px;}
 .no-order-icon{font-size:40px;margin-bottom:12px;}
+
+/* ── TABLET & TOUCH OPTIMISATION ─────────────────────────────────────────── */
+/* Touch targets — minimum 44px, START/END already 80px ✓ */
+.btn-load, .btn-save-output { min-height:44px; }
+select, input, textarea { min-height:44px; font-size:16px !important; } /* prevent iOS zoom */
+
+/* Tablet landscape (1024px) — mostly fine, minor tweaks */
+@media (max-width:1024px) {
+    .page-body { max-width:100%; padding:16px 16px 60px; }
+    .gear-wrap  { width:320px; height:320px; }
+    #gearSvg    { width:320px; height:320px; }
+}
+
+/* Tablet portrait (768px) — main layout changes */
+@media (max-width:820px) {
+    /* Nav */
+    .nav-title  { font-size:15px; }
+    .nav-user   { display:none; } /* save space */
+
+    /* Date bar */
+    .date-bar   { font-size:13px; padding:8px 16px; }
+
+    /* Select bar — stack vertically */
+    .select-bar { flex-direction:column; align-items:stretch; gap:10px; padding:12px 16px; }
+    .select-bar select { min-width:100%; }
+    .btn-load   { width:100%; padding:12px; font-size:14px; }
+
+    /* Info panel — single column */
+    .info-panel { grid-template-columns:1fr; }
+    .info-right { text-align:left; display:flex; align-items:center; gap:16px; }
+    .info-batches { font-size:36px; }
+
+    /* Exec panel */
+    .exec-panel { padding:20px 16px; }
+    .exec-title { font-size:17px; margin-bottom:24px; }
+
+    /* Gear area — stack vertically on portrait tablet */
+    .gear-area {
+        flex-direction:column;
+        gap:20px;
+    }
+    /* Move buttons side by side below wheel */
+    .gear-area .btn-start,
+    .gear-area .btn-end {
+        width:100px;
+        height:100px;
+        font-size:14px;
+    }
+    .btn-icon { font-size:26px; }
+
+    /* Make wheel smaller */
+    .gear-wrap  { width:280px; height:280px; }
+    #gearSvg    { width:280px; height:280px; }
+
+    /* Put START and END side by side in a row */
+    .gear-area {
+        flex-direction:column;
+    }
+    .gear-buttons-row {
+        display:flex;
+        gap:40px;
+        justify-content:center;
+        order:2; /* below wheel */
+    }
+
+    /* Output panel — single column */
+    .output-grid { grid-template-columns:1fr; }
+    .btn-save-output { width:100%; padding:14px; font-size:14px; }
+
+    /* History table — hide less important columns */
+    .history-table .col-hide { display:none; }
+
+    /* Page body padding */
+    .page-body { padding:12px 12px 80px; }
+}
+
+/* Small tablet / large phone landscape (600px) */
+@media (max-width:640px) {
+    .gear-wrap  { width:240px; height:240px; }
+    #gearSvg    { width:240px; height:240px; }
+    .gear-area .btn-start,
+    .gear-area .btn-end { width:88px; height:88px; }
+    .info-stats { gap:14px; }
+    .gear-batch-num { font-size:22px; }
+}
 </style>
 </head>
 <body>
@@ -262,25 +348,24 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             <!-- GEAR AREA -->
             <div class="gear-area">
 
-                <!-- START BUTTON -->
-                <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
-                    OnClick="btnStart_Click" CausesValidation="false"
-                    UseSubmitBehavior="false"
-                    OnClientClick="startWheelAnim();"
-                    Text="&#9654;&#xA;START"/>
-
-                <!-- GEAR WHEEL SVG -->
+                <!-- GEAR WHEEL SVG — centred on tablet -->
                 <div class="gear-wrap">
-                    <!-- Ship wheel image rotates on batch execution -->
                     <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
                 </div>
 
-                <!-- END BUTTON -->
-                <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
-                    OnClick="btnEnd_Click" CausesValidation="false"
-                    UseSubmitBehavior="false"
-                    OnClientClick="stopWheelAnim();"
-                    Text="&#9646;&#9646;&#xA;END"/>
+                <!-- START / END buttons — side by side row (wraps below wheel on tablet) -->
+                <div class="gear-buttons-row">
+                    <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
+                        OnClick="btnStart_Click" CausesValidation="false"
+                        UseSubmitBehavior="false"
+                        OnClientClick="startWheelAnim();"
+                        Text="&#9654;&#xA;START"/>
+                    <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
+                        OnClick="btnEnd_Click" CausesValidation="false"
+                        UseSubmitBehavior="false"
+                        OnClientClick="stopWheelAnim();"
+                        Text="&#9646;&#9646;&#xA;END"/>
+                </div>
 
             </div>
 
