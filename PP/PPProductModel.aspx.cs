@@ -301,7 +301,10 @@ namespace PPApp
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
             // Restore output UOM
-            try { ddlOutputUOM.SelectedValue = row["OutputUOMID"].ToString(); } catch { }
+            // Fix int64 to int32 conversion for MySQL IDs
+            if (row["OutputUOMID"] != DBNull.Value)
+                TrySetValue(ddlOutputUOM,
+                    Convert.ToInt32(Convert.ToInt64(row["OutputUOMID"])).ToString());
             // Production UOM is always Batches for all product types
             // No need to restore ddlProdUOM — static "Batches" label always shows
             string prodType = row["ProductType"].ToString();
