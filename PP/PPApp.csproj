@@ -96,9 +96,13 @@
     <Compile Include="PPHome.aspx.designer.cs">
       <DependentUpon>PPHome.aspx</DependentUpon>
     </Compile>
+    <Content Include="PPPrefilledEntry.aspx" />
     <Content Include="PPProductionExecution.aspx" />
     <Content Include="PPProductionOrder.aspx" />
     <Content Include="PPProductModel.aspx" />
+    <Compile Include="PPPrefilledEntry.aspx.cs">
+      <DependentUpon>PPPrefilledEntry.aspx</DependentUpon>
+    </Compile>
     <Compile Include="PPProductionExecution.aspx.cs">
       <DependentUpon>PPProductionExecution.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
