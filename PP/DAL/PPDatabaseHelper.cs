@@ -1023,25 +1023,36 @@ namespace PPApp.DAL
                 decimal needed = bomQty * GetUOMConversionFactor(bomUnit, rmUnit);
 
                 // ── Pull stock sources in FIFO order ─────────────────────────
-                // 1. Opening stock (treated as oldest)
+                // 1. Opening stock — subtract already consumed amounts
                 var openingRow = ExecuteQueryRow(
-                    "SELECT OpeningStockID, Quantity FROM MM_OpeningStock" +
-                    " WHERE MaterialType='RM' AND MaterialID=?rmid AND Quantity > 0;",
+                    "SELECT os.OpeningStockID," +
+                    " GREATEST(0, os.Quantity - IFNULL(SUM(c.QtyConsumed),0)) AS AvailableQty" +
+                    " FROM MM_OpeningStock os" +
+                    " LEFT JOIN MM_StockConsumption c ON c.SourceType='OPENING' AND c.SourceID=os.OpeningStockID" +
+                    " WHERE os.MaterialType='RM' AND os.MaterialID=?rmid" +
+                    " GROUP BY os.OpeningStockID, os.Quantity" +
+                    " HAVING AvailableQty > 0;",
                     new MySqlParameter("?rmid", rmId));
 
-                // 2. GRN rows oldest first (only those with remaining qty)
+                // 2. GRN rows oldest first — subtract already consumed amounts
+                // QtyActualReceived is immutable; available = received - consumed per row
                 var grnRows = ExecuteQuery(
-                    "SELECT InwardID, QtyActualReceived FROM MM_RawInward" +
-                    " WHERE RMID=?rmid AND QtyActualReceived > 0" +
-                    " ORDER BY InwardDate ASC, InwardID ASC;",
+                    "SELECT i.InwardID," +
+                    " GREATEST(0, i.QtyActualReceived - IFNULL(SUM(c.QtyConsumed),0)) AS AvailableQty" +
+                    " FROM MM_RawInward i" +
+                    " LEFT JOIN MM_StockConsumption c ON c.SourceType='GRN' AND c.SourceID=i.InwardID" +
+                    " WHERE i.RMID=?rmid" +
+                    " GROUP BY i.InwardID, i.QtyActualReceived, i.InwardDate" +
+                    " HAVING AvailableQty > 0" +
+                    " ORDER BY i.InwardDate ASC, i.InwardID ASC;",
                     new MySqlParameter("?rmid", rmId));
 
                 // Calculate total available
                 decimal available = 0;
                 if (openingRow != null)
-                    available += Convert.ToDecimal(openingRow["Quantity"]);
+                    available += Convert.ToDecimal(openingRow["AvailableQty"]);
                 foreach (System.Data.DataRow g in grnRows.Rows)
-                    available += Convert.ToDecimal(g["QtyActualReceived"]);
+                    available += Convert.ToDecimal(g["AvailableQty"]);
 
                 if (available < needed)
                 {
@@ -1061,16 +1072,12 @@ namespace PPApp.DAL
                 // First: deduct from Opening Stock
                 if (openingRow != null && remaining > 0)
                 {
-                    decimal osQty   = Convert.ToDecimal(openingRow["Quantity"]);
+                    decimal osQty   = Convert.ToDecimal(openingRow["AvailableQty"]);
                     int     osId    = Convert.ToInt32(openingRow["OpeningStockID"]);
                     decimal consume = Math.Min(osQty, remaining);
 
-                    ExecuteNonQuery(
-                        "UPDATE MM_OpeningStock SET Quantity = Quantity - ?q" +
-                        " WHERE OpeningStockID = ?id;",
-                        new MySqlParameter("?q",  consume),
-                        new MySqlParameter("?id", osId));
-
+                    // Do NOT physically modify MM_OpeningStock.Quantity
+                    // Stock position is calculated as: Opening + GRN - Consumption
                     InsertConsumption(executionId, orderId, batchNo, rmId,
                         "OPENING", osId, consume, userId);
 
@@ -1082,16 +1089,13 @@ namespace PPApp.DAL
                 {
                     if (remaining <= 0) break;
 
-                    decimal grnQty  = Convert.ToDecimal(grn["QtyActualReceived"]);
+                    decimal grnQty  = Convert.ToDecimal(grn["AvailableQty"]);
                     int     grnId   = Convert.ToInt32(grn["InwardID"]);
                     decimal consume = Math.Min(grnQty, remaining);
 
-                    ExecuteNonQuery(
-                        "UPDATE MM_RawInward SET QtyActualReceived = QtyActualReceived - ?q" +
-                        " WHERE InwardID = ?id;",
-                        new MySqlParameter("?q",  consume),
-                        new MySqlParameter("?id", grnId));
-
+                    // Do NOT physically modify MM_RawInward.QtyActualReceived
+                    // Stock position is calculated as: Opening + GRN - Consumption
+                    // Modifying GRN rows would cause double-deduction in stock report
                     InsertConsumption(executionId, orderId, batchNo, rmId,
                         "GRN", grnId, consume, userId);
 
