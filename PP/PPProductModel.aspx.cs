@@ -103,6 +103,21 @@ namespace PPApp
                 TrySetValue(ddlOutputUOM, Request.Form[ddlOutputUOM.UniqueID]);
                 TrySetValue(ddlProdUOM,   Request.Form[ddlProdUOM.UniqueID]);
                 TrySetValue(ddlIngUOM,    Request.Form[ddlIngUOM.UniqueID]);
+
+                // Restore ProdUOM visibility — server-side so it persists across postbacks
+                string postedType = Request.Form[ddlProductType.UniqueID];
+                if (postedType == "Conversion")
+                {
+                    ddlProdUOM.Style["display"] = "block";
+                    ClientScript.RegisterStartupScript(GetType(), "prodUOMShow",
+                        "document.getElementById('divProdUOMStatic').style.display='none';", true);
+                }
+                else
+                {
+                    ddlProdUOM.Style["display"] = "none";
+                    ClientScript.RegisterStartupScript(GetType(), "prodUOMShow",
+                        "document.getElementById('divProdUOMStatic').style.display='flex';", true);
+                }
             }
         }
 
