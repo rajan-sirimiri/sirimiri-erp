@@ -132,15 +132,13 @@ namespace PPApp
         private void BindDropdown(System.Web.UI.WebControls.DropDownList ddl,
             System.Data.DataTable dt, string textField, string valueField, string defaultText)
         {
-            // Bypass DataBind entirely — build items manually to avoid
-            // ViewState re-applying stale SelectedValue during PerformDataBinding
             ddl.Items.Clear();
             ddl.Items.Add(new ListItem(defaultText, "0"));
             foreach (System.Data.DataRow row in dt.Rows)
             {
-                ddl.Items.Add(new ListItem(
-                    row[textField].ToString(),
-                    row[valueField].ToString()));
+                // Convert int64 MySQL IDs to plain int string to ensure SelectedValue match
+                string val = Convert.ToInt32(Convert.ToInt64(row[valueField])).ToString();
+                ddl.Items.Add(new ListItem(row[textField].ToString(), val));
             }
         }
 
@@ -329,9 +327,11 @@ namespace PPApp
             ddlProductType.SelectedValue = row["ProductType"].ToString();
             // Restore output UOM
             try { ddlOutputUOM.SelectedValue = row["OutputUOMID"].ToString(); } catch { }
-            // Restore production UOM for Conversion
-            try { ddlProdUOM.SelectedValue = row["ProdUOMID"].ToString(); } catch { }
-            // Toggle visibility via JS on page load
+            // Restore production UOM — use TrySetValue for safety
+            string prodUomId = row["ProdUOMID"] == DBNull.Value ? "" :
+                Convert.ToInt32(Convert.ToInt64(row["ProdUOMID"])).ToString();
+            TrySetValue(ddlProdUOM, prodUomId);
+            // Toggle visibility
             string prodType = row["ProductType"].ToString();
             SetProdUOMVisibility(prodType);
 
