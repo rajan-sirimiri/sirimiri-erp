@@ -73,6 +73,17 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
     width:100%;margin-top:14px;transition:background .2s;}
 .btn-close-shift:hover{background:#333;}
 .right-card-disabled{opacity:0.45;pointer-events:none;}
+.scrap-entry-section{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;
+    padding:14px 16px;margin-top:14px;}
+.scrap-entry-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:#f57f17;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.scrap-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.scrap-row:last-child{margin-bottom:0;}
+.scrap-row label{font-size:12px;font-weight:600;color:#555;min-width:140px;flex-shrink:0;}
+.scrap-row .unit-sm{font-size:11px;color:#888;white-space:nowrap;}
+.scrap-row input{flex:1;padding:8px 10px;border:1.5px solid #ffe082;border-radius:7px;
+    font-size:13px;font-family:inherit;background:#fffde7;}
+.scrap-row input:focus{outline:none;border-color:#f9a825;}
 
 .tally-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px;}
 .tally-table th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
@@ -100,6 +111,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
 <asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
+<asp:HiddenField ID="hfScrapChecked"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 <asp:HiddenField ID="hfRMId"        runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMUnit"      runat="server" Value=""/>
@@ -226,9 +238,36 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                     <div class="unit-badge"><asp:Label ID="lblRMUnit" runat="server">—</asp:Label></div>
                 </div>
 
+                <!-- SCRAP QTY ENTRY — shown after Check Scrap button clicked -->
+                <asp:Panel ID="pnlScrapEntry" runat="server" Visible="false">
+                <div class="scrap-entry-section">
+                    <div class="scrap-entry-title">&#9851; Scrap Generated from this RM</div>
+                    <asp:Repeater ID="rptScrapInputs" runat="server">
+                        <ItemTemplate>
+                            <div class="scrap-row">
+                                <label><%# Eval("ScrapName") %></label>
+                                <input type="number" step="0.001" min="0"
+                                    name='<%# "scrap_" + Eval("ScrapID") %>'
+                                    placeholder="0.000" class="scrap-input"
+                                    data-scrapid='<%# Eval("ScrapID") %>'
+                                    data-scrapname='<%# Eval("ScrapName") %>' />
+                                <span class="unit-sm"><%# Eval("Unit") %></span>
+                            </div>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                    <asp:HiddenField ID="hfScrapValues" runat="server" Value=""/>
+                </div>
+                </asp:Panel>
+
+                <asp:Button ID="btnCheckScrap" runat="server" CssClass="btn-close"
+                    style="background:#f57f17;margin-bottom:8px;"
+                    Text="&#9851; Check Scrap &amp; Proceed"
+                    OnClick="btnCheckScrap_Click" CausesValidation="false"/>
+
                 <asp:Button ID="btnClose" runat="server" CssClass="btn-close"
                     Text="&#9632; Close Shift Consumption"
-                    OnClick="btnClose_Click" CausesValidation="false"/>
+                    OnClick="btnClose_Click" CausesValidation="false"
+                    OnClientClick="return collectScrapValues();"/>
 
                 <!-- Today's closures -->
                 <hr class="divider"/>

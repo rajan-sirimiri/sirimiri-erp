@@ -103,9 +103,13 @@
       <DependentUpon>MMHome.aspx</DependentUpon>
     </Compile>
     <Content Include="MMRMStockReport.aspx" />
+    <Content Include="MMScrapMaterial.aspx" />
     <Content Include="MMUOMMaster.aspx" />
     <Compile Include="MMRMStockReport.aspx.cs">
       <DependentUpon>MMRMStockReport.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="MMScrapMaterial.aspx.cs">
+      <DependentUpon>MMScrapMaterial.aspx</DependentUpon>
     </Compile>
     <Compile Include="MMUOMMaster.aspx.cs">
       <DependentUpon>MMUOMMaster.aspx</DependentUpon>
