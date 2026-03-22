@@ -81,18 +81,50 @@ namespace PPApp
 
         private void LoadScrapItems(string inputRMName)
         {
-            // Find RMID for input RM
-            var rmRow = PPDatabaseHelper.ExecuteQueryPublic(
-                "SELECT RMID FROM MM_RawMaterials WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                new MySql.Data.MySqlClient.MySqlParameter("?name", inputRMName));
+            // Collect scraps for ALL RMs involved in this process:
+            // - Input RM (e.g. Raw Peanut)
+            // - Stage 2 RM (e.g. Roasted Peanuts) — matches Stage 2 label name
+            // - Stage 3/Output RM (e.g. Sorted Roasted Peanuts) — matches product name
+            var rmNames = new System.Collections.Generic.List<string>();
+            rmNames.Add(inputRMName);
+            if (!string.IsNullOrEmpty(hfStage2Label.Value)) rmNames.Add(hfStage2Label.Value);
+            if (!string.IsNullOrEmpty(hfStage3Label.Value)) rmNames.Add(hfStage3Label.Value);
 
-            if (rmRow.Rows.Count == 0) { pnlNoScrap.Visible = true; pnlScrapInputs.Visible = false; return; }
-            int rmId = Convert.ToInt32(rmRow.Rows[0]["RMID"]);
+            // Get unique RMIDs for all matching names
+            var allRMIds = new System.Collections.Generic.List<int>();
+            foreach (string name in rmNames)
+            {
+                var rmRow = PPDatabaseHelper.ExecuteQueryPublic(
+                    "SELECT RMID FROM MM_RawMaterials WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySql.Data.MySqlClient.MySqlParameter("?name", name));
+                if (rmRow.Rows.Count > 0)
+                    allRMIds.Add(Convert.ToInt32(rmRow.Rows[0]["RMID"]));
+            }
 
-            var scraps = PPDatabaseHelper.GetScrapMaterialsForRM(rmId);
-            pnlNoScrap.Visible     = scraps.Rows.Count == 0;
-            pnlScrapInputs.Visible = scraps.Rows.Count > 0;
-            rptScrapItems.DataSource = scraps;
+            if (allRMIds.Count == 0) { pnlNoScrap.Visible = true; pnlScrapInputs.Visible = false; return; }
+
+            // Merge scrap lists — avoid duplicates by ScrapID
+            var merged = new DataTable();
+            merged.Columns.Add("LinkID",    typeof(int));
+            merged.Columns.Add("ScrapID",   typeof(int));
+            merged.Columns.Add("ScrapCode", typeof(string));
+            merged.Columns.Add("ScrapName", typeof(string));
+            merged.Columns.Add("Unit",      typeof(string));
+            var seen = new System.Collections.Generic.HashSet<int>();
+            foreach (int rmId in allRMIds)
+            {
+                var scraps = PPDatabaseHelper.GetScrapMaterialsForRM(rmId);
+                foreach (DataRow r in scraps.Rows)
+                {
+                    int sid = Convert.ToInt32(r["ScrapID"]);
+                    if (seen.Add(sid))
+                        merged.Rows.Add(r["LinkID"], sid, r["ScrapCode"], r["ScrapName"], r["Unit"]);
+                }
+            }
+
+            pnlNoScrap.Visible       = merged.Rows.Count == 0;
+            pnlScrapInputs.Visible   = merged.Rows.Count > 0;
+            rptScrapItems.DataSource = merged;
             rptScrapItems.DataBind();
         }
 
