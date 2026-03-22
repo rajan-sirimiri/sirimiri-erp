@@ -265,6 +265,7 @@
                             <asp:ListItem Value="Core">Core</asp:ListItem>
                             <asp:ListItem Value="Assembled">Assembled</asp:ListItem>
                             <asp:ListItem Value="Conversion">Conversion</asp:ListItem>
+                            <asp:ListItem Value="Prefilled Conversion">Prefilled Conversion</asp:ListItem>
                         </asp:DropDownList>
                     </div>
                     <div class="form-group" style="margin-bottom:0">
@@ -324,7 +325,7 @@
                             <div style="flex:1; min-width:0;">
                                 <div class="prod-code"><%# Eval("ProductCode") %></div>
                                 <div class="prod-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%# Eval("ProductName") %></div>
-                                <span class='prod-type-badge <%# Eval("ProductType").ToString() == "Core" ? "type-core" : Eval("ProductType").ToString() == "Conversion" ? "type-conversion" : "type-assembled" %>'><%# Eval("ProductType") %></span>
+                                <span class='prod-type-badge <%# Eval("ProductType").ToString() == "Core" ? "type-core" : Eval("ProductType").ToString() == "Conversion" ? "type-conversion" : Eval("ProductType").ToString() == "Prefilled Conversion" ? "type-prefilled" : "type-assembled" %>'><%# Eval("ProductType") %></span>
                             </div>
                         </asp:LinkButton>
                     </ItemTemplate>
