@@ -19,7 +19,7 @@ namespace PPApp
         protected Label        lblS1Total, lblS2Total, lblS3Total;
         protected Repeater     rptS1, rptS2, rptS3, rptScrapItems;
         protected Button       btnS1, btnS2, btnS3, btnCloseShift;
-        protected System.Web.UI.HtmlControls.HtmlInputText txtS1, txtS2, txtS3;
+        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtS1, txtS2, txtS3;
 
         protected int UserID => Session["PP_UserID"] != null ? Convert.ToInt32(Session["PP_UserID"]) : 0;
 
