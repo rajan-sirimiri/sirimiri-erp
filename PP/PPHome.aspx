@@ -144,6 +144,7 @@
                 <a href="PPProductionOrder.aspx">Production Order</a>
                 <a href="PPProductionExecution.aspx">Production Execution</a>
                 <a href="PPPrefilledEntry.aspx">Prefilled Conversion Entry</a>
+                <a href="PPPreprocessEntry.aspx">Pre processed RM Entry</a>
             </div>
         </div>
         <div class="nav-group">
@@ -209,6 +210,14 @@
                 <div>
                     <div class="menu-title">Prefilled<br/>Conversion Entry</div>
                     <div class="menu-desc">Record real-time prefilled ingredient quantities and close shift raw material consumption</div>
+                </div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a href="PPPreprocessEntry.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x2699;&#xFE0F;</div>
+                <div>
+                    <div class="menu-title">Pre processed<br/>RM Entry</div>
+                    <div class="menu-desc">Track multi-stage raw material processing — dispensed, processed and sorted quantities</div>
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>

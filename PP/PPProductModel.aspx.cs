@@ -20,6 +20,10 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.TextBox        txtCode;
         protected global::System.Web.UI.WebControls.TextBox        txtName;
         protected global::System.Web.UI.WebControls.TextBox        txtHSN;
+        protected global::System.Web.UI.WebControls.TextBox        txtInputRMName;
+        protected global::System.Web.UI.WebControls.TextBox        txtStage1Label;
+        protected global::System.Web.UI.WebControls.TextBox        txtStage2Label;
+        protected global::System.Web.UI.WebControls.TextBox        txtStage3Label;
         protected global::System.Web.UI.WebControls.TextBox        txtGSTRate;
         protected global::System.Web.UI.WebControls.TextBox        txtBatchSize;
         protected global::System.Web.UI.WebControls.DropDownList   ddlProductType;
@@ -243,6 +247,12 @@ namespace PPApp
                 {
                     productId = PPDatabaseHelper.AddProduct(name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath);
                     hfProductID.Value = productId.ToString();
+                    if (type == "Pre processed RM")
+                        PPDatabaseHelper.SavePreprocessStages(productId,
+                            txtInputRMName.Text.Trim(),
+                            txtStage1Label.Text.Trim(),
+                            txtStage2Label.Text.Trim(),
+                            txtStage3Label.Text.Trim());
                     ShowAlert("Product '" + name + "' saved successfully.", true);
                 }
                 else
@@ -321,6 +331,22 @@ namespace PPApp
             }
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
+            // Load Pre processed RM stage labels
+            if (row["ProductType"].ToString() == "Pre processed RM")
+            {
+                var stages = PPDatabaseHelper.GetPreprocessStages(
+                    Convert.ToInt32(Convert.ToInt64(row["ProductID"])));
+                if (stages != null)
+                {
+                    txtInputRMName.Text = stages["InputRMName"] == DBNull.Value ? "" : stages["InputRMName"].ToString();
+                    txtStage1Label.Text = stages["Stage1Label"].ToString();
+                    txtStage2Label.Text = stages["Stage2Label"].ToString();
+                    txtStage3Label.Text = stages["Stage3Label"].ToString();
+                }
+                // Show preprocess fields via JS
+                ClientScript.RegisterStartupScript(GetType(), "showPrep",
+                    "document.getElementById('divPreprocessFields').style.display='block';", true);
+            }
             // Restore output UOM — rebuild items then set value to guarantee correct state
             {
                 var uomDt = PPDatabaseHelper.GetActiveUOM();
@@ -346,6 +372,10 @@ namespace PPApp
             txtCode.Text         = "";
             txtName.Text         = "";
             txtHSN.Text          = "";
+            if (txtInputRMName != null) txtInputRMName.Text = "";
+            if (txtStage1Label != null) txtStage1Label.Text = "";
+            if (txtStage2Label != null) txtStage2Label.Text = "";
+            if (txtStage3Label != null) txtStage3Label.Text = "";
             txtGSTRate.Text      = "";
             txtBatchSize.Text    = "";
             ddlProductType.SelectedIndex = 0;

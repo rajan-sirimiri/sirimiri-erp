@@ -278,6 +278,31 @@
                     </div>
                 </div>
 
+                <!-- PRE PROCESSED RM FIELDS — shown only for Pre processed RM type -->
+                <div id="divPreprocessFields" style="display:none;margin-top:13px;background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:14px 16px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1565c0;margin-bottom:12px;">&#9881; Pre processing Stage Labels</div>
+                    <div class="form-group-row">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Input Raw Material Name <span class="req">*</span></label>
+                            <asp:TextBox ID="txtInputRMName" runat="server" MaxLength="150" placeholder="e.g. Raw Peanut"/>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Stage 1 Label <span class="req">*</span></label>
+                            <asp:TextBox ID="txtStage1Label" runat="server" MaxLength="100" placeholder="e.g. Dispensed for Roasting"/>
+                        </div>
+                    </div>
+                    <div class="form-group-row" style="margin-top:10px;">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Stage 2 Label <span class="req">*</span></label>
+                            <asp:TextBox ID="txtStage2Label" runat="server" MaxLength="100" placeholder="e.g. Roasted Peanuts"/>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Stage 3 Label <span class="req">*</span></label>
+                            <asp:TextBox ID="txtStage3Label" runat="server" MaxLength="100" placeholder="e.g. Sorted Roasted Peanuts"/>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group-row" style="margin-top:13px;">
                     <div class="form-group" style="margin-bottom:0">
                         <label>HSN Code</label>
@@ -601,11 +626,10 @@
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
 function onProductTypeChange(type) {
-    // Production UOM is always Batches — no change needed
     var hint = document.getElementById('batchHint');
-    if (hint) {
-        hint.innerText = 'Quantity and UOM of finished product per one batch';
-    }
+    if (hint) hint.innerText = 'Quantity and UOM of finished product per one batch';
+    var prep = document.getElementById('divPreprocessFields');
+    if (prep) prep.style.display = (type === 'Pre processed RM') ? 'block' : 'none';
 }
 
 // ── CONVERSION UOM SYNC ────────────────────────────────────
