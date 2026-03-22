@@ -184,6 +184,15 @@ namespace PPApp
             string rmName = ddlRawMaterial.SelectedItem?.Text ?? "";
             string productName = ddlProduct.SelectedItem?.Text ?? "";
 
+            // Check available stock before recording consumption
+            decimal available = PPDatabaseHelper.GetAvailableStock(rmId);
+            if (qty > available)
+            {
+                ShowAlert("Insufficient stock — " + rmName + " available: " +
+                    available.ToString("0.###") + " " + hfRMUnit.Value +
+                    ", requested: " + qty.ToString("0.###") + " " + hfRMUnit.Value + ".", false);
+                return;
+            }
             try
             {
                 PPDatabaseHelper.RecordShiftConsumption(rmId, qty, rmName, productName, UserID);

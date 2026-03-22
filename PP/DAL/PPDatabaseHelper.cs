@@ -626,6 +626,10 @@ namespace PPApp.DAL
                 new MySqlParameter("?prod", productId),
                 new MySqlParameter("?bat",  batches),
                 new MySqlParameter("?so",   sortOrder));
+            // Revert plan to Draft whenever a new row is added
+            ExecuteNonQuery(
+                "UPDATE PP_DailyPlan SET Status='Draft' WHERE PlanID=?pid;",
+                new MySqlParameter("?pid", planId));
             return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
         }
 
@@ -720,9 +724,9 @@ namespace PPApp.DAL
             string sql =
                 "SELECT r.RMID, r.RMCode, r.RMName, urm.Abbreviation AS RMUnit," +
                 " ROUND(SUM(b.Quantity * IFNULL(o.RevisedBatches, o.OrderedBatches) * (" + uom + ")), 4) AS Required," +
-                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0), 4) AS InStock," +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalConsumed,0), 4) AS InStock," +
                 " ROUND(SUM(b.Quantity * IFNULL(o.RevisedBatches, o.OrderedBatches) * (" + uom + "))" +
-                "   - (IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0)), 4) AS Shortfall" +
+                "   - (IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalConsumed,0)), 4) AS Shortfall" +
                 " FROM PP_ProductionOrder o" +
                 " JOIN PP_BOM b ON b.ProductID = o.ProductID AND b.MaterialType = 'RM'" +
                 " JOIN MM_UOM ubom ON ubom.UOMID = b.UOMID" +
@@ -730,8 +734,9 @@ namespace PPApp.DAL
                 " JOIN MM_UOM urm ON urm.UOMID = r.UOMID" +
                 " LEFT JOIN MM_OpeningStock os ON os.MaterialType = 'RM' AND os.MaterialID = r.RMID" +
                 " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID = r.RMID" +
                 " WHERE o.OrderID = ?oid" +
-                " GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, os.Quantity, grn.TotalGRN" +
+                " GROUP BY r.RMID, r.RMCode, r.RMName, urm.Abbreviation, os.Quantity, grn.TotalGRN, con.TotalConsumed" +
                 " HAVING Shortfall > 0.001" +
                 " ORDER BY r.RMName;";
 
@@ -818,6 +823,21 @@ namespace PPApp.DAL
                 " ORDER BY ConsumptionID DESC;",
                 new MySqlParameter("?rmid",  rmId),
                 new MySqlParameter("?today", TodayIST()));
+        }
+
+        // Get available stock for an RM (Opening + GRN - Consumed)
+        public static decimal GetAvailableStock(int rmId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT" +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalConsumed,0), 4) AS Available" +
+                " FROM MM_RawMaterials r" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID=r.RMID" +
+                " WHERE r.RMID=?rmid;",
+                new MySqlParameter("?rmid", rmId));
+            return row != null ? Convert.ToDecimal(row["Available"]) : 0m;
         }
 
         public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] prms)

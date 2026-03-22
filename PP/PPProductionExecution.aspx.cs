@@ -238,10 +238,10 @@ namespace PPApp
         protected void btnEnd_Click(object sender, EventArgs e)
         {
             int orderId = GetOrderId();
-            if (orderId == 0) { ShowAlert("END: No product loaded. orderId=0", false); return; }
+            if (orderId == 0) { ShowAlert("No product loaded.", false); return; }
 
             DataRow active = PPDatabaseHelper.GetActiveBatch(orderId);
-            if (active == null) { ShowAlert("END: No active batch found for orderId=" + orderId, false); RenderOrder(orderId); return; }
+            if (active == null) { ShowAlert("No active batch found. Please press START first.", false); RenderOrder(orderId); return; }
 
             int execId = Convert.ToInt32(active["ExecutionID"]);
             PPDatabaseHelper.EndBatch(execId, orderId);
@@ -249,9 +249,9 @@ namespace PPApp
             // Verify EndBatch worked
             DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
             if (ended == null)
-                ShowAlert("END: EndBatch ran but GetEndedBatch returned null. execId=" + execId, false);
+                ShowAlert("Batch ended. Please enter actual output and save.", false);
             else
-                ShowAlert("END OK: execId=" + execId + " batchNo=" + ended["BatchNo"] + " status=" + ended["Status"], true);
+                ShowAlert("Batch ended. Please enter actual output and save.", true);
 
             RenderOrder(orderId);
         }
@@ -276,20 +276,26 @@ namespace PPApp
                 Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
 
             // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────
-            int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
-            try
+            // Prefilled Conversion: raw material deduction is done manually at shift end
+            // via PPPrefilledEntry.aspx — skip FIFO here
+            bool skipFIFO = Session["PE_IsPrefilled"] != null && (bool)Session["PE_IsPrefilled"];
+            if (!skipFIFO)
             {
-                PPDatabaseHelper.DeductStockFIFO(execId, orderId, batchNo, productId, UserID);
-            }
-            catch (Exception stockEx)
-            {
-                if (stockEx.Message.StartsWith("STOCK_SHORTFALL:"))
+                int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
+                try
                 {
-                    ShowAlert("<strong>Cannot save — insufficient stock for this batch:</strong><br/>" +
-                        stockEx.Message.Substring(16).Replace("|", "<br/>"), false);
-                    return;
+                    PPDatabaseHelper.DeductStockFIFO(execId, orderId, batchNo, productId, UserID);
                 }
-                throw;
+                catch (Exception stockEx)
+                {
+                    if (stockEx.Message.StartsWith("STOCK_SHORTFALL:"))
+                    {
+                        ShowAlert("<strong>Cannot save — insufficient stock for this batch:</strong><br/>" +
+                            stockEx.Message.Substring(16).Replace("|", "<br/>"), false);
+                        return;
+                    }
+                    throw;
+                }
             }
 
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
