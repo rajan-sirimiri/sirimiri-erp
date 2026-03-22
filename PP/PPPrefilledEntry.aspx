@@ -253,14 +253,12 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                             </div>
                         </ItemTemplate>
                     </asp:Repeater>
-                    <asp:HiddenField ID="hfScrapValues" runat="server" Value=""/>
                 </div>
                 </asp:Panel>
 
                 <asp:Button ID="btnClose" runat="server" CssClass="btn-close"
                     Text="&#9632; Close Shift Consumption"
-                    OnClick="btnClose_Click" CausesValidation="false"
-                    OnClientClick="return collectScrapValues();"/>
+                    OnClick="btnClose_Click" CausesValidation="false"/>
 
                 <!-- Today's closures -->
                 <hr class="divider"/>

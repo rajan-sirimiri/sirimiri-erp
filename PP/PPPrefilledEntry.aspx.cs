@@ -33,7 +33,6 @@ namespace PPApp
         protected Label        lblClosureUnit;
         protected HiddenField  hfProductId;
         protected HiddenField  hfShiftClosed;
-        protected HiddenField  hfScrapValues;
         protected Panel        pnlScrapEntry;
         protected Repeater     rptScrapInputs;
         protected Button       btnCheckScrap;
@@ -63,9 +62,9 @@ namespace PPApp
                 // Restore shift closed visual state on every postback
                 bool closed = hfShiftClosed.Value == "1";
                 SetShiftClosedState(closed);
-                // Re-load scrap inputs if RM is selected
-                int rmId = Convert.ToInt32(hfRMId.Value);
-                if (rmId > 0) LoadScrapInputs(rmId);
+                // NOTE: Do NOT reload scrap inputs here — that would clear user-entered values.
+                // Scrap inputs are loaded only when RM is selected (ddlRM_Changed).
+                // On postback the repeater rebinds only if LoadScrapInputs is explicitly called.
             }
         }
 
@@ -246,27 +245,32 @@ namespace PPApp
             {
                 PPDatabaseHelper.RecordShiftConsumption(rmId, qty, rmName, productName, UserID);
 
-                // Process scrap quantities from hidden field
-                string scrapValues = hfScrapValues != null ? hfScrapValues.Value : "";
-                if (!string.IsNullOrEmpty(scrapValues))
+                // Process scrap quantities — read directly from Request.Form
+                // Scrap inputs are named "scrap_<ScrapID>" in the repeater
+                foreach (string key in Request.Form.AllKeys)
                 {
-                    foreach (string entry in scrapValues.Split('|'))
-                    {
-                        string[] parts = entry.Split(':');
-                        if (parts.Length < 3) continue;
-                        decimal scrapQty;
-                        if (!decimal.TryParse(parts[2], out scrapQty) || scrapQty <= 0) continue;
-                        int    scrapId   = Convert.ToInt32(parts[0]);
-                        string scrapName = parts[1];
-                        PPDatabaseHelper.RecordScrapGenerated(scrapId, scrapQty, scrapName, rmName, UserID);
-                    }
+                    if (key == null || !key.StartsWith("scrap_")) continue;
+                    string scrapIdStr = key.Substring(6); // strip "scrap_"
+                    int scrapId;
+                    if (!int.TryParse(scrapIdStr, out scrapId)) continue;
+                    decimal scrapQty;
+                    if (!decimal.TryParse(Request.Form[key], out scrapQty) || scrapQty <= 0) continue;
+                    // Get scrap name
+                    var scrapRow = PPDatabaseHelper.ExecuteQueryPublic(
+                        "SELECT ScrapName FROM MM_ScrapMaterials WHERE ScrapID=?id;",
+                        new MySql.Data.MySqlClient.MySqlParameter("?id", scrapId));
+                    string scrapName = scrapRow.Rows.Count > 0 ? scrapRow.Rows[0]["ScrapName"].ToString() : "Scrap#" + scrapId;
+                    PPDatabaseHelper.RecordScrapGenerated(scrapId, scrapQty, scrapName, rmName, UserID);
                 }
 
-                txtRMQty.Text        = "";
+                txtRMQty.Text         = "";
                 pnlScrapEntry.Visible = false;
                 ShowAlert("Recorded " + qty.ToString("0.###") + " " + hfRMUnit.Value +
                     " consumption of " + rmName + ". Scrap quantities logged.", true);
+                // Refresh closures table — keep right panel visible
                 RefreshClosures(rmId);
+                // Reload scrap inputs for next entry (cleared now)
+                LoadScrapInputs(rmId);
             }
             catch (Exception ex)
             {
