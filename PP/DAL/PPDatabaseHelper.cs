@@ -858,49 +858,17 @@ namespace PPApp.DAL
         public static void RecordScrapGenerated(int scrapId, decimal qty,
             string scrapName, string rmName, int userId)
         {
-            // Get INT-PROD supplier
-            var supObj = ExecuteScalar(
-                "SELECT SupplierID FROM MM_Suppliers WHERE SupplierCode='INT-PROD' LIMIT 1;");
-            if (supObj == null || supObj == DBNull.Value)
-                throw new Exception("Internal Production supplier (INT-PROD) not found.");
-            int supplierId = Convert.ToInt32(supObj);
-
-            // Scrap materials are NOT Raw Materials — store in a separate note
-            // We record scrap in MM_StockConsumption with SourceType='SCRAP' as a negative (credit)
-            // SourceID = scrapId, RMID = scrapId (using ScrapID as reference)
-            // Actually: insert into a scrap log — use MM_StockConsumption with negative qty
-            // to represent generation (opposite of consumption)
-            string grnNo   = "SCRAP-" + NowIST().ToString("yyyyMMddHHmmss") + "-" + scrapId;
-            string remarks = "Scrap generated: " + scrapName + " from " + rmName;
-
-            // Get the scrap material's UOMID to find its RM equivalent
-            // Scrap is tracked as a GRN into MM_RawInward using scrap's linked RM
-            // For now, find if there's an RM with the same name as the scrap
-            var rmRow = ExecuteQueryRow(
-                "SELECT RMID FROM MM_RawMaterials WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                new MySqlParameter("?name", scrapName));
-
-            if (rmRow != null)
-            {
-                int rmId = Convert.ToInt32(rmRow["RMID"]);
-                ExecuteNonQuery(
-                    "INSERT INTO MM_RawInward" +
-                    " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
-                    "  Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
-                    "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
-                    "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
-                    " VALUES (?grn,?dt,'SCRAP',NULL,?sup,?rmid," +
-                    "  ?qty,?qty,?qty,0,0," +
-                    "  NULL,NULL,0,0,0,0," +
-                    "  0,0,NULL,?rem,1,'Approved',?by,NOW());",
-                    new MySqlParameter("?grn",  grnNo),
-                    new MySqlParameter("?dt",   NowIST().Date),
-                    new MySqlParameter("?sup",  supplierId),
-                    new MySqlParameter("?rmid", rmId),
-                    new MySqlParameter("?qty",  qty),
-                    new MySqlParameter("?rem",  remarks),
-                    new MySqlParameter("?by",   userId));
-            }
+            // Insert directly into MM_ScrapStock — dedicated table for scrap by-product tracking
+            string remarks = "From: " + rmName;
+            ExecuteNonQuery(
+                "INSERT INTO MM_ScrapStock (ScrapID, QtyGenerated, GeneratedAt, SourceRMName, Remarks, CreatedBy)" +
+                " VALUES (?scid, ?qty, ?now, ?rm, ?rem, ?by);",
+                new MySqlParameter("?scid", scrapId),
+                new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?now",  NowIST()),
+                new MySqlParameter("?rm",   rmName),
+                new MySqlParameter("?rem",  remarks),
+                new MySqlParameter("?by",   userId));
         }
 
         public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] prms)

@@ -468,16 +468,14 @@ namespace MMApp.DAL
         {
             return ExecuteQuery(
                 "SELECT s.ScrapID, s.ScrapCode, s.ScrapName, u.Abbreviation AS UOM," +
-                " ROUND(IFNULL(grn.TotalReceived, 0), 4) AS StockQty," +
+                " ROUND(IFNULL(st.TotalGenerated, 0), 4) AS StockQty," +
                 " IFNULL(rms.LinkedRMs, '—') AS LinkedRMs" +
                 " FROM MM_ScrapMaterials s" +
                 " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
                 " LEFT JOIN (" +
-                "   SELECT i.RMID, SUM(i.QtyActualReceived) AS TotalReceived" +
-                "   FROM MM_RawInward i WHERE i.InvoiceNo = 'SCRAP'" +
-                "   GROUP BY i.RMID" +
-                " ) grn ON grn.RMID = (SELECT r.RMID FROM MM_RawMaterials r" +
-                "   WHERE LOWER(TRIM(r.RMName)) = LOWER(TRIM(s.ScrapName)) AND r.IsActive=1 LIMIT 1)" +
+                "   SELECT ScrapID, SUM(QtyGenerated) AS TotalGenerated" +
+                "   FROM MM_ScrapStock GROUP BY ScrapID" +
+                " ) st ON st.ScrapID = s.ScrapID" +
                 " LEFT JOIN (" +
                 "   SELECT l.ScrapID, GROUP_CONCAT(r.RMName ORDER BY r.RMName SEPARATOR ', ') AS LinkedRMs" +
                 "   FROM MM_RMScrapLink l" +
