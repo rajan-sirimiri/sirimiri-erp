@@ -75,6 +75,18 @@
         .os-value-box { background: #f0faf5; border: 1px solid #c3ece0; border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--text-muted); }
         .os-value-box strong { display:block; font-size: 18px; font-weight: 700; color: var(--teal); }
         .os-last-saved { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Scrap section */
+        .scrap-panel { margin-top:18px; border-top:1px solid var(--border); padding-top:16px; }
+        .scrap-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; }
+        .scrap-add-row { display:flex; gap:8px; align-items:flex-end; margin-bottom:12px; }
+        .scrap-add-row select { flex:1; padding:8px 10px; border:1.5px solid var(--border); border-radius:7px; font-size:12px; font-family:inherit; }
+        .btn-add-scrap { background:var(--teal); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .btn-add-scrap:hover { background:#148a5a; }
+        .scrap-tag { display:inline-flex; align-items:center; gap:6px; background:#fff3e0; border:1px solid #ffe0b2; border-radius:20px; padding:4px 10px; font-size:12px; font-weight:600; color:#e65100; margin:3px; }
+        .scrap-tag .del-scrap { background:none; border:none; color:#e65100; cursor:pointer; font-size:14px; line-height:1; padding:0 2px; font-weight:700; }
+        .scrap-tag .del-scrap:hover { color:var(--accent); }
+        .scrap-empty { font-size:12px; color:var(--text-dim); font-style:italic; }
     </style>
 </head>
 <body>
@@ -148,6 +160,33 @@
                     <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false" />
                     <asp:Button ID="btnToggleActive" runat="server" Text="Deactivate" CssClass="btn btn-danger" OnClick="btnToggleActive_Click" CausesValidation="false" Visible="false" />
                 </div>
+            <!-- SCRAP MATERIALS SECTION -->
+            <asp:Panel ID="pnlScrap" runat="server" Visible="false">
+            <div class="scrap-panel">
+                <div class="scrap-title">&#9851; Scrap Materials Produced</div>
+                <div class="scrap-add-row">
+                    <asp:DropDownList ID="ddlScrap" runat="server"/>
+                    <asp:Button ID="btnAddScrap" runat="server" Text="+ Add" CssClass="btn-add-scrap"
+                        OnClick="btnAddScrap_Click" CausesValidation="false"/>
+                </div>
+                <asp:Panel ID="pnlScrapEmpty" runat="server">
+                    <span class="scrap-empty">No scrap materials linked yet</span>
+                </asp:Panel>
+                <asp:Panel ID="pnlScrapTags" runat="server" Visible="false">
+                    <asp:Repeater ID="rptScrap" runat="server" OnItemCommand="rptScrap_ItemCommand">
+                        <ItemTemplate>
+                            <span class="scrap-tag">
+                                <%# Eval("ScrapName") %> <span style="color:#bbb;font-size:10px;"><%# Eval("Unit") %></span>
+                                <asp:LinkButton runat="server" CommandName="Del"
+                                    CommandArgument='<%# Eval("LinkID") %>'
+                                    CssClass="del-scrap" CausesValidation="false">&#x2715;</asp:LinkButton>
+                            </span>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                </asp:Panel>
+            </div>
+            </asp:Panel>
+
             <asp:Panel ID="pnlOpeningStock" runat="server" Visible="false" CssClass="os-panel">
                 <div class="os-title">
                     Opening Stock &mdash; <asp:Label ID="lblOSMaterialName" runat="server" />

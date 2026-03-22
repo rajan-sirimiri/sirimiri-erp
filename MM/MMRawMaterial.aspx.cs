@@ -29,6 +29,12 @@ namespace MMApp
 
         // ── Opening Stock controls ──
         protected Panel   pnlOpeningStock;
+        protected Panel        pnlScrap;
+        protected Panel        pnlScrapEmpty;
+        protected Panel        pnlScrapTags;
+        protected DropDownList ddlScrap;
+        protected Button       btnAddScrap;
+        protected Repeater     rptScrap;
         protected Label   lblOSMaterialName;
         protected TextBox txtOSQty;
         protected TextBox txtOSRate;
@@ -79,6 +85,51 @@ namespace MMApp
             lblFormTitle.Text       = isEdit ? "Edit Raw Material" : "New Raw Material";
             btnToggleActive.Visible = isEdit;
             pnlOpeningStock.Visible = isEdit;
+            pnlScrap.Visible = isEdit;
+            if (isEdit) BindScrapDropdown();
+        }
+
+        private void BindScrapDropdown()
+        {
+            var dt = MMDatabaseHelper.GetActiveScrapMaterials();
+            ddlScrap.Items.Clear();
+            ddlScrap.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Scrap --", "0"));
+            foreach (DataRow row in dt.Rows)
+                ddlScrap.Items.Add(new System.Web.UI.WebControls.ListItem(
+                    row["ScrapName"].ToString(), row["ScrapID"].ToString()));
+        }
+
+        private void BindScrapLinks(int rmId)
+        {
+            var dt = MMDatabaseHelper.GetScrapLinksForRM(rmId);
+            pnlScrapEmpty.Visible = dt.Rows.Count == 0;
+            pnlScrapTags.Visible  = dt.Rows.Count > 0;
+            rptScrap.DataSource   = dt;
+            rptScrap.DataBind();
+        }
+
+        protected void btnAddScrap_Click(object sender, EventArgs e)
+        {
+            int rmId    = Convert.ToInt32(hfRMID.Value);
+            int scrapId = Convert.ToInt32(ddlScrap.SelectedValue);
+            if (rmId == 0)   { ShowAlert("Please save the Raw Material first.", false); return; }
+            if (scrapId == 0){ ShowAlert("Please select a scrap material.", false); return; }
+            MMDatabaseHelper.AddRMScrapLink(rmId, scrapId);
+            BindScrapLinks(rmId);
+            BindScrapDropdown();
+            ShowAlert("Scrap material linked successfully.", true);
+        }
+
+        protected void rptScrap_ItemCommand(object source, RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "Del")
+            {
+                int linkId = Convert.ToInt32(e.CommandArgument);
+                int rmId   = Convert.ToInt32(hfRMID.Value);
+                MMDatabaseHelper.DeleteRMScrapLink(linkId);
+                BindScrapLinks(rmId);
+                ShowAlert("Scrap material removed.", true);
+            }
         }
 
         private void ShowAlert(string message, bool success)
@@ -160,6 +211,8 @@ namespace MMApp
                 ddlUOM.SelectedValue  = dr["UOMID"].ToString();
                 bool isActive         = Convert.ToBoolean(dr["IsActive"]);
                 btnToggleActive.Text  = isActive ? "Deactivate" : "Activate";
+                BindScrapDropdown();
+                BindScrapLinks(rmId);
                 SetFormMode(true);
                 pnlAlert.Visible      = false;
                 LoadOpeningStock(rmId);

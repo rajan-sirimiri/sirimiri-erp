@@ -118,6 +118,7 @@
                 <a href="MMRawMaterial.aspx">Raw Material Registration</a>
                 <a href="MMPackingMaterial.aspx">Packing Material Registration</a>
                 <a href="MMUOMMaster.aspx">UOM Master</a>
+                <a href="MMScrapMaterial.aspx">Scrap Materials</a>
                 <a href="MMConsumable.aspx">Consumables</a>
                 <a href="MMStationary.aspx">Stationaries &amp; Other Items</a>
                 <a href="MMBulkUpload.aspx">Bulk Upload (Excel)</a>
@@ -170,6 +171,11 @@
             <a id="lnkConsumable"      href="MMConsumable.aspx"     class="menu-card cat-master">
                 <div class="menu-icon">&#x1F9F9;</div>
                 <div><div class="menu-title">Consumables<br/>Registration</div><div class="menu-desc">Define consumable items, codes, UOM and reorder levels</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkScrapMaterial" href="MMScrapMaterial.aspx" class="menu-card cat-master">
+                <div class="menu-icon">&#x267B;&#xFE0F;</div>
+                <div><div class="menu-title">Scrap<br/>Materials</div><div class="menu-desc">Define scrap by-products produced during raw material processing</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
             <a id="lnkStationary"      href="MMStationary.aspx"     class="menu-card cat-master">

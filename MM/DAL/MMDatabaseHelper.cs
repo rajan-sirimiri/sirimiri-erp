@@ -361,6 +361,106 @@ namespace MMApp.DAL
                 new MySqlParameter("id", rmId));
         }
 
+        // ── SCRAP MATERIALS ──────────────────────────────────────────────────────
+
+        public static DataTable GetAllScrapMaterials()
+        {
+            return ExecuteQuery(
+                "SELECT s.ScrapID, s.ScrapCode, s.ScrapName, s.Description," +
+                " s.UOMID, u.UOMName, u.Abbreviation, s.IsActive, s.CreatedAt" +
+                " FROM MM_ScrapMaterials s JOIN MM_UOM u ON u.UOMID=s.UOMID" +
+                " ORDER BY s.ScrapName;");
+        }
+
+        public static DataTable GetActiveScrapMaterials()
+        {
+            return ExecuteQuery(
+                "SELECT s.ScrapID, s.ScrapCode, s.ScrapName, u.Abbreviation" +
+                " FROM MM_ScrapMaterials s JOIN MM_UOM u ON u.UOMID=s.UOMID" +
+                " WHERE s.IsActive=1 ORDER BY s.ScrapName;");
+        }
+
+        public static DataRow GetScrapMaterialById(int scrapId)
+        {
+            return ExecuteQuerySingleRow(
+                "SELECT s.*, u.UOMName, u.Abbreviation FROM MM_ScrapMaterials s" +
+                " JOIN MM_UOM u ON u.UOMID=s.UOMID WHERE s.ScrapID=?id;",
+                new MySqlParameter("id", scrapId));
+        }
+
+        public static void AddScrapMaterial(string name, string description, int uomId)
+        {
+            string code = GenerateScrapCode();
+            ExecuteNonQuery(
+                "INSERT INTO MM_ScrapMaterials (ScrapCode, ScrapName, Description, UOMID, IsActive, CreatedAt)" +
+                " VALUES (?code,?name,?desc,?uom,1,NOW());",
+                new MySqlParameter("code", code),
+                new MySqlParameter("name", name),
+                new MySqlParameter("desc", description ?? (object)DBNull.Value),
+                new MySqlParameter("uom",  uomId));
+        }
+
+        public static void UpdateScrapMaterial(int scrapId, string code, string name,
+            string description, int uomId)
+        {
+            ExecuteNonQuery(
+                "UPDATE MM_ScrapMaterials SET ScrapCode=?code, ScrapName=?name," +
+                " Description=?desc, UOMID=?uom WHERE ScrapID=?id;",
+                new MySqlParameter("code", code),
+                new MySqlParameter("name", name),
+                new MySqlParameter("desc", description ?? (object)DBNull.Value),
+                new MySqlParameter("uom",  uomId),
+                new MySqlParameter("id",   scrapId));
+        }
+
+        public static void ToggleScrapMaterialActive(int scrapId, bool isActive)
+        {
+            ExecuteNonQuery(
+                "UPDATE MM_ScrapMaterials SET IsActive=?a WHERE ScrapID=?id;",
+                new MySqlParameter("a",  isActive ? 1 : 0),
+                new MySqlParameter("id", scrapId));
+        }
+
+        private static string GenerateScrapCode()
+        {
+            object last = ExecuteScalar(
+                "SELECT ScrapCode FROM MM_ScrapMaterials ORDER BY ScrapID DESC LIMIT 1;");
+            if (last == null || last == DBNull.Value) return "SC-0001";
+            string prev = last.ToString();
+            int num = 1;
+            var m = System.Text.RegularExpressions.Regex.Match(prev, @"\d+$");
+            if (m.Success) int.TryParse(m.Value, out num);
+            return "SC-" + (num + 1).ToString("D4");
+        }
+
+        // ── RM SCRAP LINKS ────────────────────────────────────────────────────────
+
+        public static DataTable GetScrapLinksForRM(int rmId)
+        {
+            return ExecuteQuery(
+                "SELECT l.LinkID, s.ScrapID, s.ScrapCode, s.ScrapName, u.Abbreviation AS Unit" +
+                " FROM MM_RMScrapLink l" +
+                " JOIN MM_ScrapMaterials s ON s.ScrapID=l.ScrapID" +
+                " JOIN MM_UOM u ON u.UOMID=s.UOMID" +
+                " WHERE l.RMID=?rmid ORDER BY s.ScrapName;",
+                new MySqlParameter("rmid", rmId));
+        }
+
+        public static void AddRMScrapLink(int rmId, int scrapId)
+        {
+            ExecuteNonQuery(
+                "INSERT IGNORE INTO MM_RMScrapLink (RMID, ScrapID) VALUES (?rmid, ?scid);",
+                new MySqlParameter("rmid", rmId),
+                new MySqlParameter("scid", scrapId));
+        }
+
+        public static void DeleteRMScrapLink(int linkId)
+        {
+            ExecuteNonQuery(
+                "DELETE FROM MM_RMScrapLink WHERE LinkID=?id;",
+                new MySqlParameter("id", linkId));
+        }
+
         // ── PACKING MATERIAL ──────────────────────────────────────────
         public static DataTable GetAllPackingMaterials()
         {
