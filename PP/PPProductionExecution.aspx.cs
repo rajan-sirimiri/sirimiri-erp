@@ -42,7 +42,6 @@ namespace PPApp
         protected Label         lblOutputUnit;
         protected TextBox       txtRemarks;
         protected Button        btnSaveOutput;
-        protected Panel         pnlPrefilledLink;
         protected Repeater      rptHistory;
         protected Panel         pnlHistoryEmpty;
 
@@ -117,13 +116,10 @@ namespace PPApp
             string status = order["Status"].ToString();
             string outAbbr = order["OutputAbbr"].ToString();
             string prodType = order["ProductType"] != DBNull.Value ? order["ProductType"].ToString() : "Core";
-            bool isConversion = (prodType == "Conversion" || prodType == "Prefilled Conversion");
-            bool isPrefilled   = (prodType == "Prefilled Conversion");
+            bool isConversion = (prodType == "Conversion");
             btnSaveOutput.Text = isConversion ? "Save & Store as Raw Material" : "Save & Move to Packing";
             Session["PE_ProductName"]  = order["ProductName"].ToString();
             Session["PE_IsConversion"] = isConversion;
-            Session["PE_IsPrefilled"]  = isPrefilled;
-            if (pnlPrefilledLink != null) pnlPrefilledLink.Visible = isPrefilled;
 
             // Info panel
             pnlInfo.Visible        = true;
@@ -276,26 +272,20 @@ namespace PPApp
                 Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
 
             // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────
-            // Prefilled Conversion: raw material deduction is done manually at shift end
-            // via PPPrefilledEntry.aspx — skip FIFO here
-            bool skipFIFO = Session["PE_IsPrefilled"] != null && (bool)Session["PE_IsPrefilled"];
-            if (!skipFIFO)
+            int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
+            try
             {
-                int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
-                try
+                PPDatabaseHelper.DeductStockFIFO(execId, orderId, batchNo, productId, UserID);
+            }
+            catch (Exception stockEx)
+            {
+                if (stockEx.Message.StartsWith("STOCK_SHORTFALL:"))
                 {
-                    PPDatabaseHelper.DeductStockFIFO(execId, orderId, batchNo, productId, UserID);
+                    ShowAlert("<strong>Cannot save — insufficient stock for this batch:</strong><br/>" +
+                        stockEx.Message.Substring(16).Replace("|", "<br/>"), false);
+                    return;
                 }
-                catch (Exception stockEx)
-                {
-                    if (stockEx.Message.StartsWith("STOCK_SHORTFALL:"))
-                    {
-                        ShowAlert("<strong>Cannot save — insufficient stock for this batch:</strong><br/>" +
-                            stockEx.Message.Substring(16).Replace("|", "<br/>"), false);
-                        return;
-                    }
-                    throw;
-                }
+                throw;
             }
 
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
@@ -308,14 +298,8 @@ namespace PPApp
                 if (rm != null)
                 {
                     PPDatabaseHelper.AddInternalGRN(Convert.ToInt32(rm["RMID"]), output, productName, orderId, batchNo, UserID);
-                    bool isPrefilled = Session["PE_IsPrefilled"] != null && (bool)Session["PE_IsPrefilled"];
-                    string extraMsg = isPrefilled
-                        ? " &nbsp;<a href='PPPrefilledEntry.aspx' style='color:#27ae60;font-weight:700;'>"
-                          + "&#x2192; Record Raw Material consumed at shift end</a>"
-                        : "";
                     ShowAlert("Batch " + batchNo + " of " + total + " saved. "
-                        + output.ToString("0.###") + " added to " + productName + " stock."
-                        + extraMsg, true);
+                        + output.ToString("0.###") + " added to " + productName + " stock.", true);
                 }
                 else
                     ShowAlert("Batch saved, but no Raw Material named '" + productName + "' found. Update stock manually.", false);

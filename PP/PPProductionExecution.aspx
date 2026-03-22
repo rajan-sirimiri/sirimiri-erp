@@ -49,6 +49,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .btn-load{background:#1a1a1a;color:#fff;border:none;border-radius:8px;
     padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
 .btn-load:hover{background:#333;}
+.btn-prefilled{background:#7b1fa2;color:#fff;border:none;border-radius:8px;
+    padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;
+    white-space:nowrap;}
+.btn-prefilled:hover{background:#6a1b9a;}
+.select-bar-sep{width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;}
 
 /* PAGE BODY */
 .page-body{max-width:900px;margin:0 auto;padding:24px 20px 60px;}
@@ -299,6 +304,12 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
 
     <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
         OnClick="btnLoad_Click" CausesValidation="false"/>
+
+    <div class="select-bar-sep"></div>
+
+    <a href="PPPrefilledEntry.aspx" class="btn-prefilled">
+        &#x1F9C3; Prefilled Conversion Entry
+    </a>
 </div>
 
 <div class="page-body">
@@ -330,21 +341,6 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                 <div class="info-completed"><asp:Label ID="lblInfoCompleted" runat="server"/></div>
             </div>
         </div>
-        <asp:Panel ID="pnlPrefilledLink" runat="server" Visible="false">
-        <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;
-            padding:10px 18px;margin:0 0 16px;display:flex;align-items:center;
-            justify-content:space-between;flex-wrap:wrap;gap:8px;">
-            <span style="font-size:12px;font-weight:700;color:#7b1fa2;letter-spacing:.04em;">
-                &#x1F9C3; PREFILLED CONVERSION — Record Raw Material consumed at shift end
-            </span>
-            <a href="PPPrefilledEntry.aspx" style="background:#7b1fa2;color:#fff;
-                font-size:12px;font-weight:700;padding:7px 16px;border-radius:7px;
-                text-decoration:none;letter-spacing:.04em;">
-                &#x2192; Open Prefilled Entry
-            </a>
-        </div>
-    </asp:Panel>
-
     </asp:Panel>
 
     <!-- NO ORDER STATE -->

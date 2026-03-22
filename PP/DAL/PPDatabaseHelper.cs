@@ -1014,6 +1014,7 @@ namespace PPApp.DAL
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "WHERE o.Shift = ?sh AND o.OrderDate = ?dt " +
                 "AND o.Status IN ('Initiated','InProgress','Stopped') " +
+                "AND p.ProductType != 'Prefilled Conversion' " +
                 "ORDER BY p.ProductName;",
                 new MySqlParameter("?sh", shift),
                 new MySqlParameter("?dt", orderDate.Date));
