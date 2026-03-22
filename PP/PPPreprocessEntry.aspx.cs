@@ -107,7 +107,6 @@ namespace PPApp
             var merged = new DataTable();
             merged.Columns.Add("LinkID",    typeof(int));
             merged.Columns.Add("ScrapID",   typeof(int));
-            merged.Columns.Add("ScrapCode", typeof(string));
             merged.Columns.Add("ScrapName", typeof(string));
             merged.Columns.Add("Unit",      typeof(string));
             var seen = new System.Collections.Generic.HashSet<int>();
@@ -118,7 +117,7 @@ namespace PPApp
                 {
                     int sid = Convert.ToInt32(r["ScrapID"]);
                     if (seen.Add(sid))
-                        merged.Rows.Add(r["LinkID"], sid, r["ScrapCode"], r["ScrapName"], r["Unit"]);
+                        merged.Rows.Add(r["LinkID"], sid, r["ScrapName"], r["Unit"]);
                 }
             }
 
