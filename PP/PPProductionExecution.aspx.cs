@@ -42,6 +42,7 @@ namespace PPApp
         protected Label         lblOutputUnit;
         protected TextBox       txtRemarks;
         protected Button        btnSaveOutput;
+        protected Panel         pnlPrefilledLink;
         protected Repeater      rptHistory;
         protected Panel         pnlHistoryEmpty;
 
@@ -116,10 +117,13 @@ namespace PPApp
             string status = order["Status"].ToString();
             string outAbbr = order["OutputAbbr"].ToString();
             string prodType = order["ProductType"] != DBNull.Value ? order["ProductType"].ToString() : "Core";
-            bool isConversion = (prodType == "Conversion");
+            bool isConversion = (prodType == "Conversion" || prodType == "Prefilled Conversion");
+            bool isPrefilled   = (prodType == "Prefilled Conversion");
             btnSaveOutput.Text = isConversion ? "Save & Store as Raw Material" : "Save & Move to Packing";
             Session["PE_ProductName"]  = order["ProductName"].ToString();
             Session["PE_IsConversion"] = isConversion;
+            Session["PE_IsPrefilled"]  = isPrefilled;
+            if (pnlPrefilledLink != null) pnlPrefilledLink.Visible = isPrefilled;
 
             // Info panel
             pnlInfo.Visible        = true;
@@ -298,7 +302,14 @@ namespace PPApp
                 if (rm != null)
                 {
                     PPDatabaseHelper.AddInternalGRN(Convert.ToInt32(rm["RMID"]), output, productName, orderId, batchNo, UserID);
-                    ShowAlert("Batch " + batchNo + " of " + total + " saved. " + output.ToString("0.###") + " added to " + productName + " stock.", true);
+                    bool isPrefilled = Session["PE_IsPrefilled"] != null && (bool)Session["PE_IsPrefilled"];
+                    string extraMsg = isPrefilled
+                        ? " &nbsp;<a href='PPPrefilledEntry.aspx' style='color:#27ae60;font-weight:700;'>"
+                          + "&#x2192; Record Raw Material consumed at shift end</a>"
+                        : "";
+                    ShowAlert("Batch " + batchNo + " of " + total + " saved. "
+                        + output.ToString("0.###") + " added to " + productName + " stock."
+                        + extraMsg, true);
                 }
                 else
                     ShowAlert("Batch saved, but no Raw Material named '" + productName + "' found. Update stock manually.", false);

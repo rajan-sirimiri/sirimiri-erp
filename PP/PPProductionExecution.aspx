@@ -330,6 +330,21 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                 <div class="info-completed"><asp:Label ID="lblInfoCompleted" runat="server"/></div>
             </div>
         </div>
+        <asp:Panel ID="pnlPrefilledLink" runat="server" Visible="false">
+        <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;
+            padding:10px 18px;margin:0 0 16px;display:flex;align-items:center;
+            justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:#7b1fa2;letter-spacing:.04em;">
+                &#x1F9C3; PREFILLED CONVERSION — Record Raw Material consumed at shift end
+            </span>
+            <a href="PPPrefilledEntry.aspx" style="background:#7b1fa2;color:#fff;
+                font-size:12px;font-weight:700;padding:7px 16px;border-radius:7px;
+                text-decoration:none;letter-spacing:.04em;">
+                &#x2192; Open Prefilled Entry
+            </a>
+        </div>
+    </asp:Panel>
+
     </asp:Panel>
 
     <!-- NO ORDER STATE -->
