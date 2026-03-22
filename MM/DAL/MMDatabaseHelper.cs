@@ -461,6 +461,33 @@ namespace MMApp.DAL
                 new MySqlParameter("id", linkId));
         }
 
+        // Scrap Material Stock Report
+        // StockQty = SUM of GRN receipts with InvoiceNo='SCRAP'
+        // LinkedRMs = comma-separated list of RMs that produce this scrap
+        public static DataTable GetScrapStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT s.ScrapID, s.ScrapCode, s.ScrapName, u.Abbreviation AS UOM," +
+                " ROUND(IFNULL(grn.TotalReceived, 0), 4) AS StockQty," +
+                " IFNULL(rms.LinkedRMs, '—') AS LinkedRMs" +
+                " FROM MM_ScrapMaterials s" +
+                " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
+                " LEFT JOIN (" +
+                "   SELECT i.RMID, SUM(i.QtyActualReceived) AS TotalReceived" +
+                "   FROM MM_RawInward i WHERE i.InvoiceNo = 'SCRAP'" +
+                "   GROUP BY i.RMID" +
+                " ) grn ON grn.RMID = (SELECT r.RMID FROM MM_RawMaterials r" +
+                "   WHERE LOWER(TRIM(r.RMName)) = LOWER(TRIM(s.ScrapName)) AND r.IsActive=1 LIMIT 1)" +
+                " LEFT JOIN (" +
+                "   SELECT l.ScrapID, GROUP_CONCAT(r.RMName ORDER BY r.RMName SEPARATOR ', ') AS LinkedRMs" +
+                "   FROM MM_RMScrapLink l" +
+                "   JOIN MM_RawMaterials r ON r.RMID = l.RMID" +
+                "   GROUP BY l.ScrapID" +
+                " ) rms ON rms.ScrapID = s.ScrapID" +
+                " WHERE s.IsActive = 1" +
+                " ORDER BY StockQty DESC, s.ScrapName ASC;");
+        }
+
         // ── PACKING MATERIAL ──────────────────────────────────────────
         public static DataTable GetAllPackingMaterials()
         {
