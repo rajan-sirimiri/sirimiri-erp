@@ -33,7 +33,6 @@ namespace PPApp
         protected Label        lblClosureUnit;
         protected HiddenField  hfProductId;
         protected HiddenField  hfShiftClosed;
-        protected HiddenField  hfScrapChecked;
         protected HiddenField  hfScrapValues;
         protected Panel        pnlScrapEntry;
         protected Repeater     rptScrapInputs;
@@ -64,6 +63,9 @@ namespace PPApp
                 // Restore shift closed visual state on every postback
                 bool closed = hfShiftClosed.Value == "1";
                 SetShiftClosedState(closed);
+                // Re-load scrap inputs if RM is selected
+                int rmId = Convert.ToInt32(hfRMId.Value);
+                if (rmId > 0) LoadScrapInputs(rmId);
             }
         }
 
@@ -86,7 +88,6 @@ namespace PPApp
 
             hfProductId.Value  = productId.ToString();
             hfShiftClosed.Value  = "0";
-            hfScrapChecked.Value = "0";
             if (pnlScrapEntry != null) pnlScrapEntry.Visible = false;
             SetShiftClosedState(false);
 
@@ -150,6 +151,8 @@ namespace PPApp
                 hfRMUnit.Value = unit;
             }
 
+            // Auto-load scrap items for this RM
+            LoadScrapInputs(rmId);
             RefreshClosures(rmId);
         }
 
@@ -210,32 +213,12 @@ namespace PPApp
             btnClose.Enabled = closed;
         }
 
-        protected void btnCheckScrap_Click(object sender, EventArgs e)
+        private void LoadScrapInputs(int rmId)
         {
-            int rmId = Convert.ToInt32(hfRMId.Value);
-            if (rmId == 0) { ShowAlert("Please select a raw material.", false); return; }
-
-            decimal qty;
-            if (!decimal.TryParse(txtRMQty.Text.Trim(), out qty) || qty <= 0)
-            { ShowAlert("Please enter qty consumed first.", false); return; }
-
-            // Load scrap materials linked to this RM
             var scraps = PPDatabaseHelper.GetScrapMaterialsForRM(rmId);
-            if (scraps.Rows.Count == 0)
-            {
-                // No scraps — go straight to close
-                hfScrapChecked.Value  = "1";
-                pnlScrapEntry.Visible = false;
-                ShowAlert("No scrap materials linked to this RM. You can now close the shift.", true);
-            }
-            else
-            {
-                hfScrapChecked.Value  = "1";
-                pnlScrapEntry.Visible = true;
-                rptScrapInputs.DataSource = scraps;
-                rptScrapInputs.DataBind();
-                ShowAlert("Enter scrap quantities generated, then click Close Shift Consumption.", true);
-            }
+            pnlScrapEntry.Visible     = scraps.Rows.Count > 0;
+            rptScrapInputs.DataSource = scraps;
+            rptScrapInputs.DataBind();
         }
 
         protected void btnClose_Click(object sender, EventArgs e)
@@ -249,12 +232,6 @@ namespace PPApp
 
             string rmName = ddlRawMaterial.SelectedItem?.Text ?? "";
             string productName = ddlProduct.SelectedItem?.Text ?? "";
-
-            // Check scrap was verified
-            if (hfScrapChecked.Value != "1")
-            {
-                ShowAlert("Please click 'Check Scrap & Proceed' first.", false); return;
-            }
 
             // Check available stock before recording consumption
             decimal available = PPDatabaseHelper.GetAvailableStock(rmId);
@@ -286,7 +263,6 @@ namespace PPApp
                 }
 
                 txtRMQty.Text        = "";
-                hfScrapChecked.Value = "0";
                 pnlScrapEntry.Visible = false;
                 ShowAlert("Recorded " + qty.ToString("0.###") + " " + hfRMUnit.Value +
                     " consumption of " + rmName + ". Scrap quantities logged.", true);

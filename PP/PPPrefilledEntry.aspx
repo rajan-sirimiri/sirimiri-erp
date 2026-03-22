@@ -111,7 +111,6 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
 <asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
-<asp:HiddenField ID="hfScrapChecked"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 <asp:HiddenField ID="hfRMId"        runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMUnit"      runat="server" Value=""/>
@@ -238,31 +237,25 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                     <div class="unit-badge"><asp:Label ID="lblRMUnit" runat="server">—</asp:Label></div>
                 </div>
 
-                <!-- SCRAP QTY ENTRY — shown after Check Scrap button clicked -->
+                <!-- SCRAP QTY ENTRY — auto-loads when RM selected -->
                 <asp:Panel ID="pnlScrapEntry" runat="server" Visible="false">
                 <div class="scrap-entry-section">
                     <div class="scrap-entry-title">&#9851; Scrap Generated from this RM</div>
                     <asp:Repeater ID="rptScrapInputs" runat="server">
                         <ItemTemplate>
                             <div class="scrap-row">
-                                <label><%# Eval("ScrapName") %></label>
+                                <label><%# Eval("ScrapName") %> <span class="unit-sm"><%# Eval("Unit") %></span></label>
                                 <input type="number" step="0.001" min="0"
                                     name='<%# "scrap_" + Eval("ScrapID") %>'
                                     placeholder="0.000" class="scrap-input"
                                     data-scrapid='<%# Eval("ScrapID") %>'
                                     data-scrapname='<%# Eval("ScrapName") %>' />
-                                <span class="unit-sm"><%# Eval("Unit") %></span>
                             </div>
                         </ItemTemplate>
                     </asp:Repeater>
                     <asp:HiddenField ID="hfScrapValues" runat="server" Value=""/>
                 </div>
                 </asp:Panel>
-
-                <asp:Button ID="btnCheckScrap" runat="server" CssClass="btn-close"
-                    style="background:#f57f17;margin-bottom:8px;"
-                    Text="&#9851; Check Scrap &amp; Proceed"
-                    OnClick="btnCheckScrap_Click" CausesValidation="false"/>
 
                 <asp:Button ID="btnClose" runat="server" CssClass="btn-close"
                     Text="&#9632; Close Shift Consumption"
