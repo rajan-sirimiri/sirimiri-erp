@@ -32,6 +32,10 @@ namespace PPApp
         protected Label        lblClosureTotal;
         protected Label        lblClosureUnit;
         protected HiddenField  hfProductId;
+        protected HiddenField  hfShiftClosed;
+        protected Button       btnCloseShift;
+        protected Panel        pnlShiftClosedMsg;
+        protected Panel        pnlRightCard;
         protected HiddenField  hfOutputUnit;
         protected HiddenField  hfRMId;
         protected HiddenField  hfRMUnit;
@@ -49,6 +53,12 @@ namespace PPApp
             {
                 BindProductList();
                 pnlEntry.Visible = false;
+            }
+            else
+            {
+                // Restore shift closed visual state on every postback
+                bool closed = hfShiftClosed.Value == "1";
+                SetShiftClosedState(closed);
             }
         }
 
@@ -69,7 +79,9 @@ namespace PPApp
             int productId = Convert.ToInt32(ddlProduct.SelectedValue);
             if (productId == 0) { pnlEntry.Visible = false; return; }
 
-            hfProductId.Value = productId.ToString();
+            hfProductId.Value  = productId.ToString();
+            hfShiftClosed.Value = "0";
+            SetShiftClosedState(false);
 
             // Get product output unit
             var products = PPDatabaseHelper.GetPrefilledConversionProducts();
@@ -170,6 +182,25 @@ namespace PPApp
             {
                 ShowAlert("Error: " + ex.Message, false);
             }
+        }
+
+        protected void btnCloseShift_Click(object sender, EventArgs e)
+        {
+            hfShiftClosed.Value = "1";
+            SetShiftClosedState(true);
+            ShowAlert("Shift closed. You can now record Raw Material consumed.", true);
+        }
+
+        private void SetShiftClosedState(bool closed)
+        {
+            // Close Shift button — hide once clicked
+            btnCloseShift.Visible     = !closed;
+            pnlShiftClosedMsg.Visible = closed;
+            // Right card — enabled only after shift is closed
+            if (pnlRightCard != null)
+                pnlRightCard.CssClass = closed ? "" : "right-card-disabled";
+            // Disable/enable Close Shift Consumption button
+            btnClose.Enabled = closed;
         }
 
         protected void btnClose_Click(object sender, EventArgs e)

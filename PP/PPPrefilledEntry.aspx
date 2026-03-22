@@ -68,6 +68,11 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
     padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;
     width:100%;margin-top:6px;transition:background .2s;}
 .btn-close:hover{background:#d35400;}
+.btn-close-shift{background:#1a1a1a;color:#fff;border:none;border-radius:9px;
+    padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;
+    width:100%;margin-top:14px;transition:background .2s;}
+.btn-close-shift:hover{background:#333;}
+.right-card-disabled{opacity:0.45;pointer-events:none;}
 
 .tally-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px;}
 .tally-table th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
@@ -93,7 +98,8 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 <body>
 <form id="form1" runat="server">
 
-<asp:HiddenField ID="hfProductId"   runat="server" Value="0"/>
+<asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
+<asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 <asp:HiddenField ID="hfRMId"        runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMUnit"      runat="server" Value=""/>
@@ -156,6 +162,16 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                 <asp:Button ID="btnAdd" runat="server" CssClass="btn-add"
                     Text="+ Add to Stock" OnClick="btnAdd_Click" CausesValidation="false"/>
 
+                <asp:Button ID="btnCloseShift" runat="server" CssClass="btn-close-shift"
+                    Text="&#9654; CLOSE THE SHIFT"
+                    OnClick="btnCloseShift_Click" CausesValidation="false"/>
+
+                <asp:Panel ID="pnlShiftClosedMsg" runat="server" Visible="false">
+                    <div style="background:#eafaf1;border:1px solid #a9dfbf;border-radius:9px;
+                        padding:10px 14px;margin-top:10px;font-size:12px;font-weight:700;
+                        color:var(--accent-dark);">&#10003; Shift closed — Raw Material entry enabled</div>
+                </asp:Panel>
+
                 <!-- Today's tally -->
                 <hr class="divider"/>
                 <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Today's Entries</div>
@@ -189,6 +205,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
         <!-- RIGHT: SHIFT CLOSURE -->
         <div>
+            <asp:Panel ID="pnlRightCard" runat="server">
             <div class="card">
                 <span class="section-badge badge-closure">&#9632; Shift Closure</span>
                 <div class="card-title">Record Raw Material Used</div>
@@ -242,6 +259,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                     </div>
                 </asp:Panel>
             </div>
+            </asp:Panel>
         </div>
 
     </div>
