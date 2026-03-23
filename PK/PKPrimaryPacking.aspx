@@ -46,9 +46,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
     <span class="nav-title">Packing &amp; Shipments</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
-        <a href="PKHome.aspx" class="nav-link">&#8592; Home</a>
-        
-                <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>
