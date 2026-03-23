@@ -393,8 +393,8 @@
             </a>
 
             <!-- 2. Production -->
-            <a href="#" class="module-card mod-production">
-                <span class="module-status status-soon">Coming Soon</span>
+            <a href="/PP/PPHome.aspx" class="module-card mod-production">
+                <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x2699;&#xFE0F;</div>
                 <div class="module-info">
                     <div class="module-name">Production</div>
@@ -405,7 +405,6 @@
 
             <!-- 3. Packing -->
             <a href="#" class="module-card mod-packing">
-                <span class="module-status status-soon">Coming Soon</span>
                 <div class="module-icon-wrap">&#x1F3F7;&#xFE0F;</div>
                 <div class="module-info">
                     <div class="module-name">Packing</div>
@@ -438,7 +437,6 @@
 
             <!-- 6. Finance -->
             <a href="#" class="module-card mod-finance">
-                <span class="module-status status-soon">Coming Soon</span>
                 <div class="module-icon-wrap">&#x1F4B0;</div>
                 <div class="module-info">
                     <div class="module-name">Finance</div>
