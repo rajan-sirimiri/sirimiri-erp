@@ -994,13 +994,15 @@ namespace PPApp.DAL
             }
             else if (stage == 3)
             {
-                // Add to Output RM stock (product name = RM name)
+                // Add to Output RM stock — Stage 3 label name = Output RM name
+                // e.g. "Sorted Roasted Peanuts" is the RM that goes into BOM
                 var rmRow = ExecuteQueryRow(
                     "SELECT RMID FROM MM_RawMaterials" +
                     " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                    new MySqlParameter("?name", productName));
+                    new MySqlParameter("?name", stageLabel));
                 if (rmRow == null)
-                    throw new Exception("Output RM '" + productName + "' not found in Raw Materials.");
+                    throw new Exception("Output RM '" + stageLabel + "' not found in Raw Materials. " +
+                        "Ensure an RM named '" + stageLabel + "' exists in MM.");
                 int rmId = Convert.ToInt32(rmRow["RMID"]);
 
                 // Check Stage 2 RM available stock
