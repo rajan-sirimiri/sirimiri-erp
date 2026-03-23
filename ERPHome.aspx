@@ -404,11 +404,12 @@
             </a>
 
             <!-- 3. Packing -->
-            <a href="#" class="module-card mod-packing">
+            <a href="/PK/PKHome.aspx" class="module-card mod-packing">
+                <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F3F7;&#xFE0F;</div>
                 <div class="module-info">
-                    <div class="module-name">Packing</div>
-                    <div class="module-desc">Packaging orders, label generation, SKU tracking &amp; dispatch</div>
+                    <div class="module-name">Packing &amp;<br/>Shipments</div>
+                    <div class="module-desc">Primary &amp; secondary packing, customer orders and dispatch</div>
                 </div>
                 <div class="module-arrow">&#x2197;</div>
             </a>
@@ -436,14 +437,14 @@
             </a>
 
             <!-- 6. Finance -->
-            <a href="#" class="module-card mod-finance">
+            <div class="module-card mod-finance" style="opacity:.5;cursor:default;pointer-events:none;">
                 <div class="module-icon-wrap">&#x1F4B0;</div>
                 <div class="module-info">
                     <div class="module-name">Finance</div>
                     <div class="module-desc">Accounts receivable, credit tracking, payment reconciliation &amp; P&amp;L</div>
                 </div>
                 <div class="module-arrow">&#x2197;</div>
-            </a>
+            </div>
 
         </div>
     </main>
