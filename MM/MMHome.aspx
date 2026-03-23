@@ -104,7 +104,7 @@
     </header>
 
     <nav class="mm-nav">
-        <a href="/ERPHome.aspx" class="nav-item" title="ERP Home">&#x2302; ERP Home</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-item" title="ERP Home">&#x2302; ERP Home</a>
         <div class="nav-group">
             <span class="nav-item active">&#x1F4E6; Materials Mgmt <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">

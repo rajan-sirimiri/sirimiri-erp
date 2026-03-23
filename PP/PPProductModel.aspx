@@ -207,7 +207,7 @@
 
     <nav>
         <a href="PPHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
-        <a href="/ERPHome.aspx" class="nav-item">&#x2302; ERP</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-item">&#x2302; ERP</a>
         <span class="nav-sep">›</span>
         <a href="PPHome.aspx" class="nav-item">Home</a>
         <span class="nav-sep">›</span>

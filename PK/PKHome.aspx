@@ -38,6 +38,7 @@ main{max-width:960px;margin:32px auto;padding:0 24px;}
     <span class="nav-title">Packing &amp; Shipments</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
+        <a href="/StockApp/ERPHome.aspx" class="nav-link"><a href="PKLogout.aspx" class="nav-link">Sign Out</a>#x2302; ERP Home</a>
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>

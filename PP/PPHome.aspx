@@ -124,7 +124,7 @@
     </header>
 
     <nav class="pp-nav">
-        <a href="/ERPHome.aspx" class="nav-item" title="ERP Home">&#x2302; ERP Home</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-item" title="ERP Home">&#x2302; ERP Home</a>
         <div class="nav-group">
             <span class="nav-item active">&#x1F3ED; Production &amp; Planning <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
