@@ -1005,12 +1005,7 @@ namespace PPApp.DAL
 
                 // Check Stage 2 RM available stock
                 decimal available = GetAvailableStock(rmId);
-                // Stage 2 RM RMID matches stageLabel — but we need Stage 2 RM to deduct from
-                var s2RmRow = ExecuteQueryRow(
-                    "SELECT RMID FROM MM_RawMaterials" +
-                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                    new MySqlParameter("?name", hfStage2Label));
-                // hfStage2Label not available here — use PP_PreprocessStages
+                // Look up Stage 2 label from PP_PreprocessStages to find Stage 2 RM
                 var stagesRow = ExecuteQueryRow(
                     "SELECT Stage2Label FROM PP_PreprocessStages WHERE ProductID=?pid;",
                     new MySqlParameter("?pid", productId));
