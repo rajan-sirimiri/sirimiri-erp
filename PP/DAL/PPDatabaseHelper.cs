@@ -955,7 +955,33 @@ namespace PPApp.DAL
             }
             else if (stage == 2)
             {
-                // Tracking only — store in PP_PreprocessLog
+                // Add to Stage 2 RM stock (stageLabel = RM name, e.g. "Roasted Peanuts")
+                var rmRow2 = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", stageLabel));
+                if (rmRow2 == null)
+                    throw new Exception("Stage 2 RM '" + stageLabel + "' not found in Raw Materials.");
+                int rmId2 = Convert.ToInt32(rmRow2["RMID"]);
+
+                // Add to stock as internal GRN
+                ExecuteNonQuery(
+                    "INSERT INTO MM_RawInward" +
+                    " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
+                    "  Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
+                    "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
+                    "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
+                    " VALUES (?grn,?dt,'PREPROCESS',NULL,?sup,?rmid," +
+                    "  ?qty,?qty,?qty,0,0,NULL,NULL,0,0,0,0,0,0,NULL,?rem,1,'Approved',?by,NOW());",
+                    new MySqlParameter("?grn",  grnNo),
+                    new MySqlParameter("?dt",   NowIST().Date),
+                    new MySqlParameter("?sup",  supplierId),
+                    new MySqlParameter("?rmid", rmId2),
+                    new MySqlParameter("?qty",  qty),
+                    new MySqlParameter("?rem",  remarks),
+                    new MySqlParameter("?by",   userId));
+
+                // Log for stage tracking
                 ExecuteNonQuery(
                     "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
                     " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
@@ -977,13 +1003,29 @@ namespace PPApp.DAL
                     throw new Exception("Output RM '" + productName + "' not found in Raw Materials.");
                 int rmId = Convert.ToInt32(rmRow["RMID"]);
 
-                // Check Stage 2 running total — ensure enough to deduct
-                decimal stage2Total = GetPreprocessStageTotal(productId, 2);
-                decimal stage3Used  = GetPreprocessStageTotal(productId, 3);
-                decimal available   = stage2Total - stage3Used;
-                if (qty > available + 0.001m)
-                    throw new Exception("STOCK_SHORTFALL:" + "Stage 2 available: " +
-                        available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
+                // Check Stage 2 RM available stock
+                decimal available = GetAvailableStock(rmId);
+                // Stage 2 RM RMID matches stageLabel — but we need Stage 2 RM to deduct from
+                var s2RmRow = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", hfStage2Label));
+                // hfStage2Label not available here — use PP_PreprocessStages
+                var stagesRow = ExecuteQueryRow(
+                    "SELECT Stage2Label FROM PP_PreprocessStages WHERE ProductID=?pid;",
+                    new MySqlParameter("?pid", productId));
+                string stage2Label = stagesRow != null ? stagesRow["Stage2Label"].ToString() : "";
+                var s2Rm = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", stage2Label));
+                if (s2Rm == null)
+                    throw new Exception("Stage 2 RM '" + stage2Label + "' not found.");
+                int s2RmId = Convert.ToInt32(s2Rm["RMID"]);
+                decimal s2Available = GetAvailableStock(s2RmId);
+                if (qty > s2Available + 0.001m)
+                    throw new Exception("STOCK_SHORTFALL:Roasted stock available: " +
+                        s2Available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
 
                 // Add to Output RM stock as internal GRN
                 ExecuteNonQuery(
@@ -1002,7 +1044,18 @@ namespace PPApp.DAL
                     new MySqlParameter("?rem",  remarks),
                     new MySqlParameter("?by",   userId));
 
-                // Also log in PP_PreprocessLog for Stage 3 tracking
+                // Deduct from Stage 2 RM stock (Roasted Peanuts → consumed by sorting)
+                ExecuteNonQuery(
+                    "INSERT INTO MM_StockConsumption" +
+                    " (ExecutionID, OrderID, BatchNo, RMID, SourceType, SourceID, QtyConsumed, ConsumedAt, CreatedBy)" +
+                    " VALUES (0, ?pid, 2, ?rmid, 'PREPROCESS', 0, ?qty, ?now, ?by);",
+                    new MySqlParameter("?pid",  productId),
+                    new MySqlParameter("?rmid", s2RmId),
+                    new MySqlParameter("?qty",  qty),
+                    new MySqlParameter("?now",  NowIST()),
+                    new MySqlParameter("?by",   userId));
+
+                // Log Stage 3 for tracking
                 ExecuteNonQuery(
                     "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
                     " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
