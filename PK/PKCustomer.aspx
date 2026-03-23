@@ -57,7 +57,8 @@ input[readonly]{background:#f0f0f0;color:var(--text-dim);}
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
         <a href="PKHome.aspx" class="nav-link">&#8592; Home</a>
-        <a href="/StockApp/ERPHome.aspx" class="nav-link"><a href="PKLogout.aspx" class="nav-link">Sign Out</a>#x2302; ERP Home</a>
+        
+                <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>

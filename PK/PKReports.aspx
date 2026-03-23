@@ -45,7 +45,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
         <a href="PKHome.aspx" class="nav-link">&#8592; Home</a>
-        <a href="/StockApp/ERPHome.aspx" class="nav-link"><a href="PKLogout.aspx" class="nav-link">Sign Out</a>#x2302; ERP Home</a>
+        
+                <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>
