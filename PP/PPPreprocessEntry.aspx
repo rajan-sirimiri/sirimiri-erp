@@ -96,6 +96,18 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 .btn-close-shift:hover{background:#333;}
 
 @media(max-width:900px){.stage-grid{grid-template-columns:1fr;}}
+.stock-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+.ss-card{background:var(--surface);border-radius:12px;padding:14px 18px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--border);}
+.ss-card.raw{border-left-color:#e74c3c;}
+.ss-card.roasted{border-left-color:#e67e22;}
+.ss-card.sorted{border-left-color:#27ae60;}
+.ss-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:6px;}
+.ss-value{font-family:"Bebas Neue",sans-serif;font-size:24px;letter-spacing:.04em;}
+.ss-card.raw .ss-value{color:#e74c3c;}
+.ss-card.roasted .ss-value{color:#e67e22;}
+.ss-card.sorted .ss-value{color:#27ae60;}
 </style>
 </head>
 <body>
@@ -142,6 +154,22 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
     </div>
 
     <asp:Panel ID="pnlStages" runat="server" Visible="false">
+
+    <!-- STOCK SUMMARY -->
+    <div class="stock-summary">
+        <div class="ss-card raw">
+            <div class="ss-label"><asp:Label ID="lblInputRMTitle" runat="server">Raw Peanut</asp:Label> in Stock</div>
+            <div class="ss-value"><asp:Label ID="lblRawPeanutStock" runat="server">—</asp:Label></div>
+        </div>
+        <div class="ss-card roasted">
+            <div class="ss-label"><asp:Label ID="lblStage2Title" runat="server">Roasted</asp:Label> — Pending Sorting</div>
+            <div class="ss-value"><asp:Label ID="lblRoastedPending" runat="server">—</asp:Label></div>
+        </div>
+        <div class="ss-card sorted">
+            <div class="ss-label"><asp:Label ID="lblStage3Title" runat="server">Sorted</asp:Label> — Available for Production</div>
+            <div class="ss-value"><asp:Label ID="lblSortedStock" runat="server">—</asp:Label></div>
+        </div>
+    </div>
 
     <!-- THREE STAGE CARDS -->
     <div class="stage-grid">

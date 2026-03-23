@@ -19,6 +19,8 @@ namespace PPApp
         protected Label        lblS1Total, lblS2Total, lblS3Total;
         protected Repeater     rptS1, rptS2, rptS3, rptScrapItems;
         protected Button       btnS1, btnS2, btnS3, btnCloseShift;
+        protected Label        lblRawPeanutStock, lblSortedStock, lblRoastedPending;
+        protected Label        lblInputRMTitle, lblStage2Title, lblStage3Title;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtS1, txtS2, txtS3;
 
         protected int UserID => Session["PP_UserID"] != null ? Convert.ToInt32(Session["PP_UserID"]) : 0;
@@ -77,6 +79,7 @@ namespace PPApp
 
             pnlStages.Visible = true;
             RefreshAllStages(productId);
+            RefreshStockSummary();
         }
 
         private void LoadScrapItems(string inputRMName)
@@ -182,9 +185,14 @@ namespace PPApp
             {
                 PPDatabaseHelper.AddPreprocessEntry(productId, stage, qty,
                     productName, hfInputRMName.Value, stageLabel, UserID);
+                // Clear the input box that was just submitted
+                if (stage == 1 && txtS1 != null) txtS1.Value = "";
+                if (stage == 2 && txtS2 != null) txtS2.Value = "";
+                if (stage == 3 && txtS3 != null) txtS3.Value = "";
                 ShowAlert("Stage " + stage + " — " + qty.ToString("0.###") + " " +
                     hfOutputUnit.Value + " recorded.", true);
                 RefreshAllStages(productId);
+                RefreshStockSummary();
                 // Reload stage labels
                 lblStage1.Text = hfStage1Label.Value;
                 lblStage2.Text = hfStage2Label.Value;
@@ -226,6 +234,41 @@ namespace PPApp
             }
 
             ShowAlert("Shift closed." + (scrapCount > 0 ? " " + scrapCount + " scrap entries recorded." : ""), true);
+        }
+
+        private void RefreshStockSummary()
+        {
+            if (lblRawPeanutStock == null) return;
+            string inputRM   = hfInputRMName.Value;
+            string stage2RM  = hfStage2Label.Value;
+            string stage3RM  = hfStage3Label.Value;
+            string unit      = hfOutputUnit.Value;
+
+            decimal rawStock     = GetRMStock(inputRM);
+            decimal sortedStock  = GetRMStock(stage3RM);
+            decimal roastedStock = GetRMStock(stage2RM);
+
+            if (lblInputRMTitle != null) lblInputRMTitle.Text = inputRM;
+            if (lblStage2Title  != null) lblStage2Title.Text  = stage2RM;
+            if (lblStage3Title  != null) lblStage3Title.Text  = stage3RM;
+            lblRawPeanutStock.Text   = rawStock.ToString("0.###")     + " " + unit;
+            lblSortedStock.Text      = sortedStock.ToString("0.###")  + " " + unit;
+            lblRoastedPending.Text   = roastedStock.ToString("0.###") + " " + unit;
+        }
+
+        private decimal GetRMStock(string rmName)
+        {
+            if (string.IsNullOrEmpty(rmName)) return 0;
+            var row = PPDatabaseHelper.ExecuteQueryPublic(
+                "SELECT ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalConsumed,0), 4) AS Stock" +
+                " FROM MM_RawMaterials r" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID=r.RMID" +
+                " WHERE LOWER(TRIM(r.RMName))=LOWER(TRIM(?name)) AND r.IsActive=1;",
+                new MySql.Data.MySqlClient.MySqlParameter("?name", rmName));
+            if (row == null || row.Rows.Count == 0) return 0;
+            return Convert.ToDecimal(row.Rows[0]["Stock"]);
         }
 
         private void ShowAlert(string msg, bool success)

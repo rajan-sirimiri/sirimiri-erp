@@ -286,7 +286,7 @@ namespace MMApp.DAL
                 "            FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
                 " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed" +
                 "            FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID = r.RMID" +
-                " WHERE r.IsActive = 1" +
+                " WHERE r.IsActive = 1 AND LOWER(TRIM(r.RMName)) != 'ro water'" +
                 " ORDER BY CurrentStock DESC, r.RMName ASC;");
         }
 
