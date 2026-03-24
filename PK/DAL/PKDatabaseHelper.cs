@@ -158,7 +158,7 @@ namespace PKApp.DAL
                 " FROM PP_ProductionOrder po" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
-                " WHERE po.Status IN ('Initiated','InProgress')" +
+                " WHERE po.Status IN ('Initiated','InProgress') AND p.ProductType = 'Core'" +
                 " ORDER BY p.ProductName;");
         }
 
@@ -226,6 +226,15 @@ namespace PKApp.DAL
         {
             ExecuteNonQuery(
                 "UPDATE PK_PackingExecution SET Status='Ended', EndTime=?now WHERE PackingID=?id;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?id",  packingId));
+        }
+
+        // Mark batch as Completed directly — used in new flow (output recorded at end of all batches)
+        public static void CompletePackingBatch(int packingId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_PackingExecution SET Status='Completed', EndTime=?now WHERE PackingID=?id;",
                 new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?id",  packingId));
         }

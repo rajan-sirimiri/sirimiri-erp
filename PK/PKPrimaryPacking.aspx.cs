@@ -10,7 +10,7 @@ namespace PKApp
     {
         protected Label    lblUser, lblAlert;
         protected Label    lblProduct, lblTotalBatches, lblPackedBatches, lblRemaining;
-        protected Label    lblOutputBatch, lblContainerSizeHdr, lblContainerName;
+        protected Label    lblContainerSizeHdr, lblContainerName;
         protected Panel    pnlAlert, pnlInfo, pnlExecution, pnlOutput, pnlHistory;
         protected Panel    pnlHistEmpty, pnlHistTable;
         protected DropDownList ddlProduct, ddlJarSize;
@@ -147,16 +147,14 @@ namespace PKApp
 
                 if (status == "InProgress")
                     SetState("running", batchNo, total);
-                else // Ended — show output panel
-                {
-                    lblOutputBatch.Text = batchNo.ToString();
-                    SetState("ended", batchNo, total);
-                }
+                else // Ended — show ready for next (no output yet)
+                    SetState("ready", batchNo, total);
             }
             else if (packed >= total)
             {
-                ShowAlert("All " + total + " batches packed! ✓", true);
-                SetState("done", total, total);
+                // All batches done — show output panel to record qty
+                SetState("alldone", total, total);
+                ShowAlert("All " + total + " batches packed! Enter total qty below.", true);
             }
             else
                 SetState("ready", nextBatch, total);
@@ -171,12 +169,12 @@ namespace PKApp
 
             // Store state in hidden fields — read by JS on window.load
             // Avoids any RegisterStartupScript timing issues
-            hfState.Value      = state;
+            hfState.Value = (state == "running") ? "running" : "ready";
             hfBatchNo.Value    = batchNo.ToString();
             hfTotalBat.Value   = total.ToString();
 
             // pnlOutput controlled server-side
-            pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
+            pnlOutput.Style["display"] = (state == "alldone") ? "block" : "none";
         }
 
         protected void btnStart_Click(object s, EventArgs e)
@@ -205,26 +203,24 @@ namespace PKApp
 
             int orderId   = Convert.ToInt32(hfOrderId.Value);
             int productId = Convert.ToInt32(hfProductId.Value);
-            PKDatabaseHelper.EndPackingBatch(packingId);
 
-            var ended = PKDatabaseHelper.GetEndedPacking(orderId);
-            var order = PKDatabaseHelper.GetPackingOrderForProduct(productId);
-            int total = order != null ? Convert.ToInt32(order["TotalBatches"]) : 1;
+            // Mark batch as Completed directly (no separate Ended state needed)
+            PKDatabaseHelper.CompletePackingBatch(packingId);
 
-            if (ended != null)
-            {
-                lblOutputBatch.Text = ended["BatchNo"].ToString();
-                SetState("ended", Convert.ToInt32(ended["BatchNo"]), total);
-            }
+            var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
+            int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
+            int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
+
+            UpdateInfoLabels(packed, total);
+            RenderState(orderId, total, packed);
             BindHistory(orderId);
         }
 
         protected void btnSave_Click(object s, EventArgs e)
         {
-            int packingId = Convert.ToInt32(hfPackingId.Value);
             int orderId   = Convert.ToInt32(hfOrderId.Value);
             int productId = Convert.ToInt32(hfProductId.Value);
-            if (packingId == 0) { ShowAlert("No batch to save.", false); return; }
+            if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
 
             int jarSize;
             if (!int.TryParse(ddlJarSize.SelectedValue, out jarSize))
@@ -240,17 +236,7 @@ namespace PKApp
 
             try
             {
-                PKDatabaseHelper.SavePackingOutput(packingId, orderId, productId,
-                    cases, jars, units, jarSize, UserID);
-
-                // Reset inputs
-                txtCases.Value = "0"; txtJars.Value = "0"; txtUnits.Value = "0";
-                hfPackingId.Value = "0";
-
-                var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
-                int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
-                int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
-
+                // Save total output for the entire order
                 int jarsPerCase = int.Parse(hfJarsPerCase.Value);
                 string pl = hfPackLevels.Value;
                 int totalUnits;
@@ -258,9 +244,21 @@ namespace PKApp
                 else if (pl == "Container+Unit")  totalUnits = (jars  * jarSize) + units;
                 else                               totalUnits = (cases * jarsPerCase * jarSize) + (jars * jarSize) + units;
 
-                ShowAlert("Batch saved — " + totalUnits.ToString("N0") + " units added to FG stock.", true);
+                // Add to FG Stock for the entire order
+                PKDatabaseHelper.AddFGStock(productId, totalUnits, 0, orderId, 0, UserID);
+
+                // Reset inputs
+                txtCases.Value = "0"; txtJars.Value = "0"; txtUnits.Value = "0";
+
+                ShowAlert("Packing complete — " + totalUnits.ToString("N0") + " units added to FG stock.", true);
+
+                // Reset to ready state
+                var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
+                int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
+                int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
                 UpdateInfoLabels(packed, total);
-                RenderState(orderId, total, packed);
+                SetState("ready", 0, total);
+                BindHistory(orderId);
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }

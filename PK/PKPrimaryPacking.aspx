@@ -25,7 +25,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .nav-link:hover{color:#fff;background:rgba(255,255,255,.08);}
 
 /* SELECT BAR */
-.select-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.select-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 24px;display:flex;align-items:flex-end;justify-content:center;gap:14px;flex-wrap:wrap;}
 .select-bar label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:5px;}
 .select-bar select{padding:9px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:13px;color:var(--text);background:#fafafa;outline:none;min-width:280px;}
 .select-bar select:focus{border-color:var(--accent);}
@@ -200,7 +200,7 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
         <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
         <div class="output-panel">
             <div class="output-title">
-                &#x1F4E6; Record Packed Output — Batch <asp:Label ID="lblOutputBatch" runat="server"/>
+                &#x1F4E6; All Batches Complete — Record Total Packed Output
             </div>
             <div class="output-grid">
                 <div class="form-group">
