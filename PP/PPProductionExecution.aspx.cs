@@ -158,8 +158,8 @@ namespace PPApp
                 SetState("ready", orderId, done + 1, total, 0);
                 btnStart.Enabled = true;
                 btnEnd.Enabled   = true;
-                ClientScript.RegisterStartupScript(GetType(), "ws",
-                    "window.serverState='stopped';applyServerState();", true);
+                ClientScript.RegisterStartupScript(GetType(), "pkwheel_stopped",
+                    "window.serverState='stopped';applyState();", true);
                 ShowAlert("&#9654; This production order is currently <strong>Stopped</strong>. " +
                     "Go to Production Order to resume.", false);
                 return;
@@ -236,11 +236,12 @@ namespace PPApp
                 catch { /* non-fatal */ }
             }
 
-            // JS wheel state
+            // JS wheel state — registered AFTER all other work so it always fires
             string js = state == "running"
                 ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
                 : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");";
-            ClientScript.RegisterStartupScript(GetType(), "ws", js, true);
+            // Use unique key per state to avoid collision with any other RegisterStartupScript calls
+            ClientScript.RegisterStartupScript(GetType(), "pkwheel_" + state, js, true);
         }
 
         // ── START BATCH ───────────────────────────────────────────────────────

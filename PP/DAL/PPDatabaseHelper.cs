@@ -1131,17 +1131,25 @@ namespace PPApp.DAL
 
         public static DataTable GetProductParams(int productId)
         {
-            return ExecuteQuery(
-                "SELECT ParamID, ParamOrder, ParamType, ParamLabel," +
-                " IFNULL(ParamOptions,'') AS ParamOptions" +
-                " FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
-                new MySqlParameter("?pid", productId));
+            try
+            {
+                return ExecuteQuery(
+                    "SELECT ParamID, ParamOrder, ParamType, ParamLabel," +
+                    " IFNULL(ParamOptions,'') AS ParamOptions" +
+                    " FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
+                    new MySqlParameter("?pid", productId));
+            }
+            catch { return new DataTable(); }
         }
 
         public static DataTable GetRemarkOptions()
         {
-            return ExecuteQuery(
-                "SELECT OptionID, OptionText FROM PP_RemarkOptions ORDER BY SortOrder, OptionText;");
+            try
+            {
+                return ExecuteQuery(
+                    "SELECT OptionID, OptionText FROM PP_RemarkOptions ORDER BY SortOrder, OptionText;");
+            }
+            catch { return new DataTable(); }
         }
 
         public static void SaveRemarkOptions(string[] options)
