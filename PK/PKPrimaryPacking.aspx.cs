@@ -25,7 +25,28 @@ namespace PKApp
         {
             if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
             lblUser.Text = Session["PK_FullName"] as string ?? "";
-            if (!IsPostBack) BindProductDropdown();
+            if (!IsPostBack)
+            {
+                BindProductDropdown();
+            }
+            else
+            {
+                // Restore panel visibility on postback
+                if (hfOrderId.Value != "0")
+                {
+                    pnlInfo.Visible      = true;
+                    pnlExecution.Visible = true;
+                    pnlHistory.Visible   = true;
+                    // Restore jar size dropdown if needed
+                    if (ddlJarSize.Items.Count == 0 && !string.IsNullOrEmpty(hfJarSizes.Value))
+                    {
+                        string ct = string.IsNullOrEmpty(hfContainerType.Value) ? "Container" : hfContainerType.Value;
+                        BindJarSizes(hfJarSizes.Value, ct);
+                        lblContainerName.Text    = ct + "s";
+                        lblContainerSizeHdr.Text = "Units per " + ct;
+                    }
+                }
+            }
         }
 
         void BindProductDropdown()
