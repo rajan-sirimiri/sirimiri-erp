@@ -16,7 +16,7 @@ namespace PKApp
         protected DropDownList ddlProduct, ddlJarSize;
         protected HiddenField  hfOrderId, hfProductId, hfPackingId;
         protected HiddenField  hfState, hfBatchNo, hfTotalBat;
-        protected HiddenField  hfJarsPerCase, hfJarSizes, hfContainerType, hfPackLevels;
+        protected HiddenField  hfContainersPerCase, hfUnitSizes, hfContainerType;
         protected Button   btnLoad, btnStart, btnEnd, btnSave;
         protected Repeater rptHistory;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCases, txtJars, txtUnits;
@@ -39,12 +39,13 @@ namespace PKApp
                     pnlExecution.Visible = true;
                     pnlHistory.Visible   = true;
                     // Restore jar size dropdown if needed
-                    if (ddlJarSize.Items.Count == 0 && !string.IsNullOrEmpty(hfJarSizes.Value))
+                    if (ddlJarSize.Items.Count == 0 && !string.IsNullOrEmpty(hfUnitSizes.Value))
                     {
-                        string ct = string.IsNullOrEmpty(hfContainerType.Value) ? "Container" : hfContainerType.Value;
-                        BindJarSizes(hfJarSizes.Value, ct);
-                        lblContainerName.Text    = ct + "s";
-                        lblContainerSizeHdr.Text = "Units per " + ct;
+                        string ct = string.IsNullOrEmpty(hfContainerType.Value) ? "Case" : hfContainerType.Value;
+                        string ctLabel = ct == "DIRECT" ? "Case" : ct;
+                        BindJarSizes(hfUnitSizes.Value, ctLabel);
+                        lblContainerName.Text    = ctLabel + "s";
+                        lblContainerSizeHdr.Text = "Units per " + ctLabel;
                     }
                 }
             }
@@ -59,10 +60,9 @@ namespace PKApp
                 ddlProduct.Items.Add(new ListItem(
                     r["ProductName"] + " (" + r["ProductCode"] + ")",
                     r["ProductID"].ToString()
-                    + "|" + (r["JarsPerCase"]    == DBNull.Value ? "12"                   : r["JarsPerCase"].ToString())
-                    + "|" + (r["JarSizes"]       == DBNull.Value ? ""                     : r["JarSizes"].ToString())
-                    + "|" + (r["ContainerType"]  == DBNull.Value ? ""                     : r["ContainerType"].ToString())
-                    + "|" + (r["PackLevels"]     == DBNull.Value ? "Case+Container+Unit"  : r["PackLevels"].ToString())));
+                    + "|" + (r["ContainerType"]     == DBNull.Value ? "DIRECT" : r["ContainerType"].ToString())
+                    + "|" + (r["UnitsPerContainer"] == DBNull.Value ? ""       : r["UnitsPerContainer"].ToString())
+                    + "|" + (r["ContainersPerCase"] == DBNull.Value ? "12"     : r["ContainersPerCase"].ToString())));
         }
 
         protected void btnLoad_Click(object s, EventArgs e)
@@ -72,16 +72,14 @@ namespace PKApp
 
             string[] parts = val.Split('|');
             int productId      = int.Parse(parts[0]);
-            string jarsPerCase = parts.Length > 1 ? parts[1] : "12";
-            string jarSizes    = parts.Length > 2 ? parts[2] : "";
-            string containerType = parts.Length > 3 ? parts[3] : "";
-            string packLevels    = parts.Length > 4 ? parts[4] : "Case+Container+Unit";
+            string containerType    = parts.Length > 1 ? parts[1] : "DIRECT";
+            string unitSizes        = parts.Length > 2 ? parts[2] : "";
+            string containersPerCase = parts.Length > 3 ? parts[3] : "12";
 
-            hfProductId.Value    = productId.ToString();
-            hfJarsPerCase.Value  = jarsPerCase;
-            hfJarSizes.Value     = jarSizes;
-            hfContainerType.Value = containerType;
-            hfPackLevels.Value   = packLevels;
+            hfProductId.Value         = productId.ToString();
+            hfContainerType.Value     = containerType;
+            hfUnitSizes.Value         = unitSizes;
+            hfContainersPerCase.Value = containersPerCase;
 
             var order = PKDatabaseHelper.GetPackingOrderForProduct(productId);
             if (order == null) { ShowAlert("No active production order found for this product.", false); return; }
@@ -102,12 +100,12 @@ namespace PKApp
             lblRemaining.Text     = (total - packed).ToString();
 
             // Container labels
-            string ct = string.IsNullOrEmpty(containerType) ? "Container" : containerType;
-            lblContainerName.Text     = ct + "s";
-            lblContainerSizeHdr.Text  = "Units per " + ct;
+            string ctLabel = containerType == "DIRECT" ? "Case" : containerType;
+            lblContainerName.Text    = ctLabel + "s";
+            lblContainerSizeHdr.Text = "Units per " + ctLabel;
 
-            // Jar size dropdown
-            BindJarSizes(jarSizes, ct);
+            // Unit size dropdown
+            BindJarSizes(unitSizes, ctLabel);
 
             pnlInfo.Visible      = true;
             pnlExecution.Visible = true;
@@ -237,12 +235,13 @@ namespace PKApp
             try
             {
                 // Save total output for the entire order
-                int jarsPerCase = int.Parse(hfJarsPerCase.Value);
-                string pl = hfPackLevels.Value;
+                int containersPerCase = int.Parse(string.IsNullOrEmpty(hfContainersPerCase.Value) ? "12" : hfContainersPerCase.Value);
+                string ct = hfContainerType.Value;
                 int totalUnits;
-                if      (pl == "Case+Unit")       totalUnits = (cases * jarSize) + units;
-                else if (pl == "Container+Unit")  totalUnits = (jars  * jarSize) + units;
-                else                               totalUnits = (cases * jarsPerCase * jarSize) + (jars * jarSize) + units;
+                if (ct == "DIRECT")
+                    totalUnits = cases * jarSize;
+                else
+                    totalUnits = (cases * containersPerCase * jarSize) + (jars * jarSize);
 
                 // Add to FG Stock for the entire order
                 PKDatabaseHelper.AddFGStock(productId, totalUnits, 0, orderId, 0, UserID);

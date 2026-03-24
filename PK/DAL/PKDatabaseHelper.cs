@@ -153,7 +153,7 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT DISTINCT p.ProductID, p.ProductCode, p.ProductName," +
-                " p.JarsPerCase, p.JarSizes, p.ContainerType, p.PackLevels," +
+                " p.ContainerType, p.UnitsPerContainer, p.ContainersPerCase," +
                 " ou.Abbreviation AS OutputUnit" +
                 " FROM PP_ProductionOrder po" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
@@ -244,17 +244,18 @@ namespace PKApp.DAL
         {
             // Get packing spec
             var spec = ExecuteQueryRow(
-                "SELECT IFNULL(JarsPerCase,12) AS JarsPerCase," +
-                " IFNULL(PackLevels,'Case+Container+Unit') AS PackLevels" +
+                "SELECT IFNULL(ContainersPerCase,12) AS ContainersPerCase," +
+                " IFNULL(ContainerType,'DIRECT') AS ContainerType" +
                 " FROM PP_Products WHERE ProductID=?pid;",
                 new MySqlParameter("?pid", productId));
-            int    jarsPerCase = spec != null ? Convert.ToInt32(spec["JarsPerCase"]) : 12;
-            string packLevels  = spec != null ? spec["PackLevels"].ToString() : "Case+Container+Unit";
+            int    containersPerCase = spec != null ? Convert.ToInt32(spec["ContainersPerCase"]) : 12;
+            string containerType     = spec != null ? spec["ContainerType"].ToString() : "DIRECT";
 
             int totalUnits;
-            if      (packLevels == "Case+Unit")       totalUnits = (cases * jarSize) + units;
-            else if (packLevels == "Container+Unit")  totalUnits = (jars  * jarSize) + units;
-            else                                       totalUnits = (cases * jarsPerCase * jarSize) + (jars * jarSize) + units;
+            if (containerType == "DIRECT")
+                totalUnits = cases * jarSize;  // cases × units per case
+            else
+                totalUnits = (cases * containersPerCase * jarSize) + (jars * jarSize);
 
             ExecuteNonQuery(
                 "UPDATE PK_PackingExecution SET Cases=?c,Jars=?j,Units=?u," +

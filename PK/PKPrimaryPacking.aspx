@@ -114,10 +114,9 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
 <asp:HiddenField ID="hfTotalBat"    runat="server" Value="0"/>
 <asp:HiddenField ID="hfProductId"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfPackingId"   runat="server" Value="0"/>
-<asp:HiddenField ID="hfJarsPerCase" runat="server" Value="12"/>
-<asp:HiddenField ID="hfJarSizes"    runat="server" Value=""/>
-<asp:HiddenField ID="hfContainerType" runat="server" Value=""/>
-<asp:HiddenField ID="hfPackLevels"  runat="server" Value="Case+Container+Unit"/>
+<asp:HiddenField ID="hfContainerType"     runat="server" Value="DIRECT"/>
+<asp:HiddenField ID="hfUnitSizes"          runat="server" Value=""/>
+<asp:HiddenField ID="hfContainersPerCase"  runat="server" Value="12"/>
 
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
@@ -358,29 +357,24 @@ function stopWheelAnim() {
 
 // ── TOTAL CALCULATOR ──────────────────────────────────────────────────────
 function calcTotal() {
-    var jpc  = parseInt(document.getElementById('<%= hfJarsPerCase.ClientID %>').value) || 12;
-    var pl   = document.getElementById('<%= hfPackLevels.ClientID %>').value;
-    var ct   = document.getElementById('<%= hfContainerType.ClientID %>').value || 'Container';
+    var ct   = document.getElementById('<%= hfContainerType.ClientID %>').value || 'DIRECT';
+    var cpc  = parseInt(document.getElementById('<%= hfContainersPerCase.ClientID %>').value) || 12;
     var szEl = document.getElementById('<%= ddlJarSize.ClientID %>');
     var sz   = szEl ? parseInt(szEl.value) || 0 : 0;
-    var cases = parseInt(document.getElementById('txtCases').value)  || 0;
-    var jars  = parseInt(document.getElementById('txtJars').value)   || 0;
-    var units = parseInt(document.getElementById('txtUnits').value)  || 0;
+    var cases = parseInt(document.getElementById('txtCases').value) || 0;
+    var jars  = parseInt(document.getElementById('txtJars').value)  || 0;
     var total, formula;
-    if (pl === 'Case+Unit') {
-        total = (cases * sz) + units;
-        formula = cases + ' cases × ' + sz + ' + ' + units + ' loose';
-    } else if (pl === 'Container+Unit') {
-        total = (jars * sz) + units;
-        formula = jars + ' ' + ct + 's × ' + sz + ' + ' + units + ' loose';
+    if (ct === 'DIRECT') {
+        total   = cases * sz;
+        formula = cases + ' cases × ' + sz + ' units/case';
+        var rJ = document.getElementById('rowContainers'); if (rJ) rJ.style.display = 'none';
     } else {
-        total = (cases * jpc * sz) + (jars * sz) + units;
-        formula = cases + ' cases×' + jpc + '×' + sz + ' + ' + jars + ' ' + ct + 's×' + sz + ' + ' + units;
+        total   = (cases * cpc * sz) + (jars * sz);
+        formula = '(' + cases + ' cases × ' + cpc + ' × ' + sz + ') + (' + jars + ' ' + ct.toLowerCase() + 's × ' + sz + ')';
+        var rJ = document.getElementById('rowContainers'); if (rJ) rJ.style.display = '';
     }
     document.getElementById('totalVal').innerText     = total.toLocaleString();
     document.getElementById('totalFormula').innerText = formula;
-    var rC = document.getElementById('rowCases');      if (rC) rC.style.display = pl !== 'Container+Unit' ? '' : 'none';
-    var rJ = document.getElementById('rowContainers'); if (rJ) rJ.style.display = (pl !== 'Case+Unit' && ct) ? '' : 'none';
 }
 
 // ── LOAD — same as Production Execution ──────────────────────────────────
@@ -400,7 +394,7 @@ window.addEventListener('load', function() {
     setButtonStates(window.serverState || 'ready');
 
     // Wire calc inputs
-    ['txtCases', 'txtJars', 'txtUnits'].forEach(function(id) {
+    ['txtCases', 'txtJars'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('input', calcTotal);
     });

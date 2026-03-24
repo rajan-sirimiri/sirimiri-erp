@@ -200,6 +200,9 @@
             .workspace { grid-template-columns:1fr; height:auto; overflow:visible; }
             .panel { border-right:none; border-bottom:1px solid var(--border); }
         }
+        .packing-spec-panel{margin-top:18px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 16px;}
+        .packing-spec-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f57f17;margin-bottom:12px;}
+        #divContainerRows{display:none;}
     </style>
 </head>
 <body>
@@ -311,6 +314,35 @@
                     <div class="form-group" style="margin-bottom:0">
                         <label>GST Rate (%)</label>
                         <asp:TextBox ID="txtGSTRate" runat="server" MaxLength="6" placeholder="e.g. 12" />
+                    </div>
+                </div>
+
+                <!-- PACKING SPECIFICATION -->
+                <div class="packing-spec-panel" style="margin-top:13px;">
+                    <div class="packing-spec-title">&#x1F4E6; Packing Specification</div>
+                    <div class="form-group-row">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Container Type</label>
+                            <asp:DropDownList ID="ddlContainerType" runat="server"
+                                onchange="onContainerTypeChange(this.value);">
+                                <asp:ListItem Value="">-- Not Set --</asp:ListItem>
+                                <asp:ListItem Value="JAR">JAR</asp:ListItem>
+                                <asp:ListItem Value="BOX">BOX</asp:ListItem>
+                                <asp:ListItem Value="DIRECT">DIRECT (Case only)</asp:ListItem>
+                            </asp:DropDownList>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Unit Sizes (comma-separated)</label>
+                            <asp:TextBox ID="txtUnitSizes" runat="server" MaxLength="200"
+                                placeholder="e.g. 100,200,500 (units per JAR/BOX/Case)"/>
+                        </div>
+                    </div>
+                    <div class="form-group-row" style="margin-top:10px;" id="divContainerRows">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Containers per Case (JARs/BOXes per Case)</label>
+                            <asp:TextBox ID="txtContainersPerCase" runat="server" MaxLength="10"
+                                placeholder="e.g. 12"/>
+                        </div>
                     </div>
                 </div>
 

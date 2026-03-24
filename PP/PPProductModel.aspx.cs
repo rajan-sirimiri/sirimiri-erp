@@ -20,6 +20,9 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.TextBox        txtCode;
         protected global::System.Web.UI.WebControls.TextBox        txtName;
         protected global::System.Web.UI.WebControls.TextBox        txtHSN;
+        protected global::System.Web.UI.WebControls.DropDownList  ddlContainerType;
+        protected global::System.Web.UI.WebControls.TextBox       txtUnitSizes;
+        protected global::System.Web.UI.WebControls.TextBox       txtContainersPerCase;
         protected global::System.Web.UI.WebControls.TextBox        txtInputRMName;
         protected global::System.Web.UI.WebControls.TextBox        txtStage1Label;
         protected global::System.Web.UI.WebControls.TextBox        txtStage2Label;
@@ -253,12 +256,20 @@ namespace PPApp
                             txtStage1Label.Text.Trim(),
                             txtStage2Label.Text.Trim(),
                             txtStage3Label.Text.Trim());
+                    PPDatabaseHelper.SavePackingSpec(productId,
+                        ddlContainerType.SelectedValue,
+                        txtUnitSizes.Text.Trim(),
+                        txtContainersPerCase.Text.Trim());
                     ShowAlert("Product '" + name + "' saved successfully.", true);
                 }
                 else
                 {
                     string code = txtCode.Text.Trim();
                     PPDatabaseHelper.UpdateProduct(productId, code, name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath);
+                    PPDatabaseHelper.SavePackingSpec(productId,
+                        ddlContainerType.SelectedValue,
+                        txtUnitSizes.Text.Trim(),
+                        txtContainersPerCase.Text.Trim());
                     ShowAlert("Product updated successfully.", true);
                 }
 
@@ -331,6 +342,18 @@ namespace PPApp
             }
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
+            // Load packing spec
+            if (ddlContainerType != null)
+            {
+                try { ddlContainerType.SelectedValue = row["ContainerType"] == DBNull.Value ? "" : row["ContainerType"].ToString(); } catch { }
+                if (txtUnitSizes != null)        txtUnitSizes.Text        = row["UnitsPerContainer"] == DBNull.Value ? "" : row["UnitsPerContainer"].ToString();
+                if (txtContainersPerCase != null) txtContainersPerCase.Text = row["ContainersPerCase"] == DBNull.Value ? "" : row["ContainersPerCase"].ToString();
+                // Show containers-per-case row if JAR or BOX
+                string ct = row["ContainerType"] == DBNull.Value ? "" : row["ContainerType"].ToString();
+                if (ct == "JAR" || ct == "BOX")
+                    ClientScript.RegisterStartupScript(GetType(), "showCont",
+                        "document.getElementById('divContainerRows').style.display='block';", true);
+            }
             // Load Pre processed RM stage labels
             if (row["ProductType"].ToString() == "Pre processed RM")
             {
@@ -375,7 +398,10 @@ namespace PPApp
             if (txtInputRMName != null) txtInputRMName.Text = "";
             if (txtStage1Label != null) txtStage1Label.Text = "";
             if (txtStage2Label != null) txtStage2Label.Text = "";
-            if (txtStage3Label != null) txtStage3Label.Text = "";
+            if (txtStage3Label != null)       txtStage3Label.Text = "";
+            if (ddlContainerType != null)      ddlContainerType.SelectedIndex = 0;
+            if (txtUnitSizes != null)          txtUnitSizes.Text = "";
+            if (txtContainersPerCase != null)   txtContainersPerCase.Text = "";
             txtGSTRate.Text      = "";
             txtBatchSize.Text    = "";
             ddlProductType.SelectedIndex = 0;

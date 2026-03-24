@@ -405,6 +405,21 @@ namespace PPApp.DAL
                 new MySqlParameter("?id", planId));
         }
 
+        // ── PACKING SPEC ─────────────────────────────────────────────────────────
+        public static void SavePackingSpec(int productId, string containerType,
+            string unitSizes, string containersPerCase)
+        {
+            int cpc = 0;
+            int.TryParse(containersPerCase, out cpc);
+            ExecuteNonQuery(
+                "UPDATE PP_Products SET ContainerType=?ct, UnitsPerContainer=?us," +
+                " ContainersPerCase=?cpc WHERE ProductID=?id;",
+                new MySqlParameter("?ct",  string.IsNullOrEmpty(containerType) ? (object)DBNull.Value : containerType.Trim()),
+                new MySqlParameter("?us",  string.IsNullOrEmpty(unitSizes)     ? (object)DBNull.Value : unitSizes.Trim()),
+                new MySqlParameter("?cpc", cpc > 0 ? (object)cpc : DBNull.Value),
+                new MySqlParameter("?id",  productId));
+        }
+
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
         public static DataTable GetProductionOrders(DateTime from, DateTime to)
         {
@@ -1109,6 +1124,21 @@ namespace PPApp.DAL
 
         public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] prms)
             => ExecuteQuery(sql, prms);
+
+        // ── PACKING SPEC ─────────────────────────────────────────────────────────
+        public static void SavePackingSpec(int productId, string containerType,
+            string unitSizes, string containersPerCase)
+        {
+            int cpc = 0;
+            int.TryParse(containersPerCase, out cpc);
+            ExecuteNonQuery(
+                "UPDATE PP_Products SET ContainerType=?ct, UnitsPerContainer=?us," +
+                " ContainersPerCase=?cpc WHERE ProductID=?id;",
+                new MySqlParameter("?ct",  string.IsNullOrEmpty(containerType) ? (object)DBNull.Value : containerType.Trim()),
+                new MySqlParameter("?us",  string.IsNullOrEmpty(unitSizes)     ? (object)DBNull.Value : unitSizes.Trim()),
+                new MySqlParameter("?cpc", cpc > 0 ? (object)cpc : DBNull.Value),
+                new MySqlParameter("?id",  productId));
+        }
 
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
 
