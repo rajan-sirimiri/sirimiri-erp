@@ -203,6 +203,14 @@
         .packing-spec-panel{margin-top:18px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 16px;}
         .packing-spec-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f57f17;margin-bottom:12px;}
         #divContainerRows{display:none;}
+        .params-panel{margin-top:18px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px 16px;}
+        .params-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2e7d32;margin-bottom:12px;}
+        .param-row{display:grid;grid-template-columns:160px 1fr 28px;gap:8px;align-items:center;margin-bottom:8px;}
+        .param-row select,.param-row input{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px;background:#fff;outline:none;}
+        .param-row select:focus,.param-row input:focus{border-color:#4caf50;}
+        .btn-remove-param{background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;padding:0;line-height:1;}
+        .btn-add-param{background:none;border:1.5px dashed #a5d6a7;color:#2e7d32;font-size:12px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer;margin-top:4px;}
+        .btn-add-param:hover{background:#e8f5e9;}
     </style>
 </head>
 <body>
@@ -353,6 +361,17 @@
                         <asp:DropDownList ID="ddlOutputUOM" runat="server" style="width:130px;" />
                     </div>
                     <span class="field-hint" id="batchHint">Quantity and UOM of finished product per one batch</span>
+                </div>
+
+                <!-- BATCH OUTPUT PARAMETERS -->
+                <div class="params-panel" style="margin-top:13px;">
+                    <div class="params-title">&#x1F4CF; Batch Output Parameters</div>
+                    <div style="font-size:11px;color:#555;margin-bottom:10px;">Configure what data to capture after each batch (up to 4 fields)</div>
+                    <div id="paramsContainer">
+                        <!-- rows injected by JS / server -->
+                    </div>
+                    <button type="button" class="btn-add-param" onclick="addParamRow()">+ Add Parameter</button>
+                    <asp:HiddenField ID="hfParamsJson" runat="server" Value="[]"/>
                 </div>
 
                 <div class="btn-row">
@@ -657,6 +676,78 @@
 
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
+// ── BATCH PARAMS ────────────────────────────────────────────────────────
+var PARAM_TYPES = [
+    {v:"",       l:"-- Select Type --"},
+    {v:"TRAYS",  l:"Number of Trays"},
+    {v:"MOLDS",  l:"Number of Molds"},
+    {v:"WEIGHT", l:"Weight (kg)"},
+    {v:"UNITS",  l:"Total Units Produced"},
+    {v:"COUNT",  l:"Count"},
+    {v:"CUSTOM", l:"Custom..."}
+];
+
+function addParamRow(type, label) {
+    var container = document.getElementById("paramsContainer");
+    if (!container) return;
+    var rows = container.querySelectorAll(".param-row");
+    if (rows.length >= 4) { alert("Maximum 4 parameters allowed."); return; }
+    var sel = PARAM_TYPES.map(function(p){
+        return '<option value="'+p.v+'"'+((p.v===type)?' selected':'')+'>'+p.l+'</option>';
+    }).join("");
+    var lbl = label || "";
+    var row = document.createElement("div");
+    row.className = "param-row";
+    row.innerHTML = '<select onchange="onParamTypeChange(this)">'+sel+'</select>'
+        + '<input type="text" placeholder="Label (e.g. Number of Trays)" value="'+lbl+'"/>'
+        + '<button type="button" class="btn-remove-param" onclick="removeParamRow(this)">&#x2715;</button>';
+    container.appendChild(row);
+    // Set default label from type if none provided
+    if (!lbl && type) setDefaultLabel(row.querySelector("select"));
+    saveParamsToHidden();
+}
+
+function onParamTypeChange(sel) {
+    setDefaultLabel(sel);
+    saveParamsToHidden();
+}
+
+function setDefaultLabel(sel) {
+    var defaults = {TRAYS:"Number of Trays",MOLDS:"Number of Molds",WEIGHT:"Weight of Dough (kg)",UNITS:"Total Units Produced",COUNT:"Count"};
+    var inp = sel.parentElement.querySelector("input");
+    if (inp && (inp.value === "" || Object.values(defaults).indexOf(inp.value) >= 0))
+        inp.value = defaults[sel.value] || "";
+    inp.addEventListener("input", saveParamsToHidden);
+}
+
+function removeParamRow(btn) {
+    btn.parentElement.remove();
+    saveParamsToHidden();
+}
+
+function saveParamsToHidden() {
+    var container = document.getElementById("paramsContainer");
+    if (!container) return;
+    var params = [];
+    container.querySelectorAll(".param-row").forEach(function(row) {
+        var type  = row.querySelector("select").value;
+        var label = row.querySelector("input").value.trim();
+        if (type) params.push({type:type, label:label||type});
+    });
+    var hf = document.getElementById("<%= hfParamsJson.ClientID %>");
+    if (hf) hf.value = JSON.stringify(params);
+}
+
+function loadParamsFromJson(json) {
+    var container = document.getElementById("paramsContainer");
+    if (!container) return;
+    container.innerHTML = "";
+    try {
+        var params = JSON.parse(json || "[]");
+        params.forEach(function(p){ addParamRow(p.type, p.label); });
+    } catch(e) {}
+}
+
 function onContainerTypeChange(type) {
     var rows = document.getElementById("divContainerRows");
     if (rows) rows.style.display = type ? "grid" : "none";

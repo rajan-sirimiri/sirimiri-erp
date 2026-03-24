@@ -39,6 +39,8 @@ namespace PPApp
         protected Button        btnEnd;
         protected Panel         pnlOutput;
         protected TextBox       txtActualOutput;
+        protected Panel         pnlDynParams;
+        protected Repeater      rptDynParams;
         protected Label         lblOutputUnit;
         protected TextBox       txtRemarks;
         protected Button        btnSaveOutput;
@@ -206,6 +208,21 @@ namespace PPApp
             // Output panel — show only when ended; panel is always in DOM
             pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
 
+            // Dynamic params — load for current product when output panel appears
+            if (state == "ended" && pnlDynParams != null)
+            {
+                var paramsDt = PPDatabaseHelper.GetProductParams(
+                    Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]));
+                if (paramsDt.Rows.Count > 0)
+                {
+                    pnlDynParams.Visible    = true;
+                    rptDynParams.DataSource = paramsDt;
+                    rptDynParams.DataBind();
+                }
+                else
+                    pnlDynParams.Visible = false;
+            }
+
             // JS wheel state
             string js = state == "running"
                 ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
@@ -289,6 +306,20 @@ namespace PPApp
             }
 
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
+
+            // Save dynamic batch params
+            var paramValues = new Dictionary<int, decimal?>();
+            var paramsDt2 = PPDatabaseHelper.GetProductParams(
+                Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]));
+            foreach (System.Data.DataRow pr in paramsDt2.Rows)
+            {
+                int pid = Convert.ToInt32(pr["ParamID"]);
+                string fieldVal = Request.Form["dynparam_" + pid];
+                decimal v;
+                paramValues[pid] = decimal.TryParse(fieldVal, out v) ? v : (decimal?)null;
+            }
+            if (paramValues.Count > 0)
+                PPDatabaseHelper.SaveBatchParams(execId, paramValues);
 
             bool isConversion = Session["PE_IsConversion"] != null && (bool)Session["PE_IsConversion"];
             if (isConversion)

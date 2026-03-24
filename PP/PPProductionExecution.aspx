@@ -142,6 +142,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;background:#fff;}
 .form-group input:focus, .form-group textarea:focus{outline:none;border-color:var(--accent);}
 .output-unit{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.dyn-params{margin-top:14px;}
+.dyn-param-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.dyn-param-row label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);}
+.dyn-param-row input{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;width:100%;}
+.dyn-param-row input:focus{border-color:var(--accent);}
 .btn-save-output{background:var(--accent-dark);color:#fff;border:none;border-radius:8px;
     padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;
     letter-spacing:.04em;}
@@ -410,6 +415,22 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                                 MaxLength="300"/>
                         </div>
                     </div>
+                    <!-- DYNAMIC PARAMS -->
+                    <asp:Panel ID="pnlDynParams" runat="server" Visible="false">
+                    <div class="dyn-params">
+                        <asp:Repeater ID="rptDynParams" runat="server">
+                            <ItemTemplate>
+                                <div class="dyn-param-row">
+                                    <label><%# Eval("ParamLabel") %></label>
+                                    <input type="number" step="any" min="0"
+                                        name="dynparam_<%# Eval("ParamID") %>"
+                                        id="dynparam_<%# Eval("ParamID") %>"
+                                        placeholder="Enter value"/>
+                                </div>
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                    </asp:Panel>
                     <asp:Button ID="btnSaveOutput" runat="server"
                         Text="Save &amp; Move to Packing"
                         CssClass="btn-save-output"

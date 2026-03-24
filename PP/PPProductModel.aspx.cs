@@ -23,6 +23,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.DropDownList  ddlContainerType;
         protected global::System.Web.UI.WebControls.TextBox       txtUnitSizes;
         protected global::System.Web.UI.WebControls.TextBox       txtContainersPerCase;
+        protected global::System.Web.UI.WebControls.HiddenField  hfParamsJson;
         protected global::System.Web.UI.WebControls.TextBox        txtInputRMName;
         protected global::System.Web.UI.WebControls.TextBox        txtStage1Label;
         protected global::System.Web.UI.WebControls.TextBox        txtStage2Label;
@@ -270,6 +271,7 @@ namespace PPApp
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
                         txtContainersPerCase.Text.Trim());
+                    SaveProductParamsFromJson(productId);
                     ShowAlert("Product updated successfully.", true);
                 }
 
@@ -342,6 +344,25 @@ namespace PPApp
             }
 
             ddlProductType.SelectedValue = row["ProductType"].ToString();
+            // Load batch output params
+            if (hfParamsJson != null)
+            {
+                var paramsData = PPDatabaseHelper.GetProductParams(productId);
+                var jsonParts = new System.Text.StringBuilder("[");
+                bool first = true;
+                foreach (System.Data.DataRow pr in paramsData.Rows)
+                {
+                    if (!first) jsonParts.Append(",");
+                    jsonParts.Append("{\"type\":\"" + pr["ParamType"] + "\",\"label\":\"" + pr["ParamLabel"].ToString().Replace(""","\\"") + "\"}");
+                    first = false;
+                }
+                jsonParts.Append("]");
+                string paramsJson = jsonParts.ToString();
+                hfParamsJson.Value = paramsJson;
+                ClientScript.RegisterStartupScript(GetType(), "loadparams",
+                    "loadParamsFromJson(" + System.Web.HttpUtility.JavaScriptStringEncode(paramsJson, true) + ");", true);
+            }
+
             // Load packing spec
             if (ddlContainerType != null)
             {
@@ -400,6 +421,8 @@ namespace PPApp
             if (txtStage2Label != null) txtStage2Label.Text = "";
             if (txtStage3Label != null)       txtStage3Label.Text = "";
             if (ddlContainerType != null)      ddlContainerType.SelectedIndex = 0;
+            if (hfParamsJson != null)          hfParamsJson.Value = "[]";
+            ClientScript.RegisterStartupScript(GetType(), "clearparams", "loadParamsFromJson('[]');", true);
             if (txtUnitSizes != null)          txtUnitSizes.Text = "";
             if (txtContainersPerCase != null)   txtContainersPerCase.Text = "";
             txtGSTRate.Text      = "";
@@ -629,6 +652,41 @@ namespace PPApp
         }
 
         // ── ALERT ─────────────────────────────────────────────────────────────
+        private void SaveProductParamsFromJson(int productId)
+        {
+            if (hfParamsJson == null) return;
+            string json = hfParamsJson.Value;
+            var paramList = new List<(string type, string label)>();
+            try
+            {
+                // Simple JSON parse — format: [{type:"X",label:"Y"},...]
+                json = json.Trim();
+                if (json == "[]" || string.IsNullOrEmpty(json)) { PPDatabaseHelper.SaveProductParams(productId, paramList); return; }
+                // Strip outer brackets
+                json = json.TrimStart('[').TrimEnd(']');
+                foreach (string obj in json.Split(new[]{"},{","}, {"}, StringSplitOptions.None))
+                {
+                    string o = obj.Trim().TrimStart('{').TrimEnd('}');
+                    string type = "", label = "";
+                    foreach (string part in o.Split(','))
+                    {
+                        string[] kv = part.Split(new[]{':'},2);
+                        if (kv.Length == 2)
+                        {
+                            string k = kv[0].Trim().Trim('"');
+                            string v = kv[1].Trim().Trim('"');
+                            if (k == "type")  type  = v;
+                            if (k == "label") label = v;
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(type))
+                        paramList.Add((type, string.IsNullOrEmpty(label) ? type : label));
+                }
+            }
+            catch { }
+            PPDatabaseHelper.SaveProductParams(productId, paramList);
+        }
+
         private void ShowAlert(string msg, bool success)
         {
             lblAlert.Text      = msg;
