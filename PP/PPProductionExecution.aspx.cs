@@ -38,7 +38,7 @@ namespace PPApp
         protected Button        btnStart;
         protected Button        btnEnd;
         protected Panel         pnlOutput;
-        protected TextBox       txtActualOutput;
+        protected System.Web.UI.WebControls.DropDownList ddlRemarks;
         protected Panel         pnlDynParams;
         protected Repeater      rptDynParams;
         protected Label         lblOutputUnit;
@@ -208,19 +208,34 @@ namespace PPApp
             // Output panel — show only when ended; panel is always in DOM
             pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
 
-            // Dynamic params — load for current product when output panel appears
-            if (state == "ended" && pnlDynParams != null)
+            // Dynamic params + remarks — load when output panel appears
+            if (state == "ended")
             {
-                var paramsDt = PPDatabaseHelper.GetProductParams(
-                    Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]));
-                if (paramsDt.Rows.Count > 0)
+                try
                 {
-                    pnlDynParams.Visible    = true;
-                    rptDynParams.DataSource = paramsDt;
-                    rptDynParams.DataBind();
+                    // Remarks dropdown
+                    if (ddlRemarks != null)
+                    {
+                        ddlRemarks.Items.Clear();
+                        ddlRemarks.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select --",""));
+                        foreach (DataRow rr in PPDatabaseHelper.GetRemarkOptions().Rows)
+                            ddlRemarks.Items.Add(new System.Web.UI.WebControls.ListItem(
+                                rr["OptionText"].ToString(), rr["OptionText"].ToString()));
+                    }
+                    // Dynamic params
+                    if (pnlDynParams != null && orderId > 0)
+                    {
+                        var orderRow2 = PPDatabaseHelper.GetProductionOrderById(orderId);
+                        if (orderRow2 != null)
+                        {
+                            var paramsDt = PPDatabaseHelper.GetProductParams(Convert.ToInt32(orderRow2["ProductID"]));
+                            pnlDynParams.Visible    = paramsDt.Rows.Count > 0;
+                            rptDynParams.DataSource = paramsDt;
+                            rptDynParams.DataBind();
+                        }
+                    }
                 }
-                else
-                    pnlDynParams.Visible = false;
+                catch { /* non-fatal */ }
             }
 
             // JS wheel state
@@ -278,15 +293,16 @@ namespace PPApp
             DataRow ended = PPDatabaseHelper.GetEndedBatch(orderId);
             if (ended == null) { ShowAlert("No batch awaiting output. Please press END first.", false); return; }
 
-            decimal output;
-            if (!decimal.TryParse(txtActualOutput.Text.Trim(), out output) || output <= 0)
-            { ShowAlert("Please enter a valid output quantity.", false); return; }
-
-            int execId      = Convert.ToInt32(ended["ExecutionID"]);
-            int batchNo     = Convert.ToInt32(ended["BatchNo"]);
-            int total       = Convert.ToInt32(hfTotalBatches.Value);
+            int execId  = Convert.ToInt32(ended["ExecutionID"]);
+            int batchNo = Convert.ToInt32(ended["BatchNo"]);
+            int total   = Convert.ToInt32(hfTotalBatches.Value);
             if (total == 0) total = Convert.ToInt32(
                 Convert.ToDecimal(PPDatabaseHelper.GetProductionOrderById(orderId)["EffectiveBatches"]));
+            // Use batch size as actual output (field removed from UI)
+            decimal output = 1;
+            var orderRowOut = PPDatabaseHelper.GetProductionOrderById(orderId);
+            if (orderRowOut != null && orderRowOut["BatchSize"] != DBNull.Value)
+                output = Convert.ToDecimal(orderRowOut["BatchSize"]);
 
             // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────
             int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);
@@ -305,7 +321,7 @@ namespace PPApp
                 throw;
             }
 
-            PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
+            PPDatabaseHelper.SaveBatchOutput(execId, output, ddlRemarks != null ? ddlRemarks.SelectedValue : "", orderId, total);
 
             // Save dynamic batch params
             var paramsDt2 = PPDatabaseHelper.GetProductParams(
@@ -342,8 +358,7 @@ namespace PPApp
             else
                 ShowAlert("Batch " + batchNo + " of " + total + " saved successfully.", true);
 
-            txtActualOutput.Text = "";
-            txtRemarks.Text      = "";
+            if (ddlRemarks != null) ddlRemarks.SelectedIndex = 0;
             RenderOrder(orderId);
         }
 
@@ -372,6 +387,21 @@ namespace PPApp
         {
             if (val == null || val == DBNull.Value) return "—";
             return Convert.ToDecimal(val).ToString("0.###") + " " + abbr?.ToString();
+        }
+
+        protected string BuildParamDropdown(string paramId, string options)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<select name=\"dynparam_" + paramId + "\" id=\"dynparam_" + paramId + "\" class=\"dyn-param-sel\">");
+            sb.Append("<option value=\"\">-- Select --</option>");
+            foreach (string opt in options.Split(','))
+            {
+                string o = opt.Trim();
+                if (!string.IsNullOrEmpty(o))
+                    sb.Append("<option value=\"" + System.Web.HttpUtility.HtmlEncode(o) + "\">" + System.Web.HttpUtility.HtmlEncode(o) + "</option>");
+            }
+            sb.Append("</select>");
+            return sb.ToString();
         }
 
         private void ShowAlert(string msg, bool success)

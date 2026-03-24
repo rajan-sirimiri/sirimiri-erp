@@ -1132,12 +1132,32 @@ namespace PPApp.DAL
         public static DataTable GetProductParams(int productId)
         {
             return ExecuteQuery(
-                "SELECT ParamID, ParamOrder, ParamType, ParamLabel" +
+                "SELECT ParamID, ParamOrder, ParamType, ParamLabel," +
+                " IFNULL(ParamOptions,'') AS ParamOptions" +
                 " FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
                 new MySqlParameter("?pid", productId));
         }
 
-        public static void SaveProductParams(int productId, string[] types, string[] labels)
+        public static DataTable GetRemarkOptions()
+        {
+            return ExecuteQuery(
+                "SELECT OptionID, OptionText FROM PP_RemarkOptions ORDER BY SortOrder, OptionText;");
+        }
+
+        public static void SaveRemarkOptions(string[] options)
+        {
+            ExecuteNonQuery("DELETE FROM PP_RemarkOptions WHERE OptionID > 0;");
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(options[i]))
+                    ExecuteNonQuery(
+                        "INSERT INTO PP_RemarkOptions (OptionText, SortOrder) VALUES(?txt, ?ord);",
+                        new MySqlParameter("?txt", options[i].Trim()),
+                        new MySqlParameter("?ord", i + 1));
+            }
+        }
+
+        public static void SaveProductParams(int productId, string[] types, string[] labels, string[] options)
         {
             // Delete existing and re-insert
             ExecuteNonQuery("DELETE FROM PP_ProductParams WHERE ProductID=?pid;",
@@ -1147,12 +1167,13 @@ namespace PPApp.DAL
                 if (!string.IsNullOrEmpty(types[i]))
                 {
                     ExecuteNonQuery(
-                        "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel)" +
-                        " VALUES(?pid, ?ord, ?type, ?lbl);",
+                        "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel, ParamOptions)" +
+                        " VALUES(?pid, ?ord, ?type, ?lbl, ?opts);",
                         new MySqlParameter("?pid",  productId),
                         new MySqlParameter("?ord",  i + 1),
                         new MySqlParameter("?type", types[i]),
-                        new MySqlParameter("?lbl",  string.IsNullOrEmpty(labels[i]) ? types[i] : labels[i]));
+                        new MySqlParameter("?lbl",  string.IsNullOrEmpty(labels[i]) ? types[i] : labels[i]),
+                        new MySqlParameter("?opts", i < options.Length && !string.IsNullOrEmpty(options[i]) ? (object)options[i] : DBNull.Value));
                 }
             }
         }

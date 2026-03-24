@@ -24,6 +24,9 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.TextBox       txtUnitSizes;
         protected global::System.Web.UI.WebControls.TextBox       txtContainersPerCase;
         protected global::System.Web.UI.WebControls.HiddenField  hfParamsJson;
+        protected global::System.Web.UI.WebControls.HiddenField  hfRemarksJson;
+        protected global::System.Web.UI.WebControls.Panel        pnlRemarksAlert;
+        protected global::System.Web.UI.WebControls.Label        lblRemarksAlert;
         protected global::System.Web.UI.WebControls.TextBox        txtInputRMName;
         protected global::System.Web.UI.WebControls.TextBox        txtStage1Label;
         protected global::System.Web.UI.WebControls.TextBox        txtStage2Label;
@@ -355,7 +358,8 @@ namespace PPApp
                     if (!first) jsonParts.Append(",");
                     string jType  = pr["ParamType"].ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
                     string jLabel = pr["ParamLabel"].ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
-                    jsonParts.Append("{\"type\":\"" + jType + "\",\"label\":\"" + jLabel + "\"}");
+                    string jOpts = pr["ParamOptions"] == DBNull.Value ? "" : pr["ParamOptions"].ToString().Replace("\\","\\\\").Replace("\"","\\\"");
+                    jsonParts.Append("{\"type\":\"" + jType + "\",\"label\":\"" + jLabel + "\",\"options\":\"" + jOpts + "\"}");
                     first = false;
                 }
                 jsonParts.Append("]");
@@ -658,13 +662,14 @@ namespace PPApp
         {
             if (hfParamsJson == null) return;
             string json = hfParamsJson.Value;
-            var types  = new System.Collections.Generic.List<string>();
-            var labels = new System.Collections.Generic.List<string>();
+            var types   = new System.Collections.Generic.List<string>();
+            var labels  = new System.Collections.Generic.List<string>();
+            var options = new System.Collections.Generic.List<string>();
             try
             {
                 json = json.Trim();
                 if (json == "[]" || string.IsNullOrEmpty(json))
-                { PPDatabaseHelper.SaveProductParams(productId, new string[0], new string[0]); return; }
+                { PPDatabaseHelper.SaveProductParams(productId, new string[0], new string[0], new string[0]); return; }
                 json = json.TrimStart('[').TrimEnd(']');
                 foreach (string obj in json.Split(new string[]{"},{","}, {"}, StringSplitOptions.None))
                 {
@@ -681,12 +686,63 @@ namespace PPApp
                             if (k == "label") label = v;
                         }
                     }
+                    string opts = "";
+                    foreach (string part2 in o.Split(','))
+                    {
+                        string[] kv2 = part2.Split(new char[]{':'},2);
+                        if (kv2.Length == 2 && kv2[0].Trim().Trim('"') == "options")
+                            opts = kv2[1].Trim().Trim('"');
+                    }
                     if (!string.IsNullOrEmpty(type))
-                    { types.Add(type); labels.Add(string.IsNullOrEmpty(label) ? type : label); }
+                    { types.Add(type); labels.Add(string.IsNullOrEmpty(label) ? type : label); options.Add(opts); }
                 }
             }
             catch { }
-            PPDatabaseHelper.SaveProductParams(productId, types.ToArray(), labels.ToArray());
+            PPDatabaseHelper.SaveProductParams(productId, types.ToArray(), labels.ToArray(), options.ToArray());
+        }
+
+        private void LoadRemarksOptions()
+        {
+            if (hfRemarksJson == null) return;
+            var dt = PPDatabaseHelper.GetRemarkOptions();
+            var sb = new System.Text.StringBuilder("[");
+            bool first = true;
+            foreach (DataRow r in dt.Rows)
+            {
+                if (!first) sb.Append(",");
+                string t = r["OptionText"].ToString().Replace("\\","\\\\").Replace("\"","\\\"");
+                sb.Append("\"" + t + "\"");
+                first = false;
+            }
+            sb.Append("]");
+            string json = sb.ToString();
+            hfRemarksJson.Value = json;
+            ClientScript.RegisterStartupScript(GetType(), "loadremarks",
+                "loadRemarks(" + System.Web.HttpUtility.JavaScriptStringEncode(json, true) + ");", true);
+        }
+
+        protected void btnSaveRemarks_Click(object sender, EventArgs e)
+        {
+            if (hfRemarksJson == null) return;
+            string json = hfRemarksJson.Value;
+            try
+            {
+                var items = new System.Collections.Generic.List<string>();
+                string j = json.Trim().TrimStart('[').TrimEnd(']');
+                if (!string.IsNullOrEmpty(j))
+                    foreach (string token in j.Split(','))
+                    { string t = token.Trim().Trim('"'); if (!string.IsNullOrEmpty(t)) items.Add(t); }
+                PPDatabaseHelper.SaveRemarkOptions(items.ToArray());
+                pnlRemarksAlert.Visible  = true;
+                lblRemarksAlert.Text     = "Remarks options saved (" + items.Count + " items).";
+                pnlRemarksAlert.CssClass = "alert alert-success";
+                LoadRemarksOptions();
+                ClientScript.RegisterStartupScript(GetType(), "keepopen",
+                    "document.getElementById('globalSettingsPanel').classList.add('open');" +
+                    "document.getElementById('btnGlobalSettings').classList.add('active');", true);
+            }
+            catch (Exception ex)
+            { pnlRemarksAlert.Visible = true; lblRemarksAlert.Text = "Error: " + ex.Message; pnlRemarksAlert.CssClass = "alert alert-danger"; }
         }
 
         private void ShowAlert(string msg, bool success)

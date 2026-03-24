@@ -205,12 +205,28 @@
         #divContainerRows{display:none;}
         .params-panel{margin-top:18px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px 16px;}
         .params-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2e7d32;margin-bottom:12px;}
-        .param-row{display:grid;grid-template-columns:160px 1fr 28px;gap:8px;align-items:center;margin-bottom:8px;}
+        .param-row{display:grid;grid-template-columns:140px 1fr 1fr 28px;gap:8px;align-items:center;margin-bottom:8px;}
         .param-row select,.param-row input{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px;background:#fff;outline:none;}
         .param-row select:focus,.param-row input:focus{border-color:#4caf50;}
         .btn-remove-param{background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;padding:0;line-height:1;}
         .btn-add-param{background:none;border:1.5px dashed #a5d6a7;color:#2e7d32;font-size:12px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer;margin-top:4px;}
         .btn-add-param:hover{background:#e8f5e9;}
+        .global-settings-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:10px;}
+        .btn-global-settings{background:none;border:1.5px solid var(--border);border-radius:7px;padding:5px 14px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;color:var(--text-muted);transition:all .2s;}
+        .btn-global-settings:hover,.btn-global-settings.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+        .global-settings-panel{display:none;background:var(--bg);border-bottom:2px solid var(--accent);padding:20px 28px;}
+        .global-settings-panel.open{display:block;}
+        .gs-title{font-family:"Bebas Neue",sans-serif;font-size:16px;letter-spacing:.07em;margin-bottom:14px;color:var(--text);}
+        .gs-title span{color:var(--accent);}
+        .remark-list{display:flex;flex-direction:column;gap:6px;max-width:480px;margin-bottom:12px;}
+        .remark-item{display:flex;gap:8px;align-items:center;}
+        .remark-item input{flex:1;padding:7px 11px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:#fff;outline:none;}
+        .remark-item input:focus{border-color:var(--accent);}
+        .btn-remove-remark{background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;line-height:1;}
+        .btn-add-remark{background:none;border:1.5px dashed #ccc;color:var(--text-muted);font-size:12px;font-weight:700;padding:5px 14px;border-radius:7px;cursor:pointer;}
+        .btn-add-remark:hover{border-color:var(--accent);color:var(--accent);}
+        .btn-save-remarks{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
+        .btn-save-remarks:hover{background:var(--accent-dark);}
     </style>
 </head>
 <body>
@@ -675,6 +691,40 @@
 
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
+// ── GLOBAL SETTINGS ────────────────────────────────────────────────────
+function toggleGlobalSettings() {
+    var panel = document.getElementById("globalSettingsPanel");
+    var btn   = document.getElementById("btnGlobalSettings");
+    if (!panel) return;
+    var isOpen = panel.classList.contains("open");
+    panel.classList.toggle("open", !isOpen);
+    if (btn) btn.classList.toggle("active", !isOpen);
+}
+function addRemarkRow(text) {
+    var list = document.getElementById("remarkList");
+    if (!list) return;
+    var row = document.createElement("div");
+    row.className = "remark-item";
+    row.innerHTML = '<input type="text" placeholder="e.g. No Issues" value="' + (text||"") + '"/>'
+        + '<button type="button" class="btn-remove-remark" onclick="this.parentElement.remove()">&#x2715;</button>';
+    list.appendChild(row);
+}
+function collectRemarks() {
+    var list = document.getElementById("remarkList");
+    var hf   = document.getElementById("<%= hfRemarksJson.ClientID %>");
+    if (!list || !hf) return;
+    var items = [];
+    list.querySelectorAll("input").forEach(function(inp) {
+        var v = inp.value.trim(); if (v) items.push(v);
+    });
+    hf.value = JSON.stringify(items);
+}
+function loadRemarks(json) {
+    var list = document.getElementById("remarkList");
+    if (!list) return;
+    list.innerHTML = "";
+    try { JSON.parse(json||"[]").forEach(function(t){ addRemarkRow(t); }); } catch(e) {}
+}
 // ── BATCH PARAMS ────────────────────────────────────────────────────────
 var PARAM_TYPES = [
     {v:"",       l:"-- Select Type --"},
@@ -686,7 +736,7 @@ var PARAM_TYPES = [
     {v:"CUSTOM", l:"Custom..."}
 ];
 
-function addParamRow(type, label) {
+function addParamRow(type, label, options) {
     var container = document.getElementById("paramsContainer");
     if (!container) return;
     var rows = container.querySelectorAll(".param-row");
@@ -697,8 +747,10 @@ function addParamRow(type, label) {
     var lbl = label || "";
     var row = document.createElement("div");
     row.className = "param-row";
+    var opts = options || "";
     row.innerHTML = '<select onchange="onParamTypeChange(this)">'+sel+'</select>'
-        + '<input type="text" placeholder="Label (e.g. Number of Trays)" value="'+lbl+'"/>'
+        + '<input type="text" placeholder="Label" value="'+lbl+'"/>'
+        + '<input type="text" placeholder="Options (comma-sep, e.g. OK,Not OK)" value="'+opts+'"/>'
         + '<button type="button" class="btn-remove-param" onclick="removeParamRow(this)">&#x2715;</button>';
     container.appendChild(row);
     // Set default label from type if none provided
@@ -729,9 +781,11 @@ function saveParamsToHidden() {
     if (!container) return;
     var params = [];
     container.querySelectorAll(".param-row").forEach(function(row) {
+        var inputs = row.querySelectorAll("input");
         var type  = row.querySelector("select").value;
-        var label = row.querySelector("input").value.trim();
-        if (type) params.push({type:type, label:label||type});
+        var label = inputs[0] ? inputs[0].value.trim() : "";
+        var opts  = inputs[1] ? inputs[1].value.trim() : "";
+        if (type) params.push({type:type, label:label||type, options:opts});
     });
     var hf = document.getElementById("<%= hfParamsJson.ClientID %>");
     if (hf) hf.value = JSON.stringify(params);
@@ -743,7 +797,7 @@ function loadParamsFromJson(json) {
     container.innerHTML = "";
     try {
         var params = JSON.parse(json || "[]");
-        params.forEach(function(p){ addParamRow(p.type, p.label); });
+        params.forEach(function(p){ addParamRow(p.type, p.label, p.options||""); });
     } catch(e) {}
 }
 

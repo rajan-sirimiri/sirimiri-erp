@@ -147,6 +147,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .dyn-param-row label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);}
 .dyn-param-row input{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;width:100%;}
 .dyn-param-row input:focus{border-color:var(--accent);}
+        .dyn-param-sel{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;}
+        .dyn-param-sel:focus{border-color:var(--accent);}
 .btn-save-output{background:var(--accent-dark);color:#fff;border:none;border-radius:8px;
     padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;
     letter-spacing:.04em;}
@@ -401,18 +403,8 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                     <div class="output-title">Record Batch Output</div>
                     <div class="output-grid">
                         <div class="form-group">
-                            <label>Actual Output <span style="color:#e74c3c">*</span></label>
-                            <asp:TextBox ID="txtActualOutput" runat="server"
-                                placeholder="e.g. 115.5" MaxLength="10"/>
-                            <div class="output-unit">
-                                Unit: <asp:Label ID="lblOutputUnit" runat="server"/>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Remarks (if any issue)</label>
-                            <asp:TextBox ID="txtRemarks" runat="server"
-                                placeholder="Optional — note any issues"
-                                MaxLength="300"/>
+                            <label>Remarks</label>
+                            <asp:DropDownList ID="ddlRemarks" runat="server"/>
                         </div>
                     </div>
                     <!-- DYNAMIC PARAMS -->
@@ -422,10 +414,9 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                             <ItemTemplate>
                                 <div class="dyn-param-row">
                                     <label><%# Eval("ParamLabel") %></label>
-                                    <input type="number" step="any" min="0"
-                                        name="dynparam_<%# Eval("ParamID") %>"
-                                        id="dynparam_<%# Eval("ParamID") %>"
-                                        placeholder="Enter value"/>
+                                    <%# string.IsNullOrEmpty(Eval("ParamOptions").ToString())
+                                        ? "<input type=\"number\" step=\"any\" min=\"0\" name=\"dynparam_" + Eval("ParamID") + "\" id=\"dynparam_" + Eval("ParamID") + "\" placeholder=\"Enter value\"/>"
+                                        : BuildParamDropdown(Eval("ParamID").ToString(), Eval("ParamOptions").ToString()) %>
                                 </div>
                             </ItemTemplate>
                         </asp:Repeater>
