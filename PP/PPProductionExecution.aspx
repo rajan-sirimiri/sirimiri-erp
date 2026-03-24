@@ -624,11 +624,15 @@ function stopWheelAnim() {
     return true;
 }
 
+// Start animation loop immediately when script loads (not waiting for window.load)
+// This ensures the loop is running when the startup script calls applyState
+animateGear();
+
 window.addEventListener('load', function() {
-    animateGear();
+    // applyState and updateGearText called here to pick up serverState
+    // set by RegisterStartupScript (which ran before this)
     applyState();
     updateGearText();
-    // Restore correct button states based on server state
     setButtonStates(window.serverState || 'ready');
     if (window.serverState === 'running') startKeepAlive();
 });

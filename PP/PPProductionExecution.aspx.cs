@@ -236,11 +236,10 @@ namespace PPApp
                 catch { /* non-fatal */ }
             }
 
-            // JS wheel state — registered AFTER all other work so it always fires
+            // JS wheel state — call applyState inline so it fires regardless of load order
             string js = state == "running"
-                ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
-                : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");";
-            // Use unique key per state to avoid collision with any other RegisterStartupScript calls
+                ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();if(typeof applyState==='function'){applyState();}if(typeof setButtonStates==='function'){setButtonStates('running');}"
+                : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");if(typeof applyState==='function'){applyState();}if(typeof setButtonStates==='function'){setButtonStates('ready');}";
             ClientScript.RegisterStartupScript(GetType(), "pkwheel_" + state, js, true);
         }
 
