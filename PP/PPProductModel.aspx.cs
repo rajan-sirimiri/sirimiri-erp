@@ -353,7 +353,9 @@ namespace PPApp
                 foreach (System.Data.DataRow pr in paramsData.Rows)
                 {
                     if (!first) jsonParts.Append(",");
-                    jsonParts.Append("{\"type\":\"" + pr["ParamType"] + "\",\"label\":\"" + pr["ParamLabel"].ToString().Replace(""","\\"") + "\"}");
+                    string jType  = pr["ParamType"].ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    string jLabel = pr["ParamLabel"].ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    jsonParts.Append("{\"type\":\"" + jType + "\",\"label\":\"" + jLabel + "\"}");
                     first = false;
                 }
                 jsonParts.Append("]");
