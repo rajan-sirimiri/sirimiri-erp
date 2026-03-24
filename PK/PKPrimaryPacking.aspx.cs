@@ -118,14 +118,23 @@ namespace PKApp
         void BindUnitSizes(string unitSizes, string ctLabel)
         {
             ddlUnitSize.Items.Clear();
-            ddlUnitSize.Items.Add(new ListItem("-- Select --", "0"));
+            string firstVal = "";
             if (!string.IsNullOrEmpty(unitSizes))
                 foreach (string sz in unitSizes.Split(','))
                 {
                     string t = sz.Trim();
                     if (!string.IsNullOrEmpty(t))
+                    {
                         ddlUnitSize.Items.Add(new ListItem(t + " units per " + ctLabel, t));
+                        if (string.IsNullOrEmpty(firstVal)) firstVal = t;
+                    }
                 }
+            // Auto-select first value — sets default without user interaction
+            if (!string.IsNullOrEmpty(firstVal))
+            {
+                ddlUnitSize.SelectedValue   = firstVal;
+                hfSelectedUnitSize.Value    = firstVal;
+            }
         }
 
         void BindCaseQty(string ctrsPerCase, string containerType)
@@ -133,21 +142,30 @@ namespace PKApp
             ddlCaseQty.Items.Clear();
             if (containerType == "DIRECT")
             {
-                // For DIRECT, case qty = unit size — hide this dropdown
                 if (rowCaseQty != null) rowCaseQty.Style["display"] = "none";
+                hfSelectedCaseQty.Value = "0";
                 return;
             }
             if (rowCaseQty != null) rowCaseQty.Style["display"] = "";
-            // Parse possible values — e.g. "6,12" or just "12"
+            string firstVal = "";
             if (!string.IsNullOrEmpty(ctrsPerCase))
                 foreach (string cq in ctrsPerCase.Split(','))
                 {
                     string t = cq.Trim();
                     if (!string.IsNullOrEmpty(t))
+                    {
                         ddlCaseQty.Items.Add(new ListItem(t + " per case", t));
+                        if (string.IsNullOrEmpty(firstVal)) firstVal = t;
+                    }
                 }
             if (ddlCaseQty.Items.Count == 0)
+            {
                 ddlCaseQty.Items.Add(new ListItem("12 per case", "12"));
+                firstVal = "12";
+            }
+            // Auto-select first value
+            ddlCaseQty.SelectedValue = firstVal;
+            hfSelectedCaseQty.Value  = firstVal;
         }
 
         void RestoreConfigDropdowns()
@@ -159,8 +177,16 @@ namespace PKApp
                 BindUnitSizes(hfUnitSizes.Value, ctLabel);
                 BindCaseQty(hfContainersPerCase.Value, ct);
                 // Restore selections
-                try { ddlUnitSize.SelectedValue = hfSelectedUnitSize.Value; } catch { }
-                try { ddlCaseQty.SelectedValue  = hfSelectedCaseQty.Value;  } catch { }
+                // Restore user-selected values if set, otherwise keep auto-selected defaults
+                if (!string.IsNullOrEmpty(hfSelectedUnitSize.Value) && hfSelectedUnitSize.Value != "0")
+                    try { ddlUnitSize.SelectedValue = hfSelectedUnitSize.Value; } catch { }
+                else
+                    hfSelectedUnitSize.Value = ddlUnitSize.Items.Count > 0 ? ddlUnitSize.Items[0].Value : "0";
+
+                if (!string.IsNullOrEmpty(hfSelectedCaseQty.Value) && hfSelectedCaseQty.Value != "0")
+                    try { ddlCaseQty.SelectedValue = hfSelectedCaseQty.Value; } catch { }
+                else
+                    hfSelectedCaseQty.Value = ddlCaseQty.Items.Count > 0 ? ddlCaseQty.Items[0].Value : "0";
             }
         }
 
