@@ -41,8 +41,6 @@ namespace PPApp
         protected System.Web.UI.WebControls.DropDownList ddlRemarks;
         protected Panel         pnlDynParams;
         protected Repeater      rptDynParams;
-        protected Label         lblOutputUnit;
-        protected TextBox       txtRemarks;
         protected Button        btnSaveOutput;
         protected Repeater      rptHistory;
         protected Panel         pnlHistoryEmpty;
@@ -133,7 +131,7 @@ namespace PPApp
             lblInfoStatus.CssClass = status == "Completed" ? "status-completed" :
                                      status == "InProgress" ? "status-inprogress" : "status-initiated";
             lblInfoDate.Text       = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
-            lblOutputUnit.Text     = outAbbr;
+            // lblOutputUnit removed — Actual Output field removed from UI
 
             // Count completed
             var history = PPDatabaseHelper.GetBatchHistory(orderId);
