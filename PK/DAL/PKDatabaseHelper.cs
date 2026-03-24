@@ -145,6 +145,138 @@ namespace PKApp.DAL
             return "CUST-" + n.ToString("D3");
         }
 
+
+        // ── PRIMARY PACKING EXECUTION ────────────────────────────────────────
+
+        // Products with active (Initiated/InProgress) orders today
+        public static DataTable GetProductsInProduction()
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT p.ProductID, p.ProductCode, p.ProductName," +
+                " p.JarsPerCase, p.JarSizes, p.ContainerType, p.PackLevels," +
+                " ou.Abbreviation AS OutputUnit" +
+                " FROM PP_ProductionOrder po" +
+                " JOIN PP_Products p ON p.ProductID = po.ProductID" +
+                " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
+                " WHERE po.Status IN ('Initiated','InProgress')" +
+                " ORDER BY p.ProductName;");
+        }
+
+        // Get order details for a product — total batches and packed batches
+        public static DataRow GetPackingOrderForProduct(int productId)
+        {
+            return ExecuteQueryRow(
+                "SELECT po.OrderID," +
+                " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
+                " po.Status," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed') AS PackedBatches" +
+                " FROM PP_ProductionOrder po" +
+                " WHERE po.ProductID=?pid AND po.Status IN ('Initiated','InProgress')" +
+                " ORDER BY po.OrderDate DESC LIMIT 1;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        // Active (InProgress) or Ended packing batch for an order
+        public static DataRow GetActivePacking(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND Status IN ('InProgress','Ended')" +
+                " ORDER BY PackingID DESC LIMIT 1;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        public static DataRow GetEndedPacking(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND Status='Ended'" +
+                " ORDER BY PackingID DESC LIMIT 1;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        public static DataTable GetPackingHistory(int orderId)
+        {
+            return ExecuteQuery(
+                "SELECT PackingID, BatchNo, StartTime, EndTime," +
+                " Cases, Jars, Units, JarSize, TotalUnits, Status" +
+                " FROM PK_PackingExecution WHERE OrderID=?oid ORDER BY BatchNo;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        public static int StartPackingBatch(int orderId, int batchNo, int userId)
+        {
+            var existing = ExecuteQueryRow(
+                "SELECT PackingID FROM PK_PackingExecution WHERE OrderID=?oid AND BatchNo=?bno;",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?bno", batchNo));
+            if (existing != null) return Convert.ToInt32(existing["PackingID"]);
+            ExecuteNonQuery(
+                "INSERT INTO PK_PackingExecution (OrderID,BatchNo,StartTime,Status,CreatedBy)" +
+                " VALUES(?oid,?bno,?now,'InProgress',?by);",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?bno", batchNo),
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by",  userId));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static void EndPackingBatch(int packingId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_PackingExecution SET Status='Ended', EndTime=?now WHERE PackingID=?id;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?id",  packingId));
+        }
+
+        public static void SavePackingOutput(int packingId, int orderId, int productId,
+            int cases, int jars, int units, int jarSize, int userId)
+        {
+            // Get packing spec
+            var spec = ExecuteQueryRow(
+                "SELECT IFNULL(JarsPerCase,12) AS JarsPerCase," +
+                " IFNULL(PackLevels,'Case+Container+Unit') AS PackLevels" +
+                " FROM PP_Products WHERE ProductID=?pid;",
+                new MySqlParameter("?pid", productId));
+            int    jarsPerCase = spec != null ? Convert.ToInt32(spec["JarsPerCase"]) : 12;
+            string packLevels  = spec != null ? spec["PackLevels"].ToString() : "Case+Container+Unit";
+
+            int totalUnits;
+            if      (packLevels == "Case+Unit")       totalUnits = (cases * jarSize) + units;
+            else if (packLevels == "Container+Unit")  totalUnits = (jars  * jarSize) + units;
+            else                                       totalUnits = (cases * jarsPerCase * jarSize) + (jars * jarSize) + units;
+
+            ExecuteNonQuery(
+                "UPDATE PK_PackingExecution SET Cases=?c,Jars=?j,Units=?u," +
+                "JarSize=?js,TotalUnits=?tot,Status='Completed' WHERE PackingID=?id;",
+                new MySqlParameter("?c",   cases),
+                new MySqlParameter("?j",   jars),
+                new MySqlParameter("?u",   units),
+                new MySqlParameter("?js",  jarSize),
+                new MySqlParameter("?tot", totalUnits),
+                new MySqlParameter("?id",  packingId));
+
+            // Add to FG Stock
+            AddFGStock(productId, totalUnits, 0, orderId, 0, userId);
+
+            // Check if all batches packed
+            var orderRow = ExecuteQueryRow(
+                "SELECT IFNULL(RevisedBatches,OrderedBatches) AS TotalBatches FROM PP_ProductionOrder WHERE OrderID=?oid;",
+                new MySqlParameter("?oid", orderId));
+            if (orderRow != null)
+            {
+                int total  = Convert.ToInt32(orderRow["TotalBatches"]);
+                int packed = Convert.ToInt32(ExecuteScalar(
+                    "SELECT COUNT(*) FROM PK_PackingExecution WHERE OrderID=?oid AND Status='Completed';",
+                    new MySqlParameter("?oid", orderId)));
+                if (packed >= total)
+                    ExecuteNonQuery(
+                        "UPDATE PP_ProductionOrder SET Status='Completed' WHERE OrderID=?oid;",
+                        new MySqlParameter("?oid", orderId));
+            }
+        }
+
         // ── FG STOCK ────────────────────────────────────────────────────────
         public static DataTable GetFGStockByProduct(int productId)
         {
