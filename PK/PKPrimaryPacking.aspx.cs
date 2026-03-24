@@ -173,7 +173,8 @@ namespace PKApp
                 (state == "running" ? "startWheel();" : "stopWheel(" + (state == "ready" ? "true" : "false") + ");") +
                 "applyState();" +
                 "setButtonStates('" + (state == "running" ? "running" : "ready") + "');" +
-                "updateBatchDisplay();";
+                "updateBatchDisplay();" +
+                "if(!window._gearStarted){window._gearStarted=true;animateGear();}";
             ClientScript.RegisterStartupScript(GetType(), "pkstate", js, true);
         }
 

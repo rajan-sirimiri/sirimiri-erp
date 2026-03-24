@@ -268,14 +268,15 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
 <script>
 // ── WHEEL ──────────────────────────────────────────────────────────────────
 var angle=0, cur=0, target=0;
+// Preserve wheel state across soft navigation if possible
 function animateGear(){
     cur += (target-cur)*0.05; angle=(angle+cur*2)%360;
     var img=document.getElementById('gearImg');
     if(img) img.style.transform='rotate('+angle+'deg)';
     requestAnimationFrame(animateGear);
 }
-function startWheel(){ window.serverState='running'; }
-function stopWheel(r){ window.serverState=r?'ready':'ended'; }
+function startWheel(){ window.serverState='running'; target=0.9; }
+function stopWheel(r){ window.serverState=r?'ready':'ended'; target=0; }
 
 function applyState(){
     var s=window.serverState||'ready';
@@ -335,7 +336,7 @@ function playClick(){
 }
 
 function startWheelAnim(){ playClick(); target=0.9; var l=document.getElementById('statusLabel'); if(l){l.innerText='PACKING IN PROGRESS...';l.className='status-label running';} setButtonStates('running'); return true; }
-function stopWheelAnim(){  playClick(); target=0;   var l=document.getElementById('statusLabel'); if(l){l.innerText='ENDING BATCH...';l.className='status-label stopped';} return true; }
+function stopWheelAnim(){  playClick(); target=0;   var l=document.getElementById('statusLabel'); if(l){l.innerText='ENDING BATCH...';l.className='status-label stopped';} setButtonStates('ready'); return true; }
 
 // ── TOTAL CALCULATOR ──────────────────────────────────────────────────────
 function calcTotal(){
@@ -368,7 +369,6 @@ function calcTotal(){
 }
 
 window.addEventListener('load',function(){
-    animateGear();
     // Wire calc inputs
     ['txtCases','txtJars','txtUnits'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.addEventListener('input',calcTotal);
@@ -376,7 +376,9 @@ window.addEventListener('load',function(){
     var sz=document.getElementById('<%= ddlJarSize.ClientID %>');
     if(sz) sz.addEventListener('change',calcTotal);
     calcTotal();
-    // State applied by RegisterStartupScript — called after this handler
+    // animateGear() started by RegisterStartupScript after state is set
+    // On first load (no order), start it here
+    if(!window._gearStarted){ window._gearStarted=true; animateGear(); }
 });
 </script>
 </body></html>
