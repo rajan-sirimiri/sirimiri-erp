@@ -158,7 +158,11 @@ namespace PKApp.DAL
                 " FROM PP_ProductionOrder po" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
-                " WHERE po.Status IN ('Initiated','InProgress') AND p.ProductType = 'Core'" +
+                " WHERE p.ProductType = 'Core'" +
+                " AND po.Status IN ('Initiated','InProgress','Completed')" +
+                " AND (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "      WHERE pe.OrderID=po.OrderID AND pe.Status='Completed')" +
+                " < IFNULL(po.RevisedBatches, po.OrderedBatches)" +
                 " ORDER BY p.ProductName;");
         }
 
@@ -172,7 +176,7 @@ namespace PKApp.DAL
                 " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
                 "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed') AS PackedBatches" +
                 " FROM PP_ProductionOrder po" +
-                " WHERE po.ProductID=?pid AND po.Status IN ('Initiated','InProgress')" +
+                " WHERE po.ProductID=?pid AND po.Status IN ('Initiated','InProgress','Completed')" +
                 " ORDER BY po.OrderDate DESC LIMIT 1;",
                 new MySqlParameter("?pid", productId));
         }
