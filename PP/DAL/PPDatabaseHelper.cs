@@ -421,64 +421,6 @@ namespace PPApp.DAL
         }
 
 
-        // ── PRODUCT PARAMS ────────────────────────────────────────────────────
-
-        public static DataTable GetProductParams(int productId)
-        {
-            return ExecuteQuery(
-                "SELECT ParamID, ParamOrder, ParamType, ParamLabel" +
-                " FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
-                new MySqlParameter("?pid", productId));
-        }
-
-        public static void SaveProductParams(int productId, List<(string type, string label)> paramList)
-        {
-            // Delete existing and re-insert
-            ExecuteNonQuery("DELETE FROM PP_ProductParams WHERE ProductID=?pid;",
-                new MySqlParameter("?pid", productId));
-            int order = 1;
-            foreach (var p in paramList)
-            {
-                if (!string.IsNullOrEmpty(p.type))
-                {
-                    ExecuteNonQuery(
-                        "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel)" +
-                        " VALUES(?pid, ?ord, ?type, ?lbl);",
-                        new MySqlParameter("?pid",  productId),
-                        new MySqlParameter("?ord",  order),
-                        new MySqlParameter("?type", p.type),
-                        new MySqlParameter("?lbl",  p.label));
-                    order++;
-                }
-            }
-        }
-
-        public static void SaveBatchParams(int execId, Dictionary<int, decimal?> paramValues)
-        {
-            // Delete and re-insert
-            ExecuteNonQuery("DELETE FROM PP_BatchParams WHERE ExecutionID=?eid;",
-                new MySqlParameter("?eid", execId));
-            foreach (var kv in paramValues)
-            {
-                ExecuteNonQuery(
-                    "INSERT INTO PP_BatchParams (ExecutionID, ParamID, Value)" +
-                    " VALUES(?eid, ?pid, ?val);",
-                    new MySqlParameter("?eid", execId),
-                    new MySqlParameter("?pid", kv.Key),
-                    new MySqlParameter("?val", kv.Value.HasValue ? (object)kv.Value.Value : DBNull.Value));
-            }
-        }
-
-        public static DataTable GetBatchParams(int execId)
-        {
-            return ExecuteQuery(
-                "SELECT bp.ParamID, pp.ParamLabel, pp.ParamType, bp.Value" +
-                " FROM PP_BatchParams bp" +
-                " JOIN PP_ProductParams pp ON pp.ParamID = bp.ParamID" +
-                " WHERE bp.ExecutionID=?eid ORDER BY pp.ParamOrder;",
-                new MySqlParameter("?eid", execId));
-        }
-
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────
         public static DataTable GetProductionOrders(DateTime from, DateTime to)
         {
