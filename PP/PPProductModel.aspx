@@ -672,7 +672,6 @@
 
     </div><!-- /workspace -->
 
-</form>
 
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
@@ -843,5 +842,8 @@ function setText(id, val) {
 // Auto-calculate on page load
 window.addEventListener('load', function() { recalcCosts(); });
 </script>
+</form>
+
+
 </body>
 </html>
