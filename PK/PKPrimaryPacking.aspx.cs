@@ -145,11 +145,15 @@ namespace PKApp
         void SetState(string state, int batchNo, int total)
         {
             pnlOutput.Style["display"] = state == "ended" ? "block" : "none";
-            string js = "window.batchNum='" + batchNo + "';" +
-                        "window.totalBat='" + total + "';" +
-                        (state == "running" ? "startWheel();" : "stopWheel(" + (state == "ready" ? "true" : "false") + ");") +
-                        "applyState();setButtonStates('" + (state == "running" ? "running" : "ready") + "');";
-            ClientScript.RegisterStartupScript(GetType(), "state", js, true);
+            // Build startup script — runs after window.load, sets definitive state
+            string js =
+                "window.batchNum='" + batchNo + "';" +
+                "window.totalBat='" + total + "';" +
+                (state == "running" ? "startWheel();" : "stopWheel(" + (state == "ready" ? "true" : "false") + ");") +
+                "applyState();" +
+                "setButtonStates('" + (state == "running" ? "running" : "ready") + "');" +
+                "updateBatchDisplay();";
+            ClientScript.RegisterStartupScript(GetType(), "pkstate", js, true);
         }
 
         protected void btnStart_Click(object s, EventArgs e)

@@ -172,7 +172,7 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
     <div class="exec-panel">
 
         <div class="gear-wrap">
-            <img id="gearImg" src="../PP/progress_wheel.png" alt=""
+            <img id="gearImg" src="/PP/progress_wheel.png" alt=""
                 onerror="this.src='';this.style.opacity='.15'"/>
         </div>
 
@@ -364,14 +364,15 @@ function calcTotal(){
 }
 
 window.addEventListener('load',function(){
-    animateGear(); applyState(); updateBatchDisplay();
-    setButtonStates(window.serverState||'ready');
+    animateGear();
+    // Wire calc inputs
     ['txtCases','txtJars','txtUnits'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.addEventListener('input',calcTotal);
     });
     var sz=document.getElementById('<%= ddlJarSize.ClientID %>');
     if(sz) sz.addEventListener('change',calcTotal);
     calcTotal();
+    // State applied by RegisterStartupScript — called after this handler
 });
 </script>
 </body></html>
