@@ -109,6 +109,9 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
 <body>
 <form id="form1" runat="server">
 <asp:HiddenField ID="hfOrderId"     runat="server" Value="0"/>
+<asp:HiddenField ID="hfState"       runat="server" Value="ready"/>
+<asp:HiddenField ID="hfBatchNo"     runat="server" Value="0"/>
+<asp:HiddenField ID="hfTotalBat"    runat="server" Value="0"/>
 <asp:HiddenField ID="hfProductId"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfPackingId"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfJarsPerCase" runat="server" Value="12"/>
@@ -288,9 +291,9 @@ function updateBatchDisplay() {
     }
 }
 
-// Called by RegisterStartupScript — just stores state
-function startWheel() { window.serverState = 'running'; }
-function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
+// State now passed via hidden fields — these kept for compatibility
+function startWheel() {}
+function stopWheel(r)  {}
 
 function applyState() {
     var lbl = document.getElementById('statusLabel');
@@ -382,10 +385,20 @@ function calcTotal() {
 
 // ── LOAD — same as Production Execution ──────────────────────────────────
 window.addEventListener('load', function() {
+    // Read state from hidden fields — reliable across postbacks
+    var stateEl   = document.getElementById('<%= hfState.ClientID %>');
+    var batchEl   = document.getElementById('<%= hfBatchNo.ClientID %>');
+    var totalEl   = document.getElementById('<%= hfTotalBat.ClientID %>');
+
+    window.serverState = stateEl  ? stateEl.value  : 'ready';
+    window.batchNum    = batchEl  ? batchEl.value   : '0';
+    window.totalBat    = totalEl  ? totalEl.value   : '0';
+
     animateGear();
     applyState();
     updateBatchDisplay();
     setButtonStates(window.serverState || 'ready');
+
     // Wire calc inputs
     ['txtCases', 'txtJars', 'txtUnits'].forEach(function(id) {
         var el = document.getElementById(id);

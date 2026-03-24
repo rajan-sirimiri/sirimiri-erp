@@ -15,6 +15,7 @@ namespace PKApp
         protected Panel    pnlHistEmpty, pnlHistTable;
         protected DropDownList ddlProduct, ddlJarSize;
         protected HiddenField  hfOrderId, hfProductId, hfPackingId;
+        protected HiddenField  hfState, hfBatchNo, hfTotalBat;
         protected HiddenField  hfJarsPerCase, hfJarSizes, hfContainerType, hfPackLevels;
         protected Button   btnLoad, btnStart, btnEnd, btnSave;
         protected Repeater rptHistory;
@@ -165,19 +166,17 @@ namespace PKApp
 
         void SetState(string state, int batchNo, int total)
         {
-            // Always enable both buttons — JS controls visual disable state
             btnStart.Enabled = true;
             btnEnd.Enabled   = true;
 
-            // pnlOutput — server controls visibility (same as Production Execution)
-            pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
+            // Store state in hidden fields — read by JS on window.load
+            // Avoids any RegisterStartupScript timing issues
+            hfState.Value      = state;
+            hfBatchNo.Value    = batchNo.ToString();
+            hfTotalBat.Value   = total.ToString();
 
-            // Startup script — only sets batch numbers and wheel state
-            // window.load will call applyState() + setButtonStates() after this
-            string js = state == "running"
-                ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
-                : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");";
-            ClientScript.RegisterStartupScript(GetType(), "pkstate", js, true);
+            // pnlOutput controlled server-side
+            pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
         }
 
         protected void btnStart_Click(object s, EventArgs e)
