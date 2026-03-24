@@ -33,6 +33,9 @@ namespace PPApp
         protected Label        lblClosureUnit;
         protected HiddenField  hfProductId;
         protected HiddenField  hfShiftClosed;
+        protected HiddenField  hfRMStockQty, hfRMStockUnit, hfRMDisplayName;
+        protected Panel        pnlRMStock;
+        protected Label        lblRMName, lblRMStockQty, lblRMStockUnit;
         protected Panel        pnlScrapEntry;
         protected Repeater     rptScrapInputs;
         protected Button       btnCheckScrap;
@@ -153,6 +156,7 @@ namespace PPApp
             // Auto-load scrap items for this RM
             LoadScrapInputs(rmId);
             RefreshClosures(rmId);
+            RefreshRMStock();
         }
 
         protected void btnAdd_Click(object sender, EventArgs e)
@@ -321,6 +325,39 @@ namespace PPApp
                 lblClosureTotal.Text = total.ToString("0.###");
                 lblClosureUnit.Text  = hfRMUnit.Value;
             }
+        }
+
+        private void RefreshRMStock()
+        {
+            if (pnlRMStock == null) return;
+            int rmId = Convert.ToInt32(hfRMId.Value);
+            if (rmId == 0) { pnlRMStock.Visible = false; return; }
+
+            // Get RM name and unit
+            var rmRow = PPDatabaseHelper.ExecuteQueryPublic(
+                "SELECT r.RMName, u.Abbreviation AS Unit" +
+                " FROM MM_RawMaterials r JOIN MM_UOM u ON u.UOMID=r.UOMID" +
+                " WHERE r.RMID=?id;",
+                new MySql.Data.MySqlClient.MySqlParameter("?id", rmId));
+            if (rmRow.Rows.Count == 0) { pnlRMStock.Visible = false; return; }
+
+            string rmName = rmRow.Rows[0]["RMName"].ToString();
+            string unit   = rmRow.Rows[0]["Unit"].ToString();
+
+            // Get available stock
+            decimal stock = PPDatabaseHelper.GetAvailableStock(rmId);
+
+            lblRMName.Text      = rmName;
+            lblRMStockQty.Text  = stock.ToString("0.###");
+            lblRMStockUnit.Text = unit;
+
+            // Colour code by stock level
+            string css = stock <= 0 ? "rm-stock-qty zero"
+                       : stock < 50  ? "rm-stock-qty low"
+                       : "rm-stock-qty ok";
+            lblRMStockQty.CssClass = css;
+
+            pnlRMStock.Visible = true;
         }
 
         private void ShowAlert(string msg, bool success)

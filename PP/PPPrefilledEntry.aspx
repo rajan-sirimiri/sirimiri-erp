@@ -35,6 +35,20 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 .page-body{max-width:960px;margin:0 auto;padding:24px 20px 60px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
+.rm-stock-banner{background:#1a1a1a;border-radius:12px;padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.rm-stock-label{color:rgba(255,255,255,.6);font-size:11px;font-weight:700;
+    letter-spacing:.1em;text-transform:uppercase;}
+.rm-stock-name{color:#fff;font-size:14px;font-weight:700;margin-top:3px;}
+.rm-stock-value{text-align:right;}
+.rm-stock-qty{font-family:"Bebas Neue",sans-serif;font-size:36px;
+    letter-spacing:.04em;line-height:1;}
+.rm-stock-qty.ok{color:#2ecc71;}
+.rm-stock-qty.low{color:#f39c12;}
+.rm-stock-qty.zero{color:#e74c3c;}
+.rm-stock-unit{color:rgba(255,255,255,.5);font-size:13px;font-weight:600;
+    margin-left:6px;vertical-align:middle;}
 
 .card{background:var(--surface);border-radius:var(--radius);
     box-shadow:0 2px 16px rgba(0,0,0,.08);padding:28px 26px;margin-bottom:24px;}
@@ -111,6 +125,9 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
 <asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
+<asp:HiddenField ID="hfRMStockQty"     runat="server" Value="0"/>
+<asp:HiddenField ID="hfRMStockUnit"    runat="server" Value=""/>
+<asp:HiddenField ID="hfRMDisplayName"  runat="server" Value=""/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 <asp:HiddenField ID="hfRMId"        runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMUnit"      runat="server" Value=""/>
@@ -150,6 +167,19 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
             </div>
         </div>
     </div>
+
+    <asp:Panel ID="pnlRMStock" runat="server" Visible="false">
+    <div class="rm-stock-banner">
+        <div>
+            <div class="rm-stock-label">&#x1F4E6; Connected Raw Material — Stock on Hand</div>
+            <div class="rm-stock-name"><asp:Label ID="lblRMName" runat="server"/></div>
+        </div>
+        <div class="rm-stock-value">
+            <asp:Label ID="lblRMStockQty" runat="server" CssClass="rm-stock-qty ok"/>
+            <span class="rm-stock-unit"><asp:Label ID="lblRMStockUnit" runat="server"/></span>
+        </div>
+    </div>
+    </asp:Panel>
 
     <asp:Panel ID="pnlEntry" runat="server" Visible="false">
     <div class="two-col">
