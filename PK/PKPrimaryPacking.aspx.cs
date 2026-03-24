@@ -165,16 +165,18 @@ namespace PKApp
 
         void SetState(string state, int batchNo, int total)
         {
-            // pnlOutput visibility controlled by applyState() JS — not server side
-            // Build startup script — runs after window.load, sets definitive state
-            string js =
-                "window.batchNum='" + batchNo + "';" +
-                "window.totalBat='" + total + "';" +
-                (state == "running" ? "startWheel();" : "stopWheel(" + (state == "ready" ? "true" : "false") + ");") +
-                "applyState();" +
-                "setButtonStates('" + (state == "running" ? "running" : "ready") + "');" +
-                "updateBatchDisplay();" +
-                "if(!window._gearStarted){window._gearStarted=true;animateGear();}";
+            // Always enable both buttons — JS controls visual disable state
+            btnStart.Enabled = true;
+            btnEnd.Enabled   = true;
+
+            // pnlOutput — server controls visibility (same as Production Execution)
+            pnlOutput.Style["display"] = (state == "ended") ? "block" : "none";
+
+            // Startup script — only sets batch numbers and wheel state
+            // window.load will call applyState() + setButtonStates() after this
+            string js = state == "running"
+                ? "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';startWheel();"
+                : "window.batchNum='" + batchNo + "';window.totalBat='" + total + "';stopWheel(" + (state == "ready" ? "true" : "false") + ");";
             ClientScript.RegisterStartupScript(GetType(), "pkstate", js, true);
         }
 

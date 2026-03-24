@@ -194,7 +194,7 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
         <div class="status-label stopped" id="statusLabel">READY TO START</div>
 
         <!-- OUTPUT PANEL — shown after END -->
-        <asp:Panel ID="pnlOutput" runat="server" Visible="true">
+        <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
         <div class="output-panel">
             <div class="output-title">
                 &#x1F4E6; Record Packed Output — Batch <asp:Label ID="lblOutputBatch" runat="server"/>
@@ -266,119 +266,135 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
 </div>
 </form>
 <script>
-// ── WHEEL ──────────────────────────────────────────────────────────────────
-var angle=0, cur=0, target=0;
-// Preserve wheel state across soft navigation if possible
-function animateGear(){
-    cur += (target-cur)*0.05; angle=(angle+cur*2)%360;
-    var img=document.getElementById('gearImg');
-    if(img) img.style.transform='rotate('+angle+'deg)';
+// ── GEAR ANIMATION — exact same pattern as Production Execution ──────────────
+var gearAngle = 0, gearSpeed = 0, targetSpeed = 0;
+
+function animateGear() {
+    gearSpeed += (targetSpeed - gearSpeed) * 0.03;
+    gearAngle  = (gearAngle + gearSpeed) % 360;
+    var img = document.getElementById('gearImg');
+    if (img) img.style.transform = 'rotate(' + gearAngle + 'deg)';
     requestAnimationFrame(animateGear);
 }
-function startWheel(){ window.serverState='running'; target=0.9; }
-function stopWheel(r){ window.serverState=r?'ready':'ended'; target=0; }
 
-function applyState(){
-    var s=window.serverState||'ready';
-    var lbl=document.getElementById('statusLabel');
-    var out=document.getElementById('<%= pnlOutput.ClientID %>');
-    if(s==='running'){
-        target=0.9;
-        if(lbl){lbl.innerText='PACKING IN PROGRESS...';lbl.className='status-label running';}
-        if(out) out.style.display='none';
-    } else if(s==='ended'){
-        target=0;
-        if(lbl){lbl.innerText='BATCH ENDED — ENTER PACKED QTY BELOW';lbl.className='status-label stopped';}
-        if(out) out.style.display='block';
+function updateBatchDisplay() {
+    var n = document.getElementById('batchNum');
+    var s = document.getElementById('batchSub');
+    if (!n || !s) return;
+    if (window.batchNum && window.batchNum !== '0') {
+        n.innerText = 'B' + window.batchNum;
+        s.innerText = window.batchNum + ' OF ' + window.totalBat;
     } else {
-        target=0;
-        if(lbl){lbl.innerText='READY TO START';lbl.className='status-label stopped';}
-        if(out) out.style.display='none';
+        n.innerText = '—'; s.innerText = 'READY';
+    }
+}
+
+// Called by RegisterStartupScript — just stores state
+function startWheel() { window.serverState = 'running'; }
+function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
+
+function applyState() {
+    var lbl = document.getElementById('statusLabel');
+    var s   = window.serverState || 'ready';
+    // pnlOutput controlled by server-side SetState only
+    if (s === 'running') {
+        targetSpeed = 0.9;
+        if (lbl) { lbl.innerText = 'PACKING IN PROGRESS...'; lbl.className = 'status-label running'; }
+    } else if (s === 'ended') {
+        targetSpeed = 0;
+        if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'status-label stopped'; }
+    } else {
+        targetSpeed = 0;
+        if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'status-label stopped'; }
     }
     updateBatchDisplay();
 }
 
-function updateBatchDisplay(){
-    var n=document.getElementById('batchNum');
-    var s=document.getElementById('batchSub');
-    if(!n||!s) return;
-    if(window.batchNum&&window.batchNum!=='0'){
-        n.innerText='B'+window.batchNum;
-        s.innerText=window.batchNum+' OF '+(window.totalBat||'?');
-    } else { n.innerText='—'; s.innerText='READY'; }
-}
-
-// ── BUTTON STATES ─────────────────────────────────────────────────────────
-function setButtonStates(s){
-    var bS=document.getElementById('<%= btnStart.ClientID %>');
-    var bE=document.getElementById('<%= btnEnd.ClientID %>');
-    if(!bS||!bE) return;
-    if(s==='running'){
-        bS.disabled=true;  bS.style.background='#ccc'; bS.style.boxShadow='none'; bS.style.cursor='not-allowed'; bS.style.transform='none';
-        bE.disabled=false; bE.style.background=''; bE.style.cursor='';
+// ── BUTTON STATE CONTROL ──────────────────────────────────────────────────
+function setButtonStates(state) {
+    var btnS = document.getElementById('<%= btnStart.ClientID %>');
+    var btnE = document.getElementById('<%= btnEnd.ClientID %>');
+    if (!btnS || !btnE) return;
+    if (state === 'running') {
+        btnS.disabled = true;  btnS.style.background = '#ccc'; btnS.style.boxShadow = 'none'; btnS.style.cursor = 'not-allowed'; btnS.style.transform = 'none';
+        btnE.disabled = false; btnE.style.background = ''; btnE.style.cursor = '';
     } else {
-        bS.disabled=false; bS.style.background=''; bS.style.cursor='';
-        bE.disabled=true;  bE.style.background='#ccc'; bE.style.boxShadow='none'; bE.style.cursor='not-allowed'; bE.style.transform='none';
+        btnS.disabled = false; btnS.style.background = ''; btnS.style.cursor = '';
+        btnE.disabled = true;  btnE.style.background = '#ccc'; btnE.style.boxShadow = 'none'; btnE.style.cursor = 'not-allowed'; btnE.style.transform = 'none';
     }
 }
 
 // ── CLICK SOUND ───────────────────────────────────────────────────────────
-function playClick(){
-    try{
-        var c=new(window.AudioContext||window.webkitAudioContext)();
-        var b=c.createBuffer(1,c.sampleRate*0.08,c.sampleRate);
-        var d=b.getChannelData(0);
-        for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,8);
-        var s=c.createBufferSource(); s.buffer=b;
-        var f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.value=800; f.Q.value=0.8;
-        s.connect(f); f.connect(c.destination); s.start();
-    }catch(e){}
+function playClick() {
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < data.length; i++)
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 0.8;
+        src.connect(f); f.connect(ctx.destination); src.start();
+    } catch(e) {}
 }
 
-function startWheelAnim(){ playClick(); target=0.9; var l=document.getElementById('statusLabel'); if(l){l.innerText='PACKING IN PROGRESS...';l.className='status-label running';} setButtonStates('running'); return true; }
-function stopWheelAnim(){  playClick(); target=0;   var l=document.getElementById('statusLabel'); if(l){l.innerText='ENDING BATCH...';l.className='status-label stopped';} setButtonStates('ready'); return true; }
+function startWheelAnim() {
+    playClick();
+    targetSpeed = 0.9;
+    var lbl = document.getElementById('statusLabel');
+    if (lbl) { lbl.innerText = 'PACKING IN PROGRESS...'; lbl.className = 'status-label running'; }
+    setButtonStates('running');
+    return true;
+}
+function stopWheelAnim() {
+    playClick();
+    targetSpeed = 0;
+    var lbl = document.getElementById('statusLabel');
+    if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'status-label stopped'; }
+    return true;
+}
 
 // ── TOTAL CALCULATOR ──────────────────────────────────────────────────────
-function calcTotal(){
-    var jpc  = parseInt(document.getElementById('<%= hfJarsPerCase.ClientID %>').value)||12;
+function calcTotal() {
+    var jpc  = parseInt(document.getElementById('<%= hfJarsPerCase.ClientID %>').value) || 12;
     var pl   = document.getElementById('<%= hfPackLevels.ClientID %>').value;
-    var ct   = document.getElementById('<%= hfContainerType.ClientID %>').value||'Container';
+    var ct   = document.getElementById('<%= hfContainerType.ClientID %>').value || 'Container';
     var szEl = document.getElementById('<%= ddlJarSize.ClientID %>');
-    var sz   = szEl ? parseInt(szEl.value)||0 : 0;
-    var cases= parseInt(document.getElementById('txtCases').value)||0;
-    var jars = parseInt(document.getElementById('txtJars').value)||0;
-    var units= parseInt(document.getElementById('txtUnits').value)||0;
+    var sz   = szEl ? parseInt(szEl.value) || 0 : 0;
+    var cases = parseInt(document.getElementById('txtCases').value)  || 0;
+    var jars  = parseInt(document.getElementById('txtJars').value)   || 0;
+    var units = parseInt(document.getElementById('txtUnits').value)  || 0;
     var total, formula;
-    if(pl==='Case+Unit'){
-        total  = (cases*sz)+units;
-        formula= cases+' cases × '+sz+' + '+units+' loose';
-    } else if(pl==='Container+Unit'){
-        total  = (jars*sz)+units;
-        formula= jars+' '+ct+'s × '+sz+' + '+units+' loose';
+    if (pl === 'Case+Unit') {
+        total = (cases * sz) + units;
+        formula = cases + ' cases × ' + sz + ' + ' + units + ' loose';
+    } else if (pl === 'Container+Unit') {
+        total = (jars * sz) + units;
+        formula = jars + ' ' + ct + 's × ' + sz + ' + ' + units + ' loose';
     } else {
-        total  = (cases*jpc*sz)+(jars*sz)+units;
-        formula= cases+' cases×'+jpc+'×'+sz+' + '+jars+' '+ct+'s×'+sz+' + '+units;
+        total = (cases * jpc * sz) + (jars * sz) + units;
+        formula = cases + ' cases×' + jpc + '×' + sz + ' + ' + jars + ' ' + ct + 's×' + sz + ' + ' + units;
     }
-    document.getElementById('totalVal').innerText    = total.toLocaleString();
+    document.getElementById('totalVal').innerText     = total.toLocaleString();
     document.getElementById('totalFormula').innerText = formula;
-    // show/hide rows
-    var hasCases = pl!=='Container+Unit';
-    var hasConts = pl!=='Case+Unit' && ct;
-    var rC=document.getElementById('rowCases');      if(rC) rC.style.display=hasCases?'':'none';
-    var rJ=document.getElementById('rowContainers'); if(rJ) rJ.style.display=hasConts?'':'none';
+    var rC = document.getElementById('rowCases');      if (rC) rC.style.display = pl !== 'Container+Unit' ? '' : 'none';
+    var rJ = document.getElementById('rowContainers'); if (rJ) rJ.style.display = (pl !== 'Case+Unit' && ct) ? '' : 'none';
 }
 
-window.addEventListener('load',function(){
+// ── LOAD — same as Production Execution ──────────────────────────────────
+window.addEventListener('load', function() {
+    animateGear();
+    applyState();
+    updateBatchDisplay();
+    setButtonStates(window.serverState || 'ready');
     // Wire calc inputs
-    ['txtCases','txtJars','txtUnits'].forEach(function(id){
-        var el=document.getElementById(id); if(el) el.addEventListener('input',calcTotal);
+    ['txtCases', 'txtJars', 'txtUnits'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', calcTotal);
     });
-    var sz=document.getElementById('<%= ddlJarSize.ClientID %>');
-    if(sz) sz.addEventListener('change',calcTotal);
+    var sz = document.getElementById('<%= ddlJarSize.ClientID %>');
+    if (sz) sz.addEventListener('change', calcTotal);
     calcTotal();
-    // animateGear() started by RegisterStartupScript after state is set
-    // On first load (no order), start it here
-    if(!window._gearStarted){ window._gearStarted=true; animateGear(); }
 });
 </script>
 </body></html>
