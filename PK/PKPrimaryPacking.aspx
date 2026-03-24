@@ -264,7 +264,6 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
     </asp:Panel>
 
 </div>
-</form>
 <script>
 // ── GEAR ANIMATION — exact same pattern as Production Execution ──────────────
 var gearAngle = 0, gearSpeed = 0, targetSpeed = 0;
@@ -397,4 +396,5 @@ window.addEventListener('load', function() {
     calcTotal();
 });
 </script>
+</form>
 </body></html>
