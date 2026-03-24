@@ -36,19 +36,21 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .page-body{max-width:960px;margin:0 auto;padding:24px 20px 60px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
 .rm-stock-banner{background:#1a1a1a;border-radius:12px;padding:16px 24px;
-    display:flex;align-items:center;justify-content:space-between;
-    margin-bottom:20px;flex-wrap:wrap;gap:12px;}
-.rm-stock-label{color:rgba(255,255,255,.6);font-size:11px;font-weight:700;
-    letter-spacing:.1em;text-transform:uppercase;}
-.rm-stock-name{color:#fff;font-size:14px;font-weight:700;margin-top:3px;}
-.rm-stock-value{text-align:right;}
-.rm-stock-qty{font-family:"Bebas Neue",sans-serif;font-size:36px;
+    margin-bottom:20px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;}
+.rm-stock-label{color:rgba(255,255,255,.5);font-size:10px;font-weight:700;
+    letter-spacing:.12em;text-transform:uppercase;}
+.rm-stock-item{display:flex;align-items:center;justify-content:space-between;
+    background:rgba(255,255,255,.06);border-radius:9px;padding:12px 18px;
+    min-width:220px;flex:1;gap:16px;}
+.rm-stock-name{color:#fff;font-size:13px;font-weight:700;}
+.rm-stock-value{text-align:right;white-space:nowrap;}
+.rm-stock-qty{font-family:"Bebas Neue",sans-serif;font-size:32px;
     letter-spacing:.04em;line-height:1;}
 .rm-stock-qty.ok{color:#2ecc71;}
 .rm-stock-qty.low{color:#f39c12;}
 .rm-stock-qty.zero{color:#e74c3c;}
-.rm-stock-unit{color:rgba(255,255,255,.5);font-size:13px;font-weight:600;
-    margin-left:6px;vertical-align:middle;}
+.rm-stock-unit{color:rgba(255,255,255,.5);font-size:12px;font-weight:600;
+    margin-left:4px;vertical-align:middle;}
 
 .card{background:var(--surface);border-radius:var(--radius);
     box-shadow:0 2px 16px rgba(0,0,0,.08);padding:28px 26px;margin-bottom:24px;}
@@ -170,14 +172,22 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
     <asp:Panel ID="pnlRMStock" runat="server" Visible="false">
     <div class="rm-stock-banner">
-        <div>
-            <div class="rm-stock-label">&#x1F4E6; Connected Raw Material — Stock on Hand</div>
-            <div class="rm-stock-name"><asp:Label ID="lblRMName" runat="server"/></div>
+        <div class="rm-stock-label" style="margin-bottom:10px;width:100%;">
+            &#x1F4E6; Raw Material Stock on Hand
         </div>
-        <div class="rm-stock-value">
-            <asp:Label ID="lblRMStockQty" runat="server" CssClass="rm-stock-qty ok"/>
-            <span class="rm-stock-unit"><asp:Label ID="lblRMStockUnit" runat="server"/></span>
-        </div>
+        <asp:Repeater ID="rptRMStock" runat="server">
+            <ItemTemplate>
+                <div class="rm-stock-item">
+                    <div class="rm-stock-name"><%# Eval("RMName") %></div>
+                    <div class="rm-stock-value">
+                        <span class='<%# Convert.ToDecimal(Eval("Stock")) <= 0 ? "rm-stock-qty zero" : Convert.ToDecimal(Eval("Stock")) < 50 ? "rm-stock-qty low" : "rm-stock-qty ok" %>'>
+                            <%# Convert.ToDecimal(Eval("Stock")).ToString("0.###") %>
+                        </span>
+                        <span class="rm-stock-unit"><%# Eval("Unit") %></span>
+                    </div>
+                </div>
+            </ItemTemplate>
+        </asp:Repeater>
     </div>
     </asp:Panel>
 

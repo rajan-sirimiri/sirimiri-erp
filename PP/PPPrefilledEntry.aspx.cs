@@ -35,6 +35,7 @@ namespace PPApp
         protected HiddenField  hfShiftClosed;
         protected HiddenField  hfRMStockQty, hfRMStockUnit, hfRMDisplayName;
         protected Panel        pnlRMStock;
+        protected Repeater     rptRMStock;
         protected Label        lblRMName, lblRMStockQty, lblRMStockUnit;
         protected Panel        pnlScrapEntry;
         protected Repeater     rptScrapInputs;
@@ -110,6 +111,7 @@ namespace PPApp
 
             pnlEntry.Visible = true;
             RefreshTally(productId);
+            RefreshRMStock(productId);  // Show all BOM RM stocks immediately
         }
 
         private void LoadRMDropdown(int productId)
@@ -327,36 +329,31 @@ namespace PPApp
             }
         }
 
-        private void RefreshRMStock()
+        private void RefreshRMStock(int productId = 0)
         {
             if (pnlRMStock == null) return;
-            int rmId = Convert.ToInt32(hfRMId.Value);
-            if (rmId == 0) { pnlRMStock.Visible = false; return; }
+            if (productId == 0) productId = Convert.ToInt32(hfProductId.Value);
+            if (productId == 0) { pnlRMStock.Visible = false; return; }
 
-            // Get RM name and unit
-            var rmRow = PPDatabaseHelper.ExecuteQueryPublic(
-                "SELECT r.RMName, u.Abbreviation AS Unit" +
-                " FROM MM_RawMaterials r JOIN MM_UOM u ON u.UOMID=r.UOMID" +
-                " WHERE r.RMID=?id;",
-                new MySql.Data.MySqlClient.MySqlParameter("?id", rmId));
-            if (rmRow.Rows.Count == 0) { pnlRMStock.Visible = false; return; }
+            // Get ALL RMs from this product's BOM with their stock
+            var bom = PPDatabaseHelper.ExecuteQueryPublic(
+                "SELECT r.RMID, r.RMName, u.Abbreviation AS Unit," +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalConsumed,0), 3) AS Stock" +
+                " FROM PP_BOM b" +
+                " JOIN MM_RawMaterials r ON r.RMID = b.MaterialID" +
+                " JOIN MM_UOM u ON u.UOMID = r.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalGRN FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID=r.RMID" +
+                " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID=r.RMID" +
+                " WHERE b.ProductID=?pid AND b.MaterialType='RM'" +
+                " GROUP BY r.RMID, r.RMName, u.Abbreviation, os.Quantity, grn.TotalGRN, con.TotalConsumed" +
+                " ORDER BY r.RMName;",
+                new MySql.Data.MySqlClient.MySqlParameter("?pid", productId));
 
-            string rmName = rmRow.Rows[0]["RMName"].ToString();
-            string unit   = rmRow.Rows[0]["Unit"].ToString();
+            if (bom.Rows.Count == 0) { pnlRMStock.Visible = false; return; }
 
-            // Get available stock
-            decimal stock = PPDatabaseHelper.GetAvailableStock(rmId);
-
-            lblRMName.Text      = rmName;
-            lblRMStockQty.Text  = stock.ToString("0.###");
-            lblRMStockUnit.Text = unit;
-
-            // Colour code by stock level
-            string css = stock <= 0 ? "rm-stock-qty zero"
-                       : stock < 50  ? "rm-stock-qty low"
-                       : "rm-stock-qty ok";
-            lblRMStockQty.CssClass = css;
-
+            rptRMStock.DataSource = bom;
+            rptRMStock.DataBind();
             pnlRMStock.Visible = true;
         }
 
