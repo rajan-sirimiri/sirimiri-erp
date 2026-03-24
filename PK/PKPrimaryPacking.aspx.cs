@@ -282,13 +282,16 @@ namespace PKApp
             try
             {
                 string ct = hfContainerType.Value;
+
+                // Save Cases/Jars/Units to execution record AND add to FG stock
+                PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
+                    cases, jars, units, unitSize, caseQty, ct, UserID);
+
                 int totalPcs;
                 if (ct == "DIRECT")
                     totalPcs = (cases * unitSize) + units;
                 else
                     totalPcs = (cases * caseQty * unitSize) + (jars * unitSize) + units;
-
-                PKDatabaseHelper.AddFGStock(productId, totalPcs, 0, orderId, 0, UserID);
 
                 txtCases.Value = "0"; txtJars.Value = "0"; txtUnits.Value = "0";
                 ShowAlert("Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.", true);

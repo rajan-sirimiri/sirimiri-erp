@@ -291,6 +291,57 @@ namespace PKApp.DAL
             }
         }
 
+        // Save total packing output for an order — inserts/updates summary row
+        public static void SaveOrderPackingOutput(int orderId, int productId,
+            int cases, int jars, int units, int jarSize, int containersPerCase,
+            string containerType, int userId)
+        {
+            int totalPcs;
+            if (containerType == "DIRECT")
+                totalPcs = (cases * jarSize) + units;
+            else
+                totalPcs = (cases * containersPerCase * jarSize) + (jars * jarSize) + units;
+
+            // Check if summary row exists
+            var existing = ExecuteQueryRow(
+                "SELECT PackingID FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND BatchNo=0;",
+                new MySqlParameter("?oid", orderId));
+
+            if (existing != null)
+            {
+                ExecuteNonQuery(
+                    "UPDATE PK_PackingExecution SET Cases=?c, Jars=?j, Units=?u," +
+                    " JarSize=?js, TotalUnits=?tot, Status='Completed', EndTime=?now" +
+                    " WHERE OrderID=?oid AND BatchNo=0;",
+                    new MySqlParameter("?c",   cases),
+                    new MySqlParameter("?j",   jars),
+                    new MySqlParameter("?u",   units),
+                    new MySqlParameter("?js",  jarSize),
+                    new MySqlParameter("?tot", totalPcs),
+                    new MySqlParameter("?now", NowIST()),
+                    new MySqlParameter("?oid", orderId));
+            }
+            else
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_PackingExecution" +
+                    " (OrderID,BatchNo,StartTime,EndTime,Cases,Jars,Units,JarSize,TotalUnits,Status,CreatedBy)" +
+                    " VALUES(?oid,0,?now,?now,?c,?j,?u,?js,?tot,'Completed',?by);",
+                    new MySqlParameter("?oid", orderId),
+                    new MySqlParameter("?now", NowIST()),
+                    new MySqlParameter("?c",   cases),
+                    new MySqlParameter("?j",   jars),
+                    new MySqlParameter("?u",   units),
+                    new MySqlParameter("?js",  jarSize),
+                    new MySqlParameter("?tot", totalPcs),
+                    new MySqlParameter("?by",  userId));
+            }
+
+            // Add to FG Stock
+            AddFGStock(productId, totalPcs, 0, orderId, 0, userId);
+        }
+
         // ── FG STOCK ────────────────────────────────────────────────────────
         public static DataTable GetFGStockByProduct(int productId)
         {
