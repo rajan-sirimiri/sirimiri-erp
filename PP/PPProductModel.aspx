@@ -625,6 +625,10 @@
 
 <script>
 // ── PRODUCT TYPE CHANGE ────────────────────────────────────
+function onContainerTypeChange(type) {
+    var rows = document.getElementById("divContainerRows");
+    if (rows) rows.style.display = type ? "grid" : "none";
+}
 function onProductTypeChange(type) {
     var hint = document.getElementById('batchHint');
     if (hint) hint.innerText = 'Quantity and UOM of finished product per one batch';
