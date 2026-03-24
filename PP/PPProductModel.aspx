@@ -245,6 +245,34 @@
         </div>
     </nav>
 
+    <!-- GLOBAL SETTINGS BAR -->
+    <div class="global-settings-bar">
+        <button type="button" class="btn-global-settings" id="btnGlobalSettings"
+            onclick="toggleGlobalSettings()">&#9881; Global Settings</button>
+        <span style="font-size:11px;color:var(--text-dim);">Configure Remarks options and other global settings</span>
+    </div>
+
+    <!-- GLOBAL SETTINGS PANEL -->
+    <div class="global-settings-panel" id="globalSettingsPanel">
+        <div style="display:flex;gap:48px;flex-wrap:wrap;">
+            <div>
+                <div class="gs-title">Batch Remarks <span>Options</span></div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Shown as dropdown in Batch Execution after each batch</div>
+                <asp:Panel ID="pnlRemarksAlert" runat="server" Visible="false">
+                    <div class="alert" style="margin-bottom:10px;"><asp:Label ID="lblRemarksAlert" runat="server"/></div>
+                </asp:Panel>
+                <div class="remark-list" id="remarkList"></div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+                    <button type="button" class="btn-add-remark" onclick="addRemarkRow()">+ Add Option</button>
+                    <asp:Button ID="btnSaveRemarks" runat="server" Text="&#x2713; Save Remarks"
+                        CssClass="btn-save-remarks" OnClick="btnSaveRemarks_Click"
+                        CausesValidation="false" OnClientClick="collectRemarks();"/>
+                </div>
+                <asp:HiddenField ID="hfRemarksJson" runat="server" Value="[]"/>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div class="page-header-icon">&#x1F9EA;</div>
         <div>
