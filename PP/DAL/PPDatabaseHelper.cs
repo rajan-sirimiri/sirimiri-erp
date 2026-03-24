@@ -1137,41 +1137,38 @@ namespace PPApp.DAL
                 new MySqlParameter("?pid", productId));
         }
 
-        public static void SaveProductParams(int productId, List<(string type, string label)> paramList)
+        public static void SaveProductParams(int productId, string[] types, string[] labels)
         {
             // Delete existing and re-insert
             ExecuteNonQuery("DELETE FROM PP_ProductParams WHERE ProductID=?pid;",
                 new MySqlParameter("?pid", productId));
-            int order = 1;
-            foreach (var p in paramList)
+            for (int i = 0; i < types.Length; i++)
             {
-                if (!string.IsNullOrEmpty(p.type))
+                if (!string.IsNullOrEmpty(types[i]))
                 {
                     ExecuteNonQuery(
                         "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel)" +
                         " VALUES(?pid, ?ord, ?type, ?lbl);",
                         new MySqlParameter("?pid",  productId),
-                        new MySqlParameter("?ord",  order),
-                        new MySqlParameter("?type", p.type),
-                        new MySqlParameter("?lbl",  p.label));
-                    order++;
+                        new MySqlParameter("?ord",  i + 1),
+                        new MySqlParameter("?type", types[i]),
+                        new MySqlParameter("?lbl",  string.IsNullOrEmpty(labels[i]) ? types[i] : labels[i]));
                 }
             }
         }
 
-        public static void SaveBatchParams(int execId, Dictionary<int, decimal?> paramValues)
+        public static void SaveBatchParams(int execId, int[] paramIds, decimal?[] values)
         {
-            // Delete and re-insert
             ExecuteNonQuery("DELETE FROM PP_BatchParams WHERE ExecutionID=?eid;",
                 new MySqlParameter("?eid", execId));
-            foreach (var kv in paramValues)
+            for (int i = 0; i < paramIds.Length; i++)
             {
                 ExecuteNonQuery(
                     "INSERT INTO PP_BatchParams (ExecutionID, ParamID, Value)" +
                     " VALUES(?eid, ?pid, ?val);",
                     new MySqlParameter("?eid", execId),
-                    new MySqlParameter("?pid", kv.Key),
-                    new MySqlParameter("?val", kv.Value.HasValue ? (object)kv.Value.Value : DBNull.Value));
+                    new MySqlParameter("?pid", paramIds[i]),
+                    new MySqlParameter("?val", values[i].HasValue ? (object)values[i].Value : DBNull.Value));
             }
         }
 

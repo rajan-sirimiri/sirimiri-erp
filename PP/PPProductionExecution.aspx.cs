@@ -308,18 +308,22 @@ namespace PPApp
             PPDatabaseHelper.SaveBatchOutput(execId, output, txtRemarks.Text.Trim(), orderId, total);
 
             // Save dynamic batch params
-            var paramValues = new Dictionary<int, decimal?>();
             var paramsDt2 = PPDatabaseHelper.GetProductParams(
                 Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]));
-            foreach (System.Data.DataRow pr in paramsDt2.Rows)
+            if (paramsDt2.Rows.Count > 0)
             {
-                int pid = Convert.ToInt32(pr["ParamID"]);
-                string fieldVal = Request.Form["dynparam_" + pid];
-                decimal v;
-                paramValues[pid] = decimal.TryParse(fieldVal, out v) ? v : (decimal?)null;
+                var pidList = new System.Collections.Generic.List<int>();
+                var valList = new System.Collections.Generic.List<decimal?>();
+                foreach (System.Data.DataRow pr in paramsDt2.Rows)
+                {
+                    int pid = Convert.ToInt32(pr["ParamID"]);
+                    string fieldVal = Request.Form["dynparam_" + pid];
+                    decimal v;
+                    pidList.Add(pid);
+                    valList.Add(decimal.TryParse(fieldVal, out v) ? v : (decimal?)null);
+                }
+                PPDatabaseHelper.SaveBatchParams(execId, pidList.ToArray(), valList.ToArray());
             }
-            if (paramValues.Count > 0)
-                PPDatabaseHelper.SaveBatchParams(execId, paramValues);
 
             bool isConversion = Session["PE_IsConversion"] != null && (bool)Session["PE_IsConversion"];
             if (isConversion)

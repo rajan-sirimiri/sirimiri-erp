@@ -658,21 +658,21 @@ namespace PPApp
         {
             if (hfParamsJson == null) return;
             string json = hfParamsJson.Value;
-            var paramList = new List<(string type, string label)>();
+            var types  = new System.Collections.Generic.List<string>();
+            var labels = new System.Collections.Generic.List<string>();
             try
             {
-                // Simple JSON parse — format: [{type:"X",label:"Y"},...]
                 json = json.Trim();
-                if (json == "[]" || string.IsNullOrEmpty(json)) { PPDatabaseHelper.SaveProductParams(productId, paramList); return; }
-                // Strip outer brackets
+                if (json == "[]" || string.IsNullOrEmpty(json))
+                { PPDatabaseHelper.SaveProductParams(productId, new string[0], new string[0]); return; }
                 json = json.TrimStart('[').TrimEnd(']');
-                foreach (string obj in json.Split(new[]{"},{","}, {"}, StringSplitOptions.None))
+                foreach (string obj in json.Split(new string[]{"},{","}, {"}, StringSplitOptions.None))
                 {
                     string o = obj.Trim().TrimStart('{').TrimEnd('}');
                     string type = "", label = "";
                     foreach (string part in o.Split(','))
                     {
-                        string[] kv = part.Split(new[]{':'},2);
+                        string[] kv = part.Split(new char[]{':'},2);
                         if (kv.Length == 2)
                         {
                             string k = kv[0].Trim().Trim('"');
@@ -682,11 +682,11 @@ namespace PPApp
                         }
                     }
                     if (!string.IsNullOrEmpty(type))
-                        paramList.Add((type, string.IsNullOrEmpty(label) ? type : label));
+                    { types.Add(type); labels.Add(string.IsNullOrEmpty(label) ? type : label); }
                 }
             }
             catch { }
-            PPDatabaseHelper.SaveProductParams(productId, paramList);
+            PPDatabaseHelper.SaveProductParams(productId, types.ToArray(), labels.ToArray());
         }
 
         private void ShowAlert(string msg, bool success)
