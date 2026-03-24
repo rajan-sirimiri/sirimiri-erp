@@ -629,22 +629,30 @@ namespace PKApp.DAL
         // ── REPORTS ──────────────────────────────────────────────────────────
         public static DataTable GetFGStockSummary()
         {
+            // Only Core products. Cases/Jars/Pcs calculated from packing execution records.
+            // FGAvailable = total individual pcs packed (from PK_FGStock).
             return ExecuteQuery(
-                "SELECT p.ProductCode, p.ProductName, ou.Abbreviation AS Unit," +
-                " ROUND(IFNULL(fg.TotalPacked,0),3) AS TotalPacked," +
-                " ROUND(IFNULL(sp.TotalSecondary,0),3) AS TotalSecondary," +
-                " ROUND(IFNULL(sh.TotalShipped,0),3) AS TotalShipped," +
-                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sh.TotalShipped,0),3) AS FGAvailable" +
+                "SELECT p.ProductCode, p.ProductName," +
+                " p.ContainerType, p.ContainersPerCase," +
+                " IFNULL(pk.TotalCases,0) AS TotalCases," +
+                " IFNULL(pk.TotalJars,0)  AS TotalJars," +
+                " IFNULL(pk.TotalPcs,0)   AS TotalPcs," +
+                " ROUND(IFNULL(fg.FGAvailable,0),0) AS FGAvailable" +
                 " FROM PP_Products p" +
-                " JOIN MM_UOM ou ON ou.UOMID=p.OutputUOMID" +
-                " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPacked" +
-                "   FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID=p.ProductID" +
-                " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalSecondary" +
-                "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID=p.ProductID" +
-                " LEFT JOIN (SELECT sl.ProductID, SUM(sl.QtyShipped) AS TotalShipped" +
-                "   FROM PK_ShipmentLine sl JOIN PK_Shipment s ON s.ShipmentID=sl.ShipmentID" +
-                "   WHERE s.Status!='Cancelled' GROUP BY sl.ProductID) sh ON sh.ProductID=p.ProductID" +
-                " WHERE p.IsActive=1" +
+                " LEFT JOIN (" +
+                "   SELECT pe.OrderID," +
+                "     SUM(IFNULL(pe.Cases,0))  AS TotalCases," +
+                "     SUM(IFNULL(pe.Jars,0))   AS TotalJars," +
+                "     SUM(IFNULL(pe.Units,0))  AS TotalPcs" +
+                "   FROM PK_PackingExecution pe" +
+                "   WHERE pe.Status='Completed'" +
+                "   GROUP BY pe.OrderID" +
+                " ) pk ON pk.OrderID IN (SELECT OrderID FROM PP_ProductionOrder WHERE ProductID=p.ProductID)" +
+                " LEFT JOIN (" +
+                "   SELECT ProductID, SUM(QtyPacked) AS FGAvailable" +
+                "   FROM PK_FGStock GROUP BY ProductID" +
+                " ) fg ON fg.ProductID=p.ProductID" +
+                " WHERE p.IsActive=1 AND p.ProductType='Core'" +
                 " ORDER BY p.ProductName;");
         }
 
