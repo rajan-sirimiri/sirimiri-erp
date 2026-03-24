@@ -194,7 +194,7 @@ input:focus,select.jar-sel:focus{border-color:var(--accent);}
         <div class="status-label stopped" id="statusLabel">READY TO START</div>
 
         <!-- OUTPUT PANEL — shown after END -->
-        <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
+        <asp:Panel ID="pnlOutput" runat="server" Visible="true">
         <div class="output-panel">
             <div class="output-title">
                 &#x1F4E6; Record Packed Output — Batch <asp:Label ID="lblOutputBatch" runat="server"/>
@@ -280,15 +280,19 @@ function stopWheel(r){ window.serverState=r?'ready':'ended'; }
 function applyState(){
     var s=window.serverState||'ready';
     var lbl=document.getElementById('statusLabel');
+    var out=document.getElementById('<%= pnlOutput.ClientID %>');
     if(s==='running'){
         target=0.9;
         if(lbl){lbl.innerText='PACKING IN PROGRESS...';lbl.className='status-label running';}
+        if(out) out.style.display='none';
     } else if(s==='ended'){
         target=0;
         if(lbl){lbl.innerText='BATCH ENDED — ENTER PACKED QTY BELOW';lbl.className='status-label stopped';}
+        if(out) out.style.display='block';
     } else {
         target=0;
         if(lbl){lbl.innerText='READY TO START';lbl.className='status-label stopped';}
+        if(out) out.style.display='none';
     }
     updateBatchDisplay();
 }

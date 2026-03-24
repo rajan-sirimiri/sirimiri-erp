@@ -165,7 +165,7 @@ namespace PKApp
 
         void SetState(string state, int batchNo, int total)
         {
-            pnlOutput.Style["display"] = state == "ended" ? "block" : "none";
+            // pnlOutput visibility controlled by applyState() JS — not server side
             // Build startup script — runs after window.load, sets definitive state
             string js =
                 "window.batchNum='" + batchNo + "';" +
