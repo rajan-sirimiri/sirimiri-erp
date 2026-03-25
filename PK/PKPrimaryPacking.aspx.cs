@@ -40,6 +40,7 @@ namespace PKApp
                 if (hfOrderId.Value != "0")
                 {
                     pnlOrderSelect.Visible = false;
+                    if (pnlOrderSelect != null) pnlOrderSelect.Visible = false;
                     pnlInfo.Visible      = true;
                     pnlRunConfig.Visible = true;
                     pnlExecution.Visible = true;
@@ -68,39 +69,76 @@ namespace PKApp
             string val = ddlProduct.SelectedValue;
             if (val == "0") { ShowAlert("Please select a product.", false); return; }
 
-            string[] parts       = val.Split('|');
-            int    productId     = int.Parse(parts[0]);
-            string containerType = parts.Length > 1 ? parts[1] : "DIRECT";
-            string unitSizes     = parts.Length > 2 ? parts[2] : "";
-            string ctrsPerCase   = parts.Length > 3 ? parts[3] : "12";
+            string[] parts = val.Split('|');
+            int productId  = int.Parse(parts[0]);
 
-            hfProductId.Value        = productId.ToString();
-            hfContainerType.Value    = containerType;
-            hfUnitSizes.Value        = unitSizes;
-            hfContainersPerCase.Value = ctrsPerCase;
+            hfProductId.Value         = productId.ToString();
+            hfContainerType.Value     = parts.Length > 1 ? parts[1] : "DIRECT";
+            hfUnitSizes.Value         = parts.Length > 2 ? parts[2] : "";
+            hfContainersPerCase.Value = parts.Length > 3 ? parts[3] : "12";
 
-            var order = PKDatabaseHelper.GetPackingOrderForProduct(productId);
-            if (order == null) { ShowAlert("No active production order found.", false); return; }
+            pnlAlert.Visible = false;
+            ClearPanels();
 
-            int orderId       = Convert.ToInt32(order["OrderID"]);
-            int totalOrdered  = Convert.ToInt32(order["TotalBatches"]);
-            int productionDone = order["ProductionDone"] != DBNull.Value ? Convert.ToInt32(order["ProductionDone"]) : 0;
-            int total   = productionDone; // can only pack what has been produced
-            int packed  = Convert.ToInt32(order["PackedBatches"]);
-            hfOrderId.Value = orderId.ToString();
+            var orders = PKDatabaseHelper.GetPendingPackingOrders(productId);
+            if (orders.Rows.Count == 0)
+            { ShowAlert("No orders with produced batches ready to pack.", false); return; }
 
-            // Product name
-            string productName = ddlProduct.SelectedItem.Text;
-            int bracket = productName.IndexOf(" (");
-            if (bracket > 0) productName = productName.Substring(0, bracket);
+            if (orders.Rows.Count == 1)
+                LoadOrder(Convert.ToInt32(orders.Rows[0]["OrderID"]));
+            else
+            {
+                pnlOrderSelect.Visible = true;
+                rptOrders.DataSource   = orders;
+                rptOrders.DataBind();
+            }
+        }
 
-            lblProduct.Text       = productName;
+        protected void rptOrders_ItemCommand(object src, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "SelectOrder")
+            {
+                pnlOrderSelect.Visible = false;
+                LoadOrder(Convert.ToInt32(e.CommandArgument));
+            }
+        }
+
+        private void ClearPanels()
+        {
+            if (pnlOrderSelect != null) pnlOrderSelect.Visible = false;
+            pnlInfo.Visible      = false;
+            pnlRunConfig.Visible = false;
+            pnlExecution.Visible = false;
+            pnlHistory.Visible   = false;
+        }
+
+        private void LoadOrder(int orderId)
+        {
+            var order = PKDatabaseHelper.GetPackingOrderById(orderId);
+            if (order == null) { ShowAlert("Order not found.", false); return; }
+
+            int productId      = Convert.ToInt32(order["ProductID"]);
+            int productionDone = Convert.ToInt32(order["ProductionDone"]);
+            int totalOrdered   = Convert.ToInt32(order["TotalBatches"]);
+            int packed         = Convert.ToInt32(order["PackedBatches"]);
+            int total          = productionDone;
+
+            hfProductId.Value         = productId.ToString();
+            hfOrderId.Value           = orderId.ToString();
+            hfContainerType.Value     = order["ContainerType"]    == DBNull.Value ? "DIRECT" : order["ContainerType"].ToString();
+            hfUnitSizes.Value         = order["UnitsPerContainer"] == DBNull.Value ? ""       : order["UnitsPerContainer"].ToString();
+            hfContainersPerCase.Value = order["ContainersPerCase"] == DBNull.Value ? "12"     : order["ContainersPerCase"].ToString();
+
+            string containerType = hfContainerType.Value;
+            string unitSizes     = hfUnitSizes.Value;
+            string ctrsPerCase   = hfContainersPerCase.Value;
+
+            lblProduct.Text       = order["ProductName"].ToString();
             lblContainerType.Text = containerType;
             lblTotalBatches.Text  = productionDone + " of " + totalOrdered + " produced";
             lblPackedBatches.Text = packed.ToString();
             lblRemaining.Text     = Math.Max(0, total - packed).ToString();
 
-            // Container label
             string ctLabel = containerType == "DIRECT" ? "Case" : containerType;
             lblContainerName.Text = ctLabel;
             lblJarOutName.Text    = ctLabel + "s";
@@ -108,7 +146,6 @@ namespace PKApp
             lblOutputSummary.Text = string.IsNullOrEmpty(unitSizes) ? "" :
                 "Unit sizes available: " + unitSizes + " units per " + ctLabel;
 
-            // Config dropdowns
             BindUnitSizes(unitSizes, ctLabel);
             BindCaseQty(ctrsPerCase, containerType);
 
@@ -116,7 +153,6 @@ namespace PKApp
             pnlRunConfig.Visible = true;
             pnlExecution.Visible = true;
             pnlHistory.Visible   = true;
-            pnlAlert.Visible     = false;
 
             RenderState(orderId, total, packed);
         }
