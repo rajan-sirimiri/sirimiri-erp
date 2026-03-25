@@ -8,7 +8,7 @@ namespace StockApp.DAL
     public static class DatabaseHelper
     {
         private static string ConnectionString =>
-            ConfigurationManager.ConnectionStrings["StockDBConnection"].ConnectionString;
+            ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
 
         // ── CORE PRIVATE HELPERS ──────────────────────────────────────
         private static DataTable ExecuteStoredProcedure(string procedureName, MySqlParameter[] parameters)
