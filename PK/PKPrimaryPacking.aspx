@@ -81,7 +81,7 @@ select.cfg-sel:focus,input.cfg-inp:focus{border-color:var(--amber);}
 .btn-end:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
 .batch-info-row{display:none;}/* replaced by side layout */
 .batch-num{font-family:'Bebas Neue',sans-serif;font-size:108px;letter-spacing:.04em;line-height:1;color:var(--text);}
-.batch-of{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.04em;line-height:1;color:var(--text-muted);}
+.batch-of{font-family:'Bebas Neue',sans-serif;font-size:108px;letter-spacing:.04em;line-height:1;color:var(--text-muted);}
 .status-label{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:6px 18px;border-radius:20px;display:inline-block;margin-bottom:8px;}
 .status-label.running{background:var(--accent-light);color:var(--accent-dark);}
 .status-label.stopped{background:#f0f0f0;color:var(--text-muted);}
