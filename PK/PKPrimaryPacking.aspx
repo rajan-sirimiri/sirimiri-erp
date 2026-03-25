@@ -67,19 +67,21 @@ select.cfg-sel,input.cfg-inp{width:100%;padding:10px 13px;border:1.5px solid var
 select.cfg-sel:focus,input.cfg-inp:focus{border-color:var(--amber);}
 
 /* EXEC PANEL */
-.exec-panel{background:var(--surface);border-radius:var(--radius);box-shadow:0 2px 12px rgba(0,0,0,.07);padding:32px;text-align:center;}
-.gear-wrap{width:200px;height:200px;margin:0 auto 22px;}
+.exec-panel{background:var(--surface);border-radius:var(--radius);box-shadow:0 2px 12px rgba(0,0,0,.07);padding:28px 32px;}
+.exec-panel-inner{display:flex;align-items:center;justify-content:center;gap:24px;}
+.gear-wrap{width:200px;height:200px;flex-shrink:0;}
 .gear-wrap img{width:100%;height:100%;object-fit:contain;}
-.gear-buttons-row{display:flex;gap:28px;justify-content:center;margin-bottom:18px;}
+.gear-buttons-row{display:flex;flex-direction:column;gap:16px;align-items:center;}
+.batch-side{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:100px;}
 .btn-start{background:var(--accent);color:#fff;border:none;border-radius:50%;width:90px;height:90px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;box-shadow:0 4px 16px rgba(39,174,96,.4);transition:all .2s;}
 .btn-start:hover{transform:scale(1.05);}
 .btn-start:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
 .btn-end{background:var(--red);color:#fff;border:none;border-radius:50%;width:90px;height:90px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;box-shadow:0 4px 16px rgba(231,76,60,.4);transition:all .2s;}
 .btn-end:hover{transform:scale(1.05);}
 .btn-end:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
-.batch-info-row{display:flex;align-items:baseline;justify-content:center;gap:10px;margin-bottom:6px;}
-.batch-num{font-family:'Bebas Neue',sans-serif;font-size:72px;letter-spacing:.04em;line-height:1;}
-.batch-sub{font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
+.batch-info-row{display:none;}/* replaced by side layout */
+.batch-num{font-family:'Bebas Neue',sans-serif;font-size:108px;letter-spacing:.04em;line-height:1;color:var(--text);}
+.batch-of{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.04em;line-height:1;color:var(--text-muted);}
 .status-label{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:6px 18px;border-radius:20px;display:inline-block;margin-bottom:8px;}
 .status-label.running{background:var(--accent-light);color:var(--accent-dark);}
 .status-label.stopped{background:#f0f0f0;color:var(--text-muted);}
@@ -114,10 +116,12 @@ input.out-inp:focus{border-color:var(--accent);}
 .empty-note{text-align:center;padding:24px;color:var(--text-dim);font-size:13px;}
 
 @media(max-width:600px){
-    .batch-num{font-size:52px;}
+    .batch-num{font-size:72px;}
+    .batch-of{font-size:28px;}
     .output-grid{grid-template-columns:1fr 1fr;}
     .run-config-grid{grid-template-columns:1fr;}
     .gear-wrap{width:160px;height:160px;}
+    .exec-panel-inner{gap:12px;}
 }
 </style>
 </head>
@@ -259,29 +263,38 @@ input.out-inp:focus{border-color:var(--accent);}
     <!-- EXECUTION PANEL -->
     <asp:Panel ID="pnlExecution" runat="server" Visible="false">
     <div class="exec-panel">
+        <div class="exec-panel-inner">
 
-        <div class="gear-wrap">
-            <img id="gearImg" src="/PP/progress_wheel.png" alt=""
-                onerror="this.style.opacity='.1'"/>
+            <!-- LEFT: Batch Number -->
+            <div class="batch-side">
+                <span class="batch-num" id="batchNum">—</span>
+            </div>
+
+            <!-- CENTRE: Wheel + Buttons -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+                <div class="gear-wrap">
+                    <img id="gearImg" src="/PP/progress_wheel.png" alt=""
+                        onerror="this.style.opacity='.1'"/>
+                </div>
+                <div class="gear-buttons-row">
+                    <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
+                        OnClick="btnStart_Click" CausesValidation="false"
+                        UseSubmitBehavior="false" OnClientClick="startWheelAnim();"
+                        Text="&#9654;&#xA;START"/>
+                    <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
+                        OnClick="btnEnd_Click" CausesValidation="false"
+                        UseSubmitBehavior="false" OnClientClick="stopWheelAnim();"
+                        Text="&#9646;&#9646;&#xA;END"/>
+                </div>
+                <div class="status-label stopped" id="statusLabel">READY TO START</div>
+            </div>
+
+            <!-- RIGHT: X of Y -->
+            <div class="batch-side">
+                <span class="batch-of" id="batchSub">—</span>
+            </div>
+
         </div>
-
-        <div class="gear-buttons-row">
-            <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
-                OnClick="btnStart_Click" CausesValidation="false"
-                UseSubmitBehavior="false" OnClientClick="startWheelAnim();"
-                Text="&#9654;&#xA;START"/>
-            <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
-                OnClick="btnEnd_Click" CausesValidation="false"
-                UseSubmitBehavior="false" OnClientClick="stopWheelAnim();"
-                Text="&#9646;&#9646;&#xA;END"/>
-        </div>
-
-        <div class="batch-info-row">
-            <span class="batch-num" id="batchNum">—</span>
-            <span class="batch-sub" id="batchSub">READY</span>
-        </div>
-        <div class="status-label stopped" id="statusLabel">READY TO START</div>
-
     </div>
     </asp:Panel>
 
@@ -380,8 +393,8 @@ function updateBatchDisplay(){
     if(!n||!s) return;
     if(window.batchNum&&window.batchNum!=='0'){
         n.innerText='B'+window.batchNum;
-        s.innerText=window.batchNum+' OF '+window.totalBat;
-    } else { n.innerText='—'; s.innerText='READY'; }
+        s.innerText=window.batchNum+'/'+window.totalBat;
+    } else { n.innerText='—'; s.innerText='—'; }
 }
 
 function setButtonStates(s){
