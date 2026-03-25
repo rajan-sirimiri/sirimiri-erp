@@ -148,7 +148,6 @@ namespace PPApp
             if (status == "Completed")
             {
                 pnlExecution.Style["display"] = "none";
-                ShowAlert("All " + total + " batches completed!", true);
                 return;
             }
 
