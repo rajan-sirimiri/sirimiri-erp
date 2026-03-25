@@ -7,9 +7,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Login &mdash; Production &amp; Planning</title>
+<title>Login &mdash; Production Planning</title>
 <style>
-:root { --accent:#1a7a4a; --surface:#fff; --bg:#f5f5f5; --border:#e0e0e0; --text:#1a1a1a; --muted:#666; --radius:12px; }
+:root { --accent:#1e7e34; --surface:#fff; --bg:#f5f5f5; --border:#e0e0e0; --text:#1a1a1a; --muted:#666; --radius:12px; }
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 body { background:var(--bg); font-family:'DM Sans',sans-serif; min-height:100vh;
        display:flex; align-items:center; justify-content:center; }
@@ -23,18 +23,21 @@ body::before {
 
 .card { background:var(--surface); border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,.12); overflow:hidden; }
 
+/* Header */
 .card-header { background:#fff; padding:24px 32px 16px; display:flex; align-items:center; justify-content:space-between; }
-.card-header img { height:72px; width:auto; object-fit:contain; filter:drop-shadow(0 2px 8px rgba(26,122,74,.2)); }
+.card-header img { height:72px; width:auto; object-fit:contain; filter:drop-shadow(0 2px 8px rgba(30,126,52,.2)); }
 .company-block { text-align:center; flex:1; }
 .company-name  { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:.10em; color:var(--text); line-height:1.2; }
 .company-sub   { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:.10em; color:var(--muted); }
-.module-badge  { background:rgba(26,122,74,.08); border:1px solid rgba(26,122,74,.2);
+.module-badge  { background:rgba(30,126,52,.08); border:1px solid rgba(30,126,52,.2);
                  border-radius:6px; padding:6px 12px; text-align:center; }
 .module-badge-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
 .module-badge-name  { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:.08em; color:var(--accent); }
 
-.accent-bar { height:3px; background:linear-gradient(90deg,var(--accent),#26a065,var(--accent)); }
+/* Red bar */
+.accent-bar { height:3px; background:linear-gradient(90deg,var(--accent),#28a745,var(--accent)); }
 
+/* Form area */
 .card-body { padding:28px 32px 32px; }
 .card-title    { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:.07em; color:var(--text); margin-bottom:4px; }
 .card-subtitle { font-size:13px; color:var(--muted); margin-bottom:24px; }
@@ -43,17 +46,16 @@ body::before {
 .field label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:5px; }
 .field input  { width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:8px;
                 font-size:14px; font-family:inherit; color:var(--text); background:#fafafa; transition:border-color .2s; }
-.field input:focus { outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(26,122,74,.1); }
+.field input:focus { outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(30,126,52,.1); }
 
 .btn-login { width:100%; padding:12px; background:var(--accent); color:#fff; border:none;
              border-radius:8px; font-size:14px; font-weight:700; font-family:inherit;
              letter-spacing:.05em; text-transform:uppercase; cursor:pointer;
              margin-top:8px; transition:background .2s; }
-.btn-login:hover { background:#145e38; }
+.btn-login:hover { background:#155724; }
 
-.error-msg { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;
-             padding:10px 14px; color:#166534; font-size:13px; margin-bottom:16px; }
-.error-msg.is-error { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+.error-msg { background:#fef2f2; border:1px solid #fecaca; border-radius:8px;
+             padding:10px 14px; color:#b91c1c; font-size:13px; margin-bottom:16px; }
 </style>
 </head>
 <body>
@@ -68,16 +70,16 @@ body::before {
       </div>
       <div class="module-badge">
         <div class="module-badge-label">Module</div>
-        <div class="module-badge-name">Production<br/>&amp; Planning</div>
+        <div class="module-badge-name">Production<br/>Planning</div>
       </div>
     </div>
     <div class="accent-bar"></div>
     <form id="form1" runat="server">
     <div class="card-body">
       <div class="card-title">Sign In</div>
-      <div class="card-subtitle">Production &amp; Planning Module</div>
+      <div class="card-subtitle">Production Planning &amp; Execution Module</div>
       <asp:Panel ID="pnlError" runat="server" Visible="false">
-        <div class="error-msg is-error"><asp:Label ID="lblError" runat="server" /></div>
+        <div class="error-msg"><asp:Label ID="lblError" runat="server" /></div>
       </asp:Panel>
       <div class="field">
         <label>Username</label>
