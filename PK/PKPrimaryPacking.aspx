@@ -23,7 +23,16 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .nav-link:hover{color:#fff;background:rgba(255,255,255,.08);}
 
 /* SELECT BAR */
-.select-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 24px;display:flex;align-items:flex-end;justify-content:center;gap:14px;flex-wrap:wrap;}
+.date-bar{background:var(--surface);border-bottom:2px solid #1a1a1a;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.date-bar-left{display:flex;flex-direction:column;gap:2px;}
+.page-title-bar{font-family:"Bebas Neue",sans-serif;font-size:22px;letter-spacing:.08em;color:var(--text);}
+.page-title-bar span{color:var(--orange);}
+.date-str{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);}
+.date-bar-right{display:flex;align-items:center;gap:8px;}
+.shift-label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);}
+.shift-sel{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;background:#fafafa;outline:none;color:var(--text);}
+.shift-sel:focus{border-color:var(--orange);}
+.select-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:flex-end;justify-content:center;gap:14px;flex-wrap:wrap;}
 .select-bar label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:5px;}
 .select-bar select{padding:9px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:13px;color:var(--text);background:#fafafa;outline:none;min-width:300px;}
 .select-bar select:focus{border-color:var(--accent);}
@@ -129,7 +138,7 @@ input.out-inp:focus{border-color:var(--accent);}
 
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
-    <span class="nav-title">Packing &amp; Shipments</span>
+    <span class="nav-title">Primary Packing</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
         <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
@@ -137,6 +146,21 @@ input.out-inp:focus{border-color:var(--accent);}
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>
+
+<!-- DATE BAR -->
+<div class="date-bar">
+    <div class="date-bar-left">
+        <div class="page-title-bar">Primary <span>Packing</span></div>
+        <div class="date-str"><asp:Label ID="lblDate" runat="server"/></div>
+    </div>
+    <div class="date-bar-right">
+        <span class="shift-label">Shift</span>
+        <asp:DropDownList ID="ddlShift" runat="server" CssClass="shift-sel">
+            <asp:ListItem Value="1">Shift 1 — Morning</asp:ListItem>
+            <asp:ListItem Value="2">Shift 2 — Evening</asp:ListItem>
+        </asp:DropDownList>
+    </div>
+</div>
 
 <!-- PRODUCT SELECT BAR -->
 <div class="select-bar">

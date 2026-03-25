@@ -8,7 +8,8 @@ namespace PKApp
 {
     public partial class PKPrimaryPacking : Page
     {
-        protected Label    lblUser, lblAlert;
+        protected Label    lblUser, lblAlert, lblDate;
+        protected System.Web.UI.WebControls.DropDownList ddlShift;
         protected Label    lblProduct, lblContainerType, lblTotalBatches, lblPackedBatches, lblRemaining;
         protected Label    lblContainerName, lblCaseQtyLbl, lblJarOutName, lblOutputSummary;
         protected Panel    pnlAlert, pnlInfo, pnlRunConfig, pnlExecution, pnlOutput, pnlHistory;
@@ -31,6 +32,7 @@ namespace PKApp
         {
             if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
             lblUser.Text = Session["PK_FullName"] as string ?? "";
+            lblDate.Text = PKDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper() + " — PRIMARY PACKING";
             if (!IsPostBack)
             {
                 BindProductDropdown();
