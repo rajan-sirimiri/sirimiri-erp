@@ -160,9 +160,12 @@ namespace PKApp.DAL
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
                 " WHERE p.ProductType = 'Core'" +
                 " AND po.Status IN ('Initiated','InProgress','Completed')" +
+                " AND (SELECT COUNT(*) FROM PP_BatchExecution be" +
+                "      WHERE be.OrderID=po.OrderID AND be.Status='Completed') > 0" +
                 " AND (SELECT COUNT(*) FROM PK_PackingExecution pe" +
                 "      WHERE pe.OrderID=po.OrderID AND pe.Status='Completed')" +
-                " < IFNULL(po.RevisedBatches, po.OrderedBatches)" +
+                " < (SELECT COUNT(*) FROM PP_BatchExecution be2" +
+                "      WHERE be2.OrderID=po.OrderID AND be2.Status='Completed')" +
                 " ORDER BY p.ProductName;");
         }
 
@@ -174,7 +177,9 @@ namespace PKApp.DAL
                 " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
                 " po.Status," +
                 " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
-                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed') AS PackedBatches" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed') AS PackedBatches," +
+                " (SELECT COUNT(*) FROM PP_BatchExecution be" +
+                "  WHERE be.OrderID=po.OrderID AND be.Status='Completed') AS ProductionDone" +
                 " FROM PP_ProductionOrder po" +
                 " WHERE po.ProductID=?pid AND po.Status IN ('Initiated','InProgress','Completed')" +
                 " ORDER BY po.OrderDate DESC LIMIT 1;",

@@ -78,8 +78,10 @@ namespace PKApp
             var order = PKDatabaseHelper.GetPackingOrderForProduct(productId);
             if (order == null) { ShowAlert("No active production order found.", false); return; }
 
-            int orderId = Convert.ToInt32(order["OrderID"]);
-            int total   = Convert.ToInt32(order["TotalBatches"]);
+            int orderId       = Convert.ToInt32(order["OrderID"]);
+            int totalOrdered  = Convert.ToInt32(order["TotalBatches"]);
+            int productionDone = order["ProductionDone"] != DBNull.Value ? Convert.ToInt32(order["ProductionDone"]) : 0;
+            int total   = productionDone; // can only pack what has been produced
             int packed  = Convert.ToInt32(order["PackedBatches"]);
             hfOrderId.Value = orderId.ToString();
 
@@ -90,9 +92,9 @@ namespace PKApp
 
             lblProduct.Text       = productName;
             lblContainerType.Text = containerType;
-            lblTotalBatches.Text  = total.ToString();
+            lblTotalBatches.Text  = productionDone + " of " + totalOrdered + " produced";
             lblPackedBatches.Text = packed.ToString();
-            lblRemaining.Text     = (total - packed).ToString();
+            lblRemaining.Text     = Math.Max(0, total - packed).ToString();
 
             // Container label
             string ctLabel = containerType == "DIRECT" ? "Case" : containerType;
@@ -231,9 +233,11 @@ namespace PKApp
 
             var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
             int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
-            int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
+            int productionDone2 = (order != null && order["ProductionDone"] != DBNull.Value) ? Convert.ToInt32(order["ProductionDone"]) : 0;
+            int total  = productionDone2; // ceiling is production batches done
             int next   = packed + 1;
-            if (next > total) { ShowAlert("All batches already packed.", false); return; }
+            if (total == 0) { ShowAlert("No production batches completed yet.", false); return; }
+            if (next > total) { ShowAlert("All produced batches have been packed.", false); return; }
 
             int packingId = PKDatabaseHelper.StartPackingBatch(orderId, next, UserID);
             hfPackingId.Value = packingId.ToString();
