@@ -78,16 +78,16 @@ body::before {
     <div class="card-body">
       <div class="card-title">Sign In</div>
       <div class="card-subtitle">Packing &amp; Shipments Module</div>
-      <asp:Panel ID="pnlError" runat="server" Visible="false">
-        <div class="error-msg"><asp:Label ID="lblError" runat="server" /></div>
+      <asp:Panel ID="pnlErr" runat="server" Visible="false">
+        <div class="error-msg"><asp:Label ID="lblErr" runat="server" /></div>
       </asp:Panel>
       <div class="field">
         <label>Username</label>
-        <asp:TextBox ID="txtUsername" runat="server" placeholder="Enter username" />
+        <asp:TextBox ID="txtUser" runat="server" placeholder="Enter username" />
       </div>
       <div class="field">
         <label>Password</label>
-        <asp:TextBox ID="txtPassword" runat="server" TextMode="Password" placeholder="Enter password" />
+        <asp:TextBox ID="txtPass" runat="server" TextMode="Password" placeholder="Enter password" />
       </div>
       <asp:Button ID="btnLogin" runat="server" Text="Sign In" CssClass="btn-login" OnClick="btnLogin_Click" />
     </div>

@@ -169,7 +169,50 @@ namespace PKApp.DAL
                 " ORDER BY p.ProductName;");
         }
 
-        // Get order details for a product — total batches and packed batches
+
+        // Orders with at least 1 produced batch not yet fully packed
+        public static DataTable GetPendingPackingOrders(int productId)
+        {
+            return ExecuteQuery(
+                "SELECT po.OrderID, po.OrderDate, po.Shift," +
+                " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
+                " po.Status," +
+                " (SELECT COUNT(*) FROM PP_BatchExecution be" +
+                "  WHERE be.OrderID=po.OrderID AND be.Status='Completed') AS ProductionDone," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed' AND pe.BatchNo > 0) AS PackedBatches" +
+                " FROM PP_ProductionOrder po" +
+                " WHERE po.ProductID=?pid" +
+                " AND po.Status IN ('Initiated','InProgress','Completed')" +
+                " AND (SELECT COUNT(*) FROM PP_BatchExecution be2" +
+                "      WHERE be2.OrderID=po.OrderID AND be2.Status='Completed') > 0" +
+                " AND (SELECT COUNT(*) FROM PK_PackingExecution pe2" +
+                "      WHERE pe2.OrderID=po.OrderID AND pe2.Status='Completed' AND pe2.BatchNo > 0)" +
+                "    < (SELECT COUNT(*) FROM PP_BatchExecution be3" +
+                "      WHERE be3.OrderID=po.OrderID AND be3.Status='Completed')" +
+                " ORDER BY po.OrderDate DESC;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        // Get single order by ID with packing counts
+        public static DataRow GetPackingOrderById(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT po.OrderID, po.OrderDate, po.Shift," +
+                " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
+                " po.Status, p.ProductID, p.ProductName, p.ProductCode," +
+                " p.ContainerType, p.UnitsPerContainer, p.ContainersPerCase," +
+                " (SELECT COUNT(*) FROM PP_BatchExecution be" +
+                "  WHERE be.OrderID=po.OrderID AND be.Status='Completed') AS ProductionDone," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed' AND pe.BatchNo > 0) AS PackedBatches" +
+                " FROM PP_ProductionOrder po" +
+                " JOIN PP_Products p ON p.ProductID = po.ProductID" +
+                " WHERE po.OrderID=?oid;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Legacy — use GetPendingPackingOrders + GetPackingOrderById instead
         public static DataRow GetPackingOrderForProduct(int productId)
         {
             return ExecuteQueryRow(

@@ -156,6 +156,37 @@ input.out-inp:focus{border-color:var(--accent);}
 
 <div class="page-body">
 
+    <!-- ORDER SELECTION -->
+    <asp:Panel ID="pnlOrderSelect" runat="server" Visible="false">
+    <div class="order-list">
+        <div class="order-list-title">&#x1F4CB; Select Order to Pack</div>
+        <asp:Repeater ID="rptOrders" runat="server" OnItemCommand="rptOrders_ItemCommand">
+            <ItemTemplate>
+                <div class="order-item">
+                    <div class="order-item-left">
+                        <div class="order-item-id">Order #<%# Eval("OrderID") %></div>
+                        <div class="order-item-date"><%# Convert.ToDateTime(Eval("OrderDate")).ToString("dd MMM yyyy") %> &nbsp;|&nbsp; Shift <%# Eval("Shift") %></div>
+                    </div>
+                    <div class="order-item-right">
+                        <div class="order-item-stat">
+                            <div class="order-item-stat-val"><%# Eval("ProductionDone") %>/<%# Eval("TotalBatches") %></div>
+                            <div class="order-item-stat-lbl">Produced</div>
+                        </div>
+                        <div class="order-item-stat">
+                            <div class="order-item-stat-val"><%# Eval("PackedBatches") %></div>
+                            <div class="order-item-stat-lbl">Packed</div>
+                        </div>
+                        <asp:Button runat="server" Text="Select &#x2192;" CssClass="btn-select-order"
+                            CommandName="SelectOrder"
+                            CommandArgument='<%# Eval("OrderID") %>'
+                            CausesValidation="false"/>
+                    </div>
+                </div>
+            </ItemTemplate>
+        </asp:Repeater>
+    </div>
+    </asp:Panel>
+
     <!-- INFO -->
     <asp:Panel ID="pnlInfo" runat="server" Visible="false">
     <div class="info-panel">

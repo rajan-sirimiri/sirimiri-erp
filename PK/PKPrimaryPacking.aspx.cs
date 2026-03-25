@@ -12,6 +12,9 @@ namespace PKApp
         protected Label    lblProduct, lblContainerType, lblTotalBatches, lblPackedBatches, lblRemaining;
         protected Label    lblContainerName, lblCaseQtyLbl, lblJarOutName, lblOutputSummary;
         protected Panel    pnlAlert, pnlInfo, pnlRunConfig, pnlExecution, pnlOutput, pnlHistory;
+        protected Panel    pnlOrderSelect;
+        protected Repeater rptOrders;
+        protected HiddenField hfProductId2;
         protected Panel    pnlHistEmpty, pnlHistTable;
         protected System.Web.UI.HtmlControls.HtmlGenericControl rowCaseQty;
         protected DropDownList ddlProduct, ddlUnitSize, ddlCaseQty;
@@ -36,6 +39,7 @@ namespace PKApp
             {
                 if (hfOrderId.Value != "0")
                 {
+                    pnlOrderSelect.Visible = false;
                     pnlInfo.Visible      = true;
                     pnlRunConfig.Visible = true;
                     pnlExecution.Visible = true;
@@ -231,10 +235,10 @@ namespace PKApp
             int productId = Convert.ToInt32(hfProductId.Value);
             if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
 
-            var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
+            var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
             int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
-            int productionDone2 = (order != null && order["ProductionDone"] != DBNull.Value) ? Convert.ToInt32(order["ProductionDone"]) : 0;
-            int total  = productionDone2; // ceiling is production batches done
+            int productionDone2 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 0;
+            int total  = productionDone2;
             int next   = packed + 1;
             if (total == 0) { ShowAlert("No production batches completed yet.", false); return; }
             if (next > total) { ShowAlert("All produced batches have been packed.", false); return; }
@@ -257,8 +261,9 @@ namespace PKApp
             PKDatabaseHelper.CompletePackingBatch(packingId);
             hfPackingId.Value = "0";
 
-            var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
-            int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
+            var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
+            int productionDone3 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 1;
+            int total  = productionDone3;
             int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
 
             UpdateInfoLabels(packed, total);
@@ -300,8 +305,9 @@ namespace PKApp
                 txtCases.Value = "0"; txtJars.Value = "0"; txtUnits.Value = "0";
                 ShowAlert("Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.", true);
 
-                var order  = PKDatabaseHelper.GetPackingOrderForProduct(productId);
-                int total  = order != null ? Convert.ToInt32(order["TotalBatches"])  : 1;
+                var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
+                int productionDone4 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 1;
+                int total  = productionDone4;
                 int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
                 UpdateInfoLabels(packed, total);
                 SetState("ready", 0, total);
