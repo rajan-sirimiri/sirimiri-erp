@@ -135,7 +135,9 @@ namespace PKApp
 
             lblProduct.Text       = order["ProductName"].ToString();
             lblContainerType.Text = containerType;
-            lblTotalBatches.Text  = productionDone + " of " + totalOrdered + " produced";
+            // Show: X produced / Y effective (target to pack)
+            string effectiveLabel = totalOrdered + " ordered";
+            lblTotalBatches.Text  = productionDone + " produced / " + effectiveLabel;
             lblPackedBatches.Text = packed.ToString();
             lblRemaining.Text     = Math.Max(0, total - packed).ToString();
 
@@ -234,6 +236,17 @@ namespace PKApp
 
         void RenderState(int orderId, int total, int packed)
         {
+            // total = productionDone (packing ceiling per session)
+            // effectiveBatches = Revised or Ordered (threshold to unlock output panel)
+            var orderRow = PKDatabaseHelper.GetPackingOrderById(orderId);
+            int effectiveBatches = total; // fallback
+            string orderStatus   = "";
+            if (orderRow != null)
+            {
+                effectiveBatches = Convert.ToInt32(orderRow["TotalBatches"]); // RevisedBatches ?? OrderedBatches
+                orderStatus      = orderRow["Status"].ToString();
+            }
+
             var active = PKDatabaseHelper.GetActivePacking(orderId);
 
             if (active != null)
@@ -243,9 +256,10 @@ namespace PKApp
                 hfPackingId.Value = packingId.ToString();
                 SetState("running", batchNo, total);
             }
-            else if (packed >= total)
+            else if (packed >= effectiveBatches || orderStatus == "Stopped")
             {
-                SetState("alldone", total, total);
+                // All effective batches packed, or order stopped — unlock output panel
+                SetState("alldone", packed, total);
             }
             else
                 SetState("ready", packed + 1, total);
