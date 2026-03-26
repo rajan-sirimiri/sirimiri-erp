@@ -166,7 +166,7 @@
 
     <!-- LOGO BAR -->
     <div class="logo-area">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition"/>
         <div class="bis-label">SIRIMIRI Nutrition Food Products<br/>
             <span style="font-size:14px;color:var(--text-muted);">Business Intelligence System</span>
         </div>

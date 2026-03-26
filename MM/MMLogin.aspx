@@ -62,7 +62,7 @@ body::before {
 <div class="page-wrap">
   <div class="card">
     <div class="card-header">
-      <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri"
+      <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri"
            onerror="this.style.display='none'" />
       <div class="company-block">
         <div class="company-name">Sirimiri Nutrition<br/>Food Products</div>

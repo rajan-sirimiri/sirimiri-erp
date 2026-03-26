@@ -194,7 +194,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 <nav>
     <a href="PPHome.aspx" class="nav-logo">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
     </a>
     <span class="nav-title">Production Order</span>
     <div class="nav-right">

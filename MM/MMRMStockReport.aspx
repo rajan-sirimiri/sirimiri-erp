@@ -73,7 +73,7 @@
 <form id="form1" runat="server">
 
 <nav>
-    <a href="MMHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
+    <a href="MMHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
     <a href="MMHome.aspx" class="nav-item">Home</a>
     <a href="MMRawInward.aspx" class="nav-item">Raw GRN</a>
     <a href="MMRMStockReport.aspx" class="nav-item active">Stock Report</a>

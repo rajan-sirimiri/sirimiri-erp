@@ -122,7 +122,7 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 
 <nav>
     <a class="nav-logo" href="PPHome.aspx">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
     </a>
     <span class="nav-title">PP — Pre processed RM Entry</span>
     <div class="nav-right">

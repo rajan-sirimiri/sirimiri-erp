@@ -348,7 +348,7 @@
     <!-- HEADER -->
     <header>
         <div class="header-logo">
-            <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Nutrition"
+            <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Nutrition"
                  onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex';" />
             <div id="logoFallback" class="header-logo-fallback" style="display:none;">SN</div>
         </div>

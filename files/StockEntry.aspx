@@ -863,7 +863,7 @@
 
         <!-- LOGO + DATE -->
         <div class="logo-area">
-            <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition" />
+            <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition" />
 
             <div class="center-text">
                 <span class="bis-label">Business Intelligence<br />Systems</span>

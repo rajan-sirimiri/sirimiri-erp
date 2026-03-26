@@ -67,7 +67,7 @@
 
 <nav>
     <a href="MMHome.aspx" class="nav-logo">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
     </a>
     <a href="MMHome.aspx" class="nav-item">Home</a>
     <a href="MMScrapMaterial.aspx" class="nav-item active">Scrap Materials</a>

@@ -43,7 +43,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 </style></head><body>
 <form id="form1" runat="server">
 <nav>
-    <a class="nav-logo" href="PKHome.aspx"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
+    <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
     <span class="nav-title">Packing &amp; Shipments</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>

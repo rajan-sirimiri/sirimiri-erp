@@ -141,7 +141,7 @@ input.out-inp:focus{border-color:var(--accent);}
 <asp:HiddenField ID="hfSelectedCaseQty"  runat="server" Value="0"/>
 
 <nav>
-    <a class="nav-logo" href="PKHome.aspx"><img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
+    <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
     <span class="nav-title">Primary Packing</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>

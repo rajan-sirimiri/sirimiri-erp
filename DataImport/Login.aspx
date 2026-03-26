@@ -64,7 +64,7 @@
 <div class="page-wrap">
 <div class="card">
     <div class="card-header">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri Efficient Nutrition"/>
         <div class="company-block">
             <div class="company-name">SIRIMIRI Nutrition Food Products</div>
             <div class="company-sub">Business Intelligence System</div>

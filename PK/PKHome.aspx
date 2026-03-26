@@ -95,7 +95,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
 
 <header>
     <div class="header-logo">
-        <img src="Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
     </div>
     <div class="header-center">
         <div class="header-brand">Sirimiri Nutrition Food Products</div>
