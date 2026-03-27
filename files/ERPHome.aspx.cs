@@ -1,5 +1,6 @@
 using System;
 using System.Web.UI;
+using StockApp.DAL;
 
 namespace StockApp
 {
@@ -15,6 +16,28 @@ namespace StockApp
 
             lblUserName.Text = Session["FullName"]?.ToString() ?? "";
             lblUserRole.Text = Session["Role"]?.ToString() ?? "";
+
+            if (!IsPostBack)
+            {
+                // Generate a fresh SSO token for module links
+                int    userId   = Convert.ToInt32(Session["UserID"]);
+                string fullName = Session["FullName"]?.ToString() ?? "";
+                string role     = Session["Role"]?.ToString() ?? "";
+
+                try
+                {
+                    string token = DatabaseHelper.CreateSSOToken(userId, fullName, role);
+                    hfSSOToken.Value = token;
+
+                    // Cleanup old tokens occasionally
+                    DatabaseHelper.CleanupSSOTokens();
+                }
+                catch
+                {
+                    // If SSO table doesn't exist yet, links will fall back to normal login
+                    hfSSOToken.Value = "";
+                }
+            }
         }
     }
 }

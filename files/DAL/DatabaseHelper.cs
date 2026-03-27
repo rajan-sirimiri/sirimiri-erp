@@ -515,5 +515,58 @@ namespace StockApp.DAL
                 new MySqlParameter("?v", vchNo),
                 new MySqlParameter("?c", credit));
         }
+
+        // ── SSO TOKENS ─────────────────────────────────────────────────
+        /// <summary>
+        /// Create a single-use SSO token valid for 60 seconds.
+        /// Called by ERPHome when generating module links.
+        /// </summary>
+        public static string CreateSSOToken(int userId, string fullName, string role)
+        {
+            string token = Guid.NewGuid().ToString("N");
+            ExecuteNonQuery(
+                "INSERT INTO ERP_SSOTokens (Token, UserID, FullName, Role, CreatedAt, ExpiresAt, IsUsed)" +
+                " VALUES(?tok, ?uid, ?fn, ?role, NOW(), DATE_ADD(NOW(), INTERVAL 60 SECOND), 0);",
+                new MySqlParameter("?tok",  token),
+                new MySqlParameter("?uid",  userId),
+                new MySqlParameter("?fn",   fullName),
+                new MySqlParameter("?role", role));
+            return token;
+        }
+
+        /// <summary>
+        /// Validate and consume an SSO token. Returns user info or null.
+        /// Token is single-use: marked as used immediately.
+        /// </summary>
+        public static DataRow ValidateSSOToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return null;
+            try
+            {
+                var dt = ExecuteQuery(
+                    "SELECT Token, UserID, FullName, Role FROM ERP_SSOTokens" +
+                    " WHERE Token=?tok AND IsUsed=0 AND ExpiresAt > NOW() LIMIT 1;",
+                    new MySqlParameter("?tok", token));
+                if (dt.Rows.Count == 0) return null;
+                // Mark as used immediately (single-use)
+                ExecuteNonQuery(
+                    "UPDATE ERP_SSOTokens SET IsUsed=1 WHERE Token=?tok;",
+                    new MySqlParameter("?tok", token));
+                return dt.Rows[0];
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Purge expired or used tokens (called periodically or on login).
+        /// </summary>
+        public static void CleanupSSOTokens()
+        {
+            try
+            {
+                ExecuteNonQuery("DELETE FROM ERP_SSOTokens WHERE ExpiresAt < NOW() OR IsUsed = 1;");
+            }
+            catch { }
+        }
     }
 }

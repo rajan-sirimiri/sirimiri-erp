@@ -1,8 +1,10 @@
 using System;
+using System.Configuration;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.UI;
+using MySql.Data.MySqlClient;
 using MMApp.DAL;
 
 namespace MMApp
@@ -19,6 +21,43 @@ namespace MMApp
         {
             if (!IsPostBack && Session["MM_UserID"] != null)
                 Response.Redirect("~/MMHome.aspx");
+
+            // ── SSO: check for token in query string ──
+            if (!IsPostBack && Session["MM_UserID"] == null)
+            {
+                string ssoToken = Request.QueryString["sso"];
+                if (!string.IsNullOrEmpty(ssoToken))
+                {
+                    var ssoUser = ValidateSSOTokenDirect(ssoToken);
+                    if (ssoUser != null)
+                    {
+                        int    userId   = Convert.ToInt32(ssoUser["UserID"]);
+                        string fullName = ssoUser["FullName"].ToString();
+                        string role     = ssoUser["Role"].ToString();
+
+                        // Check MM access — Admin always allowed
+                        if (role != "Admin")
+                        {
+                            var access = MMDatabaseHelper.GetUserAccessList(userId);
+                            if (access.Rows.Count == 0)
+                            {
+                                ShowError("You do not have access to the Materials Management module.");
+                                return;
+                            }
+                        }
+
+                        Session["MM_UserID"]   = userId;
+                        Session["MM_Username"] = fullName;
+                        Session["MM_FullName"] = fullName;
+                        Session["MM_Role"]     = role;
+
+                        MMDatabaseHelper.UpdateLastLogin(userId);
+                        Response.Redirect("~/MMHome.aspx");
+                        return;
+                    }
+                    // Token invalid/expired — fall through to normal login
+                }
+            }
         }
 
         protected void btnLogin_Click(object sender, EventArgs e)
@@ -69,6 +108,37 @@ namespace MMApp
                 Response.Redirect("~/MMChangePassword.aspx");
             else
                 Response.Redirect("~/MMHome.aspx");
+        }
+
+        // ── SSO token validation (direct DB call — avoids cross-project DAL dependency) ──
+        private DataRow ValidateSSOTokenDirect(string token)
+        {
+            try
+            {
+                string connStr = ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
+                DataTable dt = new DataTable();
+                using (var conn = new MySqlConnection(connStr))
+                using (var cmd = new MySqlCommand(
+                    "SELECT Token, UserID, FullName, Role FROM ERP_SSOTokens" +
+                    " WHERE Token=?tok AND IsUsed=0 AND ExpiresAt > NOW() LIMIT 1;", conn))
+                {
+                    cmd.Parameters.AddWithValue("?tok", token);
+                    conn.Open();
+                    new MySqlDataAdapter(cmd).Fill(dt);
+                }
+                if (dt.Rows.Count == 0) return null;
+                // Mark as used
+                using (var conn = new MySqlConnection(connStr))
+                using (var cmd = new MySqlCommand(
+                    "UPDATE ERP_SSOTokens SET IsUsed=1 WHERE Token=?tok;", conn))
+                {
+                    cmd.Parameters.AddWithValue("?tok", token);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+                return dt.Rows[0];
+            }
+            catch { return null; }
         }
 
         private void ShowError(string msg)
