@@ -778,5 +778,173 @@ namespace PKApp.DAL
                 " FROM PP_Products p JOIN MM_UOM ou ON ou.UOMID=p.OutputUOMID" +
                 " WHERE p.IsActive=1 ORDER BY p.ProductName;");
         }
+
+        // ── PRODUCT PM MAPPING (PK_ProductPMMaster) ──────────────────────
+
+        /// Products list with count of active PM mappings — for the left panel.
+        public static DataTable GetProductsWithPMCount()
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductID, p.ProductCode, p.ProductName," +
+                " IFNULL(p.ContainerType,'DIRECT') AS ContainerType," +
+                " (SELECT COUNT(*) FROM PK_ProductPMMaster m" +
+                "  WHERE m.ProductID=p.ProductID AND m.IsActive=1) AS PMCount" +
+                " FROM PP_Products p" +
+                " WHERE p.IsActive=1 AND p.ProductType='Core'" +
+                " ORDER BY p.ProductName;");
+        }
+
+        /// Single product info for the mapping page header.
+        public static DataRow GetProductForPMMapping(int productId)
+        {
+            return ExecuteQueryRow(
+                "SELECT p.ProductID, p.ProductCode, p.ProductName," +
+                " IFNULL(p.ContainerType,'DIRECT') AS ContainerType," +
+                " p.UnitsPerContainer, p.ContainersPerCase" +
+                " FROM PP_Products p WHERE p.ProductID=?pid;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        /// All active PM mappings for a product — joined with PM master for display.
+        public static DataTable GetProductPMMappings(int productId)
+        {
+            return ExecuteQuery(
+                "SELECT m.MappingID, m.PMID, m.QtyPerUnit, m.ApplyLevel," +
+                " pm.PMCode, pm.PMName, u.Abbreviation," +
+                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " FROM PK_ProductPMMaster m" +
+                " JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
+                " JOIN MM_UOM u ON u.UOMID = pm.UOMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
+                "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = m.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
+                "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = m.PMID" +
+                " WHERE m.ProductID=?pid AND m.IsActive=1" +
+                " ORDER BY FIELD(m.ApplyLevel,'CASE','CONTAINER','UNIT'), pm.PMName;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        /// Single mapping row for Edit.
+        public static DataRow GetProductPMMappingById(int mappingId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_ProductPMMaster WHERE MappingID=?id;",
+                new MySqlParameter("?id", mappingId));
+        }
+
+        /// Check if a mapping already exists for same product+PM+level.
+        public static bool ProductPMMappingExists(int productId, int pmId, string level)
+        {
+            object cnt = ExecuteScalar(
+                "SELECT COUNT(*) FROM PK_ProductPMMaster" +
+                " WHERE ProductID=?pid AND PMID=?pmid AND ApplyLevel=?lvl AND IsActive=1;",
+                new MySqlParameter("?pid",  productId),
+                new MySqlParameter("?pmid", pmId),
+                new MySqlParameter("?lvl",  level));
+            return Convert.ToInt32(cnt) > 0;
+        }
+
+        public static void AddProductPMMapping(int productId, int pmId,
+            decimal qtyPerUnit, string level, int userId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_ProductPMMaster" +
+                " (ProductID, PMID, QtyPerUnit, ApplyLevel, IsActive, CreatedBy, CreatedAt)" +
+                " VALUES(?pid, ?pmid, ?qty, ?lvl, 1, ?by, NOW());",
+                new MySqlParameter("?pid",  productId),
+                new MySqlParameter("?pmid", pmId),
+                new MySqlParameter("?qty",  qtyPerUnit),
+                new MySqlParameter("?lvl",  level),
+                new MySqlParameter("?by",   userId));
+        }
+
+        public static void UpdateProductPMMapping(int mappingId, int pmId,
+            decimal qtyPerUnit, string level)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_ProductPMMaster SET PMID=?pmid, QtyPerUnit=?qty," +
+                " ApplyLevel=?lvl, UpdatedAt=NOW() WHERE MappingID=?id;",
+                new MySqlParameter("?pmid", pmId),
+                new MySqlParameter("?qty",  qtyPerUnit),
+                new MySqlParameter("?lvl",  level),
+                new MySqlParameter("?id",   mappingId));
+        }
+
+        public static void DeleteProductPMMapping(int mappingId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_ProductPMMaster SET IsActive=0, UpdatedAt=NOW() WHERE MappingID=?id;",
+                new MySqlParameter("?id", mappingId));
+        }
+
+        // ── PM CONSUMPTION CALCULATION ───────────────────────────────────
+
+        /// Calculate PM consumption for a given packing output.
+        /// Returns a DataTable with columns: MappingID, PMID, PMName, PMCode,
+        ///   ApplyLevel, QtyPerUnit, CalculatedQty, Abbreviation, CurrentStock
+        public static DataTable CalculatePMConsumption(int productId,
+            int cases, int jars, int loosePcs,
+            int unitsPerContainer, int containersPerCase, string containerType)
+        {
+            var mappings = GetProductPMMappings(productId);
+            mappings.Columns.Add("CalculatedQty", typeof(decimal));
+
+            foreach (DataRow row in mappings.Rows)
+            {
+                string level     = row["ApplyLevel"].ToString();
+                decimal qtyPer   = Convert.ToDecimal(row["QtyPerUnit"]);
+                decimal calcQty  = 0;
+
+                switch (level)
+                {
+                    case "UNIT":
+                        if (containerType == "DIRECT")
+                            calcQty = ((decimal)cases * unitsPerContainer + loosePcs) * qtyPer;
+                        else
+                            calcQty = ((decimal)cases * containersPerCase * unitsPerContainer
+                                     + (decimal)jars * unitsPerContainer
+                                     + loosePcs) * qtyPer;
+                        break;
+
+                    case "CONTAINER":
+                        if (containerType == "DIRECT")
+                            calcQty = (decimal)cases * qtyPer;
+                        else
+                            calcQty = ((decimal)cases * containersPerCase + jars) * qtyPer;
+                        break;
+
+                    case "CASE":
+                        calcQty = (decimal)cases * qtyPer;
+                        break;
+                }
+
+                row["CalculatedQty"] = Math.Round(calcQty, 4);
+            }
+
+            return mappings;
+        }
+
+        /// Record PM consumption entries from the packing output save.
+        /// consumptionData: rows with PMID and ActualQty columns.
+        public static void RecordPMConsumptionBatch(int orderId, int productId,
+            DataTable consumptionData, int userId)
+        {
+            foreach (DataRow row in consumptionData.Rows)
+            {
+                int     pmId    = Convert.ToInt32(row["PMID"]);
+                decimal qtyUsed = Convert.ToDecimal(row["ActualQty"]);
+                if (qtyUsed <= 0) continue;
+
+                ExecuteNonQuery(
+                    "INSERT INTO PK_PMConsumption" +
+                    " (PMID, QtyUsed, UsedAt, SourceType, SourceID, CreatedBy)" +
+                    " VALUES(?pmid, ?qty, ?now, 'PRIMARY_AUTO', ?oid, ?by);",
+                    new MySqlParameter("?pmid", pmId),
+                    new MySqlParameter("?qty",  qtyUsed),
+                    new MySqlParameter("?now",  NowIST()),
+                    new MySqlParameter("?oid",  orderId),
+                    new MySqlParameter("?by",   userId));
+            }
+        }
     }
 }

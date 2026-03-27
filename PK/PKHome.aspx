@@ -122,6 +122,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <span class="nav-item">Masters <span class="chevron">&#9660;</span></span>
         <div class="nav-dropdown">
             <a href="PKCustomer.aspx">Customer Master</a>
+            <a href="PKProductPM.aspx">Product PM Mapping</a>
         </div>
     </div>
     <div class="nav-group">
@@ -157,6 +158,14 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             <div>
                 <div class="menu-title">Customer Master</div>
                 <div class="menu-desc">Add and manage customers and distributors</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a href="PKProductPM.aspx" class="menu-card cat-master">
+            <div class="menu-icon">&#x1F517;</div>
+            <div>
+                <div class="menu-title">Product PM Mapping</div>
+                <div class="menu-desc">Define packing materials consumed per product</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
