@@ -41,6 +41,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.12.3.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>..\files\packages\DocumentFormat.OpenXml.2.12.3\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -58,17 +61,16 @@
       <HintPath>packages\MySql.Data.8.0.33\lib\net48\MySql.Data.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <!-- DAL -->
     <Compile Include="DAL\PKDatabaseHelper.cs" />
-
     <!-- Global -->
     <Content Include="Global.asax" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-
     <!-- Login / Logout -->
     <Content Include="PKLogin.aspx" />
     <Compile Include="PKLogin.aspx.cs">
@@ -80,60 +82,53 @@
       <DependentUpon>PKLogout.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Home -->
     <Content Include="PKHome.aspx" />
     <Compile Include="PKHome.aspx.cs">
       <DependentUpon>PKHome.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Customer Master -->
     <Content Include="PKCustomer.aspx" />
     <Compile Include="PKCustomer.aspx.cs">
       <DependentUpon>PKCustomer.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Primary Packing -->
     <Content Include="PKPrimaryPacking.aspx" />
     <Compile Include="PKPrimaryPacking.aspx.cs">
       <DependentUpon>PKPrimaryPacking.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Secondary Packing -->
     <Content Include="PKSecondaryPacking.aspx" />
     <Compile Include="PKSecondaryPacking.aspx.cs">
       <DependentUpon>PKSecondaryPacking.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Shipments -->
     <Content Include="PKShipment.aspx" />
     <Compile Include="PKShipment.aspx.cs">
       <DependentUpon>PKShipment.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Reports -->
     <Content Include="PKReports.aspx" />
     <Compile Include="PKReports.aspx.cs">
       <DependentUpon>PKReports.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-
     <!-- Static content -->
     <Content Include="Web.config" />
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')" />
-  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="!Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')
-                 And Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets" Condition="!Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')
-                 And !Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')
-                 And Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets')" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="!Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')&#xA;                 And Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets" Condition="!Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')&#xA;                 And !Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')&#xA;                 And Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets')" />
   <ProjectExtensions>
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
