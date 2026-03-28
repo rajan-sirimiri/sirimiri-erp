@@ -23,6 +23,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.DropDownList  ddlContainerType;
         protected global::System.Web.UI.WebControls.TextBox       txtUnitSizes;
         protected global::System.Web.UI.WebControls.TextBox       txtContainersPerCase;
+        protected global::System.Web.UI.WebControls.CheckBox      chkLanguageLabels;
         protected global::System.Web.UI.WebControls.HiddenField  hfParamsJson;
         protected global::System.Web.UI.WebControls.HiddenField  hfRemarksJson;
         protected global::System.Web.UI.WebControls.Panel        pnlRemarksAlert;
@@ -263,7 +264,8 @@ namespace PPApp
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
-                        txtContainersPerCase.Text.Trim());
+                        txtContainersPerCase.Text.Trim(),
+                        chkLanguageLabels != null && chkLanguageLabels.Checked);
                     ShowAlert("Product '" + name + "' saved successfully.", true);
                 }
                 else
@@ -273,7 +275,8 @@ namespace PPApp
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
-                        txtContainersPerCase.Text.Trim());
+                        txtContainersPerCase.Text.Trim(),
+                        chkLanguageLabels != null && chkLanguageLabels.Checked);
                     SaveProductParamsFromJson(productId);
                     ShowAlert("Product updated successfully.", true);
                 }
@@ -375,6 +378,10 @@ namespace PPApp
                 try { ddlContainerType.SelectedValue = row["ContainerType"] == DBNull.Value ? "" : row["ContainerType"].ToString(); } catch { }
                 if (txtUnitSizes != null)        txtUnitSizes.Text        = row["UnitsPerContainer"] == DBNull.Value ? "" : row["UnitsPerContainer"].ToString();
                 if (txtContainersPerCase != null) txtContainersPerCase.Text = row["ContainersPerCase"] == DBNull.Value ? "" : row["ContainersPerCase"].ToString();
+                if (chkLanguageLabels != null)
+                    chkLanguageLabels.Checked = row.Table.Columns.Contains("HasLanguageLabels")
+                        && row["HasLanguageLabels"] != DBNull.Value
+                        && Convert.ToInt32(row["HasLanguageLabels"]) == 1;
                 // Show containers-per-case row if JAR or BOX
                 string ct = row["ContainerType"] == DBNull.Value ? "" : row["ContainerType"].ToString();
                 if (ct == "JAR" || ct == "BOX")
@@ -427,6 +434,7 @@ namespace PPApp
             if (txtStage2Label != null) txtStage2Label.Text = "";
             if (txtStage3Label != null)       txtStage3Label.Text = "";
             if (ddlContainerType != null)      ddlContainerType.SelectedIndex = 0;
+            if (chkLanguageLabels != null)     chkLanguageLabels.Checked = false;
             if (hfParamsJson != null)          hfParamsJson.Value = "[]";
             ClientScript.RegisterStartupScript(GetType(), "clearparams", "loadParamsFromJson('[]');", true);
             if (txtUnitSizes != null)          txtUnitSizes.Text = "";

@@ -396,6 +396,13 @@
                                 placeholder="e.g. 12"/>
                         </div>
                     </div>
+                    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
+                        <asp:CheckBox ID="chkLanguageLabels" runat="server"/>
+                        <label style="margin:0;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.03em;color:#333;text-transform:none;"
+                            onclick="document.getElementById('<%= chkLanguageLabels.ClientID %>').click();">
+                            This product has language-specific labels (Tamil / Kannada / Telugu)
+                        </label>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-top:13px;">

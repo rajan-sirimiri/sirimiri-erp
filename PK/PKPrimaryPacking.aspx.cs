@@ -23,9 +23,12 @@ namespace PKApp
         protected HiddenField  hfState, hfBatchNo, hfTotalBat;
         protected HiddenField  hfContainerType, hfUnitSizes, hfContainersPerCase;
         protected HiddenField  hfSelectedUnitSize, hfSelectedCaseQty;
+        protected HiddenField  hfHasLanguageLabels;
         protected Button   btnLoad, btnStart, btnEnd, btnSave;
         protected Repeater rptHistory;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtJars, txtUnits;
+        protected System.Web.UI.HtmlControls.HtmlGenericControl rowLabelLanguage;
+        protected DropDownList ddlLabelLanguage;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -63,7 +66,8 @@ namespace PKApp
                     r["ProductID"].ToString()
                     + "|" + (r["ContainerType"]     == DBNull.Value ? "DIRECT" : r["ContainerType"].ToString())
                     + "|" + (r["UnitsPerContainer"] == DBNull.Value ? ""       : r["UnitsPerContainer"].ToString())
-                    + "|" + (r["ContainersPerCase"] == DBNull.Value ? "12"     : r["ContainersPerCase"].ToString())));
+                    + "|" + (r["ContainersPerCase"] == DBNull.Value ? "12"     : r["ContainersPerCase"].ToString())
+                    + "|" + (r["HasLanguageLabels"] == DBNull.Value ? "0"      : r["HasLanguageLabels"].ToString())));
         }
 
         protected void btnLoad_Click(object s, EventArgs e)
@@ -78,6 +82,7 @@ namespace PKApp
             hfContainerType.Value     = parts.Length > 1 ? parts[1] : "DIRECT";
             hfUnitSizes.Value         = parts.Length > 2 ? parts[2] : "";
             hfContainersPerCase.Value = parts.Length > 3 ? parts[3] : "12";
+            hfHasLanguageLabels.Value = parts.Length > 4 ? parts[4] : "0";
 
             pnlAlert.Visible = false;
             ClearPanels();
@@ -130,6 +135,14 @@ namespace PKApp
             hfContainerType.Value     = order["ContainerType"]    == DBNull.Value ? "DIRECT" : order["ContainerType"].ToString();
             hfUnitSizes.Value         = order["UnitsPerContainer"] == DBNull.Value ? ""       : order["UnitsPerContainer"].ToString();
             hfContainersPerCase.Value = order["ContainersPerCase"] == DBNull.Value ? "12"     : order["ContainersPerCase"].ToString();
+
+            // Language labels flag
+            bool hasLangLabels = order.Table.Columns.Contains("HasLanguageLabels")
+                && order["HasLanguageLabels"] != DBNull.Value
+                && Convert.ToInt32(order["HasLanguageLabels"]) == 1;
+            hfHasLanguageLabels.Value = hasLangLabels ? "1" : "0";
+            if (rowLabelLanguage != null)
+                rowLabelLanguage.Style["display"] = hasLangLabels ? "block" : "none";
 
             string containerType = hfContainerType.Value;
             string unitSizes     = hfUnitSizes.Value;
@@ -233,6 +246,10 @@ namespace PKApp
                     try { ddlCaseQty.SelectedValue = hfSelectedCaseQty.Value; } catch { }
                 else
                     hfSelectedCaseQty.Value = ddlCaseQty.Items.Count > 0 ? ddlCaseQty.Items[0].Value : "0";
+
+                // Restore language row visibility
+                if (rowLabelLanguage != null)
+                    rowLabelLanguage.Style["display"] = hfHasLanguageLabels.Value == "1" ? "block" : "none";
             }
         }
 
@@ -295,7 +312,12 @@ namespace PKApp
             if (total == 0) { ShowAlert("No production batches completed yet.", false); return; }
             if (next > total) { ShowAlert("All produced batches have been packed.", false); return; }
 
-            int packingId = PKDatabaseHelper.StartPackingBatch(orderId, next, UserID);
+            // Pass label language if product has language labels
+            string labelLang = null;
+            if (hfHasLanguageLabels.Value == "1" && ddlLabelLanguage != null)
+                labelLang = ddlLabelLanguage.SelectedValue;
+
+            int packingId = PKDatabaseHelper.StartPackingBatch(orderId, next, UserID, labelLang);
             hfPackingId.Value = packingId.ToString();
             SetState("running", next, total);
             UpdateInfoLabels(packed, total);

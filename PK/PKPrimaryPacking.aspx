@@ -139,6 +139,7 @@ input.out-inp:focus{border-color:var(--accent);}
 <asp:HiddenField ID="hfContainersPerCase" runat="server" Value="12"/>
 <asp:HiddenField ID="hfSelectedUnitSize" runat="server" Value="0"/>
 <asp:HiddenField ID="hfSelectedCaseQty"  runat="server" Value="0"/>
+<asp:HiddenField ID="hfHasLanguageLabels" runat="server" Value="0"/>
 
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
@@ -257,6 +258,17 @@ input.out-inp:focus{border-color:var(--accent);}
                     onchange="onCaseQtyChange(this.value);"/>
             </div>
         </div>
+        <div id="rowLabelLanguage" runat="server" style="margin-top:14px;display:none;">
+            <div class="form-group" style="max-width:320px;">
+                <label>Label Language <span class="req">*</span></label>
+                <asp:DropDownList ID="ddlLabelLanguage" runat="server" CssClass="cfg-sel">
+                    <asp:ListItem Value="Tamil">Tamil</asp:ListItem>
+                    <asp:ListItem Value="Kannada">Kannada</asp:ListItem>
+                    <asp:ListItem Value="Telugu">Telugu</asp:ListItem>
+                </asp:DropDownList>
+                <span style="font-size:11px;color:var(--text-dim);margin-top:4px;">Can be changed between batches</span>
+            </div>
+        </div>
     </div>
     </asp:Panel>
 
@@ -338,7 +350,7 @@ input.out-inp:focus{border-color:var(--accent);}
         <asp:Panel ID="pnlHistTable" runat="server" Visible="false">
         <table class="hist-table">
             <thead><tr>
-                <th>Batch</th><th>Start</th><th>End</th><th>Status</th>
+                <th>Batch</th><th>Start</th><th>End</th><th>Language</th><th>Status</th>
             </tr></thead>
             <tbody>
                 <asp:Repeater ID="rptHistory" runat="server">
@@ -346,6 +358,7 @@ input.out-inp:focus{border-color:var(--accent);}
                         <td><strong>Batch <%# Eval("BatchNo") %></strong></td>
                         <td style="color:var(--text-muted);font-size:11px;"><%# Eval("StartTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("StartTime")).ToString("hh:mm tt") %></td>
                         <td style="color:var(--text-muted);font-size:11px;"><%# Eval("EndTime")   == DBNull.Value ? "—" : Convert.ToDateTime(Eval("EndTime")).ToString("hh:mm tt")   %></td>
+                        <td style="font-size:12px;font-weight:600;"><%# Eval("LabelLanguage") == DBNull.Value ? "—" : Eval("LabelLanguage") %></td>
                         <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>
                     </tr></ItemTemplate>
                 </asp:Repeater>

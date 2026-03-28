@@ -407,16 +407,17 @@ namespace PPApp.DAL
 
         // ── PACKING SPEC ─────────────────────────────────────────────────────────
         public static void SavePackingSpec(int productId, string containerType,
-            string unitSizes, string containersPerCase)
+            string unitSizes, string containersPerCase, bool hasLanguageLabels = false)
         {
             int cpc = 0;
             int.TryParse(containersPerCase, out cpc);
             ExecuteNonQuery(
                 "UPDATE PP_Products SET ContainerType=?ct, UnitsPerContainer=?us," +
-                " ContainersPerCase=?cpc WHERE ProductID=?id;",
+                " ContainersPerCase=?cpc, HasLanguageLabels=?hll WHERE ProductID=?id;",
                 new MySqlParameter("?ct",  string.IsNullOrEmpty(containerType) ? (object)DBNull.Value : containerType.Trim()),
                 new MySqlParameter("?us",  string.IsNullOrEmpty(unitSizes)     ? (object)DBNull.Value : unitSizes.Trim()),
                 new MySqlParameter("?cpc", cpc > 0 ? (object)cpc : DBNull.Value),
+                new MySqlParameter("?hll", hasLanguageLabels ? 1 : 0),
                 new MySqlParameter("?id",  productId));
         }
 

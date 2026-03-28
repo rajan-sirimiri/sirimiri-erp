@@ -154,6 +154,7 @@ namespace PKApp.DAL
             return ExecuteQuery(
                 "SELECT DISTINCT p.ProductID, p.ProductCode, p.ProductName," +
                 " p.ContainerType, p.UnitsPerContainer, p.ContainersPerCase," +
+                " IFNULL(p.HasLanguageLabels,0) AS HasLanguageLabels," +
                 " ou.Abbreviation AS OutputUnit" +
                 " FROM PP_ProductionOrder po" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
@@ -202,6 +203,7 @@ namespace PKApp.DAL
                 " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
                 " po.Status, p.ProductID, p.ProductName, p.ProductCode," +
                 " p.ContainerType, p.UnitsPerContainer, p.ContainersPerCase," +
+                " IFNULL(p.HasLanguageLabels,0) AS HasLanguageLabels," +
                 " (SELECT COUNT(*) FROM PP_BatchExecution be" +
                 "  WHERE be.OrderID=po.OrderID AND be.Status='Completed') AS ProductionDone," +
                 " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
@@ -252,12 +254,12 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT PackingID, BatchNo, StartTime, EndTime," +
-                " Cases, Jars, Units, JarSize, TotalUnits, Status" +
+                " Cases, Jars, Units, JarSize, TotalUnits, Status, LabelLanguage" +
                 " FROM PK_PackingExecution WHERE OrderID=?oid ORDER BY BatchNo;",
                 new MySqlParameter("?oid", orderId));
         }
 
-        public static int StartPackingBatch(int orderId, int batchNo, int userId)
+        public static int StartPackingBatch(int orderId, int batchNo, int userId, string labelLanguage = null)
         {
             var existing = ExecuteQueryRow(
                 "SELECT PackingID FROM PK_PackingExecution WHERE OrderID=?oid AND BatchNo=?bno;",
@@ -265,12 +267,13 @@ namespace PKApp.DAL
                 new MySqlParameter("?bno", batchNo));
             if (existing != null) return Convert.ToInt32(existing["PackingID"]);
             ExecuteNonQuery(
-                "INSERT INTO PK_PackingExecution (OrderID,BatchNo,StartTime,Status,CreatedBy)" +
-                " VALUES(?oid,?bno,?now,'InProgress',?by);",
-                new MySqlParameter("?oid", orderId),
-                new MySqlParameter("?bno", batchNo),
-                new MySqlParameter("?now", NowIST()),
-                new MySqlParameter("?by",  userId));
+                "INSERT INTO PK_PackingExecution (OrderID,BatchNo,StartTime,Status,CreatedBy,LabelLanguage)" +
+                " VALUES(?oid,?bno,?now,'InProgress',?by,?lang);",
+                new MySqlParameter("?oid",  orderId),
+                new MySqlParameter("?bno",  batchNo),
+                new MySqlParameter("?now",  NowIST()),
+                new MySqlParameter("?by",   userId),
+                new MySqlParameter("?lang", string.IsNullOrEmpty(labelLanguage) ? (object)DBNull.Value : labelLanguage));
             return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
         }
 
