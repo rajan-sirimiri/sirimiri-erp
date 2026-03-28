@@ -25,7 +25,7 @@ namespace PKApp
         protected HiddenField  hfSelectedUnitSize, hfSelectedCaseQty;
         protected Button   btnLoad, btnStart, btnEnd, btnSave;
         protected Repeater rptHistory;
-        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCases, txtJars, txtUnits;
+        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtJars, txtUnits;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -333,28 +333,24 @@ namespace PKApp
             int.TryParse(hfSelectedCaseQty.Value,  out caseQty);
             if (unitSize == 0) { ShowAlert("Please select unit size before saving.", false); return; }
 
-            int cases, jars, units;
-            int.TryParse(txtCases.Value, out cases);
+            int jars, units;
             int.TryParse(txtJars.Value,  out jars);
             int.TryParse(txtUnits.Value, out units);
-            if (cases == 0 && jars == 0 && units == 0)
+            if (jars == 0 && units == 0)
             { ShowAlert("Please enter at least one quantity.", false); return; }
 
             try
             {
                 string ct = hfContainerType.Value;
 
-                // Save Cases/Jars/Units to execution record AND add to FG stock
+                // Primary packing records containers (jars/boxes) + loose pcs only.
+                // Cases = 0 here; case packing is done in Secondary Packing.
                 PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
-                    cases, jars, units, unitSize, caseQty, ct, UserID);
+                    0, jars, units, unitSize, caseQty, ct, UserID);
 
-                int totalPcs;
-                if (ct == "DIRECT")
-                    totalPcs = (cases * unitSize) + units;
-                else
-                    totalPcs = (cases * caseQty * unitSize) + (jars * unitSize) + units;
+                int totalPcs = (jars * unitSize) + units;
 
-                txtCases.Value = "0"; txtJars.Value = "0"; txtUnits.Value = "0";
+                txtJars.Value = "0"; txtUnits.Value = "0";
                 ShowAlert("Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.", true);
 
                 var order  = PKDatabaseHelper.GetPackingOrderById(orderId);

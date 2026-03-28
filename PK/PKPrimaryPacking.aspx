@@ -305,13 +305,9 @@ input.out-inp:focus{border-color:var(--accent);}
         <div class="output-sub">
             <asp:Label ID="lblOutputSummary" runat="server"/>
         </div>
-        <div class="output-grid">
-            <div class="form-group">
-                <label class="out-lbl">No. of Cases</label>
-                <input type="number" id="txtCases" runat="server" class="out-inp" min="0" step="1" placeholder="0" value="0"/>
-            </div>
+        <div class="output-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group" id="rowJarsOut">
-                <label class="out-lbl">No. of <asp:Label ID="lblJarOutName" runat="server">Jars</asp:Label> (loose)</label>
+                <label class="out-lbl">No. of <asp:Label ID="lblJarOutName" runat="server">Jars</asp:Label></label>
                 <input type="number" id="txtJars" runat="server" class="out-inp" min="0" step="1" placeholder="0" value="0"/>
             </div>
             <div class="form-group">
@@ -438,19 +434,15 @@ function onCaseQtyChange(val){
 function calcTotal(){
     var ct   = document.getElementById('<%= hfContainerType.ClientID %>').value || 'DIRECT';
     var sz   = parseInt(document.getElementById('<%= hfSelectedUnitSize.ClientID %>').value) || 0;
-    var cpc  = parseInt(document.getElementById('<%= hfSelectedCaseQty.ClientID %>').value)  || 0;
-    var cases= parseInt(document.getElementById('txtCases').value) || 0;
     var jars = parseInt(document.getElementById('txtJars').value)  || 0;
     var units= parseInt(document.getElementById('txtUnits').value) || 0;
     var total, formula;
     if(ct==='DIRECT'){
-        total   = (cases * sz) + units;
-        formula = cases+' cases × '+sz+' units/case + '+units+' loose';
-        var rj=document.getElementById('rowJarsOut'); if(rj) rj.style.display='none';
+        total   = (jars * sz) + units;
+        formula = jars+' containers × '+sz+' units + '+units+' loose';
     } else {
-        total   = (cases * cpc * sz) + (jars * sz) + units;
-        formula = '('+cases+' cases × '+cpc+' × '+sz+') + ('+jars+' '+ct.toLowerCase()+'s × '+sz+') + '+units+' loose';
-        var rj=document.getElementById('rowJarsOut'); if(rj) rj.style.display='';
+        total   = (jars * sz) + units;
+        formula = jars+' '+ct.toLowerCase()+'s × '+sz+' units/'+ct.toLowerCase()+' + '+units+' loose';
     }
     document.getElementById('totalVal').innerText    = total.toLocaleString();
     document.getElementById('totalFormula').innerText = formula;
@@ -470,7 +462,7 @@ window.addEventListener('load',function(){
     updateBatchDisplay();
     setButtonStates(window.serverState||'ready');
 
-    ['txtCases','txtJars','txtUnits'].forEach(function(id){
+    ['txtJars','txtUnits'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.addEventListener('input',calcTotal);
     });
     calcTotal();
