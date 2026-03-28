@@ -29,6 +29,8 @@ namespace PKApp
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtJars, txtUnits;
         protected System.Web.UI.HtmlControls.HtmlGenericControl rowLabelLanguage;
         protected DropDownList ddlLabelLanguage;
+        protected Panel    pnlPMConsumption;
+        protected Repeater rptPMConsumption;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -296,6 +298,40 @@ namespace PKApp
             hfTotalBat.Value = total.ToString();
 
             pnlOutput.Style["display"] = state == "alldone" ? "block" : "none";
+
+            // Populate PM consumption grid when output panel shows
+            if (state == "alldone")
+                BindPMConsumptionGrid();
+            else if (pnlPMConsumption != null)
+                pnlPMConsumption.Visible = false;
+        }
+
+        void BindPMConsumptionGrid()
+        {
+            int orderId   = Convert.ToInt32(hfOrderId.Value);
+            int productId = Convert.ToInt32(hfProductId.Value);
+            if (orderId == 0 || productId == 0) return;
+
+            int unitSize = 0, containersPerCase = 0;
+            int.TryParse(hfSelectedUnitSize.Value, out unitSize);
+            int.TryParse(hfSelectedCaseQty.Value,  out containersPerCase);
+            string ct = hfContainerType.Value;
+
+            // Use placeholder jars/units for initial display (user may not have entered yet)
+            // On save, we recalculate with actual values
+            var pmData = PKDatabaseHelper.CalculatePMConsumptionWithLanguage(
+                productId, orderId, 0, 0, unitSize, containersPerCase, ct);
+
+            if (pmData.Rows.Count > 0)
+            {
+                pnlPMConsumption.Visible  = true;
+                rptPMConsumption.DataSource = pmData;
+                rptPMConsumption.DataBind();
+            }
+            else
+            {
+                pnlPMConsumption.Visible = false;
+            }
         }
 
         protected void btnStart_Click(object s, EventArgs e)
@@ -365,15 +401,45 @@ namespace PKApp
             {
                 string ct = hfContainerType.Value;
 
-                // Primary packing records containers (jars/boxes) + loose pcs only.
-                // Cases = 0 here; case packing is done in Secondary Packing.
+                // 1. Save packing output (jars + loose pcs, cases=0)
                 PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
                     0, jars, units, unitSize, caseQty, ct, UserID);
 
                 int totalPcs = (jars * unitSize) + units;
 
+                // 2. Calculate PM consumption with actual output values
+                var pmData = PKDatabaseHelper.CalculatePMConsumptionWithLanguage(
+                    productId, orderId, jars, units, unitSize, caseQty, ct);
+
+                // 3. Read overridden quantities from form inputs (pmQty_PMID)
+                // Build consumption table with ActualQty column
+                if (!pmData.Columns.Contains("ActualQty"))
+                    pmData.Columns.Add("ActualQty", typeof(decimal));
+
+                foreach (DataRow row in pmData.Rows)
+                {
+                    int pmId = Convert.ToInt32(row["PMID"]);
+                    string formKey = "pmQty_" + pmId;
+                    string formVal = Request.Form[formKey];
+                    decimal actualQty;
+                    if (!string.IsNullOrEmpty(formVal) && decimal.TryParse(formVal, out actualQty))
+                        row["ActualQty"] = actualQty;
+                    else
+                        row["ActualQty"] = row["CalculatedQty"];
+                }
+
+                // 4. Record PM consumption
+                PKDatabaseHelper.RecordPMConsumptionBatch(orderId, productId, pmData, UserID);
+
+                int pmCount = 0;
+                foreach (DataRow row in pmData.Rows)
+                    if (Convert.ToDecimal(row["ActualQty"]) > 0) pmCount++;
+
                 txtJars.Value = "0"; txtUnits.Value = "0";
-                ShowAlert("Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.", true);
+                string msg = "Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.";
+                if (pmCount > 0)
+                    msg += " " + pmCount + " packing material(s) consumption recorded.";
+                ShowAlert(msg, true);
 
                 var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
                 int productionDone4 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 1;

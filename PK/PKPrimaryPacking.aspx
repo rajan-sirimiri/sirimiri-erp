@@ -337,7 +337,43 @@ input.out-inp:focus{border-color:var(--accent);}
                 <span class="total-bar-unit">pcs</span>
             </div>
         </div>
-        <asp:Button ID="btnSave" runat="server" Text="&#x2713; Save Packing Output"
+
+        <!-- PM CONSUMPTION GRID -->
+        <asp:Panel ID="pnlPMConsumption" runat="server" Visible="false">
+        <div style="margin-top:20px;border-top:1px solid #a9dfbf;padding-top:16px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.07em;color:var(--accent-dark);margin-bottom:10px;">Packing Material Consumption</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Auto-calculated from output. Edit quantities if needed before saving.</div>
+            <table class="hist-table" style="font-size:13px;">
+                <thead><tr>
+                    <th>Packing Material</th>
+                    <th>Level</th>
+                    <th>Language</th>
+                    <th style="text-align:right;">Calculated</th>
+                    <th style="text-align:right;width:120px;">Actual Qty</th>
+                    <th>Unit</th>
+                </tr></thead>
+                <tbody>
+                    <asp:Repeater ID="rptPMConsumption" runat="server">
+                        <ItemTemplate>
+                            <tr>
+                                <td><strong><%# Eval("PMName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("PMCode") %></div></td>
+                                <td><span class='level-badge level-<%# Eval("ApplyLevel") %>'><%# Eval("ApplyLevel") %></span></td>
+                                <td style="font-size:12px;"><%# Eval("Language") == DBNull.Value ? "All" : Eval("Language").ToString() %></td>
+                                <td style="text-align:right;color:var(--text-muted);"><%# Eval("CalculatedQty", "{0:0.####}") %></td>
+                                <td style="text-align:right;">
+                                    <input type="number" name="pmQty_<%# Eval("PMID") %>" value="<%# Eval("CalculatedQty", "{0:0.####}") %>"
+                                        min="0" step="0.0001" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600;"/>
+                                </td>
+                                <td style="font-size:12px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>
+                            </tr>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                </tbody>
+            </table>
+        </div>
+        </asp:Panel>
+
+        <asp:Button ID="btnSave" runat="server" Text="&#x2713; Save Packing Output &amp; PM Consumption"
             CssClass="btn-save" OnClick="btnSave_Click" CausesValidation="false"/>
     </div>
     </asp:Panel>

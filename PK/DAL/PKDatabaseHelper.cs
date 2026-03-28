@@ -978,5 +978,82 @@ namespace PKApp.DAL
                     new MySqlParameter("?by",   userId));
             }
         }
+
+        /// <summary>
+        /// Get batch count per language for an order.
+        /// Returns rows: Language (nullable), BatchCount.
+        /// Used to split language-specific PM consumption proportionally.
+        /// </summary>
+        public static DataTable GetBatchLanguageSplit(int orderId)
+        {
+            return ExecuteQuery(
+                "SELECT LabelLanguage AS Language, COUNT(*) AS BatchCount" +
+                " FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND BatchNo > 0 AND Status='Completed'" +
+                " GROUP BY LabelLanguage;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        /// <summary>
+        /// Calculate PM consumption for packing output, handling language-specific PMs.
+        /// For universal PMs: uses full output.
+        /// For language PMs: splits proportionally by batch language ratio.
+        /// Returns DataTable with: PMID, PMName, PMCode, ApplyLevel, Language,
+        ///   QtyPerUnit, CalculatedQty, Abbreviation, CurrentStock
+        /// </summary>
+        public static DataTable CalculatePMConsumptionWithLanguage(int productId,
+            int orderId, int jars, int loosePcs,
+            int unitsPerContainer, int containersPerCase, string containerType)
+        {
+            var allMappings = GetProductPMMappings(productId);
+            allMappings.Columns.Add("CalculatedQty", typeof(decimal));
+
+            // Get language split from batch history
+            var langSplit = GetBatchLanguageSplit(orderId);
+            int totalBatches = 0;
+            var batchCounts = new System.Collections.Generic.Dictionary<string, int>();
+            foreach (DataRow lr in langSplit.Rows)
+            {
+                string lang = lr["Language"] == DBNull.Value ? "" : lr["Language"].ToString();
+                int cnt = Convert.ToInt32(lr["BatchCount"]);
+                batchCounts[lang] = cnt;
+                totalBatches += cnt;
+            }
+            if (totalBatches == 0) totalBatches = 1; // avoid div by zero
+
+            foreach (DataRow row in allMappings.Rows)
+            {
+                string level   = row["ApplyLevel"].ToString();
+                decimal qtyPer = Convert.ToDecimal(row["QtyPerUnit"]);
+                string pmLang  = row["Language"] == DBNull.Value ? null : row["Language"].ToString();
+
+                // Base quantity from output
+                decimal baseQty = 0;
+                switch (level)
+                {
+                    case "UNIT":
+                        baseQty = ((decimal)jars * unitsPerContainer + loosePcs) * qtyPer;
+                        break;
+                    case "CONTAINER":
+                        baseQty = (decimal)jars * qtyPer;
+                        break;
+                    case "CASE":
+                        baseQty = 0; // cases handled in secondary packing
+                        break;
+                }
+
+                if (pmLang != null)
+                {
+                    // Language-specific PM: proportion by batch count
+                    int langBatches = 0;
+                    batchCounts.TryGetValue(pmLang, out langBatches);
+                    baseQty = Math.Round(baseQty * langBatches / totalBatches, 4);
+                }
+
+                row["CalculatedQty"] = Math.Round(baseQty, 4);
+            }
+
+            return allMappings;
+        }
     }
 }

@@ -103,11 +103,16 @@
       <DependentUpon>MMHome.aspx</DependentUpon>
     </Compile>
     <Content Include="MMRMStockReport.aspx" />
+    <Content Include="MMPMStockReport.aspx" />
     <Content Include="MMScrapMaterial.aspx" />
     <Content Include="MMScrapStockReport.aspx" />
     <Content Include="MMUOMMaster.aspx" />
     <Compile Include="MMRMStockReport.aspx.cs">
       <DependentUpon>MMRMStockReport.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="MMPMStockReport.aspx.cs">
+      <DependentUpon>MMPMStockReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMScrapMaterial.aspx.cs">
       <DependentUpon>MMScrapMaterial.aspx</DependentUpon>

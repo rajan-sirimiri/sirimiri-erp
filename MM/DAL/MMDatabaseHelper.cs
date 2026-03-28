@@ -290,6 +290,30 @@ namespace MMApp.DAL
                 " ORDER BY CurrentStock DESC, r.RMName ASC;");
         }
 
+        public static DataTable GetPMStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT p.PMID, p.PMCode, p.PMName, u.Abbreviation AS UOM," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(con.TotalConsumed, 0)" +
+                " , 4) AS CurrentStock," +
+                " IFNULL(os.Quantity, 0) AS OpeningStock," +
+                " IFNULL(grn.TotalReceived, 0) AS TotalReceived," +
+                " IFNULL(con.TotalConsumed, 0) AS TotalConsumed," +
+                " p.ReorderLevel" +
+                " FROM MM_PackingMaterials p" +
+                " JOIN MM_UOM u ON u.UOMID = p.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='PM' AND os.MaterialID=p.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalReceived" +
+                "            FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = p.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed" +
+                "            FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = p.PMID" +
+                " WHERE p.IsActive = 1" +
+                " ORDER BY CurrentStock DESC, p.PMName ASC;");
+        }
+
         public static DataTable GetAllRawMaterials()
         {
             return ExecuteQuery(

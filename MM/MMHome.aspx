@@ -132,6 +132,7 @@
                 <a href="MMConsumableInward.aspx">Consumable Inward (GRN)</a>
                 <a href="MMStationaryInward.aspx">Stationary &amp; Other Inward (GRN)</a>
                 <a href="MMRMStockReport.aspx">Raw Material Stock Report</a>
+                <a href="MMPMStockReport.aspx">Packing Material Stock Report</a>
                 <a href="MMScrapStockReport.aspx">Scrap Material Stock Report</a>
             </div>
         </div>
@@ -211,6 +212,11 @@
             <a id="lnkStockReport" href="MMRMStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4CA;</div>
                 <div><div class="menu-title">Raw Material<br/>Stock Report</div><div class="menu-desc">Current stock position with FIFO tracking — view and download as PDF</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkPMStockReport" href="MMPMStockReport.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F4E6;</div>
+                <div><div class="menu-title">Packing Material<br/>Stock Report</div><div class="menu-desc">Opening + GRN received &minus; packing consumed — current PM stock position</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
             <a id="lnkScrapReport" href="MMScrapStockReport.aspx" class="menu-card cat-txn">
