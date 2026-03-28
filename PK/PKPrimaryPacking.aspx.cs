@@ -24,6 +24,7 @@ namespace PKApp
         protected HiddenField  hfContainerType, hfUnitSizes, hfContainersPerCase;
         protected HiddenField  hfSelectedUnitSize, hfSelectedCaseQty;
         protected HiddenField  hfHasLanguageLabels;
+        protected HiddenField  hfLangSplit;
         protected Button   btnLoad, btnStart, btnEnd, btnSave;
         protected Repeater rptHistory;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtJars, txtUnits;
@@ -312,21 +313,29 @@ namespace PKApp
             int productId = Convert.ToInt32(hfProductId.Value);
             if (orderId == 0 || productId == 0) return;
 
-            int unitSize = 0, containersPerCase = 0;
-            int.TryParse(hfSelectedUnitSize.Value, out unitSize);
-            int.TryParse(hfSelectedCaseQty.Value,  out containersPerCase);
-            string ct = hfContainerType.Value;
-
-            // Use placeholder jars/units for initial display (user may not have entered yet)
-            // On save, we recalculate with actual values
-            var pmData = PKDatabaseHelper.CalculatePMConsumptionWithLanguage(
-                productId, orderId, 0, 0, unitSize, containersPerCase, ct);
+            // Get raw PM mappings for this product (all languages included)
+            var pmData = PKDatabaseHelper.GetProductPMMappings(productId);
 
             if (pmData.Rows.Count > 0)
             {
-                pnlPMConsumption.Visible  = true;
+                // Add CalculatedQty column (JS will populate, but server needs it for binding)
+                if (!pmData.Columns.Contains("CalculatedQty"))
+                    pmData.Columns.Add("CalculatedQty", typeof(decimal), "0");
+
+                pnlPMConsumption.Visible   = true;
                 rptPMConsumption.DataSource = pmData;
                 rptPMConsumption.DataBind();
+
+                // Populate language split for JS: "Tamil:20,Kannada:30"
+                var langSplit = PKDatabaseHelper.GetBatchLanguageSplit(orderId);
+                var parts = new System.Collections.Generic.List<string>();
+                foreach (DataRow lr in langSplit.Rows)
+                {
+                    string lang = lr["Language"] == DBNull.Value ? "" : lr["Language"].ToString();
+                    if (!string.IsNullOrEmpty(lang))
+                        parts.Add(lang + ":" + lr["BatchCount"].ToString());
+                }
+                hfLangSplit.Value = string.Join(",", parts);
             }
             else
             {

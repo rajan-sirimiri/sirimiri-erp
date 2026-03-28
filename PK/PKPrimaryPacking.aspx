@@ -140,6 +140,7 @@ input.out-inp:focus{border-color:var(--accent);}
 <asp:HiddenField ID="hfSelectedUnitSize" runat="server" Value="0"/>
 <asp:HiddenField ID="hfSelectedCaseQty"  runat="server" Value="0"/>
 <asp:HiddenField ID="hfHasLanguageLabels" runat="server" Value="0"/>
+<asp:HiddenField ID="hfLangSplit" runat="server" Value=""/>
 
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
@@ -342,7 +343,7 @@ input.out-inp:focus{border-color:var(--accent);}
         <asp:Panel ID="pnlPMConsumption" runat="server" Visible="false">
         <div style="margin-top:20px;border-top:1px solid #a9dfbf;padding-top:16px;">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.07em;color:var(--accent-dark);margin-bottom:10px;">Packing Material Consumption</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Auto-calculated from output. Edit quantities if needed before saving.</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Auto-calculated from output. Edit actual qty if needed before saving.</div>
             <table class="hist-table" style="font-size:13px;">
                 <thead><tr>
                     <th>Packing Material</th>
@@ -352,16 +353,20 @@ input.out-inp:focus{border-color:var(--accent);}
                     <th style="text-align:right;width:120px;">Actual Qty</th>
                     <th>Unit</th>
                 </tr></thead>
-                <tbody>
+                <tbody id="pmGridBody">
                     <asp:Repeater ID="rptPMConsumption" runat="server">
                         <ItemTemplate>
-                            <tr>
+                            <tr class="pm-calc-row"
+                                data-pmid="<%# Eval("PMID") %>"
+                                data-qtyper="<%# Eval("QtyPerUnit") %>"
+                                data-level="<%# Eval("ApplyLevel") %>"
+                                data-lang="<%# Eval("Language") == DBNull.Value ? "" : Eval("Language") %>">
                                 <td><strong><%# Eval("PMName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("PMCode") %></div></td>
                                 <td><span class='level-badge level-<%# Eval("ApplyLevel") %>'><%# Eval("ApplyLevel") %></span></td>
                                 <td style="font-size:12px;"><%# Eval("Language") == DBNull.Value ? "All" : Eval("Language").ToString() %></td>
-                                <td style="text-align:right;color:var(--text-muted);"><%# Eval("CalculatedQty", "{0:0.####}") %></td>
+                                <td class="num pm-calc-val" style="color:var(--text-muted);font-weight:600;">0</td>
                                 <td style="text-align:right;">
-                                    <input type="number" name="pmQty_<%# Eval("PMID") %>" value="<%# Eval("CalculatedQty", "{0:0.####}") %>"
+                                    <input type="number" name="pmQty_<%# Eval("PMID") %>" class="pm-actual-qty" value="0"
                                         min="0" step="0.0001" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600;"/>
                                 </td>
                                 <td style="font-size:12px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>
@@ -495,6 +500,63 @@ function calcTotal(){
     }
     document.getElementById('totalVal').innerText    = total.toLocaleString();
     document.getElementById('totalFormula').innerText = formula;
+    calcPMConsumption(jars, units, sz, ct);
+}
+
+// ── PM CONSUMPTION CALC ──────────────────────────────────────────────────
+function calcPMConsumption(jars, loosePcs, unitsPerContainer, containerType){
+    var rows = document.querySelectorAll('.pm-calc-row');
+    if(!rows.length) return;
+
+    // Parse language split from hidden field: "Tamil:20,Kannada:30" or ""
+    var langSplitStr = document.getElementById('<%= hfLangSplit.ClientID %>').value || '';
+    var langCounts = {};
+    var totalBatches = 0;
+    if(langSplitStr){
+        langSplitStr.split(',').forEach(function(pair){
+            var parts = pair.split(':');
+            if(parts.length===2){
+                var lang = parts[0];
+                var cnt  = parseInt(parts[1]) || 0;
+                langCounts[lang] = cnt;
+                totalBatches += cnt;
+            }
+        });
+    }
+    if(totalBatches===0) totalBatches=1;
+
+    rows.forEach(function(row){
+        var qtyPer = parseFloat(row.getAttribute('data-qtyper')) || 0;
+        var level  = row.getAttribute('data-level') || 'UNIT';
+        var lang   = row.getAttribute('data-lang') || '';
+
+        var baseQty = 0;
+        if(level==='UNIT'){
+            baseQty = (jars * unitsPerContainer + loosePcs) * qtyPer;
+        } else if(level==='CONTAINER'){
+            baseQty = jars * qtyPer;
+        } else if(level==='CASE'){
+            baseQty = 0;
+        }
+
+        // If language-specific PM, proportion by batch language ratio
+        if(lang && lang !== ''){
+            var langBatches = langCounts[lang] || 0;
+            baseQty = Math.round((baseQty * langBatches / totalBatches) * 10000) / 10000;
+        }
+
+        var rounded = Math.round(baseQty * 10000) / 10000;
+
+        // Update calculated display
+        var calcCell = row.querySelector('.pm-calc-val');
+        if(calcCell) calcCell.innerText = rounded;
+
+        // Update actual qty input (only if user hasn't manually edited)
+        var actualInput = row.querySelector('.pm-actual-qty');
+        if(actualInput && !actualInput.dataset.edited){
+            actualInput.value = rounded;
+        }
+    });
 }
 
 window.addEventListener('load',function(){
@@ -514,6 +576,12 @@ window.addEventListener('load',function(){
     ['txtJars','txtUnits'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.addEventListener('input',calcTotal);
     });
+
+    // Mark PM actual qty inputs as edited when user manually changes them
+    document.querySelectorAll('.pm-actual-qty').forEach(function(inp){
+        inp.addEventListener('input', function(){ this.dataset.edited='1'; });
+    });
+
     calcTotal();
 });
 </script>
