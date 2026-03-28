@@ -512,6 +512,7 @@ function calcPMConsumption(jars, loosePcs, unitsPerContainer, containerType){
     var langSplitStr = document.getElementById('<%= hfLangSplit.ClientID %>').value || '';
     var langCounts = {};
     var totalBatches = 0;
+    var langOrder = [];
     if(langSplitStr){
         langSplitStr.split(',').forEach(function(pair){
             var parts = pair.split(':');
@@ -520,12 +521,19 @@ function calcPMConsumption(jars, loosePcs, unitsPerContainer, containerType){
                 var cnt  = parseInt(parts[1]) || 0;
                 langCounts[lang] = cnt;
                 totalBatches += cnt;
+                langOrder.push(lang);
             }
         });
     }
     if(totalBatches===0) totalBatches=1;
 
+    // Group language-specific PMs by PMID+Level to distribute whole numbers
+    // First pass: calculate universal PMs directly
+    // Second pass: distribute language PMs with whole-number rounding
+    var langGroups = {};
+
     rows.forEach(function(row){
+        var pmid   = row.getAttribute('data-pmid');
         var qtyPer = parseFloat(row.getAttribute('data-qtyper')) || 0;
         var level  = row.getAttribute('data-level') || 'UNIT';
         var lang   = row.getAttribute('data-lang') || '';
@@ -539,24 +547,70 @@ function calcPMConsumption(jars, loosePcs, unitsPerContainer, containerType){
             baseQty = 0;
         }
 
-        // If language-specific PM, proportion by batch language ratio
-        if(lang && lang !== ''){
-            var langBatches = langCounts[lang] || 0;
-            baseQty = Math.round((baseQty * langBatches / totalBatches) * 10000) / 10000;
-        }
-
-        var rounded = Math.round(baseQty * 10000) / 10000;
-
-        // Update calculated display
-        var calcCell = row.querySelector('.pm-calc-val');
-        if(calcCell) calcCell.innerText = rounded;
-
-        // Update actual qty input (only if user hasn't manually edited)
-        var actualInput = row.querySelector('.pm-actual-qty');
-        if(actualInput && !actualInput.dataset.edited){
-            actualInput.value = rounded;
+        if(!lang){
+            // Universal PM — use full quantity, round to 4 decimals
+            var rounded = Math.round(baseQty * 10000) / 10000;
+            setRowValues(row, rounded);
+        } else {
+            // Language-specific — collect for distribution
+            var groupKey = level + '_' + qtyPer;
+            if(!langGroups[groupKey]){
+                langGroups[groupKey] = { total: baseQty, level: level, rows: {} };
+            }
+            langGroups[groupKey].rows[lang] = row;
         }
     });
+
+    // Distribute language PMs: whole numbers for CONTAINER, decimals for UNIT
+    for(var key in langGroups){
+        var group = langGroups[key];
+        var totalQty = group.total;
+        var isDiscrete = (group.level === 'CONTAINER');
+        var allocated = 0;
+        var lastLang = null;
+
+        for(var i = 0; i < langOrder.length; i++){
+            var lang = langOrder[i];
+            var row = group.rows[lang];
+            if(!row) continue;
+
+            var ratio = langCounts[lang] / totalBatches;
+            var qty;
+
+            if(isDiscrete){
+                // Whole numbers for container-level items (labels, lids)
+                if(i < langOrder.length - 1){
+                    qty = Math.floor(totalQty * ratio);
+                } else {
+                    // Last language gets remainder
+                    qty = Math.round(totalQty - allocated);
+                }
+            } else {
+                // Decimals OK for unit-level items (kg, litres)
+                qty = Math.round(totalQty * ratio * 10000) / 10000;
+            }
+
+            allocated += qty;
+            lastLang = lang;
+            setRowValues(row, qty);
+        }
+
+        // If there were languages with no batches, set to 0
+        for(var lang in group.rows){
+            if(!langCounts[lang]){
+                setRowValues(group.rows[lang], 0);
+            }
+        }
+    }
+}
+
+function setRowValues(row, qty){
+    var calcCell = row.querySelector('.pm-calc-val');
+    if(calcCell) calcCell.innerText = qty;
+    var actualInput = row.querySelector('.pm-actual-qty');
+    if(actualInput && !actualInput.dataset.edited){
+        actualInput.value = qty;
+    }
 }
 
 window.addEventListener('load',function(){
