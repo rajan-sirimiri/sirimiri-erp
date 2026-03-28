@@ -803,7 +803,8 @@ namespace PKApp.DAL
             return ExecuteQueryRow(
                 "SELECT p.ProductID, p.ProductCode, p.ProductName," +
                 " IFNULL(p.ContainerType,'DIRECT') AS ContainerType," +
-                " p.UnitsPerContainer, p.ContainersPerCase" +
+                " p.UnitsPerContainer, p.ContainersPerCase," +
+                " IFNULL(p.HasLanguageLabels,0) AS HasLanguageLabels" +
                 " FROM PP_Products p WHERE p.ProductID=?pid;",
                 new MySqlParameter("?pid", productId));
         }
@@ -812,7 +813,7 @@ namespace PKApp.DAL
         public static DataTable GetProductPMMappings(int productId)
         {
             return ExecuteQuery(
-                "SELECT m.MappingID, m.PMID, m.QtyPerUnit, m.ApplyLevel," +
+                "SELECT m.MappingID, m.PMID, m.QtyPerUnit, m.ApplyLevel, m.Language," +
                 " pm.PMCode, pm.PMName, u.Abbreviation," +
                 " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
                 " FROM PK_ProductPMMaster m" +
@@ -823,7 +824,7 @@ namespace PKApp.DAL
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
                 "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = m.PMID" +
                 " WHERE m.ProductID=?pid AND m.IsActive=1" +
-                " ORDER BY FIELD(m.ApplyLevel,'CASE','CONTAINER','UNIT'), pm.PMName;",
+                " ORDER BY FIELD(m.ApplyLevel,'CASE','CONTAINER','UNIT'), m.Language, pm.PMName;",
                 new MySqlParameter("?pid", productId));
         }
 
@@ -835,41 +836,57 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", mappingId));
         }
 
-        /// Check if a mapping already exists for same product+PM+level.
-        public static bool ProductPMMappingExists(int productId, int pmId, string level)
+        /// Check if a mapping already exists for same product+PM+level+language.
+        public static bool ProductPMMappingExists(int productId, int pmId, string level, string language = null)
         {
-            object cnt = ExecuteScalar(
-                "SELECT COUNT(*) FROM PK_ProductPMMaster" +
-                " WHERE ProductID=?pid AND PMID=?pmid AND ApplyLevel=?lvl AND IsActive=1;",
-                new MySqlParameter("?pid",  productId),
-                new MySqlParameter("?pmid", pmId),
-                new MySqlParameter("?lvl",  level));
-            return Convert.ToInt32(cnt) > 0;
+            if (string.IsNullOrEmpty(language))
+            {
+                object cnt = ExecuteScalar(
+                    "SELECT COUNT(*) FROM PK_ProductPMMaster" +
+                    " WHERE ProductID=?pid AND PMID=?pmid AND ApplyLevel=?lvl AND Language IS NULL AND IsActive=1;",
+                    new MySqlParameter("?pid",  productId),
+                    new MySqlParameter("?pmid", pmId),
+                    new MySqlParameter("?lvl",  level));
+                return Convert.ToInt32(cnt) > 0;
+            }
+            else
+            {
+                object cnt = ExecuteScalar(
+                    "SELECT COUNT(*) FROM PK_ProductPMMaster" +
+                    " WHERE ProductID=?pid AND PMID=?pmid AND ApplyLevel=?lvl AND Language=?lang AND IsActive=1;",
+                    new MySqlParameter("?pid",  productId),
+                    new MySqlParameter("?pmid", pmId),
+                    new MySqlParameter("?lvl",  level),
+                    new MySqlParameter("?lang", language));
+                return Convert.ToInt32(cnt) > 0;
+            }
         }
 
         public static void AddProductPMMapping(int productId, int pmId,
-            decimal qtyPerUnit, string level, int userId)
+            decimal qtyPerUnit, string level, int userId, string language = null)
         {
             ExecuteNonQuery(
                 "INSERT INTO PK_ProductPMMaster" +
-                " (ProductID, PMID, QtyPerUnit, ApplyLevel, IsActive, CreatedBy, CreatedAt)" +
-                " VALUES(?pid, ?pmid, ?qty, ?lvl, 1, ?by, NOW());",
+                " (ProductID, PMID, QtyPerUnit, ApplyLevel, Language, IsActive, CreatedBy, CreatedAt)" +
+                " VALUES(?pid, ?pmid, ?qty, ?lvl, ?lang, 1, ?by, NOW());",
                 new MySqlParameter("?pid",  productId),
                 new MySqlParameter("?pmid", pmId),
                 new MySqlParameter("?qty",  qtyPerUnit),
                 new MySqlParameter("?lvl",  level),
+                new MySqlParameter("?lang", string.IsNullOrEmpty(language) ? (object)DBNull.Value : language),
                 new MySqlParameter("?by",   userId));
         }
 
         public static void UpdateProductPMMapping(int mappingId, int pmId,
-            decimal qtyPerUnit, string level)
+            decimal qtyPerUnit, string level, string language = null)
         {
             ExecuteNonQuery(
                 "UPDATE PK_ProductPMMaster SET PMID=?pmid, QtyPerUnit=?qty," +
-                " ApplyLevel=?lvl, UpdatedAt=NOW() WHERE MappingID=?id;",
+                " ApplyLevel=?lvl, Language=?lang, UpdatedAt=NOW() WHERE MappingID=?id;",
                 new MySqlParameter("?pmid", pmId),
                 new MySqlParameter("?qty",  qtyPerUnit),
                 new MySqlParameter("?lvl",  level),
+                new MySqlParameter("?lang", string.IsNullOrEmpty(language) ? (object)DBNull.Value : language),
                 new MySqlParameter("?id",   mappingId));
         }
 
@@ -884,15 +901,27 @@ namespace PKApp.DAL
 
         /// Calculate PM consumption for a given packing output.
         /// Returns a DataTable with columns: MappingID, PMID, PMName, PMCode,
-        ///   ApplyLevel, QtyPerUnit, CalculatedQty, Abbreviation, CurrentStock
+        ///   ApplyLevel, Language, QtyPerUnit, CalculatedQty, Abbreviation, CurrentStock
+        /// Only includes universal PMs (Language IS NULL) and PMs matching selectedLanguage.
         public static DataTable CalculatePMConsumption(int productId,
             int cases, int jars, int loosePcs,
-            int unitsPerContainer, int containersPerCase, string containerType)
+            int unitsPerContainer, int containersPerCase, string containerType,
+            string selectedLanguage = null)
         {
-            var mappings = GetProductPMMappings(productId);
-            mappings.Columns.Add("CalculatedQty", typeof(decimal));
+            var allMappings = GetProductPMMappings(productId);
+            allMappings.Columns.Add("CalculatedQty", typeof(decimal));
 
-            foreach (DataRow row in mappings.Rows)
+            // Filter: keep universal PMs (Language IS NULL) + PMs matching selected language
+            var rowsToRemove = new System.Collections.Generic.List<DataRow>();
+            foreach (DataRow row in allMappings.Rows)
+            {
+                string pmLang = row["Language"] == DBNull.Value ? null : row["Language"].ToString();
+                if (pmLang != null && pmLang != selectedLanguage)
+                    rowsToRemove.Add(row);
+            }
+            foreach (var r in rowsToRemove) allMappings.Rows.Remove(r);
+
+            foreach (DataRow row in allMappings.Rows)
             {
                 string level     = row["ApplyLevel"].ToString();
                 decimal qtyPer   = Convert.ToDecimal(row["QtyPerUnit"]);
@@ -924,7 +953,7 @@ namespace PKApp.DAL
                 row["CalculatedQty"] = Math.Round(calcQty, 4);
             }
 
-            return mappings;
+            return allMappings;
         }
 
         /// Record PM consumption entries from the packing output save.

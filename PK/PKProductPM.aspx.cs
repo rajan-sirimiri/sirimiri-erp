@@ -13,10 +13,11 @@ namespace PKApp
         protected Panel    pnlAlert, pnlProdEmpty, pnlNoProduct, pnlMapping;
         protected Panel    pnlMappingEmpty, pnlMappingTable;
         protected HiddenField hfProductID, hfMappingID;
-        protected DropDownList ddlPM, ddlApplyLevel;
+        protected DropDownList ddlPM, ddlApplyLevel, ddlLanguage;
         protected TextBox  txtQtyPerUnit;
         protected Button   btnAddPM, btnClear;
         protected Repeater rptProducts, rptMappings;
+        protected System.Web.UI.HtmlControls.HtmlGenericControl rowLanguage;
 
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
@@ -62,6 +63,13 @@ namespace PKApp
             lblProductName.Text    = prod["ProductName"].ToString();
             lblProductMeta.Text    = prod["ProductCode"].ToString();
             lblContainerType.Text  = prod["ContainerType"] == DBNull.Value ? "DIRECT" : prod["ContainerType"].ToString();
+
+            // Show language dropdown only for products with language-specific labels
+            bool hasLangLabels = prod.Table.Columns.Contains("HasLanguageLabels")
+                && prod["HasLanguageLabels"] != DBNull.Value
+                && Convert.ToInt32(prod["HasLanguageLabels"]) == 1;
+            if (rowLanguage != null)
+                rowLanguage.Style["display"] = hasLangLabels ? "block" : "none";
 
             pnlNoProduct.Visible = false;
             pnlMapping.Visible   = true;
@@ -111,6 +119,8 @@ namespace PKApp
             { ShowAlert("Quantity must be a positive number.", false); return; }
 
             string level = ddlApplyLevel.SelectedValue;
+            string language = (ddlLanguage != null && !string.IsNullOrEmpty(ddlLanguage.SelectedValue))
+                ? ddlLanguage.SelectedValue : null;
             int mappingId = Convert.ToInt32(hfMappingID.Value);
 
             try
@@ -118,17 +128,18 @@ namespace PKApp
                 if (mappingId == 0)
                 {
                     // Check for duplicate
-                    if (PKDatabaseHelper.ProductPMMappingExists(productId, pmId, level))
+                    if (PKDatabaseHelper.ProductPMMappingExists(productId, pmId, level, language))
                     {
-                        ShowAlert("This packing material is already assigned at the " + level + " level. Use Edit to update.", false);
+                        string langLabel = language ?? "universal";
+                        ShowAlert("This PM is already assigned at " + level + " level for " + langLabel + ". Use Edit to update.", false);
                         return;
                     }
-                    PKDatabaseHelper.AddProductPMMapping(productId, pmId, qty, level, UserID);
+                    PKDatabaseHelper.AddProductPMMapping(productId, pmId, qty, level, UserID, language);
                     ShowAlert("Packing material added to product.", true);
                 }
                 else
                 {
-                    PKDatabaseHelper.UpdateProductPMMapping(mappingId, pmId, qty, level);
+                    PKDatabaseHelper.UpdateProductPMMapping(mappingId, pmId, qty, level, language);
                     ShowAlert("Mapping updated.", true);
                 }
 
@@ -163,6 +174,13 @@ namespace PKApp
                 }
                 txtQtyPerUnit.Text        = Convert.ToDecimal(row["QtyPerUnit"]).ToString("0.####");
                 ddlApplyLevel.SelectedValue = row["ApplyLevel"].ToString();
+                // Restore language selection
+                if (ddlLanguage != null)
+                {
+                    string lang = row.Table.Columns.Contains("Language") && row["Language"] != DBNull.Value
+                        ? row["Language"].ToString() : "";
+                    try { ddlLanguage.SelectedValue = lang; } catch { ddlLanguage.SelectedIndex = 0; }
+                }
                 lblFormTitle.Text         = "Edit Packing Material";
                 btnAddPM.Text             = "Update";
                 pnlAlert.Visible          = false;
@@ -190,6 +208,7 @@ namespace PKApp
             if (ddlPM.Items.Count > 0) ddlPM.SelectedIndex = 0;
             txtQtyPerUnit.Text = "1";
             ddlApplyLevel.SelectedIndex = 0;
+            if (ddlLanguage != null) ddlLanguage.SelectedIndex = 0;
             lblFormTitle.Text = "Add Packing Material";
             btnAddPM.Text     = "Add PM";
         }

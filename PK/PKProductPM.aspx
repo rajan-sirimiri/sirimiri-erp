@@ -145,6 +145,16 @@ table.mapping tr:last-child td{border-bottom:none;}
                         </asp:DropDownList>
                     </div>
                 </div>
+                <div class="form-group" id="rowLanguage" runat="server" style="display:none;">
+                    <label>Language <span style="color:var(--accent)">*</span></label>
+                    <asp:DropDownList ID="ddlLanguage" runat="server">
+                        <asp:ListItem Text="All Languages (universal)" Value=""/>
+                        <asp:ListItem Text="Tamil" Value="Tamil"/>
+                        <asp:ListItem Text="Kannada" Value="Kannada"/>
+                        <asp:ListItem Text="Telugu" Value="Telugu"/>
+                    </asp:DropDownList>
+                    <span style="font-size:11px;color:var(--text-dim);margin-top:3px;">Select a language if this PM is language-specific (e.g. a label). Leave as "universal" for jars, lids, rolls etc.</span>
+                </div>
                 <div class="form-actions">
                     <asp:Button ID="btnAddPM" runat="server" Text="Add PM" CssClass="btn-primary" OnClick="btnAddPM_Click" CausesValidation="false"/>
                     <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn-secondary" OnClick="btnClear_Click" CausesValidation="false"/>
@@ -164,6 +174,7 @@ table.mapping tr:last-child td{border-bottom:none;}
                                 <th>Packing Material</th>
                                 <th>Qty / Unit</th>
                                 <th>Apply Level</th>
+                                <th>Language</th>
                                 <th>Current Stock</th>
                                 <th style="width:100px;text-align:center;">Actions</th>
                             </tr>
@@ -179,6 +190,9 @@ table.mapping tr:last-child td{border-bottom:none;}
                                         <td style="text-align:right;font-weight:600;"><%# Eval("QtyPerUnit", "{0:0.####}") %></td>
                                         <td>
                                             <span class='level-badge level-<%# Eval("ApplyLevel") %>'><%# Eval("ApplyLevel") %></span>
+                                        </td>
+                                        <td style="font-size:12px;">
+                                            <%# Eval("Language") == DBNull.Value ? "<span style='color:var(--text-dim);'>All</span>" : "<strong>" + Eval("Language") + "</strong>" %>
                                         </td>
                                         <td style="text-align:right;font-size:12px;">
                                             <%# Eval("CurrentStock", "{0:N2}") %> <%# Eval("Abbreviation") %>
