@@ -1168,22 +1168,65 @@ namespace PPApp.DAL
 
         public static void SaveProductParams(int productId, string[] types, string[] labels, string[] options)
         {
-            // Delete existing and re-insert
-            ExecuteNonQuery("DELETE FROM PP_ProductParams WHERE ProductID=?pid;",
+            // Get existing params for this product
+            var existing = ExecuteQuery(
+                "SELECT ParamID, ParamOrder FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
                 new MySqlParameter("?pid", productId));
+
+            // Build list of existing ParamIDs
+            var existingIds = new System.Collections.Generic.List<int>();
+            foreach (DataRow r in existing.Rows)
+                existingIds.Add(Convert.ToInt32(r["ParamID"]));
+
+            // Update or insert params
+            int usedCount = 0;
             for (int i = 0; i < types.Length; i++)
             {
-                if (!string.IsNullOrEmpty(types[i]))
+                if (string.IsNullOrEmpty(types[i])) continue;
+                string lbl  = string.IsNullOrEmpty(labels[i]) ? types[i] : labels[i];
+                object opts = i < options.Length && !string.IsNullOrEmpty(options[i]) ? (object)options[i] : DBNull.Value;
+
+                if (usedCount < existingIds.Count)
                 {
+                    // Update existing row
+                    ExecuteNonQuery(
+                        "UPDATE PP_ProductParams SET ParamOrder=?ord, ParamType=?type, ParamLabel=?lbl, ParamOptions=?opts" +
+                        " WHERE ParamID=?id;",
+                        new MySqlParameter("?ord",  i + 1),
+                        new MySqlParameter("?type", types[i]),
+                        new MySqlParameter("?lbl",  lbl),
+                        new MySqlParameter("?opts", opts),
+                        new MySqlParameter("?id",   existingIds[usedCount]));
+                }
+                else
+                {
+                    // Insert new row
                     ExecuteNonQuery(
                         "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel, ParamOptions)" +
                         " VALUES(?pid, ?ord, ?type, ?lbl, ?opts);",
                         new MySqlParameter("?pid",  productId),
                         new MySqlParameter("?ord",  i + 1),
                         new MySqlParameter("?type", types[i]),
-                        new MySqlParameter("?lbl",  string.IsNullOrEmpty(labels[i]) ? types[i] : labels[i]),
-                        new MySqlParameter("?opts", i < options.Length && !string.IsNullOrEmpty(options[i]) ? (object)options[i] : DBNull.Value));
+                        new MySqlParameter("?lbl",  lbl),
+                        new MySqlParameter("?opts", opts));
                 }
+                usedCount++;
+            }
+
+            // Delete surplus old params that are no longer needed
+            // Only delete if no batch params reference them
+            for (int j = usedCount; j < existingIds.Count; j++)
+            {
+                int paramId = existingIds[j];
+                object refCount = ExecuteScalar(
+                    "SELECT COUNT(*) FROM PP_BatchParams WHERE ParamID=?pid;",
+                    new MySqlParameter("?pid", paramId));
+                if (Convert.ToInt32(refCount) == 0)
+                {
+                    ExecuteNonQuery("DELETE FROM PP_ProductParams WHERE ParamID=?pid;",
+                        new MySqlParameter("?pid", paramId));
+                }
+                // If referenced, leave it — it's historical data
             }
         }
 
