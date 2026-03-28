@@ -129,11 +129,11 @@ table.mapping tr:last-child td{border-bottom:none;}
                 <div class="card-title"><asp:Label ID="lblFormTitle" runat="server">Add Packing Material</asp:Label></div>
                 <div class="form-group">
                     <label>Packing Material <span style="color:var(--accent)">*</span></label>
-                    <asp:DropDownList ID="ddlPM" runat="server"/>
+                    <asp:DropDownList ID="ddlPM" runat="server" onchange="onPMChange(this);"/>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Quantity Per Unit <span style="color:var(--accent)">*</span></label>
+                        <label>Quantity <span style="color:var(--accent)">*</span> <span id="spanPMUnit" style="font-weight:400;text-transform:none;color:var(--accent);font-size:12px;"></span></label>
                         <asp:TextBox ID="txtQtyPerUnit" runat="server" Text="1" style="text-align:right;"/>
                     </div>
                     <div class="form-group">
@@ -200,4 +200,22 @@ table.mapping tr:last-child td{border-bottom:none;}
         </asp:Panel>
     </div>
 </div>
+<script type="text/javascript">
+function onPMChange(sel) {
+    var span = document.getElementById('spanPMUnit');
+    if (!span) return;
+    var val = sel.value;
+    if (!val || val === '0') { span.innerText = ''; return; }
+    var parts = val.split('|');
+    if (parts.length > 1 && parts[1]) {
+        span.innerText = '(in ' + parts[1] + ')';
+    } else {
+        span.innerText = '';
+    }
+}
+window.addEventListener('load', function() {
+    var sel = document.getElementById('<%= ddlPM.ClientID %>');
+    if (sel) onPMChange(sel);
+});
+</script>
 </form></body></html>

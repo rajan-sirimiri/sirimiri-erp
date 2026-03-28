@@ -78,8 +78,8 @@ namespace PKApp
             ddlPM.Items.Add(new ListItem("-- Select Packing Material --", "0"));
             foreach (DataRow r in dt.Rows)
                 ddlPM.Items.Add(new ListItem(
-                    r["PMName"] + " (" + r["PMCode"] + ")",
-                    r["PMID"].ToString()));
+                    r["PMName"] + " (" + r["PMCode"] + ") — " + r["Abbreviation"],
+                    r["PMID"].ToString() + "|" + r["Abbreviation"].ToString()));
         }
 
         // ── Mappings table (right panel) ──────────────────────────────────
@@ -99,7 +99,11 @@ namespace PKApp
             int productId = Convert.ToInt32(hfProductID.Value);
             if (productId == 0) { ShowAlert("Please select a product first.", false); return; }
 
-            int pmId = Convert.ToInt32(ddlPM.SelectedValue);
+            // Parse PMID from pipe-delimited value (PMID|Abbreviation)
+            string pmVal = ddlPM.SelectedValue;
+            if (pmVal == "0") { ShowAlert("Please select a packing material.", false); return; }
+            string[] pmParts = pmVal.Split('|');
+            int pmId = Convert.ToInt32(pmParts[0]);
             if (pmId == 0) { ShowAlert("Please select a packing material.", false); return; }
 
             decimal qty;
@@ -150,7 +154,13 @@ namespace PKApp
                 if (row == null) return;
 
                 hfMappingID.Value         = mappingId.ToString();
-                ddlPM.SelectedValue       = row["PMID"].ToString();
+                // Find the dropdown item whose value starts with the PMID
+                string targetPmId = row["PMID"].ToString();
+                foreach (ListItem item in ddlPM.Items)
+                {
+                    if (item.Value.StartsWith(targetPmId + "|") || item.Value == targetPmId)
+                    { ddlPM.SelectedValue = item.Value; break; }
+                }
                 txtQtyPerUnit.Text        = Convert.ToDecimal(row["QtyPerUnit"]).ToString("0.####");
                 ddlApplyLevel.SelectedValue = row["ApplyLevel"].ToString();
                 lblFormTitle.Text         = "Edit Packing Material";
