@@ -410,18 +410,11 @@ namespace PKApp
             {
                 string ct = hfContainerType.Value;
 
-                // 1. Save packing output (jars + loose pcs, cases=0)
-                PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
-                    0, jars, units, unitSize, caseQty, ct, UserID);
-
-                int totalPcs = (jars * unitSize) + units;
-
                 // 2. Calculate PM consumption with actual output values
                 var pmData = PKDatabaseHelper.CalculatePMConsumptionWithLanguage(
                     productId, orderId, jars, units, unitSize, caseQty, ct);
 
                 // 3. Read overridden quantities from form inputs (pmQty_PMID)
-                // Build consumption table with ActualQty column
                 if (!pmData.Columns.Contains("ActualQty"))
                     pmData.Columns.Add("ActualQty", typeof(decimal));
 
@@ -436,6 +429,32 @@ namespace PKApp
                     else
                         row["ActualQty"] = row["CalculatedQty"];
                 }
+
+                // 3a. VALIDATE PM STOCK — block if any PM has insufficient stock
+                var shortages = new System.Collections.Generic.List<string>();
+                foreach (DataRow row in pmData.Rows)
+                {
+                    decimal needed = Convert.ToDecimal(row["ActualQty"]);
+                    if (needed <= 0) continue;
+                    int pmId = Convert.ToInt32(row["PMID"]);
+                    decimal available = PKDatabaseHelper.GetPMCurrentStock(pmId);
+                    if (needed > available)
+                    {
+                        string pmName = row["PMName"].ToString();
+                        shortages.Add(pmName + " (need " + needed.ToString("0.##") + ", have " + available.ToString("0.##") + ")");
+                    }
+                }
+                if (shortages.Count > 0)
+                {
+                    ShowAlert("Cannot save — insufficient PM stock: " + string.Join("; ", shortages) + ". Please do PM GRN first.", false);
+                    return;
+                }
+
+                // 1. Save packing output (jars + loose pcs, cases=0)
+                PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
+                    0, jars, units, unitSize, caseQty, ct, UserID);
+
+                int totalPcs = (jars * unitSize) + units;
 
                 // 4. Record PM consumption
                 PKDatabaseHelper.RecordPMConsumptionBatch(orderId, productId, pmData, UserID);

@@ -871,6 +871,19 @@ namespace PKApp.DAL
                 new MySqlParameter("?cat", category));
         }
 
+        /// Get current stock for a specific PM by ID.
+        public static decimal GetPMCurrentStock(int pmId)
+        {
+            object result = ExecuteScalar(
+                "SELECT ROUND(" +
+                "  IFNULL((SELECT SUM(QtyActualReceived) FROM MM_PackingInward WHERE PMID=?pid), 0)" +
+                "  + IFNULL((SELECT Quantity FROM MM_OpeningStock WHERE MaterialType='PM' AND MaterialID=?pid), 0)" +
+                "  - IFNULL((SELECT SUM(QtyUsed) FROM PK_PMConsumption WHERE PMID=?pid), 0)" +
+                ", 4);",
+                new MySqlParameter("?pid", pmId));
+            return result != null && result != DBNull.Value ? Convert.ToDecimal(result) : 0;
+        }
+
         // ── PRODUCTS (from PP) ────────────────────────────────────────────────
         public static DataTable GetActiveProducts()
         {

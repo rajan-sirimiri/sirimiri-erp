@@ -150,6 +150,33 @@ namespace PKApp
             int.TryParse(hfCasePMID.Value, out pmId);
             decimal cartonsUsed = pmId > 0 ? (decimal)cases : 0;
 
+            // Check ALL CASE-level PM stock for this product
+            var casePMs = PKDatabaseHelper.GetProductPMMappings(productId);
+            var pmShortages = new System.Collections.Generic.List<string>();
+            foreach (DataRow pmRow in casePMs.Rows)
+            {
+                string level = pmRow["ApplyLevel"].ToString();
+                if (level != "CASE") continue;
+                int mappedPmId = Convert.ToInt32(pmRow["PMID"]);
+                decimal qtyPerCase = Convert.ToDecimal(pmRow["QtyPerUnit"]);
+                decimal needed = cases * qtyPerCase;
+                decimal available = PKDatabaseHelper.GetPMCurrentStock(mappedPmId);
+                if (needed > available)
+                    pmShortages.Add(pmRow["PMName"] + " (need " + needed.ToString("0.##") + ", have " + available.ToString("0.##") + ")");
+            }
+            // Also check the auto-detected carton PM if not in mappings
+            if (pmId > 0 && pmShortages.Count == 0)
+            {
+                decimal pmStock = PKDatabaseHelper.GetPMCurrentStock(pmId);
+                if (pmStock < cases)
+                    pmShortages.Add("Carton (need " + cases + ", have " + pmStock.ToString("0.##") + ")");
+            }
+            if (pmShortages.Count > 0)
+            {
+                ShowAlert("Cannot pack — insufficient PM stock: " + string.Join("; ", pmShortages) + ". Please do PM GRN first.", false);
+                return;
+            }
+
             try
             {
                 PKDatabaseHelper.AddSecondaryPacking(productId, cases, unitsPerCarton,
@@ -183,6 +210,17 @@ namespace PKApp
             int cartonPmId = 0;
             if (ddlOnlineCarton != null)
                 int.TryParse(ddlOnlineCarton.SelectedValue, out cartonPmId);
+
+            // Check carton PM stock for online order (1 carton per order)
+            if (cartonPmId > 0)
+            {
+                decimal pmStock = PKDatabaseHelper.GetPMCurrentStock(cartonPmId);
+                if (pmStock < 1)
+                {
+                    ShowAlert("Insufficient shipping carton stock — 0 available. Please do PM GRN first.", false);
+                    return;
+                }
+            }
 
             string remarks = txtOnlineRemarks != null ? txtOnlineRemarks.Value.Trim() : "";
 
