@@ -555,10 +555,12 @@ namespace PKApp.DAL
             return ExecuteQuery(
                 "SELECT m.MappingID, m.PMID, pm.PMName, pm.PMCode, m.QtyPerUnit," +
                 " u.Abbreviation," +
-                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
                 " FROM PK_ProductPMMaster m" +
                 " JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
                 " JOIN MM_UOM u ON u.UOMID = pm.UOMID" +
+                " LEFT JOIN (SELECT MaterialID, Quantity FROM MM_OpeningStock" +
+                "   WHERE MaterialType='PM') os ON os.MaterialID = m.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
                 "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = m.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
@@ -869,9 +871,11 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT pm.PMID, pm.PMCode, pm.PMName, u.Abbreviation," +
-                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
                 " FROM MM_PackingMaterials pm" +
                 " JOIN MM_UOM u ON u.UOMID=pm.UOMID" +
+                " LEFT JOIN (SELECT MaterialID, Quantity FROM MM_OpeningStock" +
+                "   WHERE MaterialType='PM') os ON os.MaterialID=pm.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
                 "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID=pm.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
@@ -883,9 +887,11 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT pm.PMID, pm.PMCode, pm.PMName, u.Abbreviation," +
-                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
                 " FROM MM_PackingMaterials pm" +
                 " JOIN MM_UOM u ON u.UOMID=pm.UOMID" +
+                " LEFT JOIN (SELECT MaterialID, Quantity FROM MM_OpeningStock" +
+                "   WHERE MaterialType='PM') os ON os.MaterialID=pm.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
                 "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID=pm.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
@@ -949,10 +955,12 @@ namespace PKApp.DAL
             return ExecuteQuery(
                 "SELECT m.MappingID, m.PMID, m.QtyPerUnit, m.ApplyLevel, m.Language," +
                 " pm.PMCode, pm.PMName, u.Abbreviation," +
-                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
                 " FROM PK_ProductPMMaster m" +
                 " JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
                 " JOIN MM_UOM u ON u.UOMID = pm.UOMID" +
+                " LEFT JOIN (SELECT MaterialID, Quantity FROM MM_OpeningStock" +
+                "   WHERE MaterialType='PM') os ON os.MaterialID = m.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
                 "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = m.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
