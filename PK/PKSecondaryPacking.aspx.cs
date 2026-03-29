@@ -10,8 +10,8 @@ namespace PKApp
     {
         protected Label lblUser, lblAlert;
         protected Panel pnlAlert, pnlEmpty, pnlTable;
-        protected DropDownList ddlProduct, ddlOnlineCarton;
-        protected HiddenField hfProductData, hfCasePMID, hfOnlineLines;
+        protected DropDownList ddlProduct, ddlOnlineCarton, ddlCasePM;
+        protected HiddenField hfProductData, hfOnlineLines;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCartons, txtUnitsPerCarton;
         protected System.Web.UI.HtmlControls.HtmlInputText txtOnlineOrderId, txtCustomerName;
         protected System.Web.UI.HtmlControls.HtmlTextArea txtRemarks, txtOnlineRemarks;
@@ -52,8 +52,6 @@ namespace PKApp
                 }
                 int containersPerCase = Convert.ToInt32(r["ContainersPerCase"]);
                 string containerType = r["ContainerType"].ToString();
-                int casePMID = Convert.ToInt32(r["CasePMID"]);
-                string casePMName = r["CasePMName"].ToString();
 
                 int jarSize = 0;
                 int.TryParse(firstUnitSize, out jarSize);
@@ -73,9 +71,7 @@ namespace PKApp
                 sb.Append("\"availPcs\":" + availPcs + ",");
                 sb.Append("\"unitSizes\":\"" + Esc(firstUnitSize) + "\",");
                 sb.Append("\"containersPerCase\":" + containersPerCase + ",");
-                sb.Append("\"containerType\":\"" + Esc(containerType) + "\",");
-                sb.Append("\"casePMID\":\"" + casePMID + "\",");
-                sb.Append("\"casePMName\":\"" + Esc(casePMName) + "\"");
+                sb.Append("\"containerType\":\"" + Esc(containerType) + "\"");
                 sb.Append("}");
                 first = false;
             }
@@ -110,6 +106,39 @@ namespace PKApp
             if (pnlEmpty != null) pnlEmpty.Visible = dt.Rows.Count == 0;
             if (pnlTable != null) pnlTable.Visible = dt.Rows.Count > 0;
             if (rptLog != null) { rptLog.DataSource = dt; rptLog.DataBind(); }
+        }
+
+        protected void ddlProduct_Changed(object s, EventArgs e)
+        {
+            int productId = 0;
+            if (ddlProduct != null && ddlProduct.SelectedValue != null)
+                int.TryParse(ddlProduct.SelectedValue, out productId);
+            BindCasePMs(productId);
+        }
+
+        void BindCasePMs(int productId)
+        {
+            if (ddlCasePM == null) return;
+            ddlCasePM.Items.Clear();
+            if (productId <= 0)
+            {
+                ddlCasePM.Items.Add(new ListItem("-- Select product first --", "0"));
+                return;
+            }
+            var dt = PKDatabaseHelper.GetCasePMsForProduct(productId);
+            if (dt.Rows.Count == 0)
+            {
+                ddlCasePM.Items.Add(new ListItem("-- No carton PM mapped --", "0"));
+                return;
+            }
+            ddlCasePM.Items.Add(new ListItem("-- Select Carton --", "0"));
+            foreach (DataRow r in dt.Rows)
+            {
+                string stock = Convert.ToDecimal(r["CurrentStock"]).ToString("0.##");
+                ddlCasePM.Items.Add(new ListItem(
+                    r["PMName"] + " (Stock: " + stock + " " + r["Abbreviation"] + ")",
+                    r["PMID"].ToString()));
+            }
         }
 
         // ── CASE PACKING SAVE ──
@@ -147,35 +176,9 @@ namespace PKApp
             { ShowAlert("Need " + totalJars + " jars but only " + availJars + " available.", false); return; }
 
             int pmId = 0;
-            int.TryParse(hfCasePMID.Value, out pmId);
+            if (ddlCasePM != null && ddlCasePM.SelectedValue != null)
+                int.TryParse(ddlCasePM.SelectedValue, out pmId);
             decimal cartonsUsed = pmId > 0 ? (decimal)cases : 0;
-
-            // Check ALL CASE-level PM stock for this product
-            var casePMs = PKDatabaseHelper.GetProductPMMappings(productId);
-            var pmShortages = new System.Collections.Generic.List<string>();
-            foreach (DataRow pmRow in casePMs.Rows)
-            {
-                string level = pmRow["ApplyLevel"].ToString();
-                if (level != "CASE") continue;
-                int mappedPmId = Convert.ToInt32(pmRow["PMID"]);
-                decimal qtyPerCase = Convert.ToDecimal(pmRow["QtyPerUnit"]);
-                decimal needed = cases * qtyPerCase;
-                decimal available = PKDatabaseHelper.GetPMCurrentStock(mappedPmId);
-                if (needed > available)
-                    pmShortages.Add(pmRow["PMName"] + " (need " + needed.ToString("0.##") + ", have " + available.ToString("0.##") + ")");
-            }
-            // Also check the auto-detected carton PM if not in mappings
-            if (pmId > 0 && pmShortages.Count == 0)
-            {
-                decimal pmStock = PKDatabaseHelper.GetPMCurrentStock(pmId);
-                if (pmStock < cases)
-                    pmShortages.Add("Carton (need " + cases + ", have " + pmStock.ToString("0.##") + ")");
-            }
-            if (pmShortages.Count > 0)
-            {
-                ShowAlert("Cannot pack — insufficient PM stock: " + string.Join("; ", pmShortages) + ". Please do PM GRN first.", false);
-                return;
-            }
 
             try
             {
@@ -210,17 +213,6 @@ namespace PKApp
             int cartonPmId = 0;
             if (ddlOnlineCarton != null)
                 int.TryParse(ddlOnlineCarton.SelectedValue, out cartonPmId);
-
-            // Check carton PM stock for online order (1 carton per order)
-            if (cartonPmId > 0)
-            {
-                decimal pmStock = PKDatabaseHelper.GetPMCurrentStock(cartonPmId);
-                if (pmStock < 1)
-                {
-                    ShowAlert("Insufficient shipping carton stock — 0 available. Please do PM GRN first.", false);
-                    return;
-                }
-            }
 
             string remarks = txtOnlineRemarks != null ? txtOnlineRemarks.Value.Trim() : "";
 

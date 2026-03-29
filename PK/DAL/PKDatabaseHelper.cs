@@ -537,24 +537,35 @@ namespace PKApp.DAL
                 " IFNULL(p.ContainersPerCase,12) AS ContainersPerCase," +
                 " IFNULL(p.UnitsPerContainer,'') AS UnitsPerContainer," +
                 " ou.Abbreviation AS Unit," +
-                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0), 0) AS AvailablePcs," +
-                " IFNULL(casePM.PMID, 0) AS CasePMID," +
-                " IFNULL(casePM.PMName, '') AS CasePMName," +
-                " IFNULL(casePM.QtyPerUnit, 1) AS CasePMQtyPerUnit" +
+                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0), 0) AS AvailablePcs" +
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
                 " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPacked" +
                 "   FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID = p.ProductID" +
                 " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalPacked2" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
-                " LEFT JOIN (SELECT m.ProductID, pm.PMID, pm.PMName, m.QtyPerUnit" +
-                "   FROM PK_ProductPMMaster m" +
-                "   JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
-                "   WHERE m.ApplyLevel='CASE' AND m.IsActive=1 AND m.Language IS NULL" +
-                "   ORDER BY m.MappingID LIMIT 1000) casePM ON casePM.ProductID = p.ProductID" +
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
                 " AND IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0) > 0.5" +
                 " ORDER BY p.ProductName;");
+        }
+
+        /// Get all CASE-level PM mappings for a product (cartons, case labels, tape, etc.)
+        public static DataTable GetCasePMsForProduct(int productId)
+        {
+            return ExecuteQuery(
+                "SELECT m.MappingID, m.PMID, pm.PMName, pm.PMCode, m.QtyPerUnit," +
+                " u.Abbreviation," +
+                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " FROM PK_ProductPMMaster m" +
+                " JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
+                " JOIN MM_UOM u ON u.UOMID = pm.UOMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
+                "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = m.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
+                "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = m.PMID" +
+                " WHERE m.ProductID=?pid AND m.ApplyLevel='CASE' AND m.IsActive=1" +
+                " ORDER BY pm.PMName;",
+                new MySqlParameter("?pid", productId));
         }
 
         public static void AddSecondaryPacking(int productId, decimal qtyCartons,
@@ -869,19 +880,6 @@ namespace PKApp.DAL
                 "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID=pm.PMID" +
                 " WHERE pm.IsActive=1 AND pm.PMCategory=?cat ORDER BY pm.PMName;",
                 new MySqlParameter("?cat", category));
-        }
-
-        /// Get current stock for a specific PM by ID.
-        public static decimal GetPMCurrentStock(int pmId)
-        {
-            object result = ExecuteScalar(
-                "SELECT ROUND(" +
-                "  IFNULL((SELECT SUM(QtyActualReceived) FROM MM_PackingInward WHERE PMID=?pid), 0)" +
-                "  + IFNULL((SELECT Quantity FROM MM_OpeningStock WHERE MaterialType='PM' AND MaterialID=?pid), 0)" +
-                "  - IFNULL((SELECT SUM(QtyUsed) FROM PK_PMConsumption WHERE PMID=?pid), 0)" +
-                ", 4);",
-                new MySqlParameter("?pid", pmId));
-            return result != null && result != DBNull.Value ? Convert.ToDecimal(result) : 0;
         }
 
         // ── PRODUCTS (from PP) ────────────────────────────────────────────────
