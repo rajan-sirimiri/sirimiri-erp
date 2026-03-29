@@ -31,18 +31,33 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);}
 .card-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.08em;color:var(--text-muted);}
-.hist-table{width:100%;border-collapse:collapse;font-size:13px;}
-.hist-table th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:10px 14px;border-bottom:2px solid var(--border);text-align:left;background:#fafafa;}
-.hist-table th.num{text-align:right;}
-.hist-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
-.hist-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
-.hist-table tr:last-child td{border-bottom:none;}
-.hist-table tr:hover td{background:#f9f9f9;}
-.badge-done{background:#eafaf1;color:var(--teal);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
-.badge-prog{background:#fff3e0;color:var(--orange);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.empty-note{text-align:center;padding:32px;color:var(--text-dim);font-size:13px;}
 .summary-bar{display:flex;gap:24px;padding:12px 24px;background:#f9f9f9;border-top:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);font-size:12px;color:var(--text-muted);}
 .summary-bar strong{color:var(--text);}
-.empty-note{text-align:center;padding:32px;color:var(--text-dim);font-size:13px;}
+
+/* Order group */
+.order-group{border-bottom:2px solid var(--border);}
+.order-group:last-child{border-bottom:none;}
+.order-header{background:#fef9f3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.order-header-left{display:flex;align-items:center;gap:20px;}
+.order-id{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.05em;color:var(--accent);}
+.order-product{font-weight:700;font-size:14px;}
+.order-meta{font-size:11px;color:var(--text-dim);}
+.order-stats{display:flex;gap:20px;align-items:center;}
+.order-stat{text-align:center;}
+.order-stat-val{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.03em;color:var(--text);}
+.order-stat-val.green{color:var(--teal);}
+.order-stat-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);}
+
+/* Batch rows */
+.batch-table{width:100%;border-collapse:collapse;font-size:12px;}
+.batch-table th{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:7px 16px;border-bottom:1px solid var(--border);text-align:left;background:#fafafa;}
+.batch-table td{padding:8px 16px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+.batch-table tr:last-child td{border-bottom:none;}
+.batch-table tr:hover td{background:#f9f9f9;}
+.badge-done{background:#eafaf1;color:var(--teal);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.badge-prog{background:#fff3e0;color:var(--orange);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+
 @media print{nav,.filter-bar,.btn-pdf{display:none!important;}body{background:#fff;}.main{margin:0;padding:0;}.card{border:none;border-radius:0;}.print-header{display:block!important;}}
 .print-header{display:none;font-size:11px;color:var(--text-muted);margin-bottom:8px;}
 </style></head><body>
@@ -60,12 +75,11 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
 <div class="page-header">
     <div>
         <div class="page-title">Packing <span>History</span></div>
-        <div class="page-sub">Batch-wise packing history with production details</div>
+        <div class="page-sub">Order-wise packing history with batch details</div>
     </div>
     <button type="button" class="btn-pdf" onclick="printReport()">&#x1F4C4; Download PDF</button>
 </div>
 <div class="main">
-    <!-- FILTER BAR -->
     <div class="filter-bar">
         <div>
             <label>Product</label>
@@ -82,67 +96,77 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
         <asp:Button ID="btnSearch" runat="server" Text="Search" CssClass="btn-search" OnClick="btnSearch_Click" CausesValidation="false"/>
     </div>
 
-    <!-- RESULTS -->
     <asp:Panel ID="pnlResults" runat="server" Visible="false">
     <div class="card">
         <div class="card-header">
             <span class="card-title">&#x1F4CB; Packing History</span>
-            <span style="font-size:11px;color:var(--text-dim);">
-                <asp:Label ID="lblDateRange" runat="server"/>
-            </span>
+            <span style="font-size:11px;color:var(--text-dim);"><asp:Label ID="lblDateRange" runat="server"/></span>
         </div>
         <div class="print-header">Sirimiri Nutrition Food Products &nbsp;|&nbsp; Packing History &nbsp;|&nbsp; <asp:Label ID="lblPrintRange" runat="server"/></div>
 
         <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No packing records found for the selected criteria</div></asp:Panel>
 
         <asp:Panel ID="pnlTable" runat="server" Visible="false">
-        <table class="hist-table">
-            <thead><tr>
-                <th>Sr</th>
-                <th>Product</th>
-                <th>Order</th>
-                <th>Batch</th>
-                <th>Date</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Duration</th>
-                <th>Language</th>
-                <th class="num">Order Jars</th>
-                <th class="num">Order Pcs</th>
-                <th class="num">Order Total</th>
-                <th>Status</th>
-            </tr></thead>
-            <tbody>
-                <asp:Repeater ID="rptHistory" runat="server">
-                    <ItemTemplate><tr>
-                        <td style="font-size:11px;color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
-                        <td>
-                            <strong><%# Eval("ProductName") %></strong>
-                            <div style="font-size:10px;color:var(--text-dim);"><%# Eval("ProductCode") %></div>
-                        </td>
-                        <td style="font-size:12px;">#<%# Eval("OrderID") %><div style="font-size:10px;color:var(--text-dim);">Shift <%# Eval("Shift") %></div></td>
-                        <td style="font-weight:700;">B<%# Eval("BatchNo") %></td>
-                        <td style="font-size:12px;"><%# Eval("StartTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("StartTime")).ToString("dd MMM yyyy") %></td>
-                        <td style="font-size:12px;color:var(--text-muted);"><%# Eval("StartTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("StartTime")).ToString("hh:mm tt") %></td>
-                        <td style="font-size:12px;color:var(--text-muted);"><%# Eval("EndTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("EndTime")).ToString("hh:mm tt") %></td>
-                        <td style="font-size:12px;color:var(--text-muted);"><%# FormatDuration(Eval("StartTime"), Eval("EndTime")) %></td>
-                        <td style="font-size:12px;font-weight:600;"><%# Eval("LabelLanguage") == DBNull.Value ? "—" : Eval("LabelLanguage") %></td>
-                        <td class="num" style="font-size:12px;"><%# Convert.ToInt64(Eval("OrderJars")) > 0 ? string.Format("{0:N0}", Eval("OrderJars")) : "—" %></td>
-                        <td class="num" style="font-size:12px;"><%# Convert.ToInt64(Eval("OrderPcs")) > 0 ? string.Format("{0:N0}", Eval("OrderPcs")) : "—" %></td>
-                        <td class="num" style="font-weight:700;"><%# Convert.ToInt64(Eval("OrderTotalUnits")) > 0 ? string.Format("{0:N0}", Eval("OrderTotalUnits")) : "—" %></td>
-                        <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>
-                        <td class="num"><%# Eval("Units") == DBNull.Value ? "—" : string.Format("{0:N0}", Eval("Units")) %></td>
-                        <td class="num" style="font-weight:700;"><%# Eval("TotalUnits") == DBNull.Value ? "—" : string.Format("{0:N0}", Eval("TotalUnits")) %></td>
-                        <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>
-                    </tr></ItemTemplate>
-                </asp:Repeater>
-            </tbody>
-        </table>
-        <div class="summary-bar">
-            <div>Total Batches: <strong><asp:Label ID="lblTotalBatches" runat="server"/></strong></div>
-            <div style="color:var(--teal);">Total Jars: <strong><asp:Label ID="lblTotalJars" runat="server"/></strong></div>
-            <div>Total Units: <strong><asp:Label ID="lblTotalUnits" runat="server"/></strong></div>
-        </div>
+            <asp:Repeater ID="rptOrders" runat="server" OnItemDataBound="rptOrders_ItemDataBound">
+                <ItemTemplate>
+                    <div class="order-group">
+                        <!-- ORDER HEADER -->
+                        <div class="order-header">
+                            <div class="order-header-left">
+                                <span class="order-id">Order #<%# Eval("OrderID") %></span>
+                                <div>
+                                    <div class="order-product"><%# Eval("ProductName") %></div>
+                                    <div class="order-meta"><%# Eval("ProductCode") %> &nbsp;|&nbsp; <%# Convert.ToDateTime(Eval("OrderDate")).ToString("dd MMM yyyy") %> &nbsp;|&nbsp; Shift <%# Eval("Shift") %></div>
+                                </div>
+                            </div>
+                            <div class="order-stats">
+                                <div class="order-stat">
+                                    <div class="order-stat-val"><%# Eval("BatchCount") %></div>
+                                    <div class="order-stat-lbl">Batches</div>
+                                </div>
+                                <div class="order-stat">
+                                    <div class="order-stat-val"><%# string.Format("{0:N0}", Eval("OrderJars")) %></div>
+                                    <div class="order-stat-lbl">Jars</div>
+                                </div>
+                                <div class="order-stat">
+                                    <div class="order-stat-val"><%# string.Format("{0:N0}", Eval("OrderPcs")) %></div>
+                                    <div class="order-stat-lbl">Pcs</div>
+                                </div>
+                                <div class="order-stat">
+                                    <div class="order-stat-val green"><%# string.Format("{0:N0}", Eval("OrderTotalUnits")) %></div>
+                                    <div class="order-stat-lbl">Total Units</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- BATCH DETAILS -->
+                        <table class="batch-table">
+                            <thead><tr>
+                                <th>Batch</th><th>Date</th><th>Start</th><th>End</th><th>Duration</th><th>Language</th><th>Status</th>
+                            </tr></thead>
+                            <tbody>
+                                <asp:Repeater ID="rptBatches" runat="server">
+                                    <ItemTemplate><tr>
+                                        <td style="font-weight:700;">B<%# Eval("BatchNo") %></td>
+                                        <td><%# Eval("StartTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("StartTime")).ToString("dd MMM yyyy") %></td>
+                                        <td style="color:var(--text-muted);"><%# Eval("StartTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("StartTime")).ToString("hh:mm tt") %></td>
+                                        <td style="color:var(--text-muted);"><%# Eval("EndTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("EndTime")).ToString("hh:mm tt") %></td>
+                                        <td style="color:var(--text-muted);"><%# FormatDuration(Eval("StartTime"), Eval("EndTime")) %></td>
+                                        <td style="font-weight:600;"><%# Eval("LabelLanguage") == DBNull.Value ? "—" : Eval("LabelLanguage") %></td>
+                                        <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>
+                                    </tr></ItemTemplate>
+                                </asp:Repeater>
+                            </tbody>
+                        </table>
+                    </div>
+                </ItemTemplate>
+            </asp:Repeater>
+
+            <div class="summary-bar">
+                <div>Total Orders: <strong><asp:Label ID="lblTotalOrders" runat="server"/></strong></div>
+                <div>Total Batches: <strong><asp:Label ID="lblTotalBatches" runat="server"/></strong></div>
+                <div style="color:var(--teal);">Total Jars: <strong><asp:Label ID="lblTotalJars" runat="server"/></strong></div>
+                <div>Total Units: <strong><asp:Label ID="lblTotalUnits" runat="server"/></strong></div>
+            </div>
         </asp:Panel>
     </div>
     </asp:Panel>

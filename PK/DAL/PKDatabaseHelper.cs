@@ -1084,30 +1084,34 @@ namespace PKApp.DAL
         // ── PACKING HISTORY REPORT ───────────────────────────────────────
         public static DataTable GetPackingHistoryReport(int productId, DateTime fromDate, DateTime toDate)
         {
+            // Returns order-level summary rows
             string sql =
-                "SELECT pe.PackingID, pe.OrderID, pe.BatchNo, pe.StartTime, pe.EndTime," +
-                " pe.Status, pe.LabelLanguage," +
+                "SELECT po.OrderID, po.OrderDate, po.Shift," +
                 " p.ProductName, p.ProductCode, p.ContainerType," +
-                " po.OrderDate, po.Shift," +
                 " IFNULL(summary.Jars, 0) AS OrderJars," +
                 " IFNULL(summary.Units, 0) AS OrderPcs," +
                 " IFNULL(summary.JarSize, 0) AS JarSize," +
                 " IFNULL(summary.TotalUnits, 0) AS OrderTotalUnits," +
                 " (SELECT COUNT(*) FROM PK_PackingExecution b" +
-                "  WHERE b.OrderID=pe.OrderID AND b.BatchNo > 0 AND b.Status='Completed') AS OrderBatchCount" +
-                " FROM PK_PackingExecution pe" +
-                " JOIN PP_ProductionOrder po ON po.OrderID = pe.OrderID" +
+                "  WHERE b.OrderID=po.OrderID AND b.BatchNo > 0 AND b.Status='Completed') AS BatchCount," +
+                " (SELECT MIN(pe2.StartTime) FROM PK_PackingExecution pe2" +
+                "  WHERE pe2.OrderID=po.OrderID AND pe2.BatchNo > 0) AS FirstStart," +
+                " (SELECT MAX(pe3.EndTime) FROM PK_PackingExecution pe3" +
+                "  WHERE pe3.OrderID=po.OrderID AND pe3.BatchNo > 0) AS LastEnd" +
+                " FROM PP_ProductionOrder po" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
                 " LEFT JOIN PK_PackingExecution summary" +
-                "   ON summary.OrderID = pe.OrderID AND summary.BatchNo = 0" +
-                " WHERE pe.Status IN ('Completed','InProgress')" +
-                " AND pe.BatchNo > 0" +
-                " AND DATE(pe.StartTime) >= ?from AND DATE(pe.StartTime) <= ?to";
+                "   ON summary.OrderID = po.OrderID AND summary.BatchNo = 0" +
+                " WHERE po.OrderID IN (" +
+                "   SELECT DISTINCT pe.OrderID FROM PK_PackingExecution pe" +
+                "   WHERE pe.BatchNo > 0 AND pe.Status IN ('Completed','InProgress')" +
+                "   AND DATE(pe.StartTime) >= ?from AND DATE(pe.StartTime) <= ?to" +
+                " )";
 
             if (productId > 0)
                 sql += " AND po.ProductID = ?pid";
 
-            sql += " ORDER BY pe.OrderID DESC, pe.BatchNo ASC;";
+            sql += " ORDER BY po.OrderID DESC;";
 
             if (productId > 0)
                 return ExecuteQuery(sql,
@@ -1118,6 +1122,17 @@ namespace PKApp.DAL
                 return ExecuteQuery(sql,
                     new MySqlParameter("?from", fromDate.Date),
                     new MySqlParameter("?to",   toDate.Date));
+        }
+
+        public static DataTable GetPackingBatchesByOrder(int orderId)
+        {
+            return ExecuteQuery(
+                "SELECT pe.PackingID, pe.BatchNo, pe.StartTime, pe.EndTime," +
+                " pe.Status, pe.LabelLanguage" +
+                " FROM PK_PackingExecution pe" +
+                " WHERE pe.OrderID=?oid AND pe.BatchNo > 0" +
+                " ORDER BY pe.BatchNo ASC;",
+                new MySqlParameter("?oid", orderId));
         }
 
         /// Products that have had packing activity — for the report dropdown.

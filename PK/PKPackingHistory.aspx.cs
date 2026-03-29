@@ -9,12 +9,12 @@ namespace PKApp
     public partial class PKPackingHistory : Page
     {
         protected Label    lblUser, lblDateRange, lblPrintRange;
-        protected Label    lblTotalBatches, lblTotalJars, lblTotalUnits;
+        protected Label    lblTotalOrders, lblTotalBatches, lblTotalJars, lblTotalUnits;
         protected DropDownList ddlProduct;
         protected TextBox  txtFromDate, txtToDate;
         protected Button   btnSearch;
         protected Panel    pnlResults, pnlEmpty, pnlTable;
-        protected Repeater rptHistory;
+        protected Repeater rptOrders;
 
         protected void Page_Load(object s, EventArgs e)
         {
@@ -24,13 +24,9 @@ namespace PKApp
             if (!IsPostBack)
             {
                 BindProductDropdown();
-
-                // Default date range: last 30 days
                 DateTime now = PKDatabaseHelper.NowIST();
                 txtFromDate.Text = now.AddDays(-30).ToString("yyyy-MM-dd");
                 txtToDate.Text   = now.ToString("yyyy-MM-dd");
-
-                // Auto-load on first visit
                 LoadHistory();
             }
         }
@@ -68,7 +64,6 @@ namespace PKApp
             lblPrintRange.Text = rangeText;
 
             var dt = PKDatabaseHelper.GetPackingHistoryReport(productId, fromDate, toDate);
-
             pnlResults.Visible = true;
 
             if (dt.Rows.Count == 0)
@@ -80,27 +75,41 @@ namespace PKApp
 
             pnlEmpty.Visible = false;
             pnlTable.Visible = true;
-            rptHistory.DataSource = dt;
-            rptHistory.DataBind();
+            rptOrders.DataSource = dt;
+            rptOrders.DataBind();
 
-            // Summaries — deduplicate order totals (same OrderJars/Pcs on every batch row of an order)
-            int totalBatches = dt.Rows.Count;
-            long totalJars = 0, totalUnits = 0;
-            var seenOrders = new System.Collections.Generic.HashSet<int>();
+            // Summaries
+            int totalOrders = dt.Rows.Count;
+            long totalBatches = 0, totalJars = 0, totalUnits = 0;
             foreach (DataRow row in dt.Rows)
             {
-                int orderId = Convert.ToInt32(row["OrderID"]);
-                if (!seenOrders.Contains(orderId))
-                {
-                    seenOrders.Add(orderId);
-                    if (row["OrderJars"] != DBNull.Value)       totalJars  += Convert.ToInt64(row["OrderJars"]);
-                    if (row["OrderTotalUnits"] != DBNull.Value) totalUnits += Convert.ToInt64(row["OrderTotalUnits"]);
-                }
+                totalBatches += Convert.ToInt64(row["BatchCount"]);
+                totalJars    += Convert.ToInt64(row["OrderJars"]);
+                totalUnits   += Convert.ToInt64(row["OrderTotalUnits"]);
             }
 
+            lblTotalOrders.Text  = totalOrders.ToString("N0");
             lblTotalBatches.Text = totalBatches.ToString("N0");
             lblTotalJars.Text    = totalJars.ToString("N0");
             lblTotalUnits.Text   = totalUnits.ToString("N0");
+        }
+
+        protected void rptOrders_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem)
+                return;
+
+            var orderRow = (DataRowView)e.Item.DataItem;
+            int orderId  = Convert.ToInt32(orderRow["OrderID"]);
+
+            // Find the inner repeater and bind batch data
+            var rptBatches = (Repeater)e.Item.FindControl("rptBatches");
+            if (rptBatches != null)
+            {
+                var batches = PKDatabaseHelper.GetPackingBatchesByOrder(orderId);
+                rptBatches.DataSource = batches;
+                rptBatches.DataBind();
+            }
         }
 
         protected string FormatDuration(object startVal, object endVal)
