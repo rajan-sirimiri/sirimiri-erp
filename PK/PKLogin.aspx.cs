@@ -19,7 +19,7 @@ namespace PKApp
         protected void Page_Load(object s, EventArgs e)
         {
             if (!IsPostBack && Session["PK_UserID"] != null)
-                Response.Redirect("PKHome.aspx");
+                Response.Redirect(GetReturnUrl());
 
             // ── SSO: check for token in query string ──
             if (!IsPostBack && Session["PK_UserID"] == null)
@@ -38,7 +38,7 @@ namespace PKApp
                         Session["PK_FullName"] = fullName;
                         Session["PK_Role"]     = role;
 
-                        Response.Redirect("PKHome.aspx");
+                        Response.Redirect(GetReturnUrl());
                         return;
                     }
                 }
@@ -65,7 +65,7 @@ namespace PKApp
             Session["PK_UserID"]   = Convert.ToInt32(row["UserID"]);
             Session["PK_FullName"] = row["FullName"].ToString();
             Session["PK_Role"]     = row["Role"].ToString();
-            Response.Redirect("PKHome.aspx");
+            Response.Redirect(GetReturnUrl());
         }
 
         // ── SSO token validation (direct DB call) ──
@@ -100,4 +100,15 @@ namespace PKApp
 
         void ShowErr(string m) { lblErr.Text = m; pnlErr.Visible = true; }
     }
+
+        private string GetReturnUrl()
+        {
+            string returnUrl = Request.QueryString["ReturnUrl"];
+            if (!string.IsNullOrEmpty(returnUrl))
+            {
+                if (returnUrl.StartsWith("/") || returnUrl.StartsWith("PK"))
+                    return returnUrl;
+            }
+            return "PKHome.aspx";
+        }
 }

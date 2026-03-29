@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.IO;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using PKApp.DAL;
@@ -14,13 +15,15 @@ namespace PKApp
         protected DropDownList ddlCustomerType;
         protected TextBox txtCode, txtName, txtContact, txtPhone, txtEmail;
         protected TextBox txtGSTIN, txtCity, txtState, txtPinCode, txtAddress;
-        protected Button btnSave, btnClear, btnToggle;
+        protected Button btnSave, btnClear, btnToggle, btnUpload;
+        protected FileUpload fuExcel;
         protected Repeater rptList;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
         {
-            if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
+            if (Session["PK_UserID"] == null)
+            { Response.Redirect("PKLogin.aspx?ReturnUrl=" + Server.UrlEncode(Request.Url.PathAndQuery)); return; }
             if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
             if (!IsPostBack) { LoadCustomerTypes(); BindList(); }
         }
@@ -109,23 +112,128 @@ namespace PKApp
             txtCity.Text    = row["City"]     == DBNull.Value ? "" : row["City"].ToString();
             txtState.Text   = row["State"]    == DBNull.Value ? "" : row["State"].ToString();
             txtAddress.Text = row["Address"]  == DBNull.Value ? "" : row["Address"].ToString();
-
             if (txtPinCode != null)
                 txtPinCode.Text = row.Table.Columns.Contains("PinCode") && row["PinCode"] != DBNull.Value
                     ? row["PinCode"].ToString() : "";
-
             if (ddlCustomerType != null)
             {
                 string custType = row.Table.Columns.Contains("CustomerType") && row["CustomerType"] != DBNull.Value
                     ? row["CustomerType"].ToString() : "";
                 try { ddlCustomerType.SelectedValue = custType; } catch { ddlCustomerType.SelectedIndex = 0; }
             }
-
             lblFormTitle.Text = "Edit Customer";
-            bool isActive = Convert.ToBoolean(row["IsActive"]);
-            btnToggle.Text = isActive ? "Deactivate" : "Activate";
+            btnToggle.Text = Convert.ToBoolean(row["IsActive"]) ? "Deactivate" : "Activate";
             btnToggle.Visible = true;
             if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        // ── EXCEL UPLOAD ──
+        protected void btnUpload_Click(object s, EventArgs e)
+        {
+            if (fuExcel == null || !fuExcel.HasFile)
+            { ShowAlert("Please select an Excel file.", false); return; }
+
+            string ext = Path.GetExtension(fuExcel.FileName).ToLower();
+            if (ext != ".xlsx" && ext != ".xls")
+            { ShowAlert("Only .xlsx or .xls files are supported.", false); return; }
+
+            try
+            {
+                string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ext);
+                fuExcel.SaveAs(tempPath);
+
+                int imported = 0, skipped = 0;
+                var errors = new System.Collections.Generic.List<string>();
+
+                using (var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read))
+                {
+                    DataTable dt;
+                    if (ext == ".xlsx")
+                    {
+                        var wb = new ClosedXML.Excel.XLWorkbook(fs);
+                        var ws = wb.Worksheet(1);
+                        dt = new DataTable();
+                        bool firstRow = true;
+                        foreach (var row in ws.RowsUsed())
+                        {
+                            if (firstRow)
+                            {
+                                foreach (var cell in row.CellsUsed())
+                                    dt.Columns.Add(cell.GetString().Trim());
+                                firstRow = false;
+                            }
+                            else
+                            {
+                                var dr = dt.NewRow();
+                                for (int i = 0; i < dt.Columns.Count && i < row.CellCount(); i++)
+                                    dr[i] = row.Cell(i + 1).GetString().Trim();
+                                dt.Rows.Add(dr);
+                            }
+                        }
+                    }
+                    else
+                    { ShowAlert("Only .xlsx files are supported. Please save as .xlsx.", false); return; }
+
+                    // Expected columns: CustomerType, Name, ContactPerson, Phone, Email, Address, City, State, PinCode, GSTIN
+                    foreach (DataRow dr in dt.Rows)
+                    {
+                        string name = GetCol(dr, "Name", "CustomerName");
+                        if (string.IsNullOrEmpty(name)) { skipped++; continue; }
+
+                        string custType = GetCol(dr, "CustomerType", "Type");
+                        if (string.IsNullOrEmpty(custType)) custType = "RT"; // default to Retail
+
+                        // Normalize type code
+                        string typeUpper = custType.ToUpper().Trim();
+                        if (typeUpper.StartsWith("STOCK")) typeUpper = "ST";
+                        else if (typeUpper.StartsWith("DIST")) typeUpper = "DI";
+                        else if (typeUpper.StartsWith("RET") || typeUpper.StartsWith("CUST")) typeUpper = "RT";
+                        else if (typeUpper.Length > 2) typeUpper = typeUpper.Substring(0, 2);
+
+                        try
+                        {
+                            PKDatabaseHelper.AddCustomer(typeUpper, name,
+                                GetCol(dr, "ContactPerson", "Contact"),
+                                GetCol(dr, "Phone", "Mobile"),
+                                GetCol(dr, "Email"),
+                                GetCol(dr, "Address"),
+                                GetCol(dr, "City"),
+                                GetCol(dr, "State"),
+                                GetCol(dr, "PinCode", "PIN"),
+                                GetCol(dr, "GSTIN", "GST"));
+                            imported++;
+                        }
+                        catch (Exception ex2)
+                        {
+                            errors.Add("Row " + (imported + skipped + 1) + ": " + ex2.Message);
+                            skipped++;
+                        }
+                    }
+                }
+
+                try { File.Delete(tempPath); } catch { }
+
+                string msg = imported + " customer(s) imported successfully.";
+                if (skipped > 0) msg += " " + skipped + " skipped.";
+                if (errors.Count > 0 && errors.Count <= 3)
+                    msg += " Errors: " + string.Join("; ", errors);
+                ShowAlert(msg, imported > 0);
+                BindList();
+            }
+            catch (Exception ex) { ShowAlert("Upload error: " + ex.Message, false); }
+        }
+
+        string GetCol(DataRow dr, params string[] names)
+        {
+            foreach (string n in names)
+            {
+                if (dr.Table.Columns.Contains(n) && dr[n] != DBNull.Value)
+                {
+                    string val = dr[n].ToString().Trim();
+                    if (!string.IsNullOrEmpty(val)) return val;
+                }
+            }
+            return "";
         }
 
         void ClearForm()

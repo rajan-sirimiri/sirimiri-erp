@@ -15,7 +15,7 @@ namespace PKApp {
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e) {
-            if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
+            if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx?ReturnUrl=" + Server.UrlEncode(Request.Url.PathAndQuery)); return; }
             lblUser.Text = Session["PK_FullName"] as string ?? "";
             if (!IsPostBack) {
                 BindCustomerDropdown(); BindPODropdown(); BuildProductLiteral();
