@@ -19,20 +19,21 @@ namespace PKApp
         protected void Page_Load(object s, EventArgs e)
         {
             if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
-            lblUser.Text = Session["PK_FullName"] as string ?? "";
+            if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
 
             if (!IsPostBack)
             {
                 BindProductDropdown();
                 DateTime now = PKDatabaseHelper.NowIST();
-                txtFromDate.Text = now.AddDays(-30).ToString("yyyy-MM-dd");
-                txtToDate.Text   = now.ToString("yyyy-MM-dd");
+                if (txtFromDate != null) txtFromDate.Text = now.AddDays(-30).ToString("yyyy-MM-dd");
+                if (txtToDate != null)   txtToDate.Text   = now.ToString("yyyy-MM-dd");
                 LoadHistory();
             }
         }
 
         void BindProductDropdown()
         {
+            if (ddlProduct == null) return;
             var dt = PKDatabaseHelper.GetProductsWithPackingHistory();
             ddlProduct.Items.Clear();
             ddlProduct.Items.Add(new ListItem("-- All Products --", "0"));
@@ -49,49 +50,74 @@ namespace PKApp
 
         void LoadHistory()
         {
-            int productId = Convert.ToInt32(ddlProduct.SelectedValue);
-
-            DateTime fromDate, toDate;
-            if (!DateTime.TryParse(txtFromDate.Text, out fromDate))
-                fromDate = PKDatabaseHelper.NowIST().AddDays(-30);
-            if (!DateTime.TryParse(txtToDate.Text, out toDate))
-                toDate = PKDatabaseHelper.NowIST();
-
-            string rangeText = fromDate.ToString("dd MMM yyyy") + " — " + toDate.ToString("dd MMM yyyy");
-            if (productId > 0)
-                rangeText += " | " + ddlProduct.SelectedItem.Text;
-            lblDateRange.Text  = rangeText;
-            lblPrintRange.Text = rangeText;
-
-            var dt = PKDatabaseHelper.GetPackingHistoryReport(productId, fromDate, toDate);
-            pnlResults.Visible = true;
-
-            if (dt.Rows.Count == 0)
+            try
             {
-                pnlEmpty.Visible = true;
-                pnlTable.Visible = false;
-                return;
+                int productId = 0;
+                if (ddlProduct != null && ddlProduct.SelectedValue != null)
+                    int.TryParse(ddlProduct.SelectedValue, out productId);
+
+                DateTime now = PKDatabaseHelper.NowIST();
+                DateTime fromDate = now.AddDays(-30);
+                DateTime toDate   = now;
+                if (txtFromDate != null && !string.IsNullOrEmpty(txtFromDate.Text))
+                    DateTime.TryParse(txtFromDate.Text, out fromDate);
+                if (txtToDate != null && !string.IsNullOrEmpty(txtToDate.Text))
+                    DateTime.TryParse(txtToDate.Text, out toDate);
+
+                string rangeText = fromDate.ToString("dd MMM yyyy") + " — " + toDate.ToString("dd MMM yyyy");
+                if (productId > 0 && ddlProduct != null && ddlProduct.SelectedItem != null)
+                    rangeText += " | " + ddlProduct.SelectedItem.Text;
+                if (lblDateRange != null)  lblDateRange.Text  = rangeText;
+                if (lblPrintRange != null) lblPrintRange.Text = rangeText;
+
+                var dt = PKDatabaseHelper.GetPackingHistoryReport(productId, fromDate, toDate);
+
+                if (pnlResults != null) pnlResults.Visible = true;
+
+                if (dt == null || dt.Rows.Count == 0)
+                {
+                    if (pnlEmpty != null) pnlEmpty.Visible = true;
+                    if (pnlTable != null) pnlTable.Visible = false;
+                    return;
+                }
+
+                if (pnlEmpty != null) pnlEmpty.Visible = false;
+                if (pnlTable != null) pnlTable.Visible = true;
+
+                if (rptOrders != null)
+                {
+                    rptOrders.DataSource = dt;
+                    rptOrders.DataBind();
+                }
+
+                // Summaries
+                int totalOrders = dt.Rows.Count;
+                long totalBatches = 0, totalJars = 0, totalUnits = 0;
+                foreach (DataRow row in dt.Rows)
+                {
+                    if (row.Table.Columns.Contains("BatchCount") && row["BatchCount"] != DBNull.Value)
+                        totalBatches += Convert.ToInt64(row["BatchCount"]);
+                    if (row.Table.Columns.Contains("OrderJars") && row["OrderJars"] != DBNull.Value)
+                        totalJars += Convert.ToInt64(row["OrderJars"]);
+                    if (row.Table.Columns.Contains("OrderTotalUnits") && row["OrderTotalUnits"] != DBNull.Value)
+                        totalUnits += Convert.ToInt64(row["OrderTotalUnits"]);
+                }
+
+                if (lblTotalOrders != null)  lblTotalOrders.Text  = totalOrders.ToString("N0");
+                if (lblTotalBatches != null) lblTotalBatches.Text = totalBatches.ToString("N0");
+                if (lblTotalJars != null)    lblTotalJars.Text    = totalJars.ToString("N0");
+                if (lblTotalUnits != null)   lblTotalUnits.Text   = totalUnits.ToString("N0");
             }
-
-            pnlEmpty.Visible = false;
-            pnlTable.Visible = true;
-            rptOrders.DataSource = dt;
-            rptOrders.DataBind();
-
-            // Summaries
-            int totalOrders = dt.Rows.Count;
-            long totalBatches = 0, totalJars = 0, totalUnits = 0;
-            foreach (DataRow row in dt.Rows)
+            catch (Exception ex)
             {
-                totalBatches += Convert.ToInt64(row["BatchCount"]);
-                totalJars    += Convert.ToInt64(row["OrderJars"]);
-                totalUnits   += Convert.ToInt64(row["OrderTotalUnits"]);
+                if (pnlResults != null) pnlResults.Visible = true;
+                if (pnlEmpty != null) pnlEmpty.Visible = true;
+                if (pnlTable != null) pnlTable.Visible = false;
+                Response.Write("<div style='color:red;padding:20px;font-size:13px;background:#fff3f3;border:2px solid red;margin:20px;border-radius:8px;'>"
+                    + "<strong>DEBUG ERROR:</strong> " + Server.HtmlEncode(ex.Message)
+                    + "<br/><br/><strong>Type:</strong> " + ex.GetType().FullName
+                    + "<br/><br/><strong>Stack:</strong><br/><pre>" + Server.HtmlEncode(ex.StackTrace) + "</pre></div>");
             }
-
-            lblTotalOrders.Text  = totalOrders.ToString("N0");
-            lblTotalBatches.Text = totalBatches.ToString("N0");
-            lblTotalJars.Text    = totalJars.ToString("N0");
-            lblTotalUnits.Text   = totalUnits.ToString("N0");
         }
 
         protected void rptOrders_ItemDataBound(object sender, RepeaterItemEventArgs e)
@@ -102,7 +128,6 @@ namespace PKApp
             var orderRow = (DataRowView)e.Item.DataItem;
             int orderId  = Convert.ToInt32(orderRow["OrderID"]);
 
-            // Find the inner repeater and bind batch data
             var rptBatches = (Repeater)e.Item.FindControl("rptBatches");
             if (rptBatches != null)
             {
