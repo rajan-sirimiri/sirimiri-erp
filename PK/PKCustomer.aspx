@@ -1,7 +1,7 @@
-<%@ Page Language="C#" AutoEventWireup="true" Inherits="PKApp.PKCustomer" %>
+<%@ Page Language="C#" AutoEventWireup="true" Inherits="PKApp.PKCustomer" EnableEventValidation="false" %>
 <!DOCTYPE html><html lang="en"><head runat="server">
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Customer Master — Packing</title>
+<title>Customer Master &mdash; PK</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#f0f0f0;--surface:#fff;--border:#e0e0e0;--accent:#e67e22;--accent-dark:#d35400;--teal:#1a9e6a;--text:#1a1a1a;--text-muted:#666;--text-dim:#999;--radius:12px;}
@@ -15,39 +15,45 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
 .nav-user{color:rgba(255,255,255,.8);font-size:12px;}
 .nav-link{color:#aaa;text-decoration:none;font-size:11px;font-weight:600;text-transform:uppercase;padding:5px 10px;border-radius:5px;}
 .nav-link:hover{color:#fff;background:rgba(255,255,255,.08);}
-.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 32px;}
-.page-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.07em;}
-.page-title span{color:var(--accent);}
+.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;justify-content:space-between;align-items:center;}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.07em;}.page-title span{color:var(--accent);}
 .page-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
-.layout{max-width:1100px;margin:24px auto;padding:0 28px;display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;}
+.main{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1300px;margin:24px auto;padding:0 28px;}
+@media(max-width:900px){.main{grid-template-columns:1fr;}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
 .form-group.full{grid-column:1/-1;}
 label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);}
-input,select{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;color:var(--text);background:#fafafa;outline:none;}
-input:focus,select:focus{border-color:var(--accent);background:#fff;}
-input[readonly]{background:#f0f0f0;color:var(--text-dim);}
-.form-actions{display:flex;gap:8px;margin-top:14px;}
-.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:12px;font-weight:700;cursor:pointer;}
-.btn-primary:hover{background:var(--accent-dark);}
-.btn-secondary{background:#f0f0f0;color:#333;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;}
-.btn-danger{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;}
-.btn-danger:hover{background:var(--accent);color:#fff;}
-.alert{padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:12px;}
+.req{color:var(--accent);}
+select,input[type=text],textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fafafa;outline:none;}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#fff;}
+.field-hint{font-size:10px;color:var(--text-dim);}
+.btn-row{display:flex;gap:8px;margin-top:14px;}
+.btn{border:none;border-radius:8px;padding:10px 22px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:var(--accent-dark);}
+.btn-secondary{background:#f0f0f0;color:#333;border:1px solid var(--border);}
+.btn-danger{background:#fdf3f2;color:#e74c3c;border:1px solid #f5c6cb;}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:14px;}
 .alert-success{background:#eafaf1;color:var(--teal);border:1px solid #a9dfbf;}
 .alert-danger{background:#fdf3f2;color:#e74c3c;border:1px solid #f5c6cb;}
-.cust-list{display:flex;flex-direction:column;gap:8px;}
-.cust-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fafafa;border:1px solid var(--border);border-radius:9px;cursor:pointer;transition:border-color .2s;}
-.cust-row:hover{border-color:var(--accent);}
-.cust-row.inactive{opacity:.5;}
-.cust-name{font-weight:700;font-size:13px;}
-.cust-meta{font-size:11px;color:var(--text-dim);}
-.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
-.badge-active{background:#eafaf1;color:var(--teal);}
-.badge-inactive{background:#f0f0f0;color:var(--text-dim);}
+.cust-table{width:100%;border-collapse:collapse;font-size:12px;}
+.cust-table th{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px;border-bottom:2px solid var(--border);text-align:left;background:#fafafa;}
+.cust-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+.cust-table tr:last-child td{border-bottom:none;}
+.cust-table tr:hover td{background:#f9f9f9;}
+.badge-active{background:#eafaf1;color:var(--teal);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;}
+.badge-inactive{background:#f5f5f5;color:#999;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;}
+.badge-type{font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:#e8f4fd;color:#2980b9;}
+.act-link{color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;}
+.act-link:hover{text-decoration:underline;}
+.search-box{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:12px;outline:none;}
+.search-box:focus{border-color:var(--accent);}
 .empty-note{text-align:center;padding:28px;color:var(--text-dim);font-size:13px;}
+.gst-row{display:flex;gap:6px;align-items:flex-start;}
+.gst-status{font-size:11px;font-weight:600;margin-top:4px;}
+.gst-valid{color:var(--teal);}.gst-invalid{color:#e74c3c;}
 </style></head><body>
 <form id="form1" runat="server">
 <asp:HiddenField ID="hfCustID" runat="server" Value="0"/>
@@ -56,66 +62,165 @@ input[readonly]{background:#f0f0f0;color:var(--text-dim);}
     <span class="nav-title">Packing &amp; Shipments</span>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblUser" runat="server"/></span>
-        <a href="/StockApp/ERPHome.aspx" class="nav-link">&#x2302; ERP Home</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-link">ERP Home</a>
+        <a href="PKHome.aspx" class="nav-link">PK Home</a>
         <a href="PKLogout.aspx" class="nav-link">Sign Out</a>
     </div>
 </nav>
 <div class="page-header">
-    <div class="page-title">Customer <span>Master</span></div>
-    <div class="page-sub">Add and manage customers and distributors for shipments</div>
-</div>
-<div class="layout">
     <div>
-        <asp:Panel ID="pnlAlert" runat="server" Visible="false">
-            <div class="alert"><asp:Label ID="lblAlert" runat="server"/></div>
-        </asp:Panel>
+        <div class="page-title">Customer <span>Master</span></div>
+        <div class="page-sub">Manage stockists, distributors and retail customers</div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);">Total: <strong><asp:Label ID="lblCount" runat="server">0</asp:Label></strong></div>
+</div>
+<div class="main">
+    <!-- LEFT: FORM -->
+    <div>
+        <asp:Panel ID="pnlAlert" runat="server" Visible="false"><div class="alert"><asp:Label ID="lblAlert" runat="server"/></div></asp:Panel>
         <div class="card">
             <div class="card-title"><asp:Label ID="lblFormTitle" runat="server">New Customer</asp:Label></div>
-            <div class="form-group full">
-                <label>Customer Code</label>
-                <asp:TextBox ID="txtCode" runat="server" ReadOnly="true" placeholder="Auto-generated"/>
-            </div>
-            <div class="form-group full">
-                <label>Customer Name <span style="color:var(--accent)">*</span></label>
-                <asp:TextBox ID="txtName" runat="server" MaxLength="150"/>
-            </div>
             <div class="form-grid">
-                <div class="form-group"><label>Contact Person</label><asp:TextBox ID="txtContact" runat="server" MaxLength="100"/></div>
-                <div class="form-group"><label>Phone</label><asp:TextBox ID="txtPhone" runat="server" MaxLength="20"/></div>
-                <div class="form-group"><label>Email</label><asp:TextBox ID="txtEmail" runat="server" MaxLength="100"/></div>
-                <div class="form-group"><label>GSTIN</label><asp:TextBox ID="txtGSTIN" runat="server" MaxLength="20"/></div>
-                <div class="form-group"><label>City</label><asp:TextBox ID="txtCity" runat="server" MaxLength="80"/></div>
-                <div class="form-group"><label>State</label><asp:TextBox ID="txtState" runat="server" MaxLength="80"/></div>
+                <div class="form-group">
+                    <label>Customer Type <span class="req">*</span></label>
+                    <asp:DropDownList ID="ddlCustomerType" runat="server" onchange="onTypeChange(this);"/>
+                </div>
+                <div class="form-group">
+                    <label>Customer Code</label>
+                    <asp:TextBox ID="txtCode" runat="server" ReadOnly="true" placeholder="Auto-generated"/>
+                    <span class="field-hint">Auto-generated based on type</span>
+                </div>
+                <div class="form-group full">
+                    <label><span id="lblNameLabel">Name</span> <span class="req">*</span></label>
+                    <asp:TextBox ID="txtName" runat="server" MaxLength="200" placeholder="Enter name"/>
+                </div>
+                <div class="form-group">
+                    <label>Contact Person</label>
+                    <asp:TextBox ID="txtContact" runat="server" MaxLength="100" placeholder="Contact person name"/>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <asp:TextBox ID="txtPhone" runat="server" MaxLength="20" placeholder="e.g. 9876543210"/>
+                </div>
+                <div class="form-group full">
+                    <label>Email</label>
+                    <asp:TextBox ID="txtEmail" runat="server" MaxLength="200" placeholder="email@example.com"/>
+                </div>
+                <div class="form-group full">
+                    <label>Address</label>
+                    <asp:TextBox ID="txtAddress" runat="server" TextMode="MultiLine" Rows="2" MaxLength="500" placeholder="Full address"/>
+                </div>
+                <div class="form-group">
+                    <label>City</label>
+                    <asp:TextBox ID="txtCity" runat="server" MaxLength="100" placeholder="City"/>
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <asp:TextBox ID="txtState" runat="server" MaxLength="100" placeholder="State"/>
+                </div>
+                <div class="form-group">
+                    <label>PIN Code</label>
+                    <asp:TextBox ID="txtPinCode" runat="server" MaxLength="10" placeholder="e.g. 560001"/>
+                </div>
+                <div class="form-group">
+                    <label>GSTIN</label>
+                    <div class="gst-row">
+                        <asp:TextBox ID="txtGSTIN" runat="server" MaxLength="15" placeholder="15-digit GSTIN" onblur="validateGST(this.value);"/>
+                    </div>
+                    <div class="gst-status" id="gstStatus"></div>
+                    <span class="field-hint">15-character GST Identification Number</span>
+                </div>
             </div>
-            <div class="form-group full"><label>Address</label><asp:TextBox ID="txtAddress" runat="server" TextMode="MultiLine" Rows="2" MaxLength="300"/></div>
-            <div class="form-actions">
-                <asp:Button ID="btnSave" runat="server" Text="Save" CssClass="btn-primary" OnClick="btnSave_Click" CausesValidation="false"/>
-                <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn-secondary" OnClick="btnClear_Click" CausesValidation="false"/>
-                <asp:Button ID="btnToggle" runat="server" Text="Deactivate" CssClass="btn-danger" OnClick="btnToggle_Click" CausesValidation="false" Visible="false"/>
+            <div class="btn-row">
+                <asp:Button ID="btnSave" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" CausesValidation="false"/>
+                <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false"/>
+                <asp:Button ID="btnToggle" runat="server" Text="Deactivate" CssClass="btn btn-danger" OnClick="btnToggle_Click" CausesValidation="false" Visible="false"/>
             </div>
         </div>
     </div>
+
+    <!-- RIGHT: LIST -->
     <div>
         <div class="card">
-            <div class="card-title">Customers (<asp:Label ID="lblCount" runat="server"/>)</div>
-            <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No customers yet</div></asp:Panel>
-            <div class="cust-list">
+            <div class="card-title">&#x1F4CB; Customer List</div>
+            <input type="text" class="search-box" placeholder="Search customers..." onkeyup="filterTable(this.value);"/>
+            <div style="overflow-x:auto;max-height:600px;overflow-y:auto;">
+                <asp:Panel ID="pnlEmpty" runat="server" Visible="false"><div class="empty-note">No customers yet</div></asp:Panel>
                 <asp:Repeater ID="rptList" runat="server" OnItemCommand="rptList_Cmd">
-                    <ItemTemplate>
-                        <div class='cust-row <%# !(bool)Eval("IsActive") ? "inactive" : "" %>'>
-                            <div>
-                                <div class="cust-name"><%# Eval("CustomerName") %></div>
-                                <div class="cust-meta"><%# Eval("CustomerCode") %> &nbsp;·&nbsp; <%# Eval("City") %></div>
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <span class='badge <%# (bool)Eval("IsActive") ? "badge-active" : "badge-inactive" %>'><%# (bool)Eval("IsActive") ? "Active" : "Inactive" %></span>
-                                <asp:LinkButton runat="server" CommandName="Edit" CommandArgument='<%# Eval("CustomerID") %>' CssClass="btn-secondary" style="font-size:11px;padding:4px 10px;" CausesValidation="false">Edit</asp:LinkButton>
-                            </div>
-                        </div>
-                    </ItemTemplate>
+                    <HeaderTemplate><table class="cust-table" id="custTable"><thead><tr>
+                        <th>Code</th><th>Type</th><th>Name</th><th>City</th><th>Status</th><th></th>
+                    </tr></thead><tbody></HeaderTemplate>
+                    <ItemTemplate><tr>
+                        <td style="font-size:11px;font-weight:600;color:var(--text-muted);"><%# Eval("CustomerCode") %></td>
+                        <td><%# Eval("TypeName").ToString() != "" ? "<span class='badge-type'>" + Eval("TypeName") + "</span>" : "" %></td>
+                        <td>
+                            <div style="font-weight:600;"><%# Eval("CustomerName") %></div>
+                            <div style="font-size:10px;color:var(--text-dim);"><%# Eval("ContactPerson") == DBNull.Value ? "" : Eval("ContactPerson") %></div>
+                        </td>
+                        <td style="font-size:12px;"><%# Eval("City") == DBNull.Value ? "" : Eval("City") %></td>
+                        <td><span class='<%# Convert.ToBoolean(Eval("IsActive")) ? "badge-active" : "badge-inactive" %>'><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></td>
+                        <td><asp:LinkButton runat="server" CommandName="Edit" CommandArgument='<%# Eval("CustomerID") %>' CssClass="act-link" CausesValidation="false">Edit</asp:LinkButton></td>
+                    </tr></ItemTemplate>
+                    <FooterTemplate></tbody></table></FooterTemplate>
                 </asp:Repeater>
             </div>
         </div>
     </div>
 </div>
-</form></body></html>
+</form>
+<script>
+function onTypeChange(sel){
+    var v = sel.value;
+    var lbl = document.getElementById('lblNameLabel');
+    if(!lbl) return;
+    if(v === 'ST') lbl.innerText = 'Stockist Name';
+    else if(v === 'DI') lbl.innerText = 'Distributor Name';
+    else if(v === 'RT') lbl.innerText = 'Customer Name';
+    else lbl.innerText = 'Name';
+}
+
+function validateGST(gstin){
+    var el = document.getElementById('gstStatus');
+    if(!el) return;
+    if(!gstin || gstin.length === 0){ el.innerHTML = ''; return; }
+    gstin = gstin.toUpperCase().trim();
+    // Format: 2-digit state code + 10-char PAN + 1 entity + 1 default Z + 1 checksum
+    var pattern = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if(gstin.length !== 15){
+        el.innerHTML = '<span class="gst-invalid">&#10008; GSTIN must be 15 characters</span>';
+        return;
+    }
+    if(!pattern.test(gstin)){
+        el.innerHTML = '<span class="gst-invalid">&#10008; Invalid GSTIN format</span>';
+        return;
+    }
+    // Checksum validation (Luhn mod 36)
+    var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    var sum = 0;
+    for(var i = 0; i < 14; i++){
+        var idx = chars.indexOf(gstin[i]);
+        var factor = (i % 2 === 0) ? 1 : 2;
+        var prod = idx * factor;
+        sum += Math.floor(prod / 36) + (prod % 36);
+    }
+    var checkDigit = (36 - (sum % 36)) % 36;
+    var expectedCheck = chars[checkDigit];
+    if(gstin[14] !== expectedCheck){
+        el.innerHTML = '<span class="gst-invalid">&#10008; GSTIN checksum invalid</span>';
+        return;
+    }
+    el.innerHTML = '<span class="gst-valid">&#10004; Valid GSTIN format</span>';
+}
+
+function filterTable(q){
+    q = q.toLowerCase();
+    var rows = document.querySelectorAll('#custTable tbody tr');
+    rows.forEach(function(r){ r.style.display = r.innerText.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
+}
+
+// Set name label on load based on current dropdown value
+window.addEventListener('load', function(){
+    var sel = document.getElementById('<%= ddlCustomerType.ClientID %>');
+    if(sel) onTypeChange(sel);
+});
+</script></body></html>

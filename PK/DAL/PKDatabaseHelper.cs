@@ -67,19 +67,42 @@ namespace PKApp.DAL
             => ExecuteQuery(sql, prms);
 
         // ── CUSTOMERS ────────────────────────────────────────────────────────
+        // ── CUSTOMER TYPES ────────────────────────────────────────────────
+        public static DataTable GetCustomerTypes()
+        {
+            return ExecuteQuery(
+                "SELECT TypeID, TypeCode, TypeName FROM PK_CustomerTypes WHERE IsActive=1 ORDER BY TypeName;");
+        }
+
+        public static void AddCustomerType(string typeCode, string typeName)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_CustomerTypes (TypeCode, TypeName) VALUES(?code, ?name);",
+                new MySqlParameter("?code", typeCode),
+                new MySqlParameter("?name", typeName));
+        }
+
+        // ── CUSTOMERS ────────────────────────────────────────────────────────
         public static DataTable GetAllCustomers()
         {
             return ExecuteQuery(
-                "SELECT CustomerID, CustomerCode, CustomerName, ContactPerson," +
-                " Phone, Email, City, State, GSTIN, IsActive, CreatedAt" +
-                " FROM PK_Customers ORDER BY CustomerName;");
+                "SELECT c.CustomerID, c.CustomerCode, c.CustomerType, c.CustomerName," +
+                " c.ContactPerson, c.Phone, c.Email, c.City, c.State, c.PinCode," +
+                " c.GSTIN, c.IsActive, c.CreatedAt," +
+                " IFNULL(ct.TypeName,'') AS TypeName" +
+                " FROM PK_Customers c" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
+                " ORDER BY c.CustomerName;");
         }
 
         public static DataTable GetActiveCustomers()
         {
             return ExecuteQuery(
-                "SELECT CustomerID, CustomerCode, CustomerName, City" +
-                " FROM PK_Customers WHERE IsActive=1 ORDER BY CustomerName;");
+                "SELECT c.CustomerID, c.CustomerCode, c.CustomerType, c.CustomerName," +
+                " c.City, IFNULL(ct.TypeName,'') AS TypeName" +
+                " FROM PK_Customers c" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
+                " WHERE c.IsActive=1 ORDER BY c.CustomerName;");
         }
 
         public static DataRow GetCustomerById(int id)
@@ -89,15 +112,17 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", id));
         }
 
-        public static void AddCustomer(string name, string contact, string phone,
-            string email, string address, string city, string state, string gstin)
+        public static void AddCustomer(string customerType, string name, string contact,
+            string phone, string email, string address, string city, string state,
+            string pinCode, string gstin)
         {
-            string code = GenerateCustomerCode();
+            string code = GenerateCustomerCode(customerType);
             ExecuteNonQuery(
-                "INSERT INTO PK_Customers (CustomerCode,CustomerName,ContactPerson,Phone," +
-                "Email,Address,City,State,GSTIN,IsActive,CreatedAt)" +
-                " VALUES(?code,?name,?con,?ph,?em,?addr,?city,?state,?gst,1,NOW());",
+                "INSERT INTO PK_Customers (CustomerCode,CustomerType,CustomerName,ContactPerson,Phone," +
+                "Email,Address,City,State,PinCode,GSTIN,IsActive,CreatedAt)" +
+                " VALUES(?code,?type,?name,?con,?ph,?em,?addr,?city,?state,?pin,?gst,1,NOW());",
                 new MySqlParameter("?code",  code),
+                new MySqlParameter("?type",  string.IsNullOrEmpty(customerType) ? (object)DBNull.Value : customerType),
                 new MySqlParameter("?name",  name),
                 new MySqlParameter("?con",   contact ?? (object)DBNull.Value),
                 new MySqlParameter("?ph",    phone   ?? (object)DBNull.Value),
@@ -105,18 +130,20 @@ namespace PKApp.DAL
                 new MySqlParameter("?addr",  address ?? (object)DBNull.Value),
                 new MySqlParameter("?city",  city    ?? (object)DBNull.Value),
                 new MySqlParameter("?state", state   ?? (object)DBNull.Value),
+                new MySqlParameter("?pin",   pinCode ?? (object)DBNull.Value),
                 new MySqlParameter("?gst",   gstin   ?? (object)DBNull.Value));
         }
 
-        public static void UpdateCustomer(int id, string code, string name,
-            string contact, string phone, string email, string address,
-            string city, string state, string gstin)
+        public static void UpdateCustomer(int id, string code, string customerType,
+            string name, string contact, string phone, string email, string address,
+            string city, string state, string pinCode, string gstin)
         {
             ExecuteNonQuery(
-                "UPDATE PK_Customers SET CustomerCode=?code,CustomerName=?name," +
+                "UPDATE PK_Customers SET CustomerCode=?code,CustomerType=?type,CustomerName=?name," +
                 "ContactPerson=?con,Phone=?ph,Email=?em,Address=?addr," +
-                "City=?city,State=?state,GSTIN=?gst WHERE CustomerID=?id;",
+                "City=?city,State=?state,PinCode=?pin,GSTIN=?gst WHERE CustomerID=?id;",
                 new MySqlParameter("?code",  code),
+                new MySqlParameter("?type",  string.IsNullOrEmpty(customerType) ? (object)DBNull.Value : customerType),
                 new MySqlParameter("?name",  name),
                 new MySqlParameter("?con",   contact ?? (object)DBNull.Value),
                 new MySqlParameter("?ph",    phone   ?? (object)DBNull.Value),
@@ -124,6 +151,7 @@ namespace PKApp.DAL
                 new MySqlParameter("?addr",  address ?? (object)DBNull.Value),
                 new MySqlParameter("?city",  city    ?? (object)DBNull.Value),
                 new MySqlParameter("?state", state   ?? (object)DBNull.Value),
+                new MySqlParameter("?pin",   pinCode ?? (object)DBNull.Value),
                 new MySqlParameter("?gst",   gstin   ?? (object)DBNull.Value),
                 new MySqlParameter("?id",    id));
         }
@@ -135,14 +163,20 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", id));
         }
 
-        private static string GenerateCustomerCode()
+        private static string GenerateCustomerCode(string typeCode)
         {
+            string prefix = string.IsNullOrEmpty(typeCode) ? "CU" : typeCode;
             object last = ExecuteScalar(
-                "SELECT CustomerCode FROM PK_Customers ORDER BY CustomerID DESC LIMIT 1;");
-            if (last == null || last == DBNull.Value) return "CUST-001";
-            var m = System.Text.RegularExpressions.Regex.Match(last.ToString(), @"\d+$");
-            int n = m.Success ? int.Parse(m.Value) + 1 : 1;
-            return "CUST-" + n.ToString("D3");
+                "SELECT CustomerCode FROM PK_Customers" +
+                " WHERE CustomerCode LIKE ?pat ORDER BY CustomerID DESC LIMIT 1;",
+                new MySqlParameter("?pat", prefix + "-%"));
+            int n = 1;
+            if (last != null && last != DBNull.Value)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(last.ToString(), @"\d+$");
+                if (m.Success) n = int.Parse(m.Value) + 1;
+            }
+            return prefix + "-" + n.ToString("D3");
         }
 
 
