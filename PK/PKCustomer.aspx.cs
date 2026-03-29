@@ -16,6 +16,7 @@ namespace PKApp
         protected TextBox txtCode, txtName, txtContact, txtPhone, txtEmail;
         protected TextBox txtGSTIN, txtCity, txtState, txtPinCode, txtAddress;
         protected Button btnSave, btnClear, btnToggle, btnUpload;
+        protected LinkButton lnkTemplate;
         protected FileUpload fuExcel;
         protected Repeater rptList;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
@@ -234,6 +235,44 @@ namespace PKApp
                 }
             }
             return "";
+        }
+
+        // ── TEMPLATE DOWNLOAD ──
+        protected void lnkTemplate_Click(object s, EventArgs e)
+        {
+            var wb = new ClosedXML.Excel.XLWorkbook();
+            var ws = wb.AddWorksheet("Customers");
+            string[] headers = { "CustomerType", "Name", "ContactPerson", "Phone", "Email", "Address", "City", "State", "PinCode", "GSTIN" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(1, i + 1).Value = headers[i];
+                ws.Cell(1, i + 1).Style.Font.Bold = true;
+                ws.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#FEF9F3");
+            }
+            // Sample rows
+            ws.Cell(2, 1).Value = "Stockist";   ws.Cell(2, 2).Value = "ABC Traders";
+            ws.Cell(2, 3).Value = "Mr. Kumar";   ws.Cell(2, 4).Value = "9876543210";
+            ws.Cell(2, 7).Value = "Bangalore";   ws.Cell(2, 8).Value = "Karnataka";
+            ws.Cell(2, 9).Value = "560001";
+            ws.Cell(3, 1).Value = "Distributor"; ws.Cell(3, 2).Value = "XYZ Distribution";
+            ws.Cell(4, 1).Value = "Retail";      ws.Cell(4, 2).Value = "John Customer";
+
+            // Add note
+            ws.Cell(6, 1).Value = "CustomerType: Use Stockist/Distributor/Retail (or ST/DI/RT)";
+            ws.Cell(6, 1).Style.Font.Italic = true;
+            ws.Cell(6, 1).Style.Font.FontColor = ClosedXML.Excel.XLColor.Gray;
+
+            ws.Columns().AdjustToContents();
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("Content-Disposition", "attachment; filename=Customer_Import_Template.xlsx");
+            using (var ms = new MemoryStream())
+            {
+                wb.SaveAs(ms);
+                ms.WriteTo(Response.OutputStream);
+            }
+            Response.End();
         }
 
         void ClearForm()
