@@ -103,17 +103,45 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         </div>
         <div class="form-grid-3">
             <div class="form-group"><label>No. of Cases <span style="color:var(--accent)">*</span></label>
-                <input type="number" id="txtCartons" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/></div>
+                <input type="number" id="txtCartons" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary(); calcCasePMs();"/></div>
             <div class="form-group"><label>Jars per Case</label>
                 <input type="number" id="txtUnitsPerCarton" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/></div>
-            <div class="form-group"><label>Carton Material <span style="color:var(--accent)">*</span></label>
-                <asp:DropDownList ID="ddlCasePM" runat="server"/></div>
         </div>
         <div class="calc-bar" id="calcBar" style="display:none;">
             <div class="calc-formula" id="calcFormula">—</div>
             <div><span class="calc-total" id="calcTotal">0</span> <span style="font-size:12px;color:var(--text-muted);">jars into cases</span></div>
         </div>
         <div class="warn-bar" id="warnBar">&#9888; <span id="warnText"></span></div>
+        <!-- PM CONSUMPTION GRID FOR CASE PACKING -->
+        <asp:Panel ID="pnlCasePM" runat="server" Visible="false">
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.07em;color:var(--accent-dark);margin-bottom:6px;">Packing Material Consumption</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Auto-calculated from cases. Edit actual qty if needed.</div>
+            <div id="pmShortageBar" style="display:none;background:#fdf3f2;border:1px solid #f5c6cb;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;font-weight:600;color:#c0392b;">&#9888; <span id="pmShortageText"></span></div>
+            <table class="data-table" style="font-size:13px;">
+                <thead><tr><th>Packing Material</th><th style="text-align:right;">Per Case</th><th style="text-align:right;">Calculated</th><th style="text-align:right;">Available</th><th style="text-align:right;width:110px;">Actual Qty</th><th>Unit</th></tr></thead>
+                <tbody id="casePMBody">
+                    <asp:Repeater ID="rptCasePM" runat="server">
+                        <ItemTemplate>
+                            <tr class="case-pm-row" data-pmid="<%# Eval("PMID") %>" data-qtyper="<%# Eval("QtyPerUnit") %>" data-stock="<%# Eval("CurrentStock") %>">
+                                <td><strong><%# Eval("PMName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("PMCode") %></div></td>
+                                <td class="num" style="color:var(--text-muted);"><%# Eval("QtyPerUnit") %></td>
+                                <td class="num case-pm-calc" style="font-weight:600;">0</td>
+                                <td class="num case-pm-avail" style="font-weight:600;"><%# string.Format("{0:0.##}", Eval("CurrentStock")) %></td>
+                                <td style="text-align:right;">
+                                    <input type="number" name="casePmQty_<%# Eval("PMID") %>" class="case-pm-actual" value="0"
+                                        min="0" step="0.01" data-edited="0"
+                                        style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600;"
+                                        oninput="this.setAttribute('data-edited','1');checkCasePMStock();"/>
+                                </td>
+                                <td style="font-size:12px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>
+                            </tr>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                </tbody>
+            </table>
+        </div>
+        </asp:Panel>
         <div class="form-group" style="margin-top:12px;"><label>Remarks</label>
             <textarea id="txtRemarks" runat="server" rows="2" placeholder="Optional notes"></textarea></div>
         <asp:Button ID="btnPack" runat="server" Text="&#x2713; Pack Cases &amp; Move to FG" CssClass="btn-primary" OnClick="btnPack_Click" CausesValidation="false"/>
@@ -184,7 +212,9 @@ try{productData=JSON.parse(document.getElementById('<%= hfProductData.ClientID %
 var olLines=[];
 function switchTab(t){document.querySelectorAll('.tab').forEach(function(el,i){el.className='tab'+(i===(t==='case'?0:1)?' active':'');});document.getElementById('tabCase').className='tab-content'+(t==='case'?' active':'');document.getElementById('tabOnline').className='tab-content'+(t==='online'?' active':'');}
 function onProductChange(sel){var v=sel.value;var info=document.getElementById('productInfo');var btn=document.getElementById('<%= btnPack.ClientID %>');if(!v||v==='0'){info.className='product-info';document.getElementById('calcBar').style.display='none';if(btn)btn.disabled=false;return;}var p=productData[v];if(!p){info.className='product-info';return;}var js=parseInt(p.unitSizes)||1,ap=parseInt(p.availPcs)||0,aj=Math.floor(ap/js),pc=parseInt(p.containersPerCase)||12,mx=Math.floor(aj/pc),ct=p.containerType||'JAR',cl=ct==='DIRECT'?'Containers':ct+'s';document.getElementById('piName').innerText=p.name;document.getElementById('piCode').innerText=p.code;document.getElementById('piAvailJars').innerText=aj.toLocaleString();document.getElementById('piAvailPcs').innerText=ap.toLocaleString();document.getElementById('piContainerLabel').innerText=cl+' Available';document.getElementById('piPerCase').innerText=pc;document.getElementById('piPerCaseLabel').innerText=cl+' per Case';document.getElementById('piMaxCases').innerText=mx;document.getElementById('txtUnitsPerCarton').value=pc;document.getElementById('txtCartons').setAttribute('max',mx);info.className='product-info show';calcSecondary();}
-function calcSecondary(){var sel=document.getElementById('<%= ddlProduct.ClientID %>');var v=sel?sel.value:'0';var p=productData[v];var cb=document.getElementById('calcBar');var wb=document.getElementById('warnBar');var btn=document.getElementById('<%= btnPack.ClientID %>');if(!p||v==='0'){cb.style.display='none';wb.style.display='none';if(btn){btn.disabled=false;btn.style.opacity='1';}return;}var cs=parseInt(document.getElementById('txtCartons').value)||0,pc=parseInt(document.getElementById('txtUnitsPerCarton').value)||0,tj=cs*pc,js=parseInt(p.unitSizes)||1,aj=Math.floor((parseInt(p.availPcs)||0)/js),ct=(p.containerType||'JAR'),cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';if(cs>0&&pc>0){cb.style.display='flex';document.getElementById('calcFormula').innerText=cs+' cases x '+pc+' '+cl+'/case';document.getElementById('calcTotal').innerText=tj.toLocaleString();if(tj>aj){wb.style.display='block';document.getElementById('warnText').innerText='Cannot proceed — need '+tj+' '+cl+' but only '+aj+' available (max '+Math.floor(aj/pc)+' cases)';if(btn){btn.disabled=true;btn.style.opacity='0.4';}}else{wb.style.display='none';if(btn){btn.disabled=false;btn.style.opacity='1';}}}else{cb.style.display='none';wb.style.display='none';if(btn){btn.disabled=false;btn.style.opacity='1';}}}
+function calcSecondary(){var sel=document.getElementById('<%= ddlProduct.ClientID %>');var v=sel?sel.value:'0';var p=productData[v];var cb=document.getElementById('calcBar');var wb=document.getElementById('warnBar');var btn=document.getElementById('<%= btnPack.ClientID %>');if(!p||v==='0'){cb.style.display='none';wb.style.display='none';if(btn){btn.disabled=false;btn.style.opacity='1';}return;}var cs=parseInt(document.getElementById('txtCartons').value)||0,pc=parseInt(document.getElementById('txtUnitsPerCarton').value)||0,tj=cs*pc,js=parseInt(p.unitSizes)||1,aj=Math.floor((parseInt(p.availPcs)||0)/js),ct=(p.containerType||'JAR'),cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';if(cs>0&&pc>0){cb.style.display='flex';document.getElementById('calcFormula').innerText=cs+' cases x '+pc+' '+cl+'/case';document.getElementById('calcTotal').innerText=tj.toLocaleString();if(tj>aj){wb.style.display='block';document.getElementById('warnText').innerText='Cannot proceed — need '+tj+' '+cl+' but only '+aj+' available (max '+Math.floor(aj/pc)+' cases)';if(btn){btn.disabled=true;btn.style.opacity='0.4';}}else{wb.style.display='none';checkCasePMStock();}}else{cb.style.display='none';wb.style.display='none';if(btn){btn.disabled=false;btn.style.opacity='1';}}}
+function calcCasePMs(){var cs=parseInt(document.getElementById('txtCartons').value)||0;var rows=document.querySelectorAll('.case-pm-row');rows.forEach(function(r){var qtyPer=parseFloat(r.getAttribute('data-qtyper'))||0;var calc=cs*qtyPer;r.querySelector('.case-pm-calc').innerText=calc>0?calc.toFixed(calc%1===0?0:2):'0';var inp=r.querySelector('.case-pm-actual');if(inp.getAttribute('data-edited')!=='1'){inp.value=calc>0?calc.toFixed(calc%1===0?0:2):'0';}});checkCasePMStock();}
+function checkCasePMStock(){var rows=document.querySelectorAll('.case-pm-row');var shortages=[];var btn=document.getElementById('<%= btnPack.ClientID %>');rows.forEach(function(r){var stock=parseFloat(r.getAttribute('data-stock'))||0;var inp=r.querySelector('.case-pm-actual');var needed=parseFloat(inp.value)||0;var availCell=r.querySelector('.case-pm-avail');if(needed>stock&&needed>0){shortages.push(r.querySelector('strong').innerText+' (need '+needed+', have '+stock+')');inp.style.borderColor='#e74c3c';inp.style.background='#fdf3f2';if(availCell)availCell.style.color='#e74c3c';}else{inp.style.borderColor='';inp.style.background='';if(availCell)availCell.style.color='';}});var bar=document.getElementById('pmShortageBar');if(shortages.length>0){bar.style.display='block';document.getElementById('pmShortageText').innerText='Insufficient PM stock: '+shortages.join('; ');if(btn){btn.disabled=true;btn.style.opacity='0.4';}}else{bar.style.display='none';var wb=document.getElementById('warnBar');if(wb.style.display==='none'&&btn){btn.disabled=false;btn.style.opacity='1';}}}
 window.addEventListener('load',function(){var sel=document.getElementById('selOLProduct');for(var pid in productData){var p=productData[pid];var js=parseInt(p.unitSizes)||1,aj=Math.floor((parseInt(p.availPcs)||0)/js),ct=p.containerType||'JAR',cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';var opt=document.createElement('option');opt.value=pid;opt.text=p.name+' ('+aj+' '+cl+')';opt.setAttribute('data-jarsize',js);opt.setAttribute('data-avail',aj);opt.setAttribute('data-ct',ct);sel.appendChild(opt);}});
 function onOLProductChange(){var sel=document.getElementById('selOLProduct');var opt=sel.options[sel.selectedIndex];var info=document.getElementById('olAvailInfo');if(sel.value==='0'){info.innerText='';return;}var av=parseInt(opt.getAttribute('data-avail'))||0,ct=opt.getAttribute('data-ct')||'JAR',cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';info.innerText=av+' '+cl+' available';}
 function addOLLine(){var sel=document.getElementById('selOLProduct');var qi=document.getElementById('txtOLQty');var pid=sel.value;if(pid==='0'){alert('Select a product');return;}var qty=parseInt(qi.value)||0;if(qty<=0){alert('Enter a quantity');return;}var opt=sel.options[sel.selectedIndex];var nm=productData[pid].name;var js=parseInt(opt.getAttribute('data-jarsize'))||1;var av=parseInt(opt.getAttribute('data-avail'))||0;for(var i=0;i<olLines.length;i++){if(olLines[i].pid===pid){alert('Product already added. Remove first.');return;}}if(qty>av){alert('Only '+av+' available');return;}olLines.push({pid:pid,name:nm,qty:qty,jarSize:js,pcs:qty*js});renderOLTable();qi.value='';sel.selectedIndex=0;document.getElementById('olAvailInfo').innerText='';}

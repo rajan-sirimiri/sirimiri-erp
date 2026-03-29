@@ -53,7 +53,7 @@ namespace PKApp.DAL
             }
         }
 
-        private static object ExecuteScalar(string sql, params MySqlParameter[] prms)
+        public static object ExecuteScalar(string sql, params MySqlParameter[] prms)
         {
             using (var conn = new MySqlConnection(ConnStr))
             using (var cmd  = new MySqlCommand(sql, conn))
@@ -598,6 +598,18 @@ namespace PKApp.DAL
                     new MySqlParameter("?sid",  secPackId),
                     new MySqlParameter("?by",   userId));
             }
+        }
+
+        public static void RecordSecondaryPMConsumption(int pmId, decimal qty, int secPackId, int userId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_PMConsumption (PMID, QtyUsed, UsedAt, SourceType, SourceID, CreatedBy)" +
+                " VALUES(?pmid,?qty,?now,'SECONDARY',?sid,?by);",
+                new MySqlParameter("?pmid", pmId),
+                new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?now",  NowIST()),
+                new MySqlParameter("?sid",  secPackId),
+                new MySqlParameter("?by",   userId));
         }
 
         public static DataTable GetSecondaryPackingToday()

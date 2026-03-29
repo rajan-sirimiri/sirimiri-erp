@@ -10,12 +10,13 @@ namespace PKApp
     {
         protected Label lblUser, lblAlert;
         protected Panel pnlAlert, pnlEmpty, pnlTable;
-        protected DropDownList ddlProduct, ddlOnlineCarton, ddlCasePM;
+        protected DropDownList ddlProduct, ddlOnlineCarton;
+        protected Panel pnlCasePM;
         protected HiddenField hfProductData, hfOnlineLines;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCartons, txtUnitsPerCarton;
         protected System.Web.UI.HtmlControls.HtmlInputText txtOnlineOrderId, txtCustomerName;
         protected System.Web.UI.HtmlControls.HtmlTextArea txtRemarks, txtOnlineRemarks;
-        protected Repeater rptLog;
+        protected Repeater rptLog, rptCasePM;
         protected Button btnPack, btnPackOnline;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
@@ -118,26 +119,23 @@ namespace PKApp
 
         void BindCasePMs(int productId)
         {
-            if (ddlCasePM == null) return;
-            ddlCasePM.Items.Clear();
+            if (pnlCasePM == null) return;
             if (productId <= 0)
             {
-                ddlCasePM.Items.Add(new ListItem("-- Select product first --", "0"));
+                pnlCasePM.Visible = false;
                 return;
             }
             var dt = PKDatabaseHelper.GetCasePMsForProduct(productId);
             if (dt.Rows.Count == 0)
             {
-                ddlCasePM.Items.Add(new ListItem("-- No carton PM mapped --", "0"));
+                pnlCasePM.Visible = false;
                 return;
             }
-            ddlCasePM.Items.Add(new ListItem("-- Select Carton --", "0"));
-            foreach (DataRow r in dt.Rows)
+            pnlCasePM.Visible = true;
+            if (rptCasePM != null)
             {
-                string stock = Convert.ToDecimal(r["CurrentStock"]).ToString("0.##");
-                ddlCasePM.Items.Add(new ListItem(
-                    r["PMName"] + " (Stock: " + stock + " " + r["Abbreviation"] + ")",
-                    r["PMID"].ToString()));
+                rptCasePM.DataSource = dt;
+                rptCasePM.DataBind();
             }
         }
 
@@ -175,18 +173,60 @@ namespace PKApp
             if (totalJars > availJars)
             { ShowAlert("Need " + totalJars + " jars but only " + availJars + " available.", false); return; }
 
-            int pmId = 0;
-            if (ddlCasePM != null && ddlCasePM.SelectedValue != null)
-                int.TryParse(ddlCasePM.SelectedValue, out pmId);
-            decimal cartonsUsed = pmId > 0 ? (decimal)cases : 0;
+            // Read ALL case PM quantities from form and validate stock
+            var casePMs = PKDatabaseHelper.GetCasePMsForProduct(productId);
+            var pmShortages = new System.Collections.Generic.List<string>();
+            var pmConsumptions = new System.Collections.Generic.List<int[]>(); // pmId, actualQty*100
+
+            foreach (DataRow pmRow in casePMs.Rows)
+            {
+                int pmId = Convert.ToInt32(pmRow["PMID"]);
+                string formKey = "casePmQty_" + pmId;
+                string formVal = Request.Form[formKey];
+                decimal actualQty = 0;
+                if (!string.IsNullOrEmpty(formVal))
+                    decimal.TryParse(formVal, out actualQty);
+                else
+                    actualQty = cases * Convert.ToDecimal(pmRow["QtyPerUnit"]);
+
+                if (actualQty <= 0) continue;
+
+                decimal available = PKDatabaseHelper.GetPMCurrentStock(pmId);
+                if (actualQty > available)
+                    pmShortages.Add(pmRow["PMName"] + " (need " + actualQty.ToString("0.##") + ", have " + available.ToString("0.##") + ")");
+
+                pmConsumptions.Add(new int[] { pmId, (int)(actualQty * 100) }); // store as int*100 to avoid float issues
+            }
+
+            if (pmShortages.Count > 0)
+            {
+                ShowAlert("Cannot pack — insufficient PM stock: " + string.Join("; ", pmShortages) + ". Please do PM GRN first.", false);
+                BindCasePMs(productId);
+                return;
+            }
 
             try
             {
+                // Save secondary packing record (use first PM for backward compatibility)
+                int firstPmId = pmConsumptions.Count > 0 ? pmConsumptions[0][0] : 0;
+                decimal firstQty = pmConsumptions.Count > 0 ? pmConsumptions[0][1] / 100m : 0;
                 PKDatabaseHelper.AddSecondaryPacking(productId, cases, unitsPerCarton,
-                    pmId, cartonsUsed, txtRemarks.Value, UserID);
+                    firstPmId, firstQty, txtRemarks.Value, UserID);
+
+                // Get the SecPackID just inserted
+                int secPackId = Convert.ToInt32(PKDatabaseHelper.ExecuteScalar("SELECT LAST_INSERT_ID();"));
+
+                // Record PM consumption for ALL case PMs (skip first — already recorded by AddSecondaryPacking)
+                for (int i = 1; i < pmConsumptions.Count; i++)
+                {
+                    int pmId = pmConsumptions[i][0];
+                    decimal qty = pmConsumptions[i][1] / 100m;
+                    PKDatabaseHelper.RecordSecondaryPMConsumption(pmId, qty, secPackId, UserID);
+                }
 
                 txtCartons.Value = ""; txtUnitsPerCarton.Value = ""; txtRemarks.Value = "";
-                ShowAlert(cases + " cases packed (" + totalJars + " jars). Moved from SFG to FG — ready for dispatch.", true);
+                if (pnlCasePM != null) pnlCasePM.Visible = false;
+                ShowAlert(cases + " cases packed (" + totalJars + " jars). Moved from SFG to FG — ready for dispatch. " + pmConsumptions.Count + " PM(s) consumed.", true);
                 BindProductDropdown(); BindLog();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
