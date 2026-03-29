@@ -629,12 +629,24 @@ function stopWheelAnim() {
 animateGear();
 
 window.addEventListener('load', function() {
-    // applyState and updateGearText called here to pick up serverState
-    // set by RegisterStartupScript (which ran before this)
     applyState();
     updateGearText();
     setButtonStates(window.serverState || 'ready');
     if (window.serverState === 'running') startKeepAlive();
+
+    // Auto-hide success alerts after 3 seconds
+    var alertPanel = document.getElementById('<%= pnlAlert.ClientID %>');
+    if (alertPanel && alertPanel.offsetParent !== null) {
+        var bg = alertPanel.style.backgroundColor || '';
+        var inner = alertPanel.innerHTML || '';
+        if (bg.indexOf('209') >= 0 || bg.indexOf('d1f5e0') >= 0 || inner.indexOf('d1f5e0') >= 0 || inner.indexOf('#155724') >= 0) {
+            setTimeout(function() {
+                alertPanel.style.transition = 'opacity 0.5s';
+                alertPanel.style.opacity = '0';
+                setTimeout(function() { alertPanel.style.display = 'none'; }, 500);
+            }, 3000);
+        }
+    }
 });
 </script>
 </form>
