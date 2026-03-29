@@ -1,141 +1,329 @@
-using System; using System.Data; using System.Text;
-using System.Web.UI; using System.Web.UI.WebControls; using PKApp.DAL;
-namespace PKApp {
-    public partial class PKShipment : Page {
-        protected Label lblUser, lblAlert;
-        protected Panel pnlAlert, pnlPO, pnlShip, pnlPOEmpty, pnlPOTable;
-        protected Panel pnlShipEmpty, pnlShipTable, pnlPOLines, pnlSelectPO;
-        protected HiddenField hfTab, hfPOID;
-        protected Button btnTabPO, btnTabShip, btnSavePO, btnCreateShipment;
-        protected DropDownList ddlPOCustomer, ddlShipPO;
-        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtPODate, txtDeliveryDate, txtPORemarks;
-        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtShipDate, txtVehicle, txtDriver, txtShipRemarks;
-        protected Repeater rptPOs, rptShipments, rptShipLines;
-        protected Literal litProducts;
+using System;
+using System.Data;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using PKApp.DAL;
+
+namespace PKApp
+{
+    public partial class PKShipment : Page
+    {
+        protected Label lblUser, lblAlert, lblFormTitle;
+        protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList;
+        protected HiddenField hfDCID, hfLines, hfProductData;
+        protected TextBox txtDCNumber, txtDCDate, txtRemarks;
+        protected DropDownList ddlCustomer;
+        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked;
+        protected Repeater rptDCs;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
-        protected void Page_Load(object s, EventArgs e) {
-            if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx?ReturnUrl=" + Server.UrlEncode(Request.Url.PathAndQuery)); return; }
-            lblUser.Text = Session["PK_FullName"] as string ?? "";
-            if (!IsPostBack) {
-                BindCustomerDropdown(); BindPODropdown(); BuildProductLiteral();
-                BindPOList(); BindShipmentList();
-                SetTab("po");
+        protected void Page_Load(object s, EventArgs e)
+        {
+            if (Session["PK_UserID"] == null)
+            { Response.Redirect("PKLogin.aspx?ReturnUrl=" + Server.UrlEncode(Request.Url.PathAndQuery)); return; }
+            if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
+            if (!IsPostBack)
+            {
+                BindCustomers();
+                BuildProductData();
+                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                BindDCList();
             }
         }
 
-        void BindCustomerDropdown() {
+        void BindCustomers()
+        {
             var dt = PKDatabaseHelper.GetActiveCustomers();
-            ddlPOCustomer.Items.Clear();
-            ddlPOCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
+            ddlCustomer.Items.Clear();
+            ddlCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
             foreach (DataRow r in dt.Rows)
-                ddlPOCustomer.Items.Add(new ListItem(r["CustomerName"].ToString(), r["CustomerID"].ToString()));
+            {
+                string typeName = r.Table.Columns.Contains("TypeName") && r["TypeName"] != DBNull.Value
+                    ? r["TypeName"].ToString() : "";
+                string label = r["CustomerName"] + " (" + r["CustomerCode"] + ")";
+                if (!string.IsNullOrEmpty(typeName)) label += " — " + typeName;
+                ddlCustomer.Items.Add(new ListItem(label, r["CustomerID"].ToString()));
+            }
         }
 
-        void BindPODropdown() {
-            var dt = PKDatabaseHelper.GetOpenPOs();
-            ddlShipPO.Items.Clear();
-            ddlShipPO.Items.Add(new ListItem("-- Select PO --", "0"));
+        void BuildProductData()
+        {
+            var dt = PKDatabaseHelper.GetFGStockForShipment();
+            var sb = new System.Text.StringBuilder("{");
+            bool first = true;
             foreach (DataRow r in dt.Rows)
-                ddlShipPO.Items.Add(new ListItem(
-                    r["POCode"] + " — " + r["CustomerName"] + " (" + Convert.ToDateTime(r["PODate"]).ToString("dd MMM") + ")",
-                    r["POID"].ToString() + "|" + r["CustomerID"].ToString()));
-        }
-
-        void BuildProductLiteral() {
-            var dt = PKDatabaseHelper.GetActiveProducts();
-            var sb = new StringBuilder();
-            sb.Append("<option value='0'>-- Select Product --</option>");
-            foreach (DataRow r in dt.Rows)
-                sb.Append("<option value='" + r["ProductID"] + "'>" + r["ProductName"] + " (" + r["Unit"] + ")</option>");
-            litProducts.Text = sb.ToString();
-        }
-
-        void BindPOList() {
-            var dt = PKDatabaseHelper.GetAllPOs();
-            pnlPOEmpty.Visible = dt.Rows.Count == 0;
-            pnlPOTable.Visible = dt.Rows.Count > 0;
-            rptPOs.DataSource = dt; rptPOs.DataBind();
-        }
-
-        void BindShipmentList() {
-            var dt = PKDatabaseHelper.GetAllShipments();
-            pnlShipEmpty.Visible = dt.Rows.Count == 0;
-            pnlShipTable.Visible = dt.Rows.Count > 0;
-            rptShipments.DataSource = dt; rptShipments.DataBind();
-        }
-
-        protected void btnTabPO_Click(object s, EventArgs e) { SetTab("po"); BindPOList(); }
-        protected void btnTabShip_Click(object s, EventArgs e) { SetTab("ship"); BindShipmentList(); }
-
-        void SetTab(string tab) {
-            hfTab.Value = tab;
-            pnlPO.Visible   = tab == "po";
-            pnlShip.Visible = tab == "ship";
-            btnTabPO.CssClass   = "tab" + (tab == "po" ? " active" : "");
-            btnTabShip.CssClass = "tab" + (tab == "ship" ? " active" : "");
-        }
-
-        protected void ddlShipPO_Changed(object s, EventArgs e) {
-            string val = ddlShipPO.SelectedValue;
-            if (val == "0") { pnlPOLines.Visible = false; pnlSelectPO.Visible = true; return; }
-            int poId = int.Parse(val.Split('|')[0]);
-            hfPOID.Value = poId.ToString();
-            var dt = PKDatabaseHelper.GetPOLines(poId);
-            pnlSelectPO.Visible = false;
-            pnlPOLines.Visible  = true;
-            rptShipLines.DataSource = dt; rptShipLines.DataBind();
-        }
-
-        protected void btnSavePO_Click(object s, EventArgs e) {
-            int custId = Convert.ToInt32(ddlPOCustomer.SelectedValue);
-            if (custId == 0) { ShowAlert("Please select a customer.", false); return; }
-            DateTime poDate;
-            if (!DateTime.TryParse(txtPODate.Value, out poDate)) { ShowAlert("Please enter a valid PO date.", false); return; }
-            DateTime? delivDate = null;
-            DateTime d;
-            if (DateTime.TryParse(txtDeliveryDate.Value, out d)) delivDate = d;
-            try {
-                int poId = PKDatabaseHelper.AddPO(custId, poDate, delivDate, txtPORemarks.Value, UserID);
-                // Process line items from Request.Form
-                int lineNum = 1;
-                while (Request.Form["po_product_" + lineNum] != null) {
-                    int pid; decimal qty; decimal price;
-                    int.TryParse(Request.Form["po_product_" + lineNum], out pid);
-                    decimal.TryParse(Request.Form["po_qty_" + lineNum], out qty);
-                    decimal.TryParse(Request.Form["po_price_" + lineNum], out price);
-                    if (pid > 0 && qty > 0) PKDatabaseHelper.AddPOLine(poId, pid, qty, price > 0 ? (decimal?)price : null);
-                    lineNum++;
+            {
+                string pid = r["ProductID"].ToString();
+                string unitSizes = r["UnitsPerContainer"] == DBNull.Value ? "1" : r["UnitsPerContainer"].ToString();
+                string firstUnitSize = "1";
+                if (!string.IsNullOrEmpty(unitSizes))
+                {
+                    string[] sizes = unitSizes.Split(',');
+                    firstUnitSize = sizes[0].Trim();
                 }
-                ShowAlert("PO created successfully.", true);
-                BindPOList(); BindPODropdown();
-            } catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+                int jpc = Convert.ToInt32(r["ContainersPerCase"]);
+                int availJars = Convert.ToInt32(r["AvailableFGJars"]);
+                int unitSize = 1;
+                int.TryParse(firstUnitSize, out unitSize);
+                if (unitSize <= 0) unitSize = 1;
+
+                if (!first) sb.Append(",");
+                sb.Append("\"" + pid + "\":{");
+                sb.Append("\"name\":\"" + Esc(r["ProductName"].ToString()) + "\",");
+                sb.Append("\"code\":\"" + Esc(r["ProductCode"].ToString()) + "\",");
+                sb.Append("\"unitSize\":" + unitSize + ",");
+                sb.Append("\"jarsPerCase\":" + jpc + ",");
+                sb.Append("\"availJars\":" + availJars);
+                sb.Append("}");
+                first = false;
+            }
+            sb.Append("}");
+            if (hfProductData != null) hfProductData.Value = sb.ToString();
         }
 
-        protected void btnCreateShipment_Click(object s, EventArgs e) {
-            string poVal = ddlShipPO.SelectedValue;
-            if (poVal == "0") { ShowAlert("Please select a PO.", false); return; }
-            string[] parts = poVal.Split('|');
-            int poId = int.Parse(parts[0]), custId = int.Parse(parts[1]);
-            DateTime shipDate;
-            if (!DateTime.TryParse(txtShipDate.Value, out shipDate)) { ShowAlert("Please enter a valid ship date.", false); return; }
-            try {
-                int shipId = PKDatabaseHelper.CreateShipment(poId, custId, shipDate,
-                    txtVehicle.Value, txtDriver.Value, txtShipRemarks.Value, UserID);
-                // Process ship lines from Request.Form
-                foreach (string key in Request.Form.AllKeys) {
-                    if (key == null || !key.StartsWith("ship_qty_")) continue;
-                    string lineId = key.Substring(9);
-                    decimal qty; int pid;
-                    if (!decimal.TryParse(Request.Form[key], out qty) || qty <= 0) continue;
-                    if (!int.TryParse(Request.Form["ship_pid_" + lineId], out pid)) continue;
-                    PKDatabaseHelper.AddShipmentLine(shipId, pid, qty);
+        string Esc(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
+        }
+
+        void BindDCList()
+        {
+            var dt = PKDatabaseHelper.GetRecentDCs();
+            bool hasRows = dt.Rows.Count > 0;
+            if (pnlEmpty != null) pnlEmpty.Visible = !hasRows;
+            if (pnlList != null) pnlList.Visible = hasRows;
+            if (rptDCs != null) { rptDCs.DataSource = dt; rptDCs.DataBind(); }
+        }
+
+        // ── DRAFT SAVE ──
+        protected void btnDraftSave_Click(object s, EventArgs e)
+        {
+            if (!ValidateForm()) return;
+
+            int customerId = Convert.ToInt32(ddlCustomer.SelectedValue);
+            DateTime dcDate = DateTime.Parse(txtDCDate.Text);
+            string remarks = txtRemarks.Text.Trim();
+            int dcId = Convert.ToInt32(hfDCID.Value);
+
+            var lineData = ParseLines();
+            if (lineData == null || lineData.Length == 0)
+            { ShowAlert("Please add at least one product line.", false); return; }
+
+            // Validate FG stock (in jars)
+            var fgStock = PKDatabaseHelper.GetFGStockForShipment();
+            foreach (var line in lineData)
+            {
+                DataRow stockRow = null;
+                foreach (DataRow r in fgStock.Rows)
+                    if (Convert.ToInt32(r["ProductID"]) == line[0]) { stockRow = r; break; }
+                if (stockRow == null)
+                { ShowAlert("Product ID " + line[0] + " has no FG stock.", false); return; }
+                int availJars = Convert.ToInt32(stockRow["AvailableFGJars"]);
+                int jpc = line[3]; // jarsPerCase
+                int lineJars = (line[1] * jpc) + line[2]; // cases*jpc + looseJars
+                // If editing existing DC, add back the previously saved jars for this DC
+                if (dcId > 0)
+                {
+                    var existingLines = PKDatabaseHelper.GetDCLines(dcId);
+                    foreach (DataRow el in existingLines.Rows)
+                        if (Convert.ToInt32(el["ProductID"]) == line[0])
+                            availJars += (Convert.ToInt32(el["Cases"]) * Convert.ToInt32(el["JarsPerCase"])) + Convert.ToInt32(el["LooseJars"]);
                 }
-                ShowAlert("Shipment created successfully.", true);
-                BindShipmentList(); BindPODropdown();
-            } catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+                if (lineJars > availJars)
+                { ShowAlert("Insufficient FG stock for product. Need " + lineJars + " jars, available " + availJars + ".", false); return; }
+            }
+
+            try
+            {
+                if (dcId == 0)
+                {
+                    dcId = PKDatabaseHelper.CreateDeliveryChallan(customerId, dcDate, remarks, UserID);
+                }
+                else
+                {
+                    PKDatabaseHelper.UpdateDCHeader(dcId, customerId, dcDate, remarks);
+                    PKDatabaseHelper.DeleteDCLines(dcId);
+                }
+
+                foreach (var line in lineData)
+                    PKDatabaseHelper.AddDCLine(dcId, line[0], line[1], line[2], line[3], line[4]);
+
+                hfDCID.Value = dcId.ToString();
+                // Reload DC number
+                var dc = PKDatabaseHelper.GetDCById(dcId);
+                if (dc != null) txtDCNumber.Text = dc["DCNumber"].ToString();
+
+                ShowAlert("Delivery Challan saved as Draft.", true);
+                BuildProductData();
+                BindDCList();
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
 
-        void ShowAlert(string m, bool ok) { lblAlert.Text = m; pnlAlert.CssClass = "alert " + (ok ? "alert-success" : "alert-danger"); pnlAlert.Visible = true; }
+        // ── FINALISE ──
+        protected void btnFinalise_Click(object s, EventArgs e)
+        {
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0)
+            {
+                // First save as draft, then finalise
+                btnDraftSave_Click(s, e);
+                dcId = Convert.ToInt32(hfDCID.Value);
+                if (dcId == 0) return; // save failed
+            }
+
+            try
+            {
+                PKDatabaseHelper.FinaliseDeliveryChallan(dcId, UserID);
+                ShowAlert("Delivery Challan finalised. No further changes allowed.", true);
+                LoadDC(dcId);
+                BindDCList();
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+        }
+
+        // ── NEW ──
+        protected void btnNew_Click(object s, EventArgs e)
+        {
+            hfDCID.Value = "0";
+            hfLines.Value = "";
+            txtDCNumber.Text = "";
+            txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+            txtRemarks.Text = "";
+            if (ddlCustomer != null) ddlCustomer.SelectedIndex = 0;
+            lblFormTitle.Text = "New Delivery Challan";
+            pnlForm.Visible = true;
+            pnlLocked.Visible = false;
+            btnDraftSave.Visible = true;
+            btnFinalise.Visible = true;
+            BuildProductData();
+            if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        // ── LOAD EXISTING DC ──
+        protected void rptDCs_ItemCommand(object src, RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "EditDC")
+            {
+                int dcId = Convert.ToInt32(e.CommandArgument);
+                LoadDC(dcId);
+            }
+        }
+
+        void LoadDC(int dcId)
+        {
+            var dc = PKDatabaseHelper.GetDCById(dcId);
+            if (dc == null) return;
+
+            hfDCID.Value = dcId.ToString();
+            txtDCNumber.Text = dc["DCNumber"].ToString();
+            txtDCDate.Text = Convert.ToDateTime(dc["DCDate"]).ToString("yyyy-MM-dd");
+            txtRemarks.Text = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
+            try { ddlCustomer.SelectedValue = dc["CustomerID"].ToString(); } catch { }
+
+            string status = dc["Status"].ToString();
+            bool isDraft = status == "DRAFT";
+
+            // Load lines into hfLines as JSON
+            var lines = PKDatabaseHelper.GetDCLines(dcId);
+            var sb = new System.Text.StringBuilder("[");
+            bool first = true;
+            foreach (DataRow r in lines.Rows)
+            {
+                if (!first) sb.Append(",");
+                sb.Append("{\"pid\":\"" + r["ProductID"] + "\",");
+                sb.Append("\"name\":\"" + Esc(r["ProductName"].ToString()) + "\",");
+                sb.Append("\"code\":\"" + Esc(r["ProductCode"].ToString()) + "\",");
+                sb.Append("\"cases\":" + r["Cases"] + ",");
+                sb.Append("\"loose\":" + r["LooseJars"] + ",");
+                sb.Append("\"jpc\":" + r["JarsPerCase"] + ",");
+                sb.Append("\"unitSize\":1,");
+                sb.Append("\"totalPcs\":" + r["TotalPcs"] + "}");
+                first = false;
+            }
+            sb.Append("]");
+            hfLines.Value = sb.ToString();
+
+            if (isDraft)
+            {
+                lblFormTitle.Text = "Edit DC: " + dc["DCNumber"];
+                pnlForm.Visible = true;
+                pnlLocked.Visible = false;
+                btnDraftSave.Visible = true;
+                btnFinalise.Visible = true;
+            }
+            else
+            {
+                lblFormTitle.Text = "DC: " + dc["DCNumber"] + " (Finalised)";
+                pnlForm.Visible = false;
+                pnlLocked.Visible = true;
+            }
+
+            BuildProductData();
+            if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        // ── HELPERS ──
+        bool ValidateForm()
+        {
+            if (ddlCustomer.SelectedValue == "0")
+            { ShowAlert("Please select a customer.", false); return false; }
+            if (string.IsNullOrEmpty(txtDCDate.Text))
+            { ShowAlert("Please enter a DC date.", false); return false; }
+            return true;
+        }
+
+        int[][] ParseLines()
+        {
+            string raw = hfLines.Value;
+            if (string.IsNullOrEmpty(raw) || raw == "[]") return null;
+
+            try
+            {
+                // Simple JSON array parse: [{pid,cases,loose,jpc,unitSize,totalPcs},...]
+                var list = new System.Collections.Generic.List<int[]>();
+                raw = raw.Trim(new char[] { '[', ']' });
+                if (string.IsNullOrEmpty(raw)) return null;
+
+                // Split by },{ pattern
+                string[] items = raw.Split(new string[] { "},{" }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string item in items)
+                {
+                    string clean = item.Trim(new char[] { '{', '}' });
+                    int pid = 0, cases = 0, loose = 0, jpc = 12, us = 1, totalPcs = 0;
+
+                    foreach (string pair in clean.Split(','))
+                    {
+                        string[] kv = pair.Split(':');
+                        if (kv.Length < 2) continue;
+                        string key = kv[0].Trim().Trim('"');
+                        string val = kv[1].Trim().Trim('"');
+
+                        if (key == "pid") int.TryParse(val, out pid);
+                        else if (key == "cases") int.TryParse(val, out cases);
+                        else if (key == "loose") int.TryParse(val, out loose);
+                        else if (key == "jpc") int.TryParse(val, out jpc);
+                        else if (key == "unitSize") int.TryParse(val, out us);
+                        else if (key == "totalPcs") int.TryParse(val, out totalPcs);
+                    }
+
+                    if (pid > 0 && totalPcs > 0)
+                        list.Add(new int[] { pid, cases, loose, jpc, totalPcs });
+                }
+                return list.ToArray();
+            }
+            catch { return null; }
+        }
+
+        void ShowAlert(string m, bool ok)
+        {
+            if (lblAlert != null) lblAlert.Text = m;
+            if (pnlAlert != null)
+            {
+                pnlAlert.CssClass = "alert " + (ok ? "alert-success" : "alert-danger");
+                pnlAlert.Visible = true;
+            }
+        }
     }
 }

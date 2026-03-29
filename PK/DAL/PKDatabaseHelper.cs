@@ -1288,5 +1288,169 @@ namespace PKApp.DAL
                 " WHERE pe.BatchNo > 0" +
                 " ORDER BY p.ProductName;");
         }
+
+        // ── DELIVERY CHALLANS ─────────────────────────────────────────────────
+
+        /// Generate DC number: DC-2526-001 (FY year prefix)
+        private static string GenerateDCNumber()
+        {
+            DateTime now = NowIST();
+            int fy1 = now.Month >= 4 ? now.Year % 100 : (now.Year - 1) % 100;
+            int fy2 = fy1 + 1;
+            string prefix = "DC-" + fy1.ToString("D2") + fy2.ToString("D2") + "-";
+            object last = ExecuteScalar(
+                "SELECT DCNumber FROM PK_DeliveryChallans WHERE DCNumber LIKE ?pat ORDER BY DCID DESC LIMIT 1;",
+                new MySqlParameter("?pat", prefix + "%"));
+            int n = 1;
+            if (last != null && last != DBNull.Value)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(last.ToString(), @"\d+$");
+                if (m.Success) n = int.Parse(m.Value) + 1;
+            }
+            return prefix + n.ToString("D3");
+        }
+
+        /// Get FG stock available for shipment.
+        /// FG = Secondary Packing output (in jars) minus already shipped DC lines (in jars).
+        public static DataTable GetFGStockForShipment()
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductID, p.ProductName, p.ProductCode," +
+                " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
+                " IFNULL(p.UnitsPerContainer, '1') AS UnitsPerContainer," +
+                " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
+                " ou.Abbreviation AS Unit," +
+                // FG total from secondary packing (in JARS = cases * jarsPerCase)
+                " IFNULL(sp.TotalJars, 0) AS FGTotalJars," +
+                // Already shipped via DC lines (we store Cases and LooseJars, convert back to jars)
+                " IFNULL(dc.TotalShippedJars, 0) AS ShippedJars," +
+                // Available FG in jars
+                " ROUND(IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0), 0) AS AvailableFGJars," +
+                // Also provide pieces for reference
+                " ROUND((IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0))" +
+                "  * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 0) AS AvailableFGPcs" +
+                " FROM PP_Products p" +
+                " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
+                " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalJars" +
+                "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
+                " LEFT JOIN (SELECT dl.ProductID," +
+                "   SUM(dl.Cases * dl.JarsPerCase + dl.LooseJars) AS TotalShippedJars" +
+                "   FROM PK_DCLines dl" +
+                "   JOIN PK_DeliveryChallans dc ON dc.DCID = dl.DCID" +
+                "   WHERE dc.Status IN ('DRAFT','FINALISED')" +
+                "   GROUP BY dl.ProductID) dc ON dc.ProductID = p.ProductID" +
+                " WHERE p.IsActive=1 AND p.ProductType='Core'" +
+                " AND IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0) > 0" +
+                " ORDER BY p.ProductName;");
+        }
+
+        /// Create a new DC (DRAFT)
+        public static int CreateDeliveryChallan(int customerId, DateTime dcDate, string remarks, int userId)
+        {
+            string dcNumber = GenerateDCNumber();
+            ExecuteNonQuery(
+                "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                new MySqlParameter("?num", dcNumber),
+                new MySqlParameter("?cid", customerId),
+                new MySqlParameter("?dt",  dcDate),
+                new MySqlParameter("?rem", remarks ?? (object)DBNull.Value),
+                new MySqlParameter("?by",  userId),
+                new MySqlParameter("?now", NowIST()));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        /// Add a line item to a DC
+        public static void AddDCLine(int dcId, int productId, int cases, int looseJars, int jarsPerCase, int totalPcs)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs)" +
+                " VALUES(?dcid, ?pid, ?cs, ?lj, ?jpc, ?tp);",
+                new MySqlParameter("?dcid", dcId),
+                new MySqlParameter("?pid",  productId),
+                new MySqlParameter("?cs",   cases),
+                new MySqlParameter("?lj",   looseJars),
+                new MySqlParameter("?jpc",  jarsPerCase),
+                new MySqlParameter("?tp",   totalPcs));
+        }
+
+        /// Delete all lines for a DC (used when re-saving draft)
+        public static void DeleteDCLines(int dcId)
+        {
+            ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?dcid;",
+                new MySqlParameter("?dcid", dcId));
+        }
+
+        /// Update DC header (draft mode)
+        public static void UpdateDCHeader(int dcId, int customerId, DateTime dcDate, string remarks)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET CustomerID=?cid, DCDate=?dt, Remarks=?rem WHERE DCID=?id AND Status='DRAFT';",
+                new MySqlParameter("?cid", customerId),
+                new MySqlParameter("?dt",  dcDate),
+                new MySqlParameter("?rem", remarks ?? (object)DBNull.Value),
+                new MySqlParameter("?id",  dcId));
+        }
+
+        /// Finalise a DC — locks it
+        public static void FinaliseDeliveryChallan(int dcId, int userId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET Status='FINALISED', FinalisedAt=?now, FinalisedBy=?by WHERE DCID=?id AND Status='DRAFT';",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by",  userId),
+                new MySqlParameter("?id",  dcId));
+        }
+
+        /// Get DC header by ID
+        public static DataRow GetDCById(int dcId)
+        {
+            return ExecuteQueryRow(
+                "SELECT dc.*, c.CustomerName, c.CustomerCode, c.CustomerType" +
+                " FROM PK_DeliveryChallans dc" +
+                " JOIN PK_Customers c ON c.CustomerID = dc.CustomerID" +
+                " WHERE dc.DCID=?id;",
+                new MySqlParameter("?id", dcId));
+        }
+
+        /// Get DC lines for a DC
+        public static DataTable GetDCLines(int dcId)
+        {
+            return ExecuteQuery(
+                "SELECT dl.LineID, dl.ProductID, p.ProductName, p.ProductCode," +
+                " dl.Cases, dl.LooseJars, dl.JarsPerCase, dl.TotalPcs," +
+                " ou.Abbreviation AS Unit" +
+                " FROM PK_DCLines dl" +
+                " JOIN PP_Products p ON p.ProductID = dl.ProductID" +
+                " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
+                " WHERE dl.DCID=?dcid ORDER BY dl.LineID;",
+                new MySqlParameter("?dcid", dcId));
+        }
+
+        /// Get recent DCs for listing
+        public static DataTable GetRecentDCs(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT dc.DCID, dc.DCNumber, dc.DCDate, dc.Status, dc.Remarks," +
+                " c.CustomerName, c.CustomerCode," +
+                " IFNULL(ct.TypeName,'') AS TypeName," +
+                " COUNT(dl.LineID) AS LineCount," +
+                " SUM(dl.Cases) AS TotalCases," +
+                " SUM(dl.TotalPcs) AS TotalPcs" +
+                " FROM PK_DeliveryChallans dc" +
+                " JOIN PK_Customers c ON c.CustomerID = dc.CustomerID" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
+                " LEFT JOIN PK_DCLines dl ON dl.DCID = dc.DCID" +
+                " GROUP BY dc.DCID" +
+                " ORDER BY dc.DCID DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
+        /// Delete a DRAFT DC entirely
+        public static void DeleteDraftDC(int dcId)
+        {
+            ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
+            ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id AND Status='DRAFT';", new MySqlParameter("?id", dcId));
+        }
     }
 }
