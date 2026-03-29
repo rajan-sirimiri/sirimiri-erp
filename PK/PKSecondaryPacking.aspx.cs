@@ -156,7 +156,7 @@ namespace PKApp
                     pmId, cartonsUsed, txtRemarks.Value, UserID);
 
                 txtCartons.Value = ""; txtUnitsPerCarton.Value = ""; txtRemarks.Value = "";
-                ShowAlert(cases + " cases packed (" + totalJars + " jars). Added to FG stock.", true);
+                ShowAlert(cases + " cases packed (" + totalJars + " jars). Moved from SFG to FG — ready for dispatch.", true);
                 BindProductDropdown(); BindLog();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }

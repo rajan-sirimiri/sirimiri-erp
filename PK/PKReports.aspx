@@ -51,7 +51,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
 <div class="page-header">
     <div>
         <div class="page-title">Packing <span>Reports</span></div>
-        <div class="page-sub">FG stock position, packing summary and shipment history</div>
+        <div class="page-sub">SFG &amp; FG stock position, packing summary and shipment history</div>
     </div>
     <div style="display:flex;gap:8px;">
         <asp:Button ID="btnRefresh" runat="server" Text="&#8635; Refresh" CssClass="btn-refresh" OnClick="btnRefresh_Click" CausesValidation="false"/>
@@ -62,7 +62,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
     <!-- FG STOCK SUMMARY -->
     <div class="card">
         <div class="card-title">
-            <span>&#x1F4E6; Finished Goods Stock Position</span>
+            <span>&#x1F4E6; Semi-Finished Goods (SFG) Stock Position</span>
             <span class="report-as-of">As of <asp:Label ID="lblDate" runat="server"/></span>
         </div>
         <table class="data-table">

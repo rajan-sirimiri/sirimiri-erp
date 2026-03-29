@@ -136,7 +136,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
     <div class="nav-group">
         <span class="nav-item">Reports <span class="chevron">&#9660;</span></span>
         <div class="nav-dropdown">
-            <a href="PKReports.aspx">FG Stock Report</a>
+            <a href="PKReports.aspx">SFG Stock Report</a>
             <a href="PKPMStockReport.aspx">PM Stock Report</a>
             <a href="PKPackingHistory.aspx">Packing History</a>
         </div>
@@ -206,8 +206,8 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <a href="PKReports.aspx" class="menu-card cat-report">
             <div class="menu-icon">&#x1F4CA;</div>
             <div>
-                <div class="menu-title">FG Stock Report</div>
-                <div class="menu-desc">Finished goods stock position by product</div>
+                <div class="menu-title">SFG Stock Report</div>
+                <div class="menu-desc">Semi-Finished Goods — packed jars/boxes by product</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>

@@ -445,7 +445,7 @@ namespace PKApp
                     if (Convert.ToDecimal(row["ActualQty"]) > 0) pmCount++;
 
                 txtJars.Value = "0"; txtUnits.Value = "0";
-                string msg = "Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to FG stock.";
+                string msg = "Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to SFG stock.";
                 if (pmCount > 0)
                     msg += " " + pmCount + " packing material(s) consumption recorded.";
                 ShowAlert(msg, true);
