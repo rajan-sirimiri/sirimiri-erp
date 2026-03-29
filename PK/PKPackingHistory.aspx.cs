@@ -83,13 +83,19 @@ namespace PKApp
             rptHistory.DataSource = dt;
             rptHistory.DataBind();
 
-            // Summaries
+            // Summaries — deduplicate order totals (same OrderJars/Pcs on every batch row of an order)
             int totalBatches = dt.Rows.Count;
             long totalJars = 0, totalUnits = 0;
+            var seenOrders = new System.Collections.Generic.HashSet<int>();
             foreach (DataRow row in dt.Rows)
             {
-                if (row["Jars"] != DBNull.Value)       totalJars  += Convert.ToInt64(row["Jars"]);
-                if (row["TotalUnits"] != DBNull.Value) totalUnits += Convert.ToInt64(row["TotalUnits"]);
+                int orderId = Convert.ToInt32(row["OrderID"]);
+                if (!seenOrders.Contains(orderId))
+                {
+                    seenOrders.Add(orderId);
+                    if (row["OrderJars"] != DBNull.Value)       totalJars  += Convert.ToInt64(row["OrderJars"]);
+                    if (row["OrderTotalUnits"] != DBNull.Value) totalUnits += Convert.ToInt64(row["OrderTotalUnits"]);
+                }
             }
 
             lblTotalBatches.Text = totalBatches.ToString("N0");

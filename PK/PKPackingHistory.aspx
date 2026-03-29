@@ -107,9 +107,9 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
                 <th>End</th>
                 <th>Duration</th>
                 <th>Language</th>
-                <th class="num">Jars</th>
-                <th class="num">Pcs</th>
-                <th class="num">Total Units</th>
+                <th class="num">Order Jars</th>
+                <th class="num">Order Pcs</th>
+                <th class="num">Order Total</th>
                 <th>Status</th>
             </tr></thead>
             <tbody>
@@ -127,7 +127,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
                         <td style="font-size:12px;color:var(--text-muted);"><%# Eval("EndTime") == DBNull.Value ? "—" : Convert.ToDateTime(Eval("EndTime")).ToString("hh:mm tt") %></td>
                         <td style="font-size:12px;color:var(--text-muted);"><%# FormatDuration(Eval("StartTime"), Eval("EndTime")) %></td>
                         <td style="font-size:12px;font-weight:600;"><%# Eval("LabelLanguage") == DBNull.Value ? "—" : Eval("LabelLanguage") %></td>
-                        <td class="num"><%# Eval("Jars") == DBNull.Value ? "—" : string.Format("{0:N0}", Eval("Jars")) %></td>
+                        <td class="num" style="font-size:12px;"><%# Convert.ToInt64(Eval("OrderJars")) > 0 ? string.Format("{0:N0}", Eval("OrderJars")) : "—" %></td>
+                        <td class="num" style="font-size:12px;"><%# Convert.ToInt64(Eval("OrderPcs")) > 0 ? string.Format("{0:N0}", Eval("OrderPcs")) : "—" %></td>
+                        <td class="num" style="font-weight:700;"><%# Convert.ToInt64(Eval("OrderTotalUnits")) > 0 ? string.Format("{0:N0}", Eval("OrderTotalUnits")) : "—" %></td>
+                        <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>
                         <td class="num"><%# Eval("Units") == DBNull.Value ? "—" : string.Format("{0:N0}", Eval("Units")) %></td>
                         <td class="num" style="font-weight:700;"><%# Eval("TotalUnits") == DBNull.Value ? "—" : string.Format("{0:N0}", Eval("TotalUnits")) %></td>
                         <td><%# Eval("Status").ToString() == "Completed" ? "<span class='badge-done'>Done</span>" : "<span class='badge-prog'>In Progress</span>" %></td>

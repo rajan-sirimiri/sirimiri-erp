@@ -1086,12 +1086,20 @@ namespace PKApp.DAL
         {
             string sql =
                 "SELECT pe.PackingID, pe.OrderID, pe.BatchNo, pe.StartTime, pe.EndTime," +
-                " pe.Jars, pe.Units, pe.JarSize, pe.TotalUnits, pe.Status, pe.LabelLanguage," +
+                " pe.Status, pe.LabelLanguage," +
                 " p.ProductName, p.ProductCode, p.ContainerType," +
-                " po.OrderDate, po.Shift" +
+                " po.OrderDate, po.Shift," +
+                " IFNULL(summary.Jars, 0) AS OrderJars," +
+                " IFNULL(summary.Units, 0) AS OrderPcs," +
+                " IFNULL(summary.JarSize, 0) AS JarSize," +
+                " IFNULL(summary.TotalUnits, 0) AS OrderTotalUnits," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution b" +
+                "  WHERE b.OrderID=pe.OrderID AND b.BatchNo > 0 AND b.Status='Completed') AS OrderBatchCount" +
                 " FROM PK_PackingExecution pe" +
                 " JOIN PP_ProductionOrder po ON po.OrderID = pe.OrderID" +
                 " JOIN PP_Products p ON p.ProductID = po.ProductID" +
+                " LEFT JOIN PK_PackingExecution summary" +
+                "   ON summary.OrderID = pe.OrderID AND summary.BatchNo = 0" +
                 " WHERE pe.Status IN ('Completed','InProgress')" +
                 " AND pe.BatchNo > 0" +
                 " AND DATE(pe.StartTime) >= ?from AND DATE(pe.StartTime) <= ?to";
@@ -1099,7 +1107,7 @@ namespace PKApp.DAL
             if (productId > 0)
                 sql += " AND po.ProductID = ?pid";
 
-            sql += " ORDER BY pe.StartTime DESC;";
+            sql += " ORDER BY pe.OrderID DESC, pe.BatchNo ASC;";
 
             if (productId > 0)
                 return ExecuteQuery(sql,
