@@ -822,6 +822,21 @@ namespace PKApp.DAL
                 " WHERE pm.IsActive=1 ORDER BY pm.PMName;");
         }
 
+        public static DataTable GetPackingMaterialsByCategory(string category)
+        {
+            return ExecuteQuery(
+                "SELECT pm.PMID, pm.PMCode, pm.PMName, u.Abbreviation," +
+                " ROUND(IFNULL(grn.TotalGRN,0) - IFNULL(con.TotalUsed,0), 4) AS CurrentStock" +
+                " FROM MM_PackingMaterials pm" +
+                " JOIN MM_UOM u ON u.UOMID=pm.UOMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalGRN" +
+                "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID=pm.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
+                "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID=pm.PMID" +
+                " WHERE pm.IsActive=1 AND pm.PMCategory=?cat ORDER BY pm.PMName;",
+                new MySqlParameter("?cat", category));
+        }
+
         // ── PRODUCTS (from PP) ────────────────────────────────────────────────
         public static DataTable GetActiveProducts()
         {

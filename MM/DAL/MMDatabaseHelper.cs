@@ -514,7 +514,7 @@ namespace MMApp.DAL
         public static DataTable GetAllPackingMaterials()
         {
             return ExecuteQuery(
-                "SELECT p.PMID, p.PMCode, p.PMName, p.Description, p.HSNCode, p.GSTRate, p.UOMID, u.UOMName, u.Abbreviation, " +
+                "SELECT p.PMID, p.PMCode, p.PMName, p.PMCategory, p.Description, p.HSNCode, p.GSTRate, p.UOMID, u.UOMName, u.Abbreviation, " +
                 "p.ReorderLevel, p.IsActive, p.CreatedAt " +
                 "FROM MM_PackingMaterials p JOIN MM_UOM u ON u.UOMID=p.UOMID ORDER BY p.PMName;");
         }
@@ -543,14 +543,15 @@ namespace MMApp.DAL
             return Convert.ToInt32(result) > 0;
         }
 
-        public static void AddPackingMaterial(string name, string description, string hsnCode, decimal? gstRate, int uomId, decimal reorderLevel)
+        public static void AddPackingMaterial(string name, string description, string hsnCode, decimal? gstRate, int uomId, decimal reorderLevel, string category = null)
         {
             string code = GeneratePMCode();
             ExecuteNonQuery(
-                "INSERT INTO MM_PackingMaterials (PMCode, PMName, Description, HSNCode, GSTRate, UOMID, ReorderLevel, IsActive, CreatedAt) " +
-                "VALUES (?code,?name,?desc,?hsn,?gst,?uom,?reorder,1,NOW());",
+                "INSERT INTO MM_PackingMaterials (PMCode, PMName, PMCategory, Description, HSNCode, GSTRate, UOMID, ReorderLevel, IsActive, CreatedAt) " +
+                "VALUES (?code,?name,?cat,?desc,?hsn,?gst,?uom,?reorder,1,NOW());",
                 new MySqlParameter("code",   code),
                 new MySqlParameter("name",   name),
+                new MySqlParameter("cat",    string.IsNullOrEmpty(category) ? (object)DBNull.Value : category),
                 new MySqlParameter("desc",   description),
                 new MySqlParameter("hsn",    hsnCode ?? (object)DBNull.Value),
                 new MySqlParameter("gst",    gstRate.HasValue ? (object)gstRate.Value : DBNull.Value),
@@ -559,13 +560,14 @@ namespace MMApp.DAL
         }
 
         public static void UpdatePackingMaterial(int pmId, string code, string name, string description,
-            string hsnCode, decimal? gstRate, int uomId, decimal reorderLevel)
+            string hsnCode, decimal? gstRate, int uomId, decimal reorderLevel, string category = null)
         {
             ExecuteNonQuery(
-                "UPDATE MM_PackingMaterials SET PMCode=?code, PMName=?name, Description=?desc, " +
+                "UPDATE MM_PackingMaterials SET PMCode=?code, PMName=?name, PMCategory=?cat, Description=?desc, " +
                 "HSNCode=?hsn, GSTRate=?gst, UOMID=?uom, ReorderLevel=?reorder WHERE PMID=?id;",
                 new MySqlParameter("code",   code),
                 new MySqlParameter("name",   name),
+                new MySqlParameter("cat",    string.IsNullOrEmpty(category) ? (object)DBNull.Value : category),
                 new MySqlParameter("desc",   description),
                 new MySqlParameter("hsn",    hsnCode ?? (object)DBNull.Value),
                 new MySqlParameter("gst",    gstRate.HasValue ? (object)gstRate.Value : DBNull.Value),

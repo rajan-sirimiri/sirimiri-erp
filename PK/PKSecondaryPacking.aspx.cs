@@ -86,13 +86,16 @@ namespace PKApp
         void BindCartonDropdown()
         {
             if (ddlOnlineCarton == null) return;
-            var dt = PKDatabaseHelper.GetActivePackingMaterials();
+            var dt = PKDatabaseHelper.GetPackingMaterialsByCategory("CARTON");
             ddlOnlineCarton.Items.Clear();
-            ddlOnlineCarton.Items.Add(new ListItem("-- None --", "0"));
+            ddlOnlineCarton.Items.Add(new ListItem("-- Select Carton --", "0"));
             foreach (DataRow r in dt.Rows)
+            {
+                string stock = Convert.ToDecimal(r["CurrentStock"]).ToString("0.##");
                 ddlOnlineCarton.Items.Add(new ListItem(
-                    r["PMName"] + " (" + r["Abbreviation"] + ")",
+                    r["PMName"] + " (Stock: " + stock + " " + r["Abbreviation"] + ")",
                     r["PMID"].ToString()));
+            }
         }
 
         string Esc(string s)
@@ -173,7 +176,6 @@ namespace PKApp
             if (string.IsNullOrEmpty(linesRaw))
             { ShowAlert("Please add at least one product to the order.", false); return; }
 
-            // Parse lines: pid:qty:jarSize,pid:qty:jarSize,...
             string[] lineParts = linesRaw.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (lineParts.Length == 0)
             { ShowAlert("Please add at least one product to the order.", false); return; }
@@ -186,7 +188,7 @@ namespace PKApp
 
             try
             {
-                // Validate stock for each line
+                // Validate stock
                 var products = PKDatabaseHelper.GetFGReadyForSecondary();
                 foreach (string part in lineParts)
                 {
@@ -221,7 +223,6 @@ namespace PKApp
                     PKDatabaseHelper.AddOnlineOrderPacking(pid, qty, js,
                         cartonPmId, orderId, customer, remarks, UserID);
 
-                    // Record carton PM consumption only once per order
                     if (!cartonRecorded && cartonPmId > 0)
                     {
                         PKDatabaseHelper.RecordOnlineOrderCartonPM(cartonPmId, UserID);
@@ -235,7 +236,7 @@ namespace PKApp
                 if (hfOnlineLines != null) hfOnlineLines.Value = "";
 
                 ShowAlert("Online order " + orderId + " packed — " + lineParts.Length + " product(s) for " + customer + ".", true);
-                BindProductDropdown(); BindLog();
+                BindProductDropdown(); BindCartonDropdown(); BindLog();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }

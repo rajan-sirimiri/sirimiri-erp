@@ -117,6 +117,19 @@
                         <asp:TextBox ID="txtName" runat="server" MaxLength="200" placeholder="e.g. BOPP Pouch 500g" />
                     </div>
                     <div class="form-group">
+                        <label>Category</label>
+                        <asp:DropDownList ID="ddlCategory" runat="server">
+                            <asp:ListItem Value="" Text="-- Select --"/>
+                            <asp:ListItem Value="CARTON" Text="Carton / Master Box"/>
+                            <asp:ListItem Value="JAR" Text="Jar / Bottle / Container"/>
+                            <asp:ListItem Value="LID" Text="Lid / Cap"/>
+                            <asp:ListItem Value="LABEL" Text="Label / Sticker"/>
+                            <asp:ListItem Value="ROLL" Text="Roll / Film / Wrap"/>
+                            <asp:ListItem Value="WRAP" Text="Shrink Wrap / Tape"/>
+                            <asp:ListItem Value="OTHER" Text="Other"/>
+                        </asp:DropDownList>
+                    </div>
+                    <div class="form-group">
                         <label>Unit of Measure <span class="req">*</span></label>
                         <asp:DropDownList ID="ddlUOM" runat="server" />
                     </div>
@@ -193,7 +206,7 @@
                 <asp:Repeater ID="rptMaterials" runat="server" OnItemCommand="rptMaterials_ItemCommand">
                     <HeaderTemplate>
                         <table class="pm-table" id="pmTable">
-                        <thead><tr><th>Code</th><th>Name</th><th>UOM</th><th>Status</th><th></th></tr></thead><tbody>
+                        <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>UOM</th><th>Status</th><th></th></tr></thead><tbody>
                     </HeaderTemplate>
                     <ItemTemplate>
                         <tr>
@@ -202,6 +215,7 @@
                                 <div style="font-weight:500;"><%# Eval("PMName") %></div>
                                 <div style="font-size:11px;color:var(--text-dim);"><%# Eval("Description") %></div>
                             </td>
+                            <td style="font-size:12px;color:var(--text-muted);"><%# Eval("PMCategory") == DBNull.Value ? "—" : Eval("PMCategory") %></td>
                             <td style="font-size:12px;"><%# Eval("Abbreviation") %></td>
                             <td><span class='<%# Convert.ToBoolean(Eval("IsActive")) ? "badge-active" : "badge-inactive" %>'><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></td>
                             <td><asp:LinkButton runat="server" CommandName="Edit" CommandArgument='<%# Eval("PMID") %>' CssClass="act-link" CausesValidation="false">Edit</asp:LinkButton></td>

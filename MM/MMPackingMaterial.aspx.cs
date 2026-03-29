@@ -22,6 +22,7 @@ namespace MMApp
         protected TextBox     txtGSTRate;
         protected TextBox     txtReorder;
         protected DropDownList ddlUOM;
+        protected DropDownList ddlCategory;
         protected Button      btnSave;
         protected Button      btnClear;
         protected Button      btnToggleActive;
@@ -103,18 +104,20 @@ namespace MMApp
             decimal? gstRate = null;
             decimal gstParsed;
             if (decimal.TryParse(txtGSTRate.Text.Trim(), out gstParsed)) gstRate = gstParsed;
+            string category = ddlCategory != null && !string.IsNullOrEmpty(ddlCategory.SelectedValue)
+                ? ddlCategory.SelectedValue : null;
 
             try
             {
                 if (matId == 0)
                 {
-                    MMDatabaseHelper.AddPackingMaterial(name, desc, hsn, gstRate, uomId, reorder);
+                    MMDatabaseHelper.AddPackingMaterial(name, desc, hsn, gstRate, uomId, reorder, category);
                     ShowAlert("Packing Material '" + name + "' added successfully.", true);
                     ClearForm();
                 }
                 else
                 {
-                    MMDatabaseHelper.UpdatePackingMaterial(matId, txtCode.Text.Trim(), name, desc, hsn, gstRate, uomId, reorder);
+                    MMDatabaseHelper.UpdatePackingMaterial(matId, txtCode.Text.Trim(), name, desc, hsn, gstRate, uomId, reorder, category);
                     ShowAlert("Packing Material '" + name + "' updated successfully.", true);
                     LoadOpeningStock(matId);
                 }
@@ -157,6 +160,12 @@ namespace MMApp
                 txtGSTRate.Text       = dr["GSTRate"]     == DBNull.Value ? "" : dr["GSTRate"].ToString();
                 txtReorder.Text       = dr["ReorderLevel"].ToString();
                 ddlUOM.SelectedValue  = dr["UOMID"].ToString();
+                if (ddlCategory != null)
+                {
+                    string cat = dr.Table.Columns.Contains("PMCategory") && dr["PMCategory"] != DBNull.Value
+                        ? dr["PMCategory"].ToString() : "";
+                    try { ddlCategory.SelectedValue = cat; } catch { ddlCategory.SelectedIndex = 0; }
+                }
                 bool isActive         = Convert.ToBoolean(dr["IsActive"]);
                 btnToggleActive.Text  = isActive ? "Deactivate" : "Activate";
                 SetFormMode(true);
@@ -221,6 +230,7 @@ namespace MMApp
             txtCode.Text         = txtName.Text = txtDescription.Text = txtReorder.Text = "";
             txtHSN.Text          = txtGSTRate.Text = "";
             ddlUOM.SelectedIndex = 0;
+            if (ddlCategory != null) ddlCategory.SelectedIndex = 0;
             SetFormMode(false);
         }
     }

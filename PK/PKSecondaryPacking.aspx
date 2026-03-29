@@ -16,19 +16,17 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
 .nav-link{color:#aaa;text-decoration:none;font-size:11px;font-weight:600;text-transform:uppercase;padding:5px 10px;border-radius:5px;}
 .nav-link:hover{color:#fff;background:rgba(255,255,255,.08);}
 .page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 32px;}
-.page-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.07em;}
-.page-title span{color:var(--accent);}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.07em;}.page-title span{color:var(--accent);}
 .page-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
 .main{max-width:1100px;margin:24px auto;padding:0 28px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 .form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);}
 select,input[type=number],input[type=text],textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fafafa;outline:none;}
 select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#fff;}
-.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:14px;letter-spacing:.03em;}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:14px;}
 .btn-primary:hover{background:var(--accent-dark);}
 .btn-add{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;}
 .btn-add:hover{background:#333;}
@@ -38,49 +36,33 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .alert-danger{background:#fdf3f2;color:#e74c3c;border:1px solid #f5c6cb;}
 .data-table{width:100%;border-collapse:collapse;font-size:13px;}
 .data-table th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:9px 12px;border-bottom:2px solid var(--border);text-align:left;background:#fafafa;}
-.data-table th.num{text-align:right;}
-.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.data-table th.num{text-align:right;}.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
 .data-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
-.data-table tr:last-child td{border-bottom:none;}
-.data-table tr:hover td{background:#f9f9f9;}
+.data-table tr:last-child td{border-bottom:none;}.data-table tr:hover td{background:#f9f9f9;}
 .empty-note{text-align:center;padding:28px;color:var(--text-dim);font-size:13px;}
 .badge-case{background:#fef9f3;color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
 .badge-online{background:#e8f4fd;color:#2980b9;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
-
-/* Tabs */
 .tabs{display:flex;gap:0;margin-bottom:0;}
-.tab{padding:12px 28px;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;border:1px solid var(--border);border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;background:#f5f5f5;color:var(--text-muted);position:relative;top:1px;}
+.tab{padding:12px 28px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;background:#f5f5f5;color:var(--text-muted);position:relative;top:1px;}
 .tab.active{background:var(--surface);color:var(--text);border-bottom:1px solid var(--surface);}
-.tab-content{display:none;}
-.tab-content.active{display:block;}
-
-/* Product info panel */
+.tab-content{display:none;}.tab-content.active{display:block;}
 .product-info{display:none;background:#fef9f3;border:1px solid #fde3c8;border-radius:10px;padding:16px 20px;margin-bottom:16px;}
 .product-info.show{display:block;}
 .product-info-row{display:flex;gap:28px;align-items:center;flex-wrap:wrap;}
-.pi-stat{text-align:center;}
-.pi-stat-val{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.03em;}
-.pi-stat-val.green{color:var(--teal);}
-.pi-stat-val.orange{color:var(--accent);}
+.pi-stat{text-align:center;}.pi-stat-val{font-family:'Bebas Neue',sans-serif;font-size:22px;}.pi-stat-val.green{color:var(--teal);}.pi-stat-val.orange{color:var(--accent);}
 .pi-stat-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);}
-.pi-name{font-weight:700;font-size:15px;}
-.pi-code{font-size:11px;color:var(--text-dim);}
+.pi-name{font-weight:700;font-size:15px;}.pi-code{font-size:11px;color:var(--text-dim);}
 .calc-bar{background:#f0faf5;border:1px solid #a9dfbf;border-radius:10px;padding:12px 18px;margin-top:12px;display:flex;align-items:center;justify-content:space-between;}
-.calc-formula{font-size:12px;color:var(--text-muted);}
-.calc-total{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--teal);letter-spacing:.03em;}
+.calc-formula{font-size:12px;color:var(--text-muted);}.calc-total{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--teal);}
 .warn-bar{background:#fdf3f2;border:1px solid #f5c6cb;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;font-weight:600;color:#c0392b;display:none;}
-
-/* Online order lines table */
 .ol-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
 .ol-table th{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;}
-.ol-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0;}
-.ol-table th.num,.ol-table td.num{text-align:right;}
+.ol-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0;}.ol-table th.num,.ol-table td.num{text-align:right;}
 </style></head><body>
 <form id="form1" runat="server">
 <asp:HiddenField ID="hfProductData" runat="server" Value="{}"/>
 <asp:HiddenField ID="hfCasePMID" runat="server" Value="0"/>
 <asp:HiddenField ID="hfOnlineLines" runat="server" Value=""/>
-
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
     <span class="nav-title">Packing &amp; Shipments</span>
@@ -96,17 +78,14 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     <div class="page-sub">Pack jars/boxes into master cartons — becomes Finished Goods ready for shipping</div>
 </div>
 <div class="main">
-    <asp:Panel ID="pnlAlert" runat="server" Visible="false">
-        <div class="alert"><asp:Label ID="lblAlert" runat="server"/></div>
-    </asp:Panel>
+    <asp:Panel ID="pnlAlert" runat="server" Visible="false"><div class="alert"><asp:Label ID="lblAlert" runat="server"/></div></asp:Panel>
 
-    <!-- TABS -->
     <div class="tabs">
         <div class="tab active" onclick="switchTab('case')">&#x1F4E6; Case Packing</div>
         <div class="tab" onclick="switchTab('online')">&#x1F6D2; Online Orders</div>
     </div>
 
-    <!-- ═══════════════ TAB 1: CASE PACKING ═══════════════ -->
+    <!-- ══════ TAB 1: CASE PACKING ══════ -->
     <div id="tabCase" class="tab-content active">
     <div class="card" style="border-top-left-radius:0;">
         <div class="card-title">Pack Jars into Master Cartons</div>
@@ -116,10 +95,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         </div>
         <div id="productInfo" class="product-info">
             <div class="product-info-row">
-                <div>
-                    <div class="pi-name" id="piName"></div>
-                    <div class="pi-code" id="piCode"></div>
-                </div>
+                <div><div class="pi-name" id="piName"></div><div class="pi-code" id="piCode"></div></div>
                 <div class="pi-stat"><div class="pi-stat-val green" id="piAvailJars">0</div><div class="pi-stat-lbl" id="piContainerLabel">Jars Available</div></div>
                 <div class="pi-stat"><div class="pi-stat-val" id="piAvailPcs">0</div><div class="pi-stat-lbl">Pieces Available</div></div>
                 <div class="pi-stat"><div class="pi-stat-val orange" id="piPerCase">0</div><div class="pi-stat-lbl" id="piPerCaseLabel">Jars per Case</div></div>
@@ -127,116 +103,74 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </div>
         </div>
         <div class="form-grid-3">
-            <div class="form-group">
-                <label>No. of Cases <span style="color:var(--accent)">*</span></label>
-                <input type="number" id="txtCartons" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/>
-            </div>
-            <div class="form-group">
-                <label>Jars per Case</label>
-                <input type="number" id="txtUnitsPerCarton" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/>
-            </div>
-            <div class="form-group">
-                <label>Carton Material</label>
-                <div id="casePMDisplay" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;background:#f5f5f5;font-size:13px;color:var(--text-muted);min-height:38px;">—</div>
-            </div>
+            <div class="form-group"><label>No. of Cases <span style="color:var(--accent)">*</span></label>
+                <input type="number" id="txtCartons" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/></div>
+            <div class="form-group"><label>Jars per Case</label>
+                <input type="number" id="txtUnitsPerCarton" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary();"/></div>
+            <div class="form-group"><label>Carton Material</label>
+                <div id="casePMDisplay" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;background:#f5f5f5;font-size:13px;color:var(--text-muted);min-height:38px;">—</div></div>
         </div>
         <div class="calc-bar" id="calcBar" style="display:none;">
             <div class="calc-formula" id="calcFormula">—</div>
             <div><span class="calc-total" id="calcTotal">0</span> <span style="font-size:12px;color:var(--text-muted);">jars into cases</span></div>
         </div>
         <div class="warn-bar" id="warnBar">&#9888; <span id="warnText"></span></div>
-        <div class="form-group" style="margin-top:12px;">
-            <label>Remarks</label>
-            <textarea id="txtRemarks" runat="server" rows="2" placeholder="Optional notes"></textarea>
-        </div>
-        <asp:Button ID="btnPack" runat="server" Text="&#x2713; Pack Cases &amp; Add to FG Stock"
-            CssClass="btn-primary" OnClick="btnPack_Click" CausesValidation="false"/>
+        <div class="form-group" style="margin-top:12px;"><label>Remarks</label>
+            <textarea id="txtRemarks" runat="server" rows="2" placeholder="Optional notes"></textarea></div>
+        <asp:Button ID="btnPack" runat="server" Text="&#x2713; Pack Cases &amp; Add to FG Stock" CssClass="btn-primary" OnClick="btnPack_Click" CausesValidation="false"/>
     </div>
     </div>
 
-    <!-- ═══════════════ TAB 2: ONLINE ORDERS ═══════════════ -->
+    <!-- ══════ TAB 2: ONLINE ORDERS ══════ -->
     <div id="tabOnline" class="tab-content">
     <div class="card" style="border-top-left-radius:0;">
         <div class="card-title">&#x1F6D2; Pack Online Order</div>
         <div class="form-grid-3">
-            <div class="form-group">
-                <label>Order ID <span style="color:var(--accent)">*</span></label>
-                <input type="text" id="txtOnlineOrderId" runat="server" placeholder="e.g. AMZ-12345"/>
-            </div>
-            <div class="form-group">
-                <label>Customer Name <span style="color:var(--accent)">*</span></label>
-                <input type="text" id="txtCustomerName" runat="server" placeholder="Customer name"/>
-            </div>
-            <div class="form-group">
-                <label>Shipping Carton</label>
-                <asp:DropDownList ID="ddlOnlineCarton" runat="server"/>
-            </div>
+            <div class="form-group"><label>Order ID <span style="color:var(--accent)">*</span></label>
+                <input type="text" id="txtOnlineOrderId" runat="server" placeholder="e.g. AMZ-12345"/></div>
+            <div class="form-group"><label>Customer Name <span style="color:var(--accent)">*</span></label>
+                <input type="text" id="txtCustomerName" runat="server" placeholder="Customer name"/></div>
+            <div class="form-group"><label>Shipping Carton</label>
+                <asp:DropDownList ID="ddlOnlineCarton" runat="server"/></div>
         </div>
-
-        <!-- Add product lines -->
         <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;">ADD PRODUCTS TO THIS ORDER</div>
             <div class="form-grid-3" style="align-items:flex-end;">
-                <div class="form-group">
-                    <label>Product</label>
-                    <select id="selOLProduct" onchange="onOLProductChange();">
-                        <option value="0">-- Select --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Qty (Jars/Boxes)</label>
-                    <input type="number" id="txtOLQty" min="1" step="1" placeholder="0"/>
-                </div>
-                <div>
-                    <button type="button" class="btn-add" onclick="addOLLine();">+ Add Product</button>
-                </div>
+                <div class="form-group"><label>Product</label><select id="selOLProduct" onchange="onOLProductChange();"><option value="0">-- Select --</option></select></div>
+                <div class="form-group"><label>Qty (Jars/Boxes)</label><input type="number" id="txtOLQty" min="1" step="1" placeholder="0"/></div>
+                <div><button type="button" class="btn-add" onclick="addOLLine();">+ Add Product</button></div>
             </div>
             <div id="olAvailInfo" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
         </div>
-
-        <!-- Order lines table -->
         <table class="ol-table" id="olTable" style="display:none;">
             <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Pcs</th><th></th></tr></thead>
             <tbody id="olBody"></tbody>
-            <tfoot><tr style="font-weight:700;border-top:2px solid var(--border);">
-                <td>Total</td><td class="num" id="olTotalQty">0</td><td class="num" id="olTotalPcs">0</td><td></td>
-            </tr></tfoot>
+            <tfoot><tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td><td class="num" id="olTotalQty">0</td><td class="num" id="olTotalPcs">0</td><td></td></tr></tfoot>
         </table>
-
-        <div class="form-group" style="margin-top:12px;">
-            <label>Remarks</label>
-            <textarea id="txtOnlineRemarks" runat="server" rows="2" placeholder="Optional notes"></textarea>
-        </div>
-        <asp:Button ID="btnPackOnline" runat="server" Text="&#x2713; Pack Online Order"
-            CssClass="btn-primary" OnClick="btnPackOnline_Click" CausesValidation="false"/>
+        <div class="form-group" style="margin-top:12px;"><label>Remarks</label>
+            <textarea id="txtOnlineRemarks" runat="server" rows="2" placeholder="Optional notes"></textarea></div>
+        <asp:Button ID="btnPackOnline" runat="server" Text="&#x2713; Pack Online Order" CssClass="btn-primary" OnClick="btnPackOnline_Click" CausesValidation="false"/>
     </div>
     </div>
 
-    <!-- ═══════════════ TODAY'S LOG ═══════════════ -->
+    <!-- ══════ TODAY'S LOG ══════ -->
     <div class="card">
         <div class="card-title">&#x1F4CB; Today's Packing Log</div>
         <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No packing recorded today</div></asp:Panel>
         <asp:Panel ID="pnlTable" runat="server" Visible="false">
         <table class="data-table">
-            <thead><tr>
-                <th>Time</th><th>Type</th><th>Product</th><th>Order / Customer</th>
-                <th class="num">Cases/Qty</th><th class="num">Per Case</th>
-                <th class="num">Total</th><th>Carton</th>
-            </tr></thead>
+            <thead><tr><th>Time</th><th>Type</th><th>Product</th><th>Order / Customer</th><th class="num">Cases/Qty</th><th class="num">Per Case</th><th class="num">Total</th><th>Carton</th></tr></thead>
             <tbody>
                 <asp:Repeater ID="rptLog" runat="server">
                     <ItemTemplate><tr>
                         <td style="font-size:12px;color:var(--text-muted);"><%# Convert.ToDateTime(Eval("PackedAt")).ToString("hh:mm tt") %></td>
-                        <td><%# Eval("PackingType").ToString() == "ONLINE"
-                            ? "<span class='badge-online'>Online</span>"
-                            : "<span class='badge-case'>Case</span>" %></td>
+                        <td><%# Eval("PackingType").ToString()=="ONLINE" ? "<span class='badge-online'>Online</span>" : "<span class='badge-case'>Case</span>" %></td>
                         <td><strong><%# Eval("ProductName") %></strong></td>
-                        <td style="font-size:12px;"><%# Eval("OnlineOrderID") == DBNull.Value ? "" : Eval("OnlineOrderID").ToString() %>
-                            <%# Eval("CustomerName") == DBNull.Value ? "" : "<br/><span style='color:var(--text-dim);'>" + Eval("CustomerName") + "</span>" %></td>
+                        <td style="font-size:12px;"><%# Eval("OnlineOrderID")==DBNull.Value ? "" : Eval("OnlineOrderID").ToString() %><%# Eval("CustomerName")==DBNull.Value ? "" : "<br/><span style='color:var(--text-dim);'>"+Eval("CustomerName")+"</span>" %></td>
                         <td class="num" style="font-weight:700;"><%# Eval("QtyCartons") %></td>
                         <td class="num"><%# Eval("UnitsPerCarton") %></td>
                         <td class="num" style="font-weight:700;color:var(--teal);"><%# string.Format("{0:N0}", Eval("TotalUnits")) %></td>
-                        <td style="font-size:12px;"><%# Eval("PMName") == DBNull.Value ? "—" : Eval("PMName").ToString() %></td>
+                        <td style="font-size:12px;"><%# Eval("PMName")==DBNull.Value ? "—" : Eval("PMName").ToString() %></td>
                     </tr></ItemTemplate>
                 </asp:Repeater>
             </tbody>
@@ -246,135 +180,16 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 </div>
 </form>
 <script>
-var productData = {};
-try { productData = JSON.parse(document.getElementById('<%= hfProductData.ClientID %>').value || '{}'); } catch(e){}
-var olLines = [];
-
-// ── TAB SWITCHING ──
-function switchTab(tab){
-    document.querySelectorAll('.tab').forEach(function(t,i){ t.className = 'tab' + (i === (tab==='case'?0:1) ? ' active' : ''); });
-    document.getElementById('tabCase').className   = 'tab-content' + (tab==='case' ? ' active' : '');
-    document.getElementById('tabOnline').className = 'tab-content' + (tab==='online' ? ' active' : '');
-}
-
-// ── CASE PACKING JS ──
-function onProductChange(sel){
-    var val = sel.value; var info = document.getElementById('productInfo');
-    if(!val || val==='0'){ info.className='product-info'; document.getElementById('calcBar').style.display='none'; return; }
-    var p = productData[val]; if(!p){ info.className='product-info'; return; }
-    var jarSize = parseInt(p.unitSizes)||1, availPcs = parseInt(p.availPcs)||0;
-    var availJars = Math.floor(availPcs/jarSize), perCase = parseInt(p.containersPerCase)||12;
-    var maxCases = Math.floor(availJars/perCase);
-    var ct = p.containerType||'JAR', ctLabel = ct==='DIRECT'?'Containers':ct+'s';
-    document.getElementById('piName').innerText = p.name;
-    document.getElementById('piCode').innerText = p.code;
-    document.getElementById('piAvailJars').innerText = availJars.toLocaleString();
-    document.getElementById('piAvailPcs').innerText = availPcs.toLocaleString();
-    document.getElementById('piContainerLabel').innerText = ctLabel+' Available';
-    document.getElementById('piPerCase').innerText = perCase;
-    document.getElementById('piPerCaseLabel').innerText = ctLabel+' per Case';
-    document.getElementById('piMaxCases').innerText = maxCases;
-    document.getElementById('txtUnitsPerCarton').value = perCase;
-    var pmDisp = document.getElementById('casePMDisplay');
-    var hfPM = document.getElementById('<%= hfCasePMID.ClientID %>');
-    if(p.casePMID && parseInt(p.casePMID)>0){ pmDisp.innerText=p.casePMName; pmDisp.style.color='var(--text)'; pmDisp.style.fontWeight='600'; hfPM.value=p.casePMID; }
-    else { pmDisp.innerText='No carton PM mapped'; pmDisp.style.color='var(--text-dim)'; hfPM.value='0'; }
-    info.className='product-info show'; calcSecondary();
-}
-function calcSecondary(){
-    var sel=document.getElementById('<%= ddlProduct.ClientID %>'); var val=sel?sel.value:'0';
-    var p=productData[val]; var cb=document.getElementById('calcBar'); var wb=document.getElementById('warnBar');
-    if(!p||val==='0'){cb.style.display='none';wb.style.display='none';return;}
-    var cases=parseInt(document.getElementById('txtCartons').value)||0;
-    var perCase=parseInt(document.getElementById('txtUnitsPerCarton').value)||0;
-    var totalJars=cases*perCase; var jarSize=parseInt(p.unitSizes)||1;
-    var availJars=Math.floor((parseInt(p.availPcs)||0)/jarSize);
-    var ct=(p.containerType||'JAR'); var ctLabel=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';
-    if(cases>0&&perCase>0){
-        cb.style.display='flex';
-        document.getElementById('calcFormula').innerText=cases+' cases x '+perCase+' '+ctLabel+'/case';
-        document.getElementById('calcTotal').innerText=totalJars.toLocaleString();
-        if(totalJars>availJars){wb.style.display='block';document.getElementById('warnText').innerText='Need '+totalJars+' '+ctLabel+' but only '+availJars+' available';}
-        else{wb.style.display='none';}
-    } else {cb.style.display='none';wb.style.display='none';}
-}
-
-// ── ONLINE ORDER JS ──
-window.addEventListener('load',function(){
-    var sel = document.getElementById('selOLProduct');
-    for(var pid in productData){
-        var p = productData[pid];
-        var jarSize = parseInt(p.unitSizes)||1;
-        var availJars = Math.floor((parseInt(p.availPcs)||0)/jarSize);
-        var ct = p.containerType||'JAR';
-        var ctLabel = ct==='DIRECT'?'containers':ct.toLowerCase()+'s';
-        var opt = document.createElement('option');
-        opt.value = pid;
-        opt.text = p.name + ' (' + availJars + ' ' + ctLabel + ')';
-        opt.setAttribute('data-jarsize', jarSize);
-        opt.setAttribute('data-avail', availJars);
-        opt.setAttribute('data-ct', ct);
-        sel.appendChild(opt);
-    }
-});
-function onOLProductChange(){
-    var sel = document.getElementById('selOLProduct');
-    var opt = sel.options[sel.selectedIndex];
-    var info = document.getElementById('olAvailInfo');
-    if(sel.value==='0'){info.innerText='';return;}
-    var avail = parseInt(opt.getAttribute('data-avail'))||0;
-    var ct = opt.getAttribute('data-ct')||'JAR';
-    var ctLabel = ct==='DIRECT'?'containers':ct.toLowerCase()+'s';
-    info.innerText = avail + ' ' + ctLabel + ' available';
-}
-function addOLLine(){
-    var sel = document.getElementById('selOLProduct');
-    var qtyInput = document.getElementById('txtOLQty');
-    var pid = sel.value;
-    if(pid==='0'){alert('Select a product');return;}
-    var qty = parseInt(qtyInput.value)||0;
-    if(qty<=0){alert('Enter a quantity');return;}
-    var opt = sel.options[sel.selectedIndex];
-    var name = productData[pid].name;
-    var jarSize = parseInt(opt.getAttribute('data-jarsize'))||1;
-    var avail = parseInt(opt.getAttribute('data-avail'))||0;
-    // Check if already added
-    for(var i=0;i<olLines.length;i++){
-        if(olLines[i].pid===pid){alert('Product already added. Remove it first to change qty.');return;}
-    }
-    if(qty>avail){alert('Only '+avail+' available');return;}
-    olLines.push({pid:pid, name:name, qty:qty, jarSize:jarSize, pcs:qty*jarSize});
-    renderOLTable();
-    qtyInput.value=''; sel.selectedIndex=0;
-    document.getElementById('olAvailInfo').innerText='';
-}
-function removeOLLine(idx){
-    olLines.splice(idx,1); renderOLTable();
-}
-function renderOLTable(){
-    var body = document.getElementById('olBody');
-    var tbl = document.getElementById('olTable');
-    body.innerHTML='';
-    var totalQty=0, totalPcs=0;
-    if(olLines.length===0){tbl.style.display='none';syncOLHidden();return;}
-    tbl.style.display='table';
-    olLines.forEach(function(line,i){
-        var tr = document.createElement('tr');
-        tr.innerHTML = '<td><strong>'+line.name+'</strong></td>'
-            +'<td class="num">'+line.qty+'</td>'
-            +'<td class="num">'+line.pcs.toLocaleString()+'</td>'
-            +'<td><button type="button" class="btn-remove" onclick="removeOLLine('+i+')">Remove</button></td>';
-        body.appendChild(tr);
-        totalQty += line.qty; totalPcs += line.pcs;
-    });
-    document.getElementById('olTotalQty').innerText = totalQty;
-    document.getElementById('olTotalPcs').innerText = totalPcs.toLocaleString();
-    syncOLHidden();
-}
-function syncOLHidden(){
-    // Serialize lines as: pid:qty:jarSize,pid:qty:jarSize,...
-    var parts = [];
-    olLines.forEach(function(l){ parts.push(l.pid+':'+l.qty+':'+l.jarSize); });
-    document.getElementById('<%= hfOnlineLines.ClientID %>').value = parts.join(',');
-}
+var productData={};
+try{productData=JSON.parse(document.getElementById('<%= hfProductData.ClientID %>').value||'{}');}catch(e){}
+var olLines=[];
+function switchTab(t){document.querySelectorAll('.tab').forEach(function(el,i){el.className='tab'+(i===(t==='case'?0:1)?' active':'');});document.getElementById('tabCase').className='tab-content'+(t==='case'?' active':'');document.getElementById('tabOnline').className='tab-content'+(t==='online'?' active':'');}
+function onProductChange(sel){var v=sel.value;var info=document.getElementById('productInfo');if(!v||v==='0'){info.className='product-info';document.getElementById('calcBar').style.display='none';return;}var p=productData[v];if(!p){info.className='product-info';return;}var js=parseInt(p.unitSizes)||1,ap=parseInt(p.availPcs)||0,aj=Math.floor(ap/js),pc=parseInt(p.containersPerCase)||12,mx=Math.floor(aj/pc),ct=p.containerType||'JAR',cl=ct==='DIRECT'?'Containers':ct+'s';document.getElementById('piName').innerText=p.name;document.getElementById('piCode').innerText=p.code;document.getElementById('piAvailJars').innerText=aj.toLocaleString();document.getElementById('piAvailPcs').innerText=ap.toLocaleString();document.getElementById('piContainerLabel').innerText=cl+' Available';document.getElementById('piPerCase').innerText=pc;document.getElementById('piPerCaseLabel').innerText=cl+' per Case';document.getElementById('piMaxCases').innerText=mx;document.getElementById('txtUnitsPerCarton').value=pc;var pd=document.getElementById('casePMDisplay'),hf=document.getElementById('<%= hfCasePMID.ClientID %>');if(p.casePMID&&parseInt(p.casePMID)>0){pd.innerText=p.casePMName;pd.style.color='var(--text)';pd.style.fontWeight='600';hf.value=p.casePMID;}else{pd.innerText='No carton PM mapped';pd.style.color='var(--text-dim)';hf.value='0';}info.className='product-info show';calcSecondary();}
+function calcSecondary(){var sel=document.getElementById('<%= ddlProduct.ClientID %>');var v=sel?sel.value:'0';var p=productData[v];var cb=document.getElementById('calcBar');var wb=document.getElementById('warnBar');if(!p||v==='0'){cb.style.display='none';wb.style.display='none';return;}var cs=parseInt(document.getElementById('txtCartons').value)||0,pc=parseInt(document.getElementById('txtUnitsPerCarton').value)||0,tj=cs*pc,js=parseInt(p.unitSizes)||1,aj=Math.floor((parseInt(p.availPcs)||0)/js),ct=(p.containerType||'JAR'),cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';if(cs>0&&pc>0){cb.style.display='flex';document.getElementById('calcFormula').innerText=cs+' cases x '+pc+' '+cl+'/case';document.getElementById('calcTotal').innerText=tj.toLocaleString();if(tj>aj){wb.style.display='block';document.getElementById('warnText').innerText='Need '+tj+' '+cl+' but only '+aj+' available';}else{wb.style.display='none';}}else{cb.style.display='none';wb.style.display='none';}}
+window.addEventListener('load',function(){var sel=document.getElementById('selOLProduct');for(var pid in productData){var p=productData[pid];var js=parseInt(p.unitSizes)||1,aj=Math.floor((parseInt(p.availPcs)||0)/js),ct=p.containerType||'JAR',cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';var opt=document.createElement('option');opt.value=pid;opt.text=p.name+' ('+aj+' '+cl+')';opt.setAttribute('data-jarsize',js);opt.setAttribute('data-avail',aj);opt.setAttribute('data-ct',ct);sel.appendChild(opt);}});
+function onOLProductChange(){var sel=document.getElementById('selOLProduct');var opt=sel.options[sel.selectedIndex];var info=document.getElementById('olAvailInfo');if(sel.value==='0'){info.innerText='';return;}var av=parseInt(opt.getAttribute('data-avail'))||0,ct=opt.getAttribute('data-ct')||'JAR',cl=ct==='DIRECT'?'containers':ct.toLowerCase()+'s';info.innerText=av+' '+cl+' available';}
+function addOLLine(){var sel=document.getElementById('selOLProduct');var qi=document.getElementById('txtOLQty');var pid=sel.value;if(pid==='0'){alert('Select a product');return;}var qty=parseInt(qi.value)||0;if(qty<=0){alert('Enter a quantity');return;}var opt=sel.options[sel.selectedIndex];var nm=productData[pid].name;var js=parseInt(opt.getAttribute('data-jarsize'))||1;var av=parseInt(opt.getAttribute('data-avail'))||0;for(var i=0;i<olLines.length;i++){if(olLines[i].pid===pid){alert('Product already added. Remove first.');return;}}if(qty>av){alert('Only '+av+' available');return;}olLines.push({pid:pid,name:nm,qty:qty,jarSize:js,pcs:qty*js});renderOLTable();qi.value='';sel.selectedIndex=0;document.getElementById('olAvailInfo').innerText='';}
+function removeOLLine(idx){olLines.splice(idx,1);renderOLTable();}
+function renderOLTable(){var body=document.getElementById('olBody');var tbl=document.getElementById('olTable');body.innerHTML='';var tq=0,tp=0;if(olLines.length===0){tbl.style.display='none';syncOL();return;}tbl.style.display='table';olLines.forEach(function(l,i){var tr=document.createElement('tr');tr.innerHTML='<td><strong>'+l.name+'</strong></td><td class="num">'+l.qty+'</td><td class="num">'+l.pcs.toLocaleString()+'</td><td><button type="button" class="btn-remove" onclick="removeOLLine('+i+')">Remove</button></td>';body.appendChild(tr);tq+=l.qty;tp+=l.pcs;});document.getElementById('olTotalQty').innerText=tq;document.getElementById('olTotalPcs').innerText=tp.toLocaleString();syncOL();}
+function syncOL(){var parts=[];olLines.forEach(function(l){parts.push(l.pid+':'+l.qty+':'+l.jarSize);});document.getElementById('<%= hfOnlineLines.ClientID %>').value=parts.join(',');}
 </script></body></html>
