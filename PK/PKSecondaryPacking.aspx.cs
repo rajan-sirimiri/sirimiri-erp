@@ -86,7 +86,7 @@ namespace PKApp
         void BindCartonDropdown()
         {
             if (ddlOnlineCarton == null) return;
-            var dt = PKDatabaseHelper.GetPackingMaterialsByCategory("CARTON");
+            var dt = PKDatabaseHelper.GetPackingMaterialsByCategory("Carton / Master Box");
             ddlOnlineCarton.Items.Clear();
             ddlOnlineCarton.Items.Add(new ListItem("-- Select Carton --", "0"));
             foreach (DataRow r in dt.Rows)

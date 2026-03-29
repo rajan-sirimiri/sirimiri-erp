@@ -23,6 +23,8 @@ namespace MMApp
         protected TextBox     txtReorder;
         protected DropDownList ddlUOM;
         protected DropDownList ddlCategory;
+        protected TextBox     txtNewCategory;
+        protected Button      btnAddCategory;
         protected Button      btnSave;
         protected Button      btnClear;
         protected Button      btnToggleActive;
@@ -43,7 +45,7 @@ namespace MMApp
         {
             if (Session["MM_UserID"] == null) { Response.Redirect("MMLogin.aspx"); return; }
             lblNavUser.Text = Session["MM_FullName"]?.ToString() ?? "";
-            if (!IsPostBack) { LoadUOM(); LoadMaterials(); SetFormMode(false); }
+            if (!IsPostBack) { LoadUOM(); LoadCategories(); LoadMaterials(); SetFormMode(false); }
         }
 
         private void LoadUOM()
@@ -54,6 +56,20 @@ namespace MMApp
             ddlUOM.DataValueField = "UOMID";
             ddlUOM.DataBind();
             ddlUOM.Items.Insert(0, new ListItem("-- Select UOM --", "0"));
+        }
+
+        private void LoadCategories()
+        {
+            if (ddlCategory == null) return;
+            string selectedVal = ddlCategory.SelectedValue;
+            var dt = MMDatabaseHelper.GetPMCategories();
+            ddlCategory.Items.Clear();
+            ddlCategory.Items.Add(new ListItem("-- Select Category --", ""));
+            foreach (DataRow r in dt.Rows)
+                ddlCategory.Items.Add(new ListItem(r["CategoryName"].ToString(), r["CategoryName"].ToString()));
+            // Restore selection
+            if (!string.IsNullOrEmpty(selectedVal))
+                try { ddlCategory.SelectedValue = selectedVal; } catch { }
         }
 
         private void LoadMaterials()
@@ -232,6 +248,30 @@ namespace MMApp
             ddlUOM.SelectedIndex = 0;
             if (ddlCategory != null) ddlCategory.SelectedIndex = 0;
             SetFormMode(false);
+        }
+
+        protected void btnAddCategory_Click(object sender, EventArgs e)
+        {
+            if (txtNewCategory == null) return;
+            string name = txtNewCategory.Text.Trim();
+            if (string.IsNullOrEmpty(name))
+            { ShowAlert("Enter a category name.", false); return; }
+            try
+            {
+                MMDatabaseHelper.AddPMCategory(name);
+                txtNewCategory.Text = "";
+                LoadCategories();
+                // Auto-select the newly added category
+                try { ddlCategory.SelectedValue = name; } catch { }
+                ShowAlert("Category '" + name + "' added.", true);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("Duplicate"))
+                    ShowAlert("Category '" + name + "' already exists.", false);
+                else
+                    ShowAlert("Error: " + ex.Message, false);
+            }
         }
     }
 }

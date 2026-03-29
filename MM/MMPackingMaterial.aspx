@@ -118,16 +118,13 @@
                     </div>
                     <div class="form-group">
                         <label>Category</label>
-                        <asp:DropDownList ID="ddlCategory" runat="server">
-                            <asp:ListItem Value="" Text="-- Select --"/>
-                            <asp:ListItem Value="CARTON" Text="Carton / Master Box"/>
-                            <asp:ListItem Value="JAR" Text="Jar / Bottle / Container"/>
-                            <asp:ListItem Value="LID" Text="Lid / Cap"/>
-                            <asp:ListItem Value="LABEL" Text="Label / Sticker"/>
-                            <asp:ListItem Value="ROLL" Text="Roll / Film / Wrap"/>
-                            <asp:ListItem Value="WRAP" Text="Shrink Wrap / Tape"/>
-                            <asp:ListItem Value="OTHER" Text="Other"/>
-                        </asp:DropDownList>
+                        <div style="display:flex;gap:6px;align-items:flex-start;">
+                            <asp:DropDownList ID="ddlCategory" runat="server" style="flex:1;"/>
+                            <asp:TextBox ID="txtNewCategory" runat="server" MaxLength="50" placeholder="New category..." style="flex:1;font-size:12px;"/>
+                            <asp:Button ID="btnAddCategory" runat="server" Text="+" CssClass="btn btn-secondary"
+                                OnClick="btnAddCategory_Click" CausesValidation="false"
+                                style="padding:8px 14px;font-size:14px;font-weight:700;min-width:38px;"/>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Unit of Measure <span class="req">*</span></label>

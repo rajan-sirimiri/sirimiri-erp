@@ -1224,5 +1224,21 @@ namespace MMApp.DAL
                 "ORDER BY MaterialName;";
             return ExecuteQuery(sql, new MySqlParameter("t", materialType));
         }
+
+        // ── PM CATEGORIES ────────────────────────────────────────────────────
+        public static DataTable GetPMCategories(bool activeOnly = true)
+        {
+            if (activeOnly)
+                return ExecuteQuery("SELECT CategoryID, CategoryName FROM MM_PMCategories WHERE IsActive=1 ORDER BY CategoryName;");
+            else
+                return ExecuteQuery("SELECT CategoryID, CategoryName, IsActive FROM MM_PMCategories ORDER BY CategoryName;");
+        }
+
+        public static void AddPMCategory(string name)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO MM_PMCategories (CategoryName) VALUES(?n);",
+                new MySqlParameter("?n", name));
+        }
     }
 }
