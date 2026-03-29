@@ -499,15 +499,27 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductName, p.ProductCode," +
+                " IFNULL(p.ContainerType,'DIRECT') AS ContainerType," +
+                " IFNULL(p.ContainersPerCase,12) AS ContainersPerCase," +
+                " IFNULL(p.UnitsPerContainer,'') AS UnitsPerContainer," +
                 " ou.Abbreviation AS Unit," +
-                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0), 3) AS AvailableQty" +
+                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0), 0) AS AvailablePcs," +
+                " IFNULL(casePM.PMID, 0) AS CasePMID," +
+                " IFNULL(casePM.PMName, '') AS CasePMName," +
+                " IFNULL(casePM.QtyPerUnit, 1) AS CasePMQtyPerUnit" +
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
                 " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPacked" +
                 "   FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID = p.ProductID" +
                 " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalPacked2" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
-                " WHERE p.IsActive=1 AND IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0) > 0.001" +
+                " LEFT JOIN (SELECT m.ProductID, pm.PMID, pm.PMName, m.QtyPerUnit" +
+                "   FROM PK_ProductPMMaster m" +
+                "   JOIN MM_PackingMaterials pm ON pm.PMID = m.PMID" +
+                "   WHERE m.ApplyLevel='CASE' AND m.IsActive=1 AND m.Language IS NULL" +
+                "   ORDER BY m.MappingID LIMIT 1000) casePM ON casePM.ProductID = p.ProductID" +
+                " WHERE p.IsActive=1 AND p.ProductType='Core'" +
+                " AND IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0) > 0.5" +
                 " ORDER BY p.ProductName;");
         }
 

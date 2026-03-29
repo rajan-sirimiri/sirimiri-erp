@@ -129,7 +129,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <span class="nav-item">Transactions <span class="chevron">&#9660;</span></span>
         <div class="nav-dropdown">
             <a href="PKPrimaryPacking.aspx">Primary Packing</a>
-            <a href="PKSecondaryPacking.aspx">Secondary Packing</a>
+            <a href="PKSecondaryPacking.aspx">Secondary Packing &amp; FG</a>
             <a href="PKShipment.aspx">Shipments</a>
         </div>
     </div>
@@ -186,7 +186,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <a href="PKSecondaryPacking.aspx" class="menu-card cat-txn">
             <div class="menu-icon">&#x1F4CB;</div>
             <div>
-                <div class="menu-title">Secondary Packing</div>
+                <div class="menu-title">Secondary Packing &amp; FG</div>
                 <div class="menu-desc">Pack into master cartons — shipment ready</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
