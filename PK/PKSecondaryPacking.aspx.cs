@@ -10,28 +10,31 @@ namespace PKApp
     {
         protected Label lblUser, lblAlert;
         protected Panel pnlAlert, pnlEmpty, pnlTable;
-        protected DropDownList ddlProduct;
-        protected HiddenField hfProductData, hfCasePMID;
+        protected DropDownList ddlProduct, ddlOnlineCarton;
+        protected HiddenField hfProductData, hfCasePMID, hfOnlineLines;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCartons, txtUnitsPerCarton;
-        protected System.Web.UI.HtmlControls.HtmlTextArea txtRemarks;
+        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtOnlineOrderId, txtCustomerName;
+        protected System.Web.UI.HtmlControls.HtmlTextArea txtRemarks, txtOnlineRemarks;
         protected Repeater rptLog;
-        protected Button btnPack;
+        protected Button btnPack, btnPackOnline;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
         {
             if (Session["PK_UserID"] == null) { Response.Redirect("PKLogin.aspx"); return; }
             if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
-            if (!IsPostBack) { BindProductDropdown(); BindLog(); }
+            if (!IsPostBack) { BindProductDropdown(); BindCartonDropdown(); BindLog(); }
         }
 
         void BindProductDropdown()
         {
             var dt = PKDatabaseHelper.GetFGReadyForSecondary();
-            ddlProduct.Items.Clear();
-            ddlProduct.Items.Add(new ListItem("-- Select Product --", "0"));
+            if (ddlProduct != null)
+            {
+                ddlProduct.Items.Clear();
+                ddlProduct.Items.Add(new ListItem("-- Select Product --", "0"));
+            }
 
-            // Build JSON for client-side product info
             var sb = new System.Text.StringBuilder("{");
             bool first = true;
             foreach (DataRow r in dt.Rows)
@@ -41,7 +44,6 @@ namespace PKApp
                 string code = r["ProductCode"].ToString();
                 int availPcs = Convert.ToInt32(r["AvailablePcs"]);
                 string unitSizes = r["UnitsPerContainer"] == DBNull.Value ? "" : r["UnitsPerContainer"].ToString();
-                // Get first unit size for jar calculation
                 string firstUnitSize = "";
                 if (!string.IsNullOrEmpty(unitSizes))
                 {
@@ -53,35 +55,47 @@ namespace PKApp
                 int casePMID = Convert.ToInt32(r["CasePMID"]);
                 string casePMName = r["CasePMName"].ToString();
 
-                // Calculate jars for dropdown display
                 int jarSize = 0;
                 int.TryParse(firstUnitSize, out jarSize);
                 if (jarSize <= 0) jarSize = 1;
                 int availJars = availPcs / jarSize;
                 string ctLabel = containerType == "DIRECT" ? "containers" : containerType.ToLower() + "s";
 
-                ddlProduct.Items.Add(new ListItem(
-                    name + " (" + code + ") — " + availJars + " " + ctLabel + " available",
-                    pid));
+                if (ddlProduct != null)
+                    ddlProduct.Items.Add(new ListItem(
+                        name + " (" + code + ") — " + availJars + " " + ctLabel,
+                        pid));
 
                 if (!first) sb.Append(",");
                 sb.Append("\"" + pid + "\":{");
-                sb.Append("\"name\":\"" + EscapeJson(name) + "\",");
-                sb.Append("\"code\":\"" + EscapeJson(code) + "\",");
+                sb.Append("\"name\":\"" + Esc(name) + "\",");
+                sb.Append("\"code\":\"" + Esc(code) + "\",");
                 sb.Append("\"availPcs\":" + availPcs + ",");
-                sb.Append("\"unitSizes\":\"" + EscapeJson(firstUnitSize) + "\",");
+                sb.Append("\"unitSizes\":\"" + Esc(firstUnitSize) + "\",");
                 sb.Append("\"containersPerCase\":" + containersPerCase + ",");
-                sb.Append("\"containerType\":\"" + EscapeJson(containerType) + "\",");
+                sb.Append("\"containerType\":\"" + Esc(containerType) + "\",");
                 sb.Append("\"casePMID\":\"" + casePMID + "\",");
-                sb.Append("\"casePMName\":\"" + EscapeJson(casePMName) + "\"");
+                sb.Append("\"casePMName\":\"" + Esc(casePMName) + "\"");
                 sb.Append("}");
                 first = false;
             }
             sb.Append("}");
-            hfProductData.Value = sb.ToString();
+            if (hfProductData != null) hfProductData.Value = sb.ToString();
         }
 
-        string EscapeJson(string s)
+        void BindCartonDropdown()
+        {
+            if (ddlOnlineCarton == null) return;
+            var dt = PKDatabaseHelper.GetActivePackingMaterials();
+            ddlOnlineCarton.Items.Clear();
+            ddlOnlineCarton.Items.Add(new ListItem("-- None --", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlOnlineCarton.Items.Add(new ListItem(
+                    r["PMName"] + " (" + r["Abbreviation"] + ")",
+                    r["PMID"].ToString()));
+        }
+
+        string Esc(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
             return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
@@ -95,6 +109,7 @@ namespace PKApp
             if (rptLog != null) { rptLog.DataSource = dt; rptLog.DataBind(); }
         }
 
+        // ── CASE PACKING SAVE ──
         protected void btnPack_Click(object s, EventArgs e)
         {
             int productId = Convert.ToInt32(ddlProduct.SelectedValue);
@@ -108,14 +123,11 @@ namespace PKApp
 
             int totalJars = cases * unitsPerCarton;
 
-            // Get available — need to compute in jars
             var products = PKDatabaseHelper.GetFGReadyForSecondary();
             DataRow productRow = null;
             foreach (DataRow r in products.Rows)
-            {
                 if (Convert.ToInt32(r["ProductID"]) == productId) { productRow = r; break; }
-            }
-            if (productRow == null) { ShowAlert("Product not found or no stock available.", false); return; }
+            if (productRow == null) { ShowAlert("Product not found or no stock.", false); return; }
 
             int availPcs = Convert.ToInt32(productRow["AvailablePcs"]);
             string unitSizes = productRow["UnitsPerContainer"] == DBNull.Value ? "" : productRow["UnitsPerContainer"].ToString();
@@ -129,13 +141,7 @@ namespace PKApp
             int availJars = availPcs / jarSize;
 
             if (totalJars > availJars)
-            {
-                ShowAlert("Need " + totalJars + " jars but only " + availJars + " available.", false);
-                return;
-            }
-
-            // The existing AddSecondaryPacking expects TotalUnits in individual pieces
-            int totalPcs = totalJars * jarSize;
+            { ShowAlert("Need " + totalJars + " jars but only " + availJars + " available.", false); return; }
 
             int pmId = 0;
             int.TryParse(hfCasePMID.Value, out pmId);
@@ -146,18 +152,92 @@ namespace PKApp
                 PKDatabaseHelper.AddSecondaryPacking(productId, cases, unitsPerCarton,
                     pmId, cartonsUsed, txtRemarks.Value, UserID);
 
-                string ctLabel = productRow["ContainerType"].ToString();
-                ctLabel = ctLabel == "DIRECT" ? "containers" : ctLabel.ToLower() + "s";
-
                 txtCartons.Value = ""; txtUnitsPerCarton.Value = ""; txtRemarks.Value = "";
-                ShowAlert(cases + " cases packed (" + totalJars + " " + ctLabel + " → " + cases + " master cartons). Added to FG stock.", true);
-                BindProductDropdown();
-                BindLog();
+                ShowAlert(cases + " cases packed (" + totalJars + " jars). Added to FG stock.", true);
+                BindProductDropdown(); BindLog();
             }
-            catch (Exception ex)
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+        }
+
+        // ── ONLINE ORDER SAVE ──
+        protected void btnPackOnline_Click(object s, EventArgs e)
+        {
+            string orderId = txtOnlineOrderId != null ? txtOnlineOrderId.Value.Trim() : "";
+            string customer = txtCustomerName != null ? txtCustomerName.Value.Trim() : "";
+            if (string.IsNullOrEmpty(orderId))
+            { ShowAlert("Please enter an Order ID.", false); return; }
+            if (string.IsNullOrEmpty(customer))
+            { ShowAlert("Please enter a Customer Name.", false); return; }
+
+            string linesRaw = hfOnlineLines != null ? hfOnlineLines.Value : "";
+            if (string.IsNullOrEmpty(linesRaw))
+            { ShowAlert("Please add at least one product to the order.", false); return; }
+
+            // Parse lines: pid:qty:jarSize,pid:qty:jarSize,...
+            string[] lineParts = linesRaw.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (lineParts.Length == 0)
+            { ShowAlert("Please add at least one product to the order.", false); return; }
+
+            int cartonPmId = 0;
+            if (ddlOnlineCarton != null)
+                int.TryParse(ddlOnlineCarton.SelectedValue, out cartonPmId);
+
+            string remarks = txtOnlineRemarks != null ? txtOnlineRemarks.Value.Trim() : "";
+
+            try
             {
-                ShowAlert("Error: " + ex.Message, false);
+                // Validate stock for each line
+                var products = PKDatabaseHelper.GetFGReadyForSecondary();
+                foreach (string part in lineParts)
+                {
+                    string[] fields = part.Split(':');
+                    if (fields.Length < 3) continue;
+                    int pid = int.Parse(fields[0]);
+                    int qty = int.Parse(fields[1]);
+                    int js  = int.Parse(fields[2]);
+
+                    DataRow pr = null;
+                    foreach (DataRow r in products.Rows)
+                        if (Convert.ToInt32(r["ProductID"]) == pid) { pr = r; break; }
+                    if (pr == null)
+                    { ShowAlert("Product ID " + pid + " not found or no stock.", false); return; }
+
+                    int availPcs = Convert.ToInt32(pr["AvailablePcs"]);
+                    int availJars = availPcs / (js > 0 ? js : 1);
+                    if (qty > availJars)
+                    { ShowAlert("Insufficient stock for " + pr["ProductName"] + ": need " + qty + ", have " + availJars, false); return; }
+                }
+
+                // Save each line
+                bool cartonRecorded = false;
+                foreach (string part in lineParts)
+                {
+                    string[] fields = part.Split(':');
+                    if (fields.Length < 3) continue;
+                    int pid = int.Parse(fields[0]);
+                    int qty = int.Parse(fields[1]);
+                    int js  = int.Parse(fields[2]);
+
+                    PKDatabaseHelper.AddOnlineOrderPacking(pid, qty, js,
+                        cartonPmId, orderId, customer, remarks, UserID);
+
+                    // Record carton PM consumption only once per order
+                    if (!cartonRecorded && cartonPmId > 0)
+                    {
+                        PKDatabaseHelper.RecordOnlineOrderCartonPM(cartonPmId, UserID);
+                        cartonRecorded = true;
+                    }
+                }
+
+                if (txtOnlineOrderId != null) txtOnlineOrderId.Value = "";
+                if (txtCustomerName != null) txtCustomerName.Value = "";
+                if (txtOnlineRemarks != null) txtOnlineRemarks.Value = "";
+                if (hfOnlineLines != null) hfOnlineLines.Value = "";
+
+                ShowAlert("Online order " + orderId + " packed — " + lineParts.Length + " product(s) for " + customer + ".", true);
+                BindProductDropdown(); BindLog();
             }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
 
         void ShowAlert(string m, bool ok)

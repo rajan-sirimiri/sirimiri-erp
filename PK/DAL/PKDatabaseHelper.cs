@@ -561,13 +561,50 @@ namespace PKApp.DAL
                 "SELECT sp.SecPackID, p.ProductName, p.ProductCode," +
                 " sp.QtyCartons, sp.UnitsPerCarton, sp.TotalUnits," +
                 " ou.Abbreviation AS Unit, sp.PackedAt, sp.Remarks," +
-                " pm.PMName, sp.CartonsUsed" +
+                " pm.PMName, sp.CartonsUsed," +
+                " IFNULL(sp.PackingType,'CASE') AS PackingType," +
+                " sp.OnlineOrderID, sp.CustomerName" +
                 " FROM PK_SecondaryPacking sp" +
                 " JOIN PP_Products p ON p.ProductID = sp.ProductID" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
                 " LEFT JOIN MM_PackingMaterials pm ON pm.PMID = sp.PMID" +
                 " WHERE DATE(sp.PackedAt) = ?today ORDER BY sp.PackedAt DESC;",
                 new MySqlParameter("?today", TodayIST()));
+        }
+
+        /// Add an online order packing entry (one line per product in the order).
+        public static void AddOnlineOrderPacking(int productId, int qty, int jarSize,
+            int pmId, string onlineOrderId, string customerName, string remarks, int userId)
+        {
+            int totalPcs = qty * jarSize;
+            ExecuteNonQuery(
+                "INSERT INTO PK_SecondaryPacking" +
+                " (ProductID,PackingType,OnlineOrderID,CustomerName," +
+                "  QtyCartons,UnitsPerCarton,TotalUnits,PMID,CartonsUsed,PackedAt,Remarks,CreatedBy)" +
+                " VALUES(?pid,'ONLINE',?oid,?cust,?qty,1,?total,?pmid,0,?now,?rem,?by);",
+                new MySqlParameter("?pid",   productId),
+                new MySqlParameter("?oid",   string.IsNullOrEmpty(onlineOrderId) ? (object)DBNull.Value : onlineOrderId),
+                new MySqlParameter("?cust",  string.IsNullOrEmpty(customerName)  ? (object)DBNull.Value : customerName),
+                new MySqlParameter("?qty",   qty),
+                new MySqlParameter("?total", totalPcs),
+                new MySqlParameter("?pmid",  pmId > 0 ? (object)pmId : DBNull.Value),
+                new MySqlParameter("?now",   NowIST()),
+                new MySqlParameter("?rem",   string.IsNullOrEmpty(remarks) ? (object)DBNull.Value : remarks),
+                new MySqlParameter("?by",    userId));
+        }
+
+        /// Record carton PM consumption for online order (one carton per order).
+        public static void RecordOnlineOrderCartonPM(int pmId, int userId)
+        {
+            if (pmId <= 0) return;
+            int secPackId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+            ExecuteNonQuery(
+                "INSERT INTO PK_PMConsumption (PMID, QtyUsed, UsedAt, SourceType, SourceID, CreatedBy)" +
+                " VALUES(?pmid,1,?now,'ONLINE_ORDER',?sid,?by);",
+                new MySqlParameter("?pmid", pmId),
+                new MySqlParameter("?now",  NowIST()),
+                new MySqlParameter("?sid",  secPackId),
+                new MySqlParameter("?by",   userId));
         }
 
         // ── CUSTOMER PO ──────────────────────────────────────────────────────
