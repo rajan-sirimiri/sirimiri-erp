@@ -13,7 +13,7 @@ namespace PKApp
         protected DropDownList ddlProduct, ddlOnlineCarton;
         protected HiddenField hfProductData, hfCasePMID, hfOnlineLines;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCartons, txtUnitsPerCarton;
-        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtOnlineOrderId, txtCustomerName;
+        protected System.Web.UI.HtmlControls.HtmlInputText txtOnlineOrderId, txtCustomerName;
         protected System.Web.UI.HtmlControls.HtmlTextArea txtRemarks, txtOnlineRemarks;
         protected Repeater rptLog;
         protected Button btnPack, btnPackOnline;
