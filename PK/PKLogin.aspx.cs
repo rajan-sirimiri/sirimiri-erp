@@ -99,7 +99,6 @@ namespace PKApp
         }
 
         void ShowErr(string m) { lblErr.Text = m; pnlErr.Visible = true; }
-    }
 
         private string GetReturnUrl()
         {
@@ -111,4 +110,5 @@ namespace PKApp
             }
             return "PKHome.aspx";
         }
+    }
 }
