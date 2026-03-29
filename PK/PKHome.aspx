@@ -137,6 +137,8 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <span class="nav-item">Reports <span class="chevron">&#9660;</span></span>
         <div class="nav-dropdown">
             <a href="PKReports.aspx">FG Stock Report</a>
+            <a href="PKPMStockReport.aspx">PM Stock Report</a>
+            <a href="PKPackingHistory.aspx">Packing History</a>
         </div>
     </div>
     <span class="nav-user"><asp:Label ID="lblNavUser" runat="server"/></span>
@@ -206,6 +208,22 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             <div>
                 <div class="menu-title">FG Stock Report</div>
                 <div class="menu-desc">Finished goods stock position by product</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a href="PKPMStockReport.aspx" class="menu-card cat-report">
+            <div class="menu-icon">&#x1F4E6;</div>
+            <div>
+                <div class="menu-title">PM Stock Report</div>
+                <div class="menu-desc">Packing material stock — opening, received, consumed, current</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a href="PKPackingHistory.aspx" class="menu-card cat-report">
+            <div class="menu-icon">&#x1F4CB;</div>
+            <div>
+                <div class="menu-title">Packing History</div>
+                <div class="menu-desc">Batch-wise packing history with production time and language details</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>

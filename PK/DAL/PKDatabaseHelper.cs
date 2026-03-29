@@ -1055,5 +1055,73 @@ namespace PKApp.DAL
 
             return allMappings;
         }
+
+        // ── PM STOCK REPORT (for PK module) ──────────────────────────────
+        public static DataTable GetPMStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT p.PMID, p.PMCode, p.PMName, u.Abbreviation AS UOM," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(con.TotalConsumed, 0)" +
+                " , 4) AS CurrentStock," +
+                " IFNULL(os.Quantity, 0) AS OpeningStock," +
+                " IFNULL(grn.TotalReceived, 0) AS TotalReceived," +
+                " IFNULL(con.TotalConsumed, 0) AS TotalConsumed," +
+                " p.ReorderLevel" +
+                " FROM MM_PackingMaterials p" +
+                " JOIN MM_UOM u ON u.UOMID = p.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='PM' AND os.MaterialID=p.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalReceived" +
+                "            FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = p.PMID" +
+                " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed" +
+                "            FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = p.PMID" +
+                " WHERE p.IsActive = 1" +
+                " ORDER BY CurrentStock DESC, p.PMName ASC;");
+        }
+
+        // ── PACKING HISTORY REPORT ───────────────────────────────────────
+        public static DataTable GetPackingHistoryReport(int productId, DateTime fromDate, DateTime toDate)
+        {
+            string sql =
+                "SELECT pe.PackingID, pe.OrderID, pe.BatchNo, pe.StartTime, pe.EndTime," +
+                " pe.Jars, pe.Units, pe.JarSize, pe.TotalUnits, pe.Status, pe.LabelLanguage," +
+                " p.ProductName, p.ProductCode, p.ContainerType," +
+                " po.OrderDate, po.Shift" +
+                " FROM PK_PackingExecution pe" +
+                " JOIN PP_ProductionOrder po ON po.OrderID = pe.OrderID" +
+                " JOIN PP_Products p ON p.ProductID = po.ProductID" +
+                " WHERE pe.Status IN ('Completed','InProgress')" +
+                " AND pe.BatchNo > 0" +
+                " AND DATE(pe.StartTime) >= ?from AND DATE(pe.StartTime) <= ?to";
+
+            if (productId > 0)
+                sql += " AND po.ProductID = ?pid";
+
+            sql += " ORDER BY pe.StartTime DESC;";
+
+            if (productId > 0)
+                return ExecuteQuery(sql,
+                    new MySqlParameter("?from", fromDate.Date),
+                    new MySqlParameter("?to",   toDate.Date),
+                    new MySqlParameter("?pid",  productId));
+            else
+                return ExecuteQuery(sql,
+                    new MySqlParameter("?from", fromDate.Date),
+                    new MySqlParameter("?to",   toDate.Date));
+        }
+
+        /// Products that have had packing activity — for the report dropdown.
+        public static DataTable GetProductsWithPackingHistory()
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT p.ProductID, p.ProductCode, p.ProductName" +
+                " FROM PK_PackingExecution pe" +
+                " JOIN PP_ProductionOrder po ON po.OrderID = pe.OrderID" +
+                " JOIN PP_Products p ON p.ProductID = po.ProductID" +
+                " WHERE pe.BatchNo > 0" +
+                " ORDER BY p.ProductName;");
+        }
     }
 }

@@ -118,6 +118,18 @@
       <DependentUpon>PKReports.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <!-- PM Stock Report -->
+    <Content Include="PKPMStockReport.aspx" />
+    <Compile Include="PKPMStockReport.aspx.cs">
+      <DependentUpon>PKPMStockReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <!-- Packing History -->
+    <Content Include="PKPackingHistory.aspx" />
+    <Compile Include="PKPackingHistory.aspx.cs">
+      <DependentUpon>PKPackingHistory.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <!-- Product PM Mapping -->
     <Content Include="PKProductPM.aspx" />
     <Compile Include="PKProductPM.aspx.cs">
