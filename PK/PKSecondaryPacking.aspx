@@ -90,17 +90,19 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <div class="card-title">Pack Jars into Master Cartons</div>
         <div class="form-group" style="max-width:500px;margin-bottom:14px;">
             <label>Select Product <span style="color:var(--accent)">*</span></label>
-            <asp:DropDownList ID="ddlProduct" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProduct_Changed" onchange="onProductChange(this);"/>
+            <asp:DropDownList ID="ddlProduct" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProduct_Changed"/>
         </div>
-        <div id="productInfo" class="product-info">
-            <div class="product-info-row">
-                <div><div class="pi-name" id="piName"></div><div class="pi-code" id="piCode"></div></div>
-                <div class="pi-stat"><div class="pi-stat-val green" id="piAvailJars">0</div><div class="pi-stat-lbl" id="piContainerLabel">Jars Available</div></div>
-                <div class="pi-stat"><div class="pi-stat-val" id="piAvailPcs">0</div><div class="pi-stat-lbl">Pieces Available</div></div>
-                <div class="pi-stat"><div class="pi-stat-val orange" id="piPerCase">0</div><div class="pi-stat-lbl" id="piPerCaseLabel">Jars per Case</div></div>
-                <div class="pi-stat"><div class="pi-stat-val" id="piMaxCases">0</div><div class="pi-stat-lbl">Max Cases</div></div>
+        <!-- SERVER-SIDE PRODUCT INFO (shown after postback) -->
+        <asp:Panel ID="pnlProductInfo" runat="server" Visible="false">
+        <div style="background:#fef9f3;border:1px solid #fde3c8;border-radius:10px;padding:14px 20px;margin-bottom:16px;">
+            <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
+                <div><div style="font-weight:700;font-size:15px;"><asp:Label ID="lblPiName" runat="server"/></div><div style="font-size:11px;color:var(--text-dim);"><asp:Label ID="lblPiCode" runat="server"/></div></div>
+                <div style="text-align:center;"><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--teal);"><asp:Label ID="lblPiJars" runat="server"/></div><div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);"><asp:Label ID="lblPiJarsLabel" runat="server"/></div></div>
+                <div style="text-align:center;"><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);"><asp:Label ID="lblPiPerCase" runat="server"/></div><div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);"><asp:Label ID="lblPiPerCaseLabel" runat="server"/></div></div>
+                <div style="text-align:center;background:#eafaf1;border-radius:8px;padding:6px 16px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--teal);"><asp:Label ID="lblPiMaxCases" runat="server"/></div><div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);">Max Cases</div></div>
             </div>
         </div>
+        </asp:Panel>
         <div class="form-grid-3">
             <div class="form-group"><label>No. of Cases <span style="color:var(--accent)">*</span></label>
                 <input type="number" id="txtCartons" runat="server" step="1" min="1" placeholder="0" oninput="calcSecondary(); calcCasePMs();"/>

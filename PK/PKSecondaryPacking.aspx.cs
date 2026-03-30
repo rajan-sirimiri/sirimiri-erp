@@ -9,7 +9,8 @@ namespace PKApp
     public partial class PKSecondaryPacking : Page
     {
         protected Label lblUser, lblAlert;
-        protected Panel pnlAlert, pnlEmpty, pnlTable;
+        protected Label lblPiName, lblPiCode, lblPiJars, lblPiJarsLabel, lblPiPerCase, lblPiPerCaseLabel, lblPiMaxCases;
+        protected Panel pnlAlert, pnlEmpty, pnlTable, pnlProductInfo;
         protected DropDownList ddlProduct, ddlOnlineCarton;
         protected Panel pnlCasePM;
         protected HiddenField hfProductData, hfOnlineLines;
@@ -58,11 +59,16 @@ namespace PKApp
                 int.TryParse(firstUnitSize, out jarSize);
                 if (jarSize <= 0) jarSize = 1;
                 int availJars = availPcs / jarSize;
+                int maxCases = containersPerCase > 0 ? availJars / containersPerCase : 0;
                 string ctLabel = containerType == "DIRECT" ? "containers" : containerType.ToLower() + "s";
+
+                string stockText = availJars + " " + ctLabel;
+                if (maxCases > 0)
+                    stockText += " (" + maxCases + " cases possible)";
 
                 if (ddlProduct != null)
                     ddlProduct.Items.Add(new ListItem(
-                        name + " (" + code + ") — " + availJars + " " + ctLabel,
+                        name + " (" + code + ") — " + stockText,
                         pid));
 
                 if (!first) sb.Append(",");
@@ -115,6 +121,47 @@ namespace PKApp
             if (ddlProduct != null && ddlProduct.SelectedValue != null)
                 int.TryParse(ddlProduct.SelectedValue, out productId);
             BindCasePMs(productId);
+            ShowProductInfo(productId);
+        }
+
+        void ShowProductInfo(int productId)
+        {
+            if (pnlProductInfo == null) return;
+            if (productId <= 0) { pnlProductInfo.Visible = false; return; }
+
+            var dt = PKDatabaseHelper.GetFGReadyForSecondary();
+            DataRow row = null;
+            foreach (DataRow r in dt.Rows)
+                if (Convert.ToInt32(r["ProductID"]) == productId) { row = r; break; }
+            if (row == null) { pnlProductInfo.Visible = false; return; }
+
+            int availPcs = Convert.ToInt32(row["AvailablePcs"]);
+            string unitSizes = row["UnitsPerContainer"] == DBNull.Value ? "1" : row["UnitsPerContainer"].ToString();
+            int jarSize = 1;
+            if (!string.IsNullOrEmpty(unitSizes))
+            {
+                string[] sizes = unitSizes.Split(',');
+                int.TryParse(sizes[0].Trim(), out jarSize);
+            }
+            if (jarSize <= 0) jarSize = 1;
+            int availJars = availPcs / jarSize;
+            int containersPerCase = Convert.ToInt32(row["ContainersPerCase"]);
+            int maxCases = containersPerCase > 0 ? availJars / containersPerCase : 0;
+            string ct = row["ContainerType"].ToString();
+            string ctLabel = ct == "DIRECT" ? "Containers" : ct + "s";
+
+            lblPiName.Text = row["ProductName"].ToString();
+            lblPiCode.Text = row["ProductCode"].ToString();
+            lblPiJars.Text = availJars.ToString("N0");
+            lblPiJarsLabel.Text = ctLabel + " Available";
+            lblPiPerCase.Text = containersPerCase.ToString();
+            lblPiPerCaseLabel.Text = ctLabel + " per Case";
+            lblPiMaxCases.Text = maxCases.ToString("N0");
+
+            // Set jars per case in the input
+            if (txtUnitsPerCarton != null) txtUnitsPerCarton.Value = containersPerCase.ToString();
+
+            pnlProductInfo.Visible = true;
         }
 
         void BindCasePMs(int productId)
