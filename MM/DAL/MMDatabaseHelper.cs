@@ -1298,16 +1298,16 @@ namespace MMApp.DAL
                           " FROM MM_Consumables c" +
                           " JOIN MM_UOM u ON u.UOMID = c.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='CM' AND os.MaterialID=c.ConsumableID" +
-                          " LEFT JOIN (SELECT ItemID, SUM(QtyActualReceived) AS TotalReceived FROM MM_ConsumableInward GROUP BY ItemID) grn ON grn.ItemID=c.ConsumableID" +
+                          " LEFT JOIN (SELECT ConsumableID, SUM(QtyActualReceived) AS TotalReceived FROM MM_ConsumableInward GROUP BY ConsumableID) grn ON grn.ConsumableID=c.ConsumableID" +
                           " WHERE c.IsActive=1 ORDER BY c.ConsumableName;";
                     break;
                 case "ST":
                     sql = "SELECT s.StationaryID AS MaterialID, s.StationaryCode AS Code, s.StationaryName AS Name, u.Abbreviation AS UOM," +
                           " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0), 4) AS SystemStock" +
-                          " FROM MM_Stationary s" +
+                          " FROM MM_Stationaries s" +
                           " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='ST' AND os.MaterialID=s.StationaryID" +
-                          " LEFT JOIN (SELECT ItemID, SUM(QtyActualReceived) AS TotalReceived FROM MM_StationaryInward GROUP BY ItemID) grn ON grn.ItemID=s.StationaryID" +
+                          " LEFT JOIN (SELECT StationaryID, SUM(QtyActualReceived) AS TotalReceived FROM MM_StationaryInward GROUP BY StationaryID) grn ON grn.StationaryID=s.StationaryID" +
                           " WHERE s.IsActive=1 ORDER BY s.StationaryName;";
                     break;
             }
