@@ -1263,5 +1263,103 @@ namespace MMApp.DAL
                 "INSERT INTO MM_PMCategories (CategoryName) VALUES(?n);",
                 new MySqlParameter("?n", name));
         }
+
+        // ── STOCK RECONCILIATION ──────────────────────────────────────────────
+
+        /// Get all materials of a given type with current system stock
+        public static DataTable GetStockForReconciliation(string materialType)
+        {
+            string sql = "";
+            switch (materialType)
+            {
+                case "RM":
+                    sql = "SELECT r.RMID AS MaterialID, r.RMCode AS Code, r.RMName AS Name, u.Abbreviation AS UOM," +
+                          " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0) - IFNULL(con.TotalConsumed,0), 4) AS SystemStock" +
+                          " FROM MM_RawMaterials r" +
+                          " JOIN MM_UOM u ON u.UOMID = r.UOMID" +
+                          " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
+                          " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalReceived FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID=r.RMID" +
+                          " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID=r.RMID" +
+                          " WHERE r.IsActive=1 ORDER BY r.RMName;";
+                    break;
+                case "PM":
+                    sql = "SELECT p.PMID AS MaterialID, p.PMCode AS Code, p.PMName AS Name, u.Abbreviation AS UOM," +
+                          " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0) - IFNULL(con.TotalConsumed,0), 4) AS SystemStock" +
+                          " FROM MM_PackingMaterials p" +
+                          " JOIN MM_UOM u ON u.UOMID = p.UOMID" +
+                          " LEFT JOIN MM_OpeningStock os ON os.MaterialType='PM' AND os.MaterialID=p.PMID" +
+                          " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalReceived FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID=p.PMID" +
+                          " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID=p.PMID" +
+                          " WHERE p.IsActive=1 ORDER BY p.PMName;";
+                    break;
+                case "CM":
+                    sql = "SELECT c.ConsumableID AS MaterialID, c.ConsumableCode AS Code, c.ConsumableName AS Name, u.Abbreviation AS UOM," +
+                          " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0), 4) AS SystemStock" +
+                          " FROM MM_Consumables c" +
+                          " JOIN MM_UOM u ON u.UOMID = c.UOMID" +
+                          " LEFT JOIN MM_OpeningStock os ON os.MaterialType='CM' AND os.MaterialID=c.ConsumableID" +
+                          " LEFT JOIN (SELECT ItemID, SUM(QtyActualReceived) AS TotalReceived FROM MM_ConsumableInward GROUP BY ItemID) grn ON grn.ItemID=c.ConsumableID" +
+                          " WHERE c.IsActive=1 ORDER BY c.ConsumableName;";
+                    break;
+                case "ST":
+                    sql = "SELECT s.StationaryID AS MaterialID, s.StationaryCode AS Code, s.StationaryName AS Name, u.Abbreviation AS UOM," +
+                          " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0), 4) AS SystemStock" +
+                          " FROM MM_Stationary s" +
+                          " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
+                          " LEFT JOIN MM_OpeningStock os ON os.MaterialType='ST' AND os.MaterialID=s.StationaryID" +
+                          " LEFT JOIN (SELECT ItemID, SUM(QtyActualReceived) AS TotalReceived FROM MM_StationaryInward GROUP BY ItemID) grn ON grn.ItemID=s.StationaryID" +
+                          " WHERE s.IsActive=1 ORDER BY s.StationaryName;";
+                    break;
+            }
+            return ExecuteQuery(sql);
+        }
+
+        /// Save or update a single physical stock entry for today
+        public static void SavePhysicalStock(DateTime sessionDate, string materialType, int materialId, decimal physicalQty, int userId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO MM_PhysicalStock (SessionDate, MaterialType, MaterialID, PhysicalQty, EnteredBy)" +
+                " VALUES (?dt, ?mt, ?mid, ?qty, ?uid)" +
+                " ON DUPLICATE KEY UPDATE PhysicalQty=?qty2, EnteredBy=?uid2, UpdatedAt=NOW();",
+                new MySqlParameter("?dt", sessionDate),
+                new MySqlParameter("?mt", materialType),
+                new MySqlParameter("?mid", materialId),
+                new MySqlParameter("?qty", physicalQty),
+                new MySqlParameter("?qty2", physicalQty),
+                new MySqlParameter("?uid", userId),
+                new MySqlParameter("?uid2", userId));
+        }
+
+        /// Get all physical stock entries for a date and material type
+        public static DataTable GetPhysicalStock(DateTime sessionDate, string materialType)
+        {
+            return ExecuteQuery(
+                "SELECT MaterialID, PhysicalQty FROM MM_PhysicalStock WHERE SessionDate=?dt AND MaterialType=?mt;",
+                new MySqlParameter("?dt", sessionDate),
+                new MySqlParameter("?mt", materialType));
+        }
+
+        /// Save reconciliation snapshot (comparison results)
+        public static void SaveReconciliationSnapshot(DateTime reconDate, string materialType, int materialId,
+            decimal physicalQty, decimal systemQty)
+        {
+            decimal variance = physicalQty - systemQty;
+            decimal pct = systemQty != 0 ? (variance / systemQty) * 100 : (physicalQty != 0 ? 100 : 0);
+            ExecuteNonQuery(
+                "INSERT INTO MM_StockReconciliation (ReconDate, MaterialType, MaterialID, PhysicalQty, SystemQty, Variance, VariancePct)" +
+                " VALUES (?dt, ?mt, ?mid, ?phys, ?sys, ?var, ?pct)" +
+                " ON DUPLICATE KEY UPDATE PhysicalQty=?phys2, SystemQty=?sys2, Variance=?var2, VariancePct=?pct2;",
+                new MySqlParameter("?dt", reconDate),
+                new MySqlParameter("?mt", materialType),
+                new MySqlParameter("?mid", materialId),
+                new MySqlParameter("?phys", physicalQty),
+                new MySqlParameter("?phys2", physicalQty),
+                new MySqlParameter("?sys", systemQty),
+                new MySqlParameter("?sys2", systemQty),
+                new MySqlParameter("?var", variance),
+                new MySqlParameter("?var2", variance),
+                new MySqlParameter("?pct", pct),
+                new MySqlParameter("?pct2", pct));
+        }
     }
 }

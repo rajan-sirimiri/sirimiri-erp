@@ -224,6 +224,11 @@
                 <div><div class="menu-title">Scrap Material<br/>Stock Report</div><div class="menu-desc">Current stock of scrap by-products generated during processing</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
+            <a id="lnkStockRecon" href="MMStockReconciliation.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x2696;&#xFE0F;</div>
+                <div><div class="menu-title">Stock<br/>Reconciliation</div><div class="menu-desc">Reconcile physical stock against system stock — record adjustments and variances</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
         </div>
         <div class="section-head">Data Import</div>
         <div class="menu-grid">
