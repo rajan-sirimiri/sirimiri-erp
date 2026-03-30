@@ -959,6 +959,14 @@ namespace PKApp.DAL
         /// All active PM mappings for a product — joined with PM master for display.
         public static DataTable GetProductPMMappings(int productId)
         {
+            return GetProductPMMappings(productId, null);
+        }
+
+        public static DataTable GetProductPMMappings(int productId, string excludeLevel)
+        {
+            string levelFilter = "";
+            if (!string.IsNullOrEmpty(excludeLevel))
+                levelFilter = " AND m.ApplyLevel != '" + excludeLevel + "'";
             return ExecuteQuery(
                 "SELECT m.MappingID, m.PMID, m.QtyPerUnit, m.ApplyLevel, m.Language," +
                 " pm.PMCode, pm.PMName, u.Abbreviation," +
@@ -972,8 +980,8 @@ namespace PKApp.DAL
                 "   FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = m.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalUsed" +
                 "   FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = m.PMID" +
-                " WHERE m.ProductID=?pid AND m.IsActive=1" +
-                " ORDER BY FIELD(m.ApplyLevel,'CASE','CONTAINER','UNIT'), m.Language, pm.PMName;",
+                " WHERE m.ProductID=?pid AND m.IsActive=1" + levelFilter +
+                " ORDER BY FIELD(m.ApplyLevel,'CONTAINER','UNIT'), m.Language, pm.PMName;",
                 new MySqlParameter("?pid", productId));
         }
 
@@ -1057,7 +1065,7 @@ namespace PKApp.DAL
             int unitsPerContainer, int containersPerCase, string containerType,
             string selectedLanguage = null)
         {
-            var allMappings = GetProductPMMappings(productId);
+            var allMappings = GetProductPMMappings(productId, "CASE");
             allMappings.Columns.Add("CalculatedQty", typeof(decimal));
 
             // Filter: keep universal PMs (Language IS NULL) + PMs matching selected language
@@ -1154,7 +1162,7 @@ namespace PKApp.DAL
             int orderId, int jars, int loosePcs,
             int unitsPerContainer, int containersPerCase, string containerType)
         {
-            var allMappings = GetProductPMMappings(productId);
+            var allMappings = GetProductPMMappings(productId, "CASE");
             allMappings.Columns.Add("CalculatedQty", typeof(decimal));
 
             // Get language split from batch history
