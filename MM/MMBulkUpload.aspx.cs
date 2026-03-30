@@ -113,16 +113,20 @@ namespace MMApp
                             WriteUOMReference(ws, MMDatabaseHelper.GetActiveUOM(), 8);
                             break;
                     }
+                    ws.Columns().AdjustToContents();
                     using (var ms = new MemoryStream())
                     {
                         wb.SaveAs(ms);
+                        ms.Position = 0;
                         byte[] bytes = ms.ToArray();
                         Response.Clear();
+                        Response.Buffer = true;
                         Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
                         Response.AddHeader("Content-Disposition", "attachment; filename=MM_" + type + "_Template.xlsx");
+                        Response.AddHeader("Content-Length", bytes.Length.ToString());
                         Response.BinaryWrite(bytes);
                         Response.Flush();
-                        Context.ApplicationInstance.CompleteRequest();
+                        HttpContext.Current.ApplicationInstance.CompleteRequest();
                     }
                 }
             }
