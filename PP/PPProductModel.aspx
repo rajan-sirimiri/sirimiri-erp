@@ -935,5 +935,6 @@ window.addEventListener('load', function() { recalcCosts(); });
 
 
 <script src="/StockApp/erp-modal.js"></script>
+<script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

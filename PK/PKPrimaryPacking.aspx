@@ -640,4 +640,5 @@ window.addEventListener('load',function(){
 });
 </script>
 </form>
+<script src="/StockApp/erp-keepalive.js"></script>
 </body></html>

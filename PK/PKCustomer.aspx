@@ -169,4 +169,5 @@ function validateGST(g){
 }
 function filterTable(q){q=q.toLowerCase();document.querySelectorAll('#custTable tbody tr').forEach(function(r){r.style.display=r.innerText.toLowerCase().indexOf(q)>=0?'':'none';});}
 window.addEventListener('load',function(){var sel=document.getElementById('<%= ddlCustomerType.ClientID %>');if(sel)onTypeChange(sel);});
-</script></body></html>
+</script><script src="/StockApp/erp-keepalive.js"></script>
+</body></html>

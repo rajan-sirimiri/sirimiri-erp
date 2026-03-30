@@ -302,5 +302,6 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 
 </div>
 </form>
+<script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

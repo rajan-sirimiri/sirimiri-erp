@@ -103,4 +103,5 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
         </div>
     </div>
 </div>
-</form></body></html>
+</form><script src="/StockApp/erp-keepalive.js"></script>
+</body></html>

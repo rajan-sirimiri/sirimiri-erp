@@ -231,5 +231,6 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
 </main>
 </form>
 <script src="/StockApp/erp-modal.js"></script>
+<script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

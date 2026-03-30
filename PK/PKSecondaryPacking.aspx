@@ -226,4 +226,5 @@ function renderOLTable(){var body=document.getElementById('olBody');var tbl=docu
 function syncOL(){var parts=[];olLines.forEach(function(l){parts.push(l.pid+':'+l.qty+':'+l.jarSize);});document.getElementById('<%= hfOnlineLines.ClientID %>').value=parts.join(',');}
 </script>
 <script src="/StockApp/erp-modal.js"></script>
+<script src="/StockApp/erp-keepalive.js"></script>
 </body></html>

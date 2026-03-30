@@ -110,4 +110,5 @@ function printReport(){
     var y=String(now.getFullYear()).slice(-2);var h=String(now.getHours()).padStart(2,'0');var mn=String(now.getMinutes()).padStart(2,'0');
     var orig=document.title;document.title='PM Stock Report '+d+'-'+m+'-'+y+' '+h+mn;window.print();setTimeout(function(){document.title=orig;},2000);
 }
-</script></body></html>
+</script><script src="/StockApp/erp-keepalive.js"></script>
+</body></html>
