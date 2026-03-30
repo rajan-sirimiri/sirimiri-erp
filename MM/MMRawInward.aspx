@@ -184,7 +184,7 @@
                     </div>
                     <div class="form-group">
                         <label>Supplier <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlSupplier" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSupplier_Changed" />
+                        <asp:DropDownList ID="ddlSupplier" runat="server" onchange="onSupplierChange(this.value)" />
                     </div>
                     <div class="form-group">
                         <label>GRN Date <span class="req">*</span></label>
@@ -211,11 +211,24 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Qty as per Invoice <span class="req">*</span></label>
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            <asp:TextBox ID="txtQtyInvoice" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;" />
-                            <asp:DropDownList ID="ddlInvoiceUOM" runat="server" onchange="syncReceivedUOM(this)" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fafafa;outline:none;" />
+                        <div style="border:2px solid var(--border);border-radius:10px;padding:10px 12px;background:#fafafa;">
+                            <div style="margin-bottom:8px;">
+                                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;">Standard Qty</div>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <asp:TextBox ID="txtQtyInvoice" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;" />
+                                    <asp:DropDownList ID="ddlInvoiceUOM" runat="server" onchange="syncReceivedUOM(this)" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
+                                </div>
+                                <span class="field-hint" style="color:var(--teal);">In standard UOM (auto-filled from RM)</span>
+                            </div>
+                            <div style="border-top:1px dashed #ccc;padding-top:8px;">
+                                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">As per Supplier Invoice</div>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <input type="text" id="txtSupplierQty" runat="server" placeholder="e.g. 2" style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none;" />
+                                    <input type="text" id="txtSupplierUOM" runat="server" placeholder="e.g. bags" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none;" />
+                                </div>
+                                <span class="field-hint">Supplier's unit (bags, packets, drums, etc.)</span>
+                            </div>
                         </div>
-                        <span class="field-hint">Qty billed by supplier</span>
                     </div>
                     <div class="form-group">
                         <label>Qty Actually Received <span class="req">*</span></label>

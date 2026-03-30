@@ -35,6 +35,8 @@ namespace MMApp
         protected TextBox txtQtyInvoice;
         protected TextBox txtQtyReceived;
         protected TextBox txtQtyUOM;
+        protected System.Web.UI.HtmlControls.HtmlInputText txtSupplierQty;
+        protected System.Web.UI.HtmlControls.HtmlInputText txtSupplierUOM;
         protected TextBox txtRate;
         protected TextBox txtHSN;
         protected TextBox txtGSTRate;
@@ -253,13 +255,6 @@ namespace MMApp
 
         protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
 
-        protected void ddlSupplier_Changed(object sender, EventArgs e)
-        {
-            int supId = 0;
-            int.TryParse(ddlSupplier.SelectedValue, out supId);
-            LoadRecoverables(supId);
-        }
-
         protected void ddlRM_Changed(object sender, EventArgs e)
         {
             int rmId = 0;
@@ -336,13 +331,23 @@ namespace MMApp
                 decimal total  = Convert.ToDecimal(hfTotal.Value);
                 int userId     = Convert.ToInt32(Session["MM_UserID"]);
 
+                // Build remarks with supplier invoice qty if provided
+                string remarks = txtRemarks.Text.Trim();
+                string supQty = txtSupplierQty != null ? txtSupplierQty.Value.Trim() : "";
+                string supUom = txtSupplierUOM != null ? txtSupplierUOM.Value.Trim() : "";
+                if (!string.IsNullOrEmpty(supQty))
+                {
+                    string invNote = "[Supplier Invoice: " + supQty + (!string.IsNullOrEmpty(supUom) ? " " + supUom : "") + "]";
+                    remarks = string.IsNullOrEmpty(remarks) ? invNote : invNote + " " + remarks;
+                }
+
                 MMDatabaseHelper.AddRawInward(
                     grnNo, grnDate, invDate,
                     txtInvoiceNo.Text.Trim(), supId, rmId,
                     qtyInvoice, qtyReceived, qtyUOM, rate,
                     txtHSN.Text.Trim(), gstRate, gstAmt,
                     transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
-                    total, txtPONo.Text.Trim(), txtRemarks.Text.Trim(),
+                    total, txtPONo.Text.Trim(), remarks,
                     chkQC.Checked, status, userId);
 
                 ShowAlert("GRN " + grnNo + " saved — goods received.", true);
@@ -364,6 +369,8 @@ namespace MMApp
             txtGRNDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
             txtInvoiceNo.Text = txtInvoiceDate.Text = txtPONo.Text = "";
             txtQtyInvoice.Text = txtQtyReceived.Text = txtQtyUOM.Text = "";
+            if (txtSupplierQty != null) txtSupplierQty.Value = "";
+            if (txtSupplierUOM != null) txtSupplierUOM.Value = "";
             txtRate.Text = txtHSN.Text = txtGSTRate.Text = txtTransport.Text = "";
             txtRemarks.Text = "";
             chkTransportInInvoice.Checked = false;
