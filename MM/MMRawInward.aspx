@@ -213,20 +213,20 @@
                         <label>Qty as per Invoice <span class="req">*</span></label>
                         <div style="border:2px solid var(--border);border-radius:10px;padding:10px 12px;background:#fafafa;">
                             <div style="margin-bottom:8px;">
-                                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;">Standard Qty</div>
+                                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;">Standard Qty (in KG)</div>
                                 <div style="display:flex;gap:6px;align-items:center;">
                                     <asp:TextBox ID="txtQtyInvoice" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;" />
-                                    <asp:DropDownList ID="ddlInvoiceUOM" runat="server" onchange="syncReceivedUOM(this)" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
+                                    <asp:DropDownList ID="ddlStdInvoiceUOM" runat="server" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
                                 </div>
-                                <span class="field-hint" style="color:var(--teal);">In standard UOM (auto-filled from RM)</span>
+                                <span class="field-hint" style="color:var(--teal);">Converted to standard unit</span>
                             </div>
                             <div style="border-top:1px dashed #ccc;padding-top:8px;">
                                 <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">As per Supplier Invoice</div>
                                 <div style="display:flex;gap:6px;align-items:center;">
-                                    <input type="text" id="txtSupplierQty" runat="server" placeholder="e.g. 2" style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none;" />
-                                    <input type="text" id="txtSupplierUOM" runat="server" placeholder="e.g. bags" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none;" />
+                                    <asp:TextBox ID="txtSupplierQty" runat="server" placeholder="e.g. 2" style="flex:1;" />
+                                    <asp:DropDownList ID="ddlInvoiceUOM" runat="server" onchange="syncReceivedUOM(this)" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
                                 </div>
-                                <span class="field-hint">Supplier's unit (bags, packets, drums, etc.)</span>
+                                <span class="field-hint">Qty &amp; UOM as on supplier's invoice</span>
                             </div>
                         </div>
                     </div>

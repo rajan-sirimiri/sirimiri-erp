@@ -35,8 +35,8 @@ namespace MMApp
         protected TextBox txtQtyInvoice;
         protected TextBox txtQtyReceived;
         protected TextBox txtQtyUOM;
-        protected System.Web.UI.HtmlControls.HtmlInputText txtSupplierQty;
-        protected System.Web.UI.HtmlControls.HtmlInputText txtSupplierUOM;
+        protected TextBox txtSupplierQty;
+        protected DropDownList ddlStdInvoiceUOM;
         protected TextBox txtRate;
         protected TextBox txtHSN;
         protected TextBox txtGSTRate;
@@ -135,6 +135,19 @@ namespace MMApp
             ddlStdUOM.DataValueField = "UOMID";
             ddlStdUOM.DataBind();
             ddlStdUOM.Items.Insert(0, new ListItem("UOM", "0"));
+
+            // Standard Invoice UOM — pre-select kg
+            ddlStdInvoiceUOM.DataSource     = MMDatabaseHelper.GetActiveUOM();
+            ddlStdInvoiceUOM.DataTextField  = "Abbreviation";
+            ddlStdInvoiceUOM.DataValueField = "UOMID";
+            ddlStdInvoiceUOM.DataBind();
+            ddlStdInvoiceUOM.Items.Insert(0, new ListItem("UOM", "0"));
+            // Pre-select kg
+            foreach (ListItem li in ddlStdInvoiceUOM.Items)
+            {
+                if (li.Text.ToLower() == "kg" || li.Text.ToLower() == "kgs")
+                { ddlStdInvoiceUOM.SelectedValue = li.Value; break; }
+            }
 
             BuildRMJson();
         }
@@ -333,8 +346,9 @@ namespace MMApp
 
                 // Build remarks with supplier invoice qty if provided
                 string remarks = txtRemarks.Text.Trim();
-                string supQty = txtSupplierQty != null ? txtSupplierQty.Value.Trim() : "";
-                string supUom = txtSupplierUOM != null ? txtSupplierUOM.Value.Trim() : "";
+                string supQty = txtSupplierQty != null ? txtSupplierQty.Text.Trim() : "";
+                string supUom = ddlInvoiceUOM != null && ddlInvoiceUOM.SelectedValue != "0"
+                    ? ddlInvoiceUOM.SelectedItem.Text : "";
                 if (!string.IsNullOrEmpty(supQty))
                 {
                     string invNote = "[Supplier Invoice: " + supQty + (!string.IsNullOrEmpty(supUom) ? " " + supUom : "") + "]";
@@ -369,8 +383,12 @@ namespace MMApp
             txtGRNDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
             txtInvoiceNo.Text = txtInvoiceDate.Text = txtPONo.Text = "";
             txtQtyInvoice.Text = txtQtyReceived.Text = txtQtyUOM.Text = "";
-            if (txtSupplierQty != null) txtSupplierQty.Value = "";
-            if (txtSupplierUOM != null) txtSupplierUOM.Value = "";
+            if (txtSupplierQty != null) txtSupplierQty.Text = "";
+            if (ddlStdInvoiceUOM != null)
+            {
+                foreach (ListItem li in ddlStdInvoiceUOM.Items)
+                { if (li.Text.ToLower() == "kg" || li.Text.ToLower() == "kgs") { ddlStdInvoiceUOM.SelectedValue = li.Value; break; } }
+            }
             txtRate.Text = txtHSN.Text = txtGSTRate.Text = txtTransport.Text = "";
             txtRemarks.Text = "";
             chkTransportInInvoice.Checked = false;
