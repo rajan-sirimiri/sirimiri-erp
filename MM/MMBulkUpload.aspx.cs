@@ -126,7 +126,7 @@ namespace MMApp
                         Response.AddHeader("Content-Length", bytes.Length.ToString());
                         Response.BinaryWrite(bytes);
                         Response.Flush();
-                        HttpContext.Current.ApplicationInstance.CompleteRequest();
+                        Context.ApplicationInstance.CompleteRequest();
                     }
                 }
             }
