@@ -299,7 +299,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
         </div>
         <div class="rm-body">
             <asp:Panel ID="pnlRMEmpty" runat="server" Visible="true">
-                <div class="empty-rm">Add products to shifts above to see RM requirements.</div>
+                <div class="empty-rm">No shortages — all raw materials are sufficient.</div>
             </asp:Panel>
 
             <asp:Repeater ID="rptRM" runat="server">
@@ -309,7 +309,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
                         <th>Raw Material</th>
                         <th>Required</th>
                         <th>In Stock</th>
-                        <th>Shortfall / Surplus</th>
+                        <th>Shortfall</th>
                     </tr>
                 </HeaderTemplate>
                 <ItemTemplate>

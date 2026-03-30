@@ -146,17 +146,41 @@ namespace PPApp
         private void BindRMStatus(int planId)
         {
             DataTable rm = PPDatabaseHelper.GetRMRequirementVsStock(planId);
-            pnlRMEmpty.Visible = rm.Rows.Count == 0;
-            rptRM.DataSource   = rm;
+
+            // Filter to only show materials with shortfall (Required > InStock)
+            int totalMaterials = rm.Rows.Count;
+            DataTable shortItems = rm.Clone(); // same structure, no rows
+            int shortfall = 0;
+            foreach (DataRow r in rm.Rows)
+            {
+                if (Convert.ToDecimal(r["Shortfall"]) > 0)
+                {
+                    shortItems.ImportRow(r);
+                    shortfall++;
+                }
+            }
+
+            pnlRMEmpty.Visible = shortItems.Rows.Count == 0 && totalMaterials > 0 ? false : shortItems.Rows.Count == 0;
+            rptRM.DataSource   = shortItems;
             rptRM.DataBind();
 
             // Summary count
-            int shortfall = 0;
-            foreach (DataRow r in rm.Rows)
-                if (Convert.ToDecimal(r["Shortfall"]) > 0) shortfall++;
-            lblRMSummary.Text = rm.Rows.Count + " material" + (rm.Rows.Count == 1 ? "" : "s") +
-                (shortfall > 0 ? " — " + shortfall + " shortfall" : " — all sufficient");
-            lblRMSummary.CssClass = shortfall > 0 ? "rm-summary warn" : "rm-summary ok";
+            if (totalMaterials == 0)
+            {
+                lblRMSummary.Text = "Add products to see RM requirements";
+                lblRMSummary.CssClass = "rm-summary";
+            }
+            else if (shortfall > 0)
+            {
+                lblRMSummary.Text = shortfall + " material" + (shortfall == 1 ? "" : "s") + " short — " + (totalMaterials - shortfall) + " sufficient";
+                lblRMSummary.CssClass = "rm-summary warn";
+            }
+            else
+            {
+                lblRMSummary.Text = "All " + totalMaterials + " materials sufficient";
+                lblRMSummary.CssClass = "rm-summary ok";
+                pnlRMEmpty.Visible = false;
+            }
         }
 
         // ── ADD ROW SHIFT 1 ──────────────────────────────────────────────────
