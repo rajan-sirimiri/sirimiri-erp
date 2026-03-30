@@ -239,6 +239,13 @@ namespace MMApp
 
         protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
 
+        protected void ddlSupplier_Changed(object sender, EventArgs e)
+        {
+            int supId = 0;
+            int.TryParse(ddlSupplier.SelectedValue, out supId);
+            LoadRecoverables(supId);
+        }
+
         private bool ValidateForm()
         {
             if (ddlItem.SelectedValue == "0")             { ShowAlert("Please select a Consumable Item.", false); return false; }

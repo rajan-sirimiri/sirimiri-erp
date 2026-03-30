@@ -1,4 +1,4 @@
-<%@ Page Language="C#" AutoEventWireup="true" Inherits="MMApp.MMStationaryInward" %>
+<%@ Page Language="C#" AutoEventWireup="true" EnableEventValidation="false" Inherits="MMApp.MMStationaryInward" %>
 <!DOCTYPE html>
 <html lang="en">
 <head runat="server">
@@ -156,7 +156,7 @@
                     </div>
                     <div class="form-group">
                         <label>Supplier <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlSupplier" runat="server" onchange="onSupplierChange(this.value)" />
+                        <asp:DropDownList ID="ddlSupplier" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSupplier_Changed" />
                     </div>
                     <div class="form-group">
                         <label>GRN Date <span class="req">*</span></label>

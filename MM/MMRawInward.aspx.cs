@@ -253,6 +253,13 @@ namespace MMApp
 
         protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
 
+        protected void ddlSupplier_Changed(object sender, EventArgs e)
+        {
+            int supId = 0;
+            int.TryParse(ddlSupplier.SelectedValue, out supId);
+            LoadRecoverables(supId);
+        }
+
         protected void ddlRM_Changed(object sender, EventArgs e)
         {
             int rmId = 0;
