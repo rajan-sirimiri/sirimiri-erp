@@ -537,7 +537,12 @@ namespace PKApp.DAL
                 " IFNULL(p.ContainersPerCase,12) AS ContainersPerCase," +
                 " IFNULL(p.UnitsPerContainer,'') AS UnitsPerContainer," +
                 " ou.Abbreviation AS Unit," +
-                " ROUND(IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0), 0) AS AvailablePcs" +
+                // FGStock.QtyPacked is in PIECES (jars * unitSize)
+                // SecondaryPacking.TotalUnits is in JARS, so multiply by unitSize to get pieces
+                " ROUND(IFNULL(fg.TotalPacked,0)" +
+                "  - IFNULL(sp.TotalPacked2,0)" +
+                "    * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED)" +
+                ", 0) AS AvailablePcs" +
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
                 " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPacked" +
@@ -545,7 +550,9 @@ namespace PKApp.DAL
                 " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalPacked2" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
-                " AND IFNULL(fg.TotalPacked,0) - IFNULL(sp.TotalPacked2,0) > 0.5" +
+                " AND IFNULL(fg.TotalPacked,0)" +
+                "  - IFNULL(sp.TotalPacked2,0)" +
+                "    * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED) > 0" +
                 " ORDER BY p.ProductName;");
         }
 
@@ -1320,9 +1327,13 @@ namespace PKApp.DAL
                 " IFNULL(p.UnitsPerContainer, '1') AS UnitsPerContainer," +
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
                 " ou.Abbreviation AS Unit," +
+                // FG total from secondary packing (in JARS = cases * jarsPerCase)
                 " IFNULL(sp.TotalJars, 0) AS FGTotalJars," +
+                // Already shipped via DC lines (we store Cases and LooseJars, convert back to jars)
                 " IFNULL(shipped.TotalShippedJars, 0) AS ShippedJars," +
+                // Available FG in jars
                 " ROUND(IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0), 0) AS AvailableFGJars," +
+                // Also provide pieces for reference
                 " ROUND((IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0))" +
                 "  * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 0) AS AvailableFGPcs" +
                 " FROM PP_Products p" +
