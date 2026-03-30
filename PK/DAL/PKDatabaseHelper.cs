@@ -1320,14 +1320,10 @@ namespace PKApp.DAL
                 " IFNULL(p.UnitsPerContainer, '1') AS UnitsPerContainer," +
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
                 " ou.Abbreviation AS Unit," +
-                // FG total from secondary packing (in JARS = cases * jarsPerCase)
                 " IFNULL(sp.TotalJars, 0) AS FGTotalJars," +
-                // Already shipped via DC lines (we store Cases and LooseJars, convert back to jars)
-                " IFNULL(dc.TotalShippedJars, 0) AS ShippedJars," +
-                // Available FG in jars
-                " ROUND(IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0), 0) AS AvailableFGJars," +
-                // Also provide pieces for reference
-                " ROUND((IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0))" +
+                " IFNULL(shipped.TotalShippedJars, 0) AS ShippedJars," +
+                " ROUND(IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0), 0) AS AvailableFGJars," +
+                " ROUND((IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0))" +
                 "  * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 0) AS AvailableFGPcs" +
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
@@ -1336,11 +1332,11 @@ namespace PKApp.DAL
                 " LEFT JOIN (SELECT dl.ProductID," +
                 "   SUM(dl.Cases * dl.JarsPerCase + dl.LooseJars) AS TotalShippedJars" +
                 "   FROM PK_DCLines dl" +
-                "   JOIN PK_DeliveryChallans dc ON dc.DCID = dl.DCID" +
-                "   WHERE dc.Status IN ('DRAFT','FINALISED')" +
-                "   GROUP BY dl.ProductID) dc ON dc.ProductID = p.ProductID" +
+                "   JOIN PK_DeliveryChallans dch ON dch.DCID = dl.DCID" +
+                "   WHERE dch.Status IN ('DRAFT','FINALISED')" +
+                "   GROUP BY dl.ProductID) shipped ON shipped.ProductID = p.ProductID" +
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
-                " AND IFNULL(sp.TotalJars, 0) - IFNULL(dc.TotalShippedJars, 0) > 0" +
+                " AND IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0) > 0" +
                 " ORDER BY p.ProductName;");
         }
 
