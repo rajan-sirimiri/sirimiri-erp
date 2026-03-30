@@ -224,10 +224,10 @@ function onProductSelect(){
 function addLine(){
     var sel=document.getElementById('selProduct');
     var pid=sel.value;
-    if(pid==='0'){alert('Select a product');return;}
+    if(pid==='0'){erpAlert('Please select a product before adding.', {title:'Selection Required', type:'warn'});return;}
     var cs=parseInt(document.getElementById('txtLineCases').value)||0;
     var lj=parseInt(document.getElementById('txtLineLoose').value)||0;
-    if(cs<=0&&lj<=0){alert('Enter cases or loose jars');return;}
+    if(cs<=0&&lj<=0){erpAlert('Please enter number of cases or loose jars.', {title:'Quantity Required', type:'warn'});return;}
     var opt=sel.options[sel.selectedIndex];
     var jpc=parseInt(opt.getAttribute('data-jpc'))||12;
     var us=parseInt(opt.getAttribute('data-unitsize'))||1;
@@ -236,7 +236,7 @@ function addLine(){
     var avJars=parseInt(opt.getAttribute('data-avjars'))||0;
     var usedJars=0;
     lines.forEach(function(l){if(l.pid===pid)usedJars+=(l.cases*l.jpc+l.loose);});
-    if(lineJars>(avJars-usedJars)){alert('Insufficient FG stock. Available: '+(avJars-usedJars)+' jars');return;}
+    if(lineJars>(avJars-usedJars)){erpAlert('Insufficient FG stock. Available: '+(avJars-usedJars)+' jars.', {title:'Stock Insufficient', type:'danger'});return;}
     var p=productData[pid];
     lines.push({pid:pid,name:p.name,code:p.code,cases:cs,loose:lj,jpc:jpc,unitSize:us,totalPcs:totalPcs});
     renderLines();
@@ -293,4 +293,6 @@ function renderLines(){
 function syncLines(){
     document.getElementById('<%= hfLines.ClientID %>').value=JSON.stringify(lines);
 }
-</script></body></html>
+</script>
+<script src="/StockApp/erp-modal.js"></script>
+</body></html>

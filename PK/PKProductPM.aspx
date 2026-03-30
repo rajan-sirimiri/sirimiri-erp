@@ -202,7 +202,7 @@ table.mapping tr:last-child td{border-bottom:none;}
                                                 CausesValidation="false" style="font-size:11px;color:var(--accent);font-weight:700;text-decoration:none;margin-right:6px;">Edit</asp:LinkButton>
                                             <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("MappingID") %>'
                                                 CausesValidation="false" style="font-size:11px;color:#c0392b;font-weight:700;text-decoration:none;"
-                                                OnClientClick="return confirm('Remove this packing material from product?');">Remove</asp:LinkButton>
+                                                OnClientClick="return erpConfirmLink(this, 'Remove this packing material from product?', {title:'Remove PM', okText:'Yes, Remove', btnClass:'danger'});">Remove</asp:LinkButton>
                                         </td>
                                     </tr>
                                 </ItemTemplate>
@@ -232,4 +232,5 @@ window.addEventListener('load', function() {
     if (sel) onPMChange(sel);
 });
 </script>
-</form></body></html>
+</form><script src="/StockApp/erp-modal.js"></script>
+</body></html>
