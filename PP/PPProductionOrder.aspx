@@ -200,7 +200,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
     <div class="nav-right">
         <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
         <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
-        <a href="PPLogout.aspx" class="nav-link" onclick="return confirm('Sign out?')">Sign Out</a>
+        <a href="#" class="nav-link" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
     </div>
 </nav>
 
@@ -631,5 +631,6 @@ function showShift(n) {
     if (d2) d2.style.display = n == '2' ? 'block' : 'none';
 }
 </script>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

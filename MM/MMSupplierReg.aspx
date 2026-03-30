@@ -148,7 +148,7 @@
         <span class="nav-item active">Suppliers</span>
         <div class="nav-right">
             <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
-            <a href="MMLogout.aspx" class="nav-logout" onclick="return confirm('Sign out?')">Sign Out</a>
+            <a href="#" class="nav-logout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='MMLogout.aspx';}});return false;">Sign Out</a>
         </div>
     </nav>
 
@@ -298,5 +298,6 @@
         });
     }
 </script>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

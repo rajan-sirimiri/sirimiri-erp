@@ -106,7 +106,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             <div class="header-user-name"><asp:Label ID="lblUser" runat="server"/></div>
             <div class="header-user-role">ADMIN</div>
         </div>
-        <a href="PKLogout.aspx" class="btn-signout" onclick="return confirm('Sign out?')">&#x2192; Sign Out</a>
+        <a href="#" class="btn-signout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PKLogout.aspx';}});return false;">&#x2192; Sign Out</a>
     </div>
 </header>
 
@@ -230,5 +230,6 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
     </div>
 </main>
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

@@ -147,7 +147,7 @@
         <span class="nav-item active">Raw Inward</span>
         <div class="nav-right">
             <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
-            <a href="MMLogout.aspx" class="nav-logout" onclick="return confirm('Sign out?')">Sign Out</a>
+            <a href="#" class="nav-logout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='MMLogout.aspx';}});return false;">Sign Out</a>
         </div>
     </nav>
 
@@ -184,7 +184,7 @@
                     </div>
                     <div class="form-group">
                         <label>Supplier <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlSupplier" runat="server" onchange="onSupplierChange(this.value)" />
+                        <asp:DropDownList ID="ddlSupplier" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSupplier_Changed" />
                     </div>
                     <div class="form-group">
                         <label>GRN Date <span class="req">*</span></label>
@@ -335,7 +335,7 @@
                 </div>
                 <div class="btn-row">
                     <asp:Button ID="btnReceive" runat="server" Text="Receive Goods" CssClass="btn btn-receive" OnClick="btnReceive_Click" OnClientClick="return syncAmounts()" />
-                    <asp:Button ID="btnReject"  runat="server" Text="Reject Goods"  CssClass="btn btn-reject"  OnClick="btnReject_Click"  CausesValidation="false" OnClientClick="return confirm('Reject and discard this GRN entry?')" />
+                    <asp:Button ID="btnReject"  runat="server" Text="Reject Goods"  CssClass="btn btn-reject"  OnClick="btnReject_Click"  CausesValidation="false" OnClientClick="return erpConfirmLink(this,'Reject and discard this GRN entry?',{title:'Reject Goods',okText:'Yes, Reject',btnClass:'danger'})" />
                     <asp:Button ID="btnClear"   runat="server" Text="Clear"             CssClass="btn btn-clear"   OnClick="btnClear_Click"   CausesValidation="false" />
                 </div>
             </div>
@@ -519,5 +519,6 @@
     function syncAmounts() { calcAll(); return true; }
     window.onload = function() { calcAll(); };
 </script>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

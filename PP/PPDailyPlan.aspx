@@ -144,7 +144,7 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
         <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
         <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
         <a href="PPPrefilledEntry.aspx" class="nav-link" style="background:#7b1fa2;opacity:1;border-radius:6px;padding:5px 12px;">&#x1F9C3; Prefilled Entry</a>
-        <a href="PPLogout.aspx" class="nav-link" onclick="return confirm('Sign out?')">Sign Out</a>
+        <a href="#" class="nav-link" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
     </div>
 </nav>
 
@@ -349,5 +349,6 @@ function updateBatchPlaceholder(ddl, inputId) {
     });
 }
 </script>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

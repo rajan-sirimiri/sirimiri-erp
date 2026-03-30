@@ -122,7 +122,7 @@
         <span class="nav-item active">Bulk Upload</span>
         <div class="nav-right">
             <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
-            <a href="MMLogout.aspx" class="nav-logout" onclick="return confirm('Sign out?')">Sign Out</a>
+            <a href="#" class="nav-logout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='MMLogout.aspx';}});return false;">Sign Out</a>
         </div>
     </nav>
 
@@ -251,7 +251,7 @@
 
                 <div class="btn-row">
                     <asp:Button ID="btnImport" runat="server" Text="Import Records" CssClass="btn btn-import" OnClick="btnImport_Click" CausesValidation="false"
-                        OnClientClick="return confirm('Import all valid new rows into the database?')" />
+                        OnClientClick="return erpConfirmLink(this,'Import all valid rows into the database?',{title:'Confirm Import',okText:'Yes, Import',btnClass:'success'})" />
                     <asp:Button ID="btnReset" runat="server" Text="Start Over" CssClass="btn btn-secondary" OnClick="btnReset_Click" CausesValidation="false" />
                 </div>
             </div>
@@ -284,5 +284,6 @@ function showFileName(input) {
     }
 }
 </script>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

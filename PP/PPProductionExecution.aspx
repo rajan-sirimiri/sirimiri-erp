@@ -279,7 +279,7 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
     <div class="nav-right">
         <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
         <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
-        <a href="PPLogout.aspx" class="nav-link" onclick="return confirm('Sign out?')">Sign Out</a>
+        <a href="#" class="nav-link" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
     </div>
 </nav>
 
@@ -650,5 +650,6 @@ window.addEventListener('load', function() {
 });
 </script>
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>

@@ -241,7 +241,7 @@
         <span class="nav-item active">Product Modelling</span>
         <div class="nav-right">
             <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
-            <a href="PPLogout.aspx" class="nav-logout" onclick="return confirm('Sign out?')">Sign Out</a>
+            <a href="#" class="nav-logout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
         </div>
     </nav>
 
@@ -555,7 +555,7 @@
                                             <td>
                                                 <asp:LinkButton runat="server" CommandName="DeleteBOM" CommandArgument='<%# Eval("BOMID") %>'
                                                     CssClass="del-btn" CausesValidation="false"
-                                                    OnClientClick="return confirm('Remove this ingredient?')">&#x2715;</asp:LinkButton>
+                                                    OnClientClick="return erpConfirmLink(this,'Remove this ingredient from the BOM?',{title:'Remove Ingredient',okText:'Yes, Remove',btnClass:'danger'})">&#x2715;</asp:LinkButton>
                                             </td>
                                         </tr>
                                     </ItemTemplate>
@@ -775,7 +775,7 @@ function addParamRow(type, label, options) {
     var container = document.getElementById("paramsContainer");
     if (!container) return;
     var rows = container.querySelectorAll(".param-row");
-    if (rows.length >= 4) { alert("Maximum 4 parameters allowed."); return; }
+    if (rows.length >= 4) { erpAlert('Maximum 4 parameters allowed.', {title:'Limit Reached', type:'warn'}); return; }
     var sel = PARAM_TYPES.map(function(p){
         return '<option value="'+p.v+'"'+((p.v===type)?' selected':'')+'>'+p.l+'</option>';
     }).join("");
@@ -934,5 +934,6 @@ window.addEventListener('load', function() { recalcCosts(); });
 </form>
 
 
+<script src="/StockApp/erp-modal.js"></script>
 </body>
 </html>
