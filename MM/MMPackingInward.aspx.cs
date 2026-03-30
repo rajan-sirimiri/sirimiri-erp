@@ -254,6 +254,39 @@ namespace MMApp
 
         protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
 
+        protected void ddlPM_Changed(object sender, EventArgs e)
+        {
+            int pmId = 0;
+            int.TryParse(ddlPM.SelectedValue, out pmId);
+            LoadSuppliersByMaterial("PM", pmId);
+        }
+
+        private void LoadSuppliersByMaterial(string materialType, int materialId)
+        {
+            string selectedSupplier = ddlSupplier.SelectedValue;
+            DataTable supDt;
+            if (materialId > 0)
+                supDt = MMDatabaseHelper.GetSuppliersSortedByMaterial(materialType, materialId);
+            else
+                supDt = MMDatabaseHelper.GetActiveSuppliers();
+
+            ddlSupplier.Items.Clear();
+            ddlSupplier.Items.Add(new ListItem("-- Select Supplier --", "0"));
+            foreach (DataRow r in supDt.Rows)
+            {
+                int purchaseCount = supDt.Columns.Contains("PurchaseCount") ? Convert.ToInt32(r["PurchaseCount"]) : 0;
+                string label = r["SupplierName"].ToString();
+                if (purchaseCount > 0)
+                    label += " \u2605 (" + purchaseCount + " previous)";
+                ddlSupplier.Items.Add(new ListItem(label, r["SupplierID"].ToString()));
+            }
+            if (!string.IsNullOrEmpty(selectedSupplier) && selectedSupplier != "0")
+            {
+                ListItem item = ddlSupplier.Items.FindByValue(selectedSupplier);
+                if (item != null) ddlSupplier.SelectedValue = selectedSupplier;
+            }
+        }
+
         private bool ValidateForm()
         {
             if (ddlPM.SelectedValue == "0")               { ShowAlert("Please select a Packing Material.", false); return false; }

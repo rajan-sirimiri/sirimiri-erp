@@ -196,6 +196,29 @@ namespace MMApp.DAL
                 "SELECT SupplierID, SupplierCode, SupplierName FROM MM_Suppliers WHERE IsActive=1 ORDER BY SupplierName;");
         }
 
+        /// Get suppliers sorted: those who supplied this material first, then the rest.
+        /// materialType: 'RM' for MM_RawInward, 'PM' for MM_PackingInward, etc.
+        public static DataTable GetSuppliersSortedByMaterial(string materialType, int materialId)
+        {
+            string inwardTable = "MM_RawInward";
+            string matColumn = "RMID";
+            if (materialType == "PM") { inwardTable = "MM_PackingInward"; matColumn = "PMID"; }
+            else if (materialType == "CM") { inwardTable = "MM_ConsumableInward"; matColumn = "ItemID"; }
+            else if (materialType == "ST") { inwardTable = "MM_StationaryInward"; matColumn = "ItemID"; }
+
+            return ExecuteQuery(
+                "SELECT s.SupplierID, s.SupplierCode, s.SupplierName," +
+                " IFNULL(hist.PurchaseCount, 0) AS PurchaseCount" +
+                " FROM MM_Suppliers s" +
+                " LEFT JOIN (SELECT SupplierID, COUNT(*) AS PurchaseCount" +
+                "   FROM " + inwardTable +
+                "   WHERE " + matColumn + "=?mid" +
+                "   GROUP BY SupplierID) hist ON hist.SupplierID = s.SupplierID" +
+                " WHERE s.IsActive=1" +
+                " ORDER BY IFNULL(hist.PurchaseCount,0) DESC, s.SupplierName;",
+                new MySqlParameter("?mid", materialId));
+        }
+
         public static DataRow GetSupplierById(int supplierId)
         {
             return ExecuteQuerySingleRow(

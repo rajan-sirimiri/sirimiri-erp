@@ -180,7 +180,7 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Raw Material <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlRM" runat="server" onchange="onRMChange(this)" />
+                        <asp:DropDownList ID="ddlRM" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlRM_Changed" onchange="onRMChange(this)" />
                     </div>
                     <div class="form-group">
                         <label>Supplier <span class="req">*</span></label>

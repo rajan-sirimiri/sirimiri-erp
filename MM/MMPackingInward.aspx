@@ -153,7 +153,7 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Packing Material <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlPM" runat="server" onchange="onPMChange(this)" />
+                        <asp:DropDownList ID="ddlPM" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlPM_Changed" onchange="onPMChange(this)" />
                     </div>
                     <div class="form-group">
                         <label>Supplier <span class="req">*</span></label>

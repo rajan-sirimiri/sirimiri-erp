@@ -71,6 +71,9 @@ namespace MMApp
             else
             {
                 BuildRMJson();
+                // Save selected values before rebind
+                string selectedSupplier = ddlSupplier.SelectedValue;
+                string selectedRM = ddlRM.SelectedValue;
                 // Re-bind supplier dropdown so FindByValue works in LoadRecoverables
                 DataTable supDt = MMDatabaseHelper.GetActiveSuppliers();
                 ddlSupplier.DataSource     = supDt;
@@ -78,6 +81,12 @@ namespace MMApp
                 ddlSupplier.DataValueField = "SupplierID";
                 ddlSupplier.DataBind();
                 ddlSupplier.Items.Insert(0, new ListItem("-- Select Supplier --", "0"));
+                // Restore selection
+                if (!string.IsNullOrEmpty(selectedSupplier) && selectedSupplier != "0")
+                {
+                    ListItem item = ddlSupplier.Items.FindByValue(selectedSupplier);
+                    if (item != null) ddlSupplier.SelectedValue = selectedSupplier;
+                }
 
                 // Handle supplier change postback from JS __doPostBack
                 string arg = Request["__EVENTARGUMENT"] ?? "";
@@ -243,6 +252,44 @@ namespace MMApp
         }
 
         protected void btnFilter_Click(object sender, EventArgs e) { LoadGRNList(); }
+
+        protected void ddlRM_Changed(object sender, EventArgs e)
+        {
+            int rmId = 0;
+            int.TryParse(ddlRM.SelectedValue, out rmId);
+            LoadSuppliersByMaterial("RM", rmId);
+        }
+
+        private void LoadSuppliersByMaterial(string materialType, int materialId)
+        {
+            string selectedSupplier = ddlSupplier.SelectedValue;
+            DataTable supDt;
+            if (materialId > 0)
+                supDt = MMDatabaseHelper.GetSuppliersSortedByMaterial(materialType, materialId);
+            else
+                supDt = MMDatabaseHelper.GetActiveSuppliers();
+
+            ddlSupplier.Items.Clear();
+            ddlSupplier.Items.Add(new ListItem("-- Select Supplier --", "0"));
+            bool hasPrevious = false;
+            foreach (DataRow r in supDt.Rows)
+            {
+                int purchaseCount = supDt.Columns.Contains("PurchaseCount") ? Convert.ToInt32(r["PurchaseCount"]) : 0;
+                string label = r["SupplierName"].ToString();
+                if (purchaseCount > 0)
+                {
+                    label += " ★ (" + purchaseCount + " previous)";
+                    hasPrevious = true;
+                }
+                ddlSupplier.Items.Add(new ListItem(label, r["SupplierID"].ToString()));
+            }
+            // Restore selection if still valid
+            if (!string.IsNullOrEmpty(selectedSupplier) && selectedSupplier != "0")
+            {
+                ListItem item = ddlSupplier.Items.FindByValue(selectedSupplier);
+                if (item != null) ddlSupplier.SelectedValue = selectedSupplier;
+            }
+        }
 
         private bool ValidateForm()
         {

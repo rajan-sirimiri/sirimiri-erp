@@ -133,12 +133,18 @@ namespace MMApp
 
         private void RebindSupplierDropdown()
         {
+            string selectedSupplier = ddlSupplier.SelectedValue;
             DataTable supDt = MMDatabaseHelper.GetActiveSuppliers();
             ddlSupplier.DataSource     = supDt;
             ddlSupplier.DataTextField  = "SupplierName";
             ddlSupplier.DataValueField = "SupplierID";
             ddlSupplier.DataBind();
             ddlSupplier.Items.Insert(0, new ListItem("-- Select Supplier --", "0"));
+            if (!string.IsNullOrEmpty(selectedSupplier) && selectedSupplier != "0")
+            {
+                ListItem item = ddlSupplier.Items.FindByValue(selectedSupplier);
+                if (item != null) ddlSupplier.SelectedValue = selectedSupplier;
+            }
         }
 
         private void LoadRecoverables(int supplierId)
