@@ -160,7 +160,7 @@ namespace PPApp.DAL
                 "FROM PP_Products p " +
                 "JOIN MM_UOM pu ON pu.UOMID=p.ProdUOMID " +
                 "JOIN MM_UOM ou ON ou.UOMID=p.OutputUOMID " +
-                "WHERE p.IsActive=1 ORDER BY p.ProductName;");
+                "WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion') ORDER BY p.ProductName;");
         }
 
         public static DataRow GetProductById(int productId)
