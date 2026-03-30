@@ -73,6 +73,8 @@ namespace MMApp
             else
             {
                 BuildPMJson();
+                // Save selected values before rebind
+                string selectedSupplier = ddlSupplier.SelectedValue;
                 // Re-bind supplier dropdown so FindByValue works in LoadRecoverables
                 DataTable supDt = MMDatabaseHelper.GetActiveSuppliers();
                 ddlSupplier.DataSource     = supDt;
@@ -80,6 +82,12 @@ namespace MMApp
                 ddlSupplier.DataValueField = "SupplierID";
                 ddlSupplier.DataBind();
                 ddlSupplier.Items.Insert(0, new ListItem("-- Select Supplier --", "0"));
+                // Restore selection
+                if (!string.IsNullOrEmpty(selectedSupplier) && selectedSupplier != "0")
+                {
+                    ListItem item = ddlSupplier.Items.FindByValue(selectedSupplier);
+                    if (item != null) ddlSupplier.SelectedValue = selectedSupplier;
+                }
             }
         }
 
