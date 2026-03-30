@@ -119,15 +119,38 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" CausesValidation="false"/>
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" CausesValidation="false"/>
+            <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
         </div>
     </div>
     </asp:Panel>
 
-    <!-- ══════ FINALISED LOCK MESSAGE ══════ -->
+    <!-- ══════ FINALISED VIEW ══════ -->
     <asp:Panel ID="pnlLocked" runat="server" Visible="false">
     <div class="card">
-        <div class="locked-msg">&#x1F512; This Delivery Challan has been <strong>Finalised</strong> and cannot be modified.<br/>
-        <asp:Button ID="btnNewFromLocked" runat="server" Text="+ Create New DC" CssClass="btn btn-primary" OnClick="btnNew_Click" CausesValidation="false" style="margin-top:12px;"/>
+        <div class="card-title"><asp:Label ID="lblLockedTitle" runat="server">Delivery Challan</asp:Label></div>
+        <div style="display:flex;gap:20px;align-items:center;margin-bottom:16px;padding:14px 18px;background:#f0faf5;border:1px solid #a9dfbf;border-radius:10px;">
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">DC Number</span><div style="font-size:18px;font-weight:800;"><asp:Label ID="lblViewDCNum" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Date</span><div style="font-size:14px;font-weight:600;"><asp:Label ID="lblViewDate" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Customer</span><div style="font-size:14px;font-weight:600;"><asp:Label ID="lblViewCustomer" runat="server"/></div></div>
+            <div><span class="badge-final">Finalised</span></div>
+        </div>
+        <asp:Panel ID="pnlViewRemarks" runat="server" Visible="false">
+            <div style="font-size:12px;color:#555;margin-bottom:12px;padding:8px;background:#f9f9f9;border-radius:4px;"><strong>Remarks:</strong> <asp:Label ID="lblViewRemarks" runat="server"/></div>
+        </asp:Panel>
+        <asp:Repeater ID="rptViewLines" runat="server">
+            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th class="num">Cases</th><th class="num">Loose Jars</th><th class="num">Jars/Case</th><th class="num">Total Pcs</th></tr></thead><tbody></HeaderTemplate>
+            <ItemTemplate><tr>
+                <td><strong><%# Eval("ProductName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("ProductCode") %></div></td>
+                <td class="num"><%# Eval("Cases") %></td>
+                <td class="num"><%# Eval("LooseJars") %></td>
+                <td class="num" style="color:var(--text-dim);"><%# Eval("JarsPerCase") %></td>
+                <td class="num" style="font-weight:700;color:var(--teal);"><%# string.Format("{0:N0}", Eval("TotalPcs")) %></td>
+            </tr></ItemTemplate>
+            <FooterTemplate></tbody></table></FooterTemplate>
+        </asp:Repeater>
+        <div class="btn-row" style="margin-top:14px;">
+            <asp:Button ID="btnDownloadFromView" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-primary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
+            <asp:Button ID="btnNewFromLocked" runat="server" Text="+ Create New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" CausesValidation="false"/>
         </div>
     </div>
     </asp:Panel>
@@ -225,11 +248,28 @@ function addLine(){
 
 function removeLine(idx){lines.splice(idx,1);renderLines();}
 
+function updateDropdownStock(){
+    var sel=document.getElementById('selProduct');
+    for(var i=1;i<sel.options.length;i++){
+        var opt=sel.options[i];
+        var pid=opt.value;
+        var avJars=parseInt(opt.getAttribute('data-avjars'))||0;
+        var jpc=parseInt(opt.getAttribute('data-jpc'))||12;
+        var usedJars=0;
+        lines.forEach(function(l){if(l.pid===pid)usedJars+=(l.cases*l.jpc+l.loose);});
+        var remJars=avJars-usedJars;
+        var remCases=Math.floor(remJars/jpc);
+        var remLoose=remJars-(remCases*jpc);
+        var p=productData[pid];
+        if(p) opt.text=p.name+' ('+p.code+') — '+remCases+' cases'+(remLoose>0?' + '+remLoose+' jars':'');
+    }
+}
+
 function renderLines(){
     var body=document.getElementById('lineBody');
     var tbl=document.getElementById('lineTable');
     body.innerHTML='';
-    if(lines.length===0){tbl.style.display='none';syncLines();return;}
+    if(lines.length===0){tbl.style.display='none';syncLines();updateDropdownStock();return;}
     tbl.style.display='table';
     var tc=0,tl=0,tp=0;
     lines.forEach(function(l,i){
@@ -247,6 +287,7 @@ function renderLines(){
     document.getElementById('ftLoose').innerText=tl;
     document.getElementById('ftPcs').innerText=tp.toLocaleString();
     syncLines();
+    updateDropdownStock();
 }
 
 function syncLines(){

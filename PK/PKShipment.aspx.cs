@@ -9,12 +9,13 @@ namespace PKApp
     public partial class PKShipment : Page
     {
         protected Label lblUser, lblAlert, lblFormTitle;
-        protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList;
+        protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
+        protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
         protected HiddenField hfDCID, hfLines, hfProductData;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
-        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked;
-        protected Repeater rptDCs;
+        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
+        protected Repeater rptDCs, rptViewLines;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -255,9 +256,20 @@ namespace PKApp
             }
             else
             {
-                lblFormTitle.Text = "DC: " + dc["DCNumber"] + " (Finalised)";
                 pnlForm.Visible = false;
                 pnlLocked.Visible = true;
+
+                // Populate read-only view
+                if (lblLockedTitle != null) lblLockedTitle.Text = "Delivery Challan — " + dc["DCNumber"];
+                if (lblViewDCNum != null) lblViewDCNum.Text = dc["DCNumber"].ToString();
+                if (lblViewDate != null) lblViewDate.Text = Convert.ToDateTime(dc["DCDate"]).ToString("dd-MMM-yyyy");
+                if (lblViewCustomer != null) lblViewCustomer.Text = dc["CustomerName"] + " (" + dc["CustomerCode"] + ")";
+
+                string rem = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
+                if (pnlViewRemarks != null) { pnlViewRemarks.Visible = !string.IsNullOrEmpty(rem); }
+                if (lblViewRemarks != null) lblViewRemarks.Text = rem;
+
+                if (rptViewLines != null) { rptViewLines.DataSource = lines; rptViewLines.DataBind(); }
             }
 
             BuildProductData();
@@ -324,6 +336,103 @@ namespace PKApp
                 pnlAlert.CssClass = "alert " + (ok ? "alert-success" : "alert-danger");
                 pnlAlert.Visible = true;
             }
+        }
+
+        // ── PRINT / DOWNLOAD DC ──
+        protected void btnPrintDC_Click(object s, EventArgs e)
+        {
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0) { ShowAlert("Please save the DC first before downloading.", false); return; }
+
+            var dc = PKDatabaseHelper.GetDCById(dcId);
+            if (dc == null) { ShowAlert("DC not found.", false); return; }
+
+            var lines = PKDatabaseHelper.GetDCLines(dcId);
+            string dcNumber = dc["DCNumber"].ToString();
+            string custName = dc["CustomerName"].ToString();
+            string custCode = dc["CustomerCode"].ToString();
+            string dcDate = Convert.ToDateTime(dc["DCDate"]).ToString("dd-MMM-yyyy");
+            string status = dc["Status"].ToString();
+            string remarks = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
+
+            int totalCases = 0, totalLoose = 0, totalPcs = 0;
+            var lineRows = new System.Text.StringBuilder();
+            int sno = 1;
+            foreach (DataRow r in lines.Rows)
+            {
+                int cs = Convert.ToInt32(r["Cases"]);
+                int lj = Convert.ToInt32(r["LooseJars"]);
+                int jpc = Convert.ToInt32(r["JarsPerCase"]);
+                int tp = Convert.ToInt32(r["TotalPcs"]);
+                totalCases += cs; totalLoose += lj; totalPcs += tp;
+                lineRows.Append("<tr>");
+                lineRows.Append("<td style='text-align:center;'>" + sno++ + "</td>");
+                lineRows.Append("<td><strong>" + r["ProductName"] + "</strong><br/><span style='font-size:10px;color:#888;'>" + r["ProductCode"] + "</span></td>");
+                lineRows.Append("<td style='text-align:right;'>" + cs + "</td>");
+                lineRows.Append("<td style='text-align:right;'>" + lj + "</td>");
+                lineRows.Append("<td style='text-align:center;'>" + jpc + "</td>");
+                lineRows.Append("<td style='text-align:right;font-weight:700;'>" + tp.ToString("N0") + "</td>");
+                lineRows.Append("</tr>");
+            }
+
+            string html = @"<!DOCTYPE html><html><head><meta charset='utf-8'/>
+<title>Delivery Challan - " + dcNumber + @"</title>
+<style>
+@page{size:A4;margin:15mm 12mm;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#222;padding:20px;}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #e67e22;padding-bottom:12px;margin-bottom:16px;}
+.company{font-size:18px;font-weight:800;letter-spacing:1px;}
+.company-sub{font-size:10px;color:#666;margin-top:2px;}
+.dc-title{text-align:right;}
+.dc-title h1{font-size:20px;color:#e67e22;margin:0;letter-spacing:2px;}
+.dc-title .dc-num{font-size:14px;font-weight:700;margin-top:4px;}
+.dc-title .dc-status{font-size:10px;padding:2px 8px;border-radius:4px;display:inline-block;margin-top:4px;}
+.status-draft{background:#fef3cd;color:#856404;}
+.status-final{background:#d4edda;color:#155724;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:11px;}
+.info-box{border:1px solid #ddd;border-radius:6px;padding:10px 12px;}
+.info-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.5px;}
+.info-val{font-size:13px;font-weight:600;margin-top:2px;}
+table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+th{background:#f8f8f8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#666;padding:8px 10px;border-bottom:2px solid #ddd;text-align:left;}
+th.num{text-align:right;}th.ctr{text-align:center;}
+td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;}
+tfoot td{border-top:2px solid #333;font-weight:700;font-size:13px;}
+.footer{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.sig-box{border-top:1px solid #999;padding-top:6px;text-align:center;font-size:10px;color:#666;}
+.remarks{font-size:11px;color:#555;margin-bottom:12px;padding:8px;background:#f9f9f9;border-radius:4px;}
+@media print{body{padding:0;}.no-print{display:none !important;}}
+</style></head><body>
+<div class='no-print' style='text-align:center;margin-bottom:16px;'>
+<button onclick='window.print();' style='padding:10px 30px;font-size:14px;font-weight:700;background:#e67e22;color:#fff;border:none;border-radius:8px;cursor:pointer;'>Print / Save as PDF</button>
+<button onclick='window.close();' style='padding:10px 20px;font-size:14px;background:#eee;border:1px solid #ddd;border-radius:8px;cursor:pointer;margin-left:8px;'>Close</button>
+</div>
+<div class='header'>
+<div><div class='company'>SIRIMIRI NUTRITION</div><div class='company-sub'>Food Products Pvt. Ltd.</div></div>
+<div class='dc-title'><h1>DELIVERY CHALLAN</h1><div class='dc-num'>" + dcNumber + @"</div>
+<div class='dc-status " + (status == "FINALISED" ? "status-final" : "status-draft") + "'>" + status + @"</div></div>
+</div>
+<div class='info-grid'>
+<div class='info-box'><div class='info-label'>Customer</div><div class='info-val'>" + custName + @"</div><div style='font-size:10px;color:#888;'>" + custCode + @"</div></div>
+<div class='info-box'><div class='info-label'>DC Date</div><div class='info-val'>" + dcDate + @"</div></div>
+</div>" +
+(string.IsNullOrEmpty(remarks) ? "" : "<div class='remarks'><strong>Remarks:</strong> " + remarks + "</div>") +
+@"<table>
+<thead><tr><th class='ctr'>S.No</th><th>Product</th><th class='num'>Cases</th><th class='num'>Loose Jars</th><th class='ctr'>Jars/Case</th><th class='num'>Total Pcs</th></tr></thead>
+<tbody>" + lineRows.ToString() + @"</tbody>
+<tfoot><tr><td></td><td>Total</td><td style='text-align:right;'>" + totalCases + @"</td><td style='text-align:right;'>" + totalLoose + @"</td><td></td><td style='text-align:right;'>" + totalPcs.ToString("N0") + @"</td></tr></tfoot>
+</table>
+<div class='footer'>
+<div><div class='sig-box'>Prepared By</div></div>
+<div><div class='sig-box'>Received By (Customer Signature)</div></div>
+</div>
+</body></html>";
+
+            Response.Clear();
+            Response.ContentType = "text/html";
+            Response.Write(html);
+            Response.End();
         }
     }
 }
