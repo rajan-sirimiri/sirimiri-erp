@@ -1,4 +1,4 @@
-<%@ Page Language="C#" AutoEventWireup="true" Inherits="MMApp.MMPackingInward" %>
+<%@ Page Language="C#" AutoEventWireup="true" EnableEventValidation="false" Inherits="MMApp.MMPackingInward" %>
 <!DOCTYPE html>
 <html lang="en">
 <head runat="server">
