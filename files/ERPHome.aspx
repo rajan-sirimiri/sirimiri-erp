@@ -416,7 +416,7 @@
             </a>
 
             <!-- 4. Sales BI -->
-            <a href="StockEntry.aspx" class="module-card mod-sales">
+            <a href="SAHome.aspx" class="module-card mod-sales">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F4C8;</div>
                 <div class="module-info">

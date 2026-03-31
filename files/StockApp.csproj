@@ -84,7 +84,11 @@
       <DependentUpon>ChangePassword.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="SAHome.aspx" />
     <Content Include="StockEntry.aspx" />
+    <Compile Include="SAHome.aspx.cs">
+      <DependentUpon>SAHome.aspx</DependentUpon>
+    </Compile>
     <Compile Include="StockEntry.aspx.cs">
       <DependentUpon>StockEntry.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
