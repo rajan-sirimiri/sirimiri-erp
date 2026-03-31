@@ -130,7 +130,6 @@ th.recon-col.show{display:table-cell;}
 <asp:HiddenField ID="hfReconciled" runat="server" Value="0"/>
 <asp:Button ID="btnSaveRow" runat="server" OnClick="btnSaveRow_Click" style="display:none;"/>
 <asp:HiddenField ID="hfSaveData" runat="server" Value=""/>
-<asp:Button ID="btnSaveRow" runat="server" OnClick="btnSaveRow_Click" style="display:none;"/>
 
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
 
