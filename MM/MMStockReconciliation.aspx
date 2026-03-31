@@ -177,6 +177,7 @@ th.recon-col.show{display:table-cell;}
 
     <div class="footer-bar">
         <asp:Button ID="btnReconcile" runat="server" Text="&#x2696; Reconcile — Show System Stock" CssClass="btn btn-primary" OnClick="btnReconcile_Click"/>
+        <asp:Button ID="btnDownload" runat="server" Text="&#x1F4E5; Download Report" CssClass="btn btn-teal" OnClick="btnDownload_Click" Visible="false"/>
         <asp:Label ID="lblReconStatus" runat="server" style="font-size:12px;color:var(--text-muted);"/>
     </div>
 </div>
