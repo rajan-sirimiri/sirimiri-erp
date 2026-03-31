@@ -897,7 +897,7 @@ namespace MMApp.DAL
         public static string GenerateConsumableCode()
         {
             object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(ConsumableCode,3) AS UNSIGNED)) FROM MM_Consumables WHERE ConsumableCode LIKE 'C-%';");
-            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(val) + 1;
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
             return "C-" + next.ToString("D4");
         }
 
@@ -969,7 +969,7 @@ namespace MMApp.DAL
         public static string GenerateStationaryCode()
         {
             object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(StationaryCode,3) AS UNSIGNED)) FROM MM_Stationaries WHERE StationaryCode LIKE 'ST-%';");
-            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(val) + 1;
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
             return "ST-" + next.ToString("D4");
         }
 
