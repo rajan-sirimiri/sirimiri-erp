@@ -151,7 +151,6 @@
         <div class="nav-group">
             <span class="nav-item">Reports <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
-                <a href="PPMaterialStock.aspx">Material Stock Position</a>
             </div>
         </div>
         <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
@@ -224,18 +223,6 @@
             </a>
         </div>
 
-        <!-- REPORTS -->
-        <div class="section-head">Reports &amp; Inquiry</div>
-        <div class="menu-grid">
-            <a href="PPMaterialStock.aspx" class="menu-card cat-report">
-                <div class="menu-icon">&#x1F4CA;</div>
-                <div>
-                    <div class="menu-title">Material Stock<br/>Position</div>
-                    <div class="menu-desc">View current stock levels of raw materials, packing and consumables across locations</div>
-                </div>
-                <div class="menu-arrow">&#x2197;</div>
-            </a>
-        </div>
     </main>
 
 </form>
