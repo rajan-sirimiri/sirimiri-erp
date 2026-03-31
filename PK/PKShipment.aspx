@@ -85,7 +85,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <div class="form-row">
             <div class="form-group"><label>DC Number</label>
                 <asp:TextBox ID="txtDCNumber" runat="server" ReadOnly="true" placeholder="Auto-generated"/></div>
-            <div class="form-group"><label>Customer <span class="req">*</span></label>
+            <div class="form-group" style="position:relative;"><label>Customer <span class="req">*</span></label>
+                <input type="text" id="txtCustomerSearch" placeholder="Type to search customer..."
+                    oninput="filterDropdown(this.value, '<%= ddlCustomer.ClientID %>', 'txtCustomerSearch');"
+                    onfocus="filterDropdown(this.value, '<%= ddlCustomer.ClientID %>', 'txtCustomerSearch');"
+                    style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5;outline:none;width:100%;" autocomplete="off"/>
                 <asp:DropDownList ID="ddlCustomer" runat="server"/></div>
             <div class="form-group"><label>DC Date <span class="req">*</span></label>
                 <asp:TextBox ID="txtDCDate" runat="server" TextMode="Date"/></div>
@@ -183,6 +187,34 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 </div>
 </form>
 <script>
+// Generic searchable dropdown filter
+function filterDropdown(q, ddlId, searchId) {
+    var ddl = document.getElementById(ddlId);
+    if (!ddl) return;
+    q = q.toLowerCase().trim();
+    var opts = ddl.options;
+    var firstMatch = -1;
+    for (var i = 0; i < opts.length; i++) {
+        var txt = opts[i].text.toLowerCase();
+        if (q === '' || txt.indexOf(q) >= 0 || opts[i].value === '0') {
+            opts[i].style.display = ''; opts[i].disabled = false;
+            if (firstMatch < 0 && i > 0 && txt.indexOf(q) >= 0) firstMatch = i;
+        } else {
+            opts[i].style.display = 'none'; opts[i].disabled = true;
+        }
+    }
+    if (firstMatch >= 0 && q.length >= 2) ddl.selectedIndex = firstMatch;
+    if (q.length >= 1) { ddl.size = Math.min(8, opts.length); ddl.style.position = 'absolute'; ddl.style.zIndex = '999'; ddl.style.width = '100%'; }
+    else { ddl.size = 0; ddl.style.position = ''; ddl.style.zIndex = ''; }
+}
+document.addEventListener('change', function(e) {
+    if (e.target.id === '<%= ddlCustomer.ClientID %>') {
+        e.target.size = 0; e.target.style.position = ''; e.target.style.zIndex = '';
+        var sb = document.getElementById('txtCustomerSearch');
+        if (sb) sb.value = e.target.options[e.target.selectedIndex].text;
+    }
+});
+
 var productData={};
 try{productData=JSON.parse(document.getElementById('<%= hfProductData.ClientID %>').value||'{}');}catch(e){}
 var lines=[];
