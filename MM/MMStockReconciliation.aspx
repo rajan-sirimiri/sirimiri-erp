@@ -54,8 +54,14 @@ tr:hover{background:#fef9f3;}
 /* Per-row save button */
 .btn-save-row{background:var(--teal);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.04em;}
 .btn-save-row:hover{background:#148a5b;}
+
+/* Saved row styling */
+tr.row-saved{background:#f0faf6;}
+tr.row-saved:hover{background:#e5f5ec;}
+.phys-saved{font-weight:700;font-size:14px;color:var(--teal);text-align:right;display:block;}
+.save-done{font-size:11px;color:var(--teal);font-weight:700;}
 .btn-save-row.saved{background:#b0b0b0;cursor:default;}
-.save-status{font-size:10px;color:var(--teal);font-weight:600;display:none;}
+
 
 /* Reconcile columns (hidden initially) */
 .recon-col{display:none;}
@@ -151,7 +157,7 @@ th.recon-col.show{display:table-cell;}
             </tr>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr data-mid='<%# Eval("MaterialID") %>'>
+            <tr data-mid='<%# Eval("MaterialID") %>' class='<%# IsPhysicalSaved(Eval("MaterialID")) ? "row-saved" : "" %>'>
                 <td style="color:var(--text-dim);font-size:11px;"><%# Container.ItemIndex + 1 %></td>
                 <td>
                     <div style="font-weight:500;"><%# Eval("Name") %></div>
@@ -159,14 +165,14 @@ th.recon-col.show{display:table-cell;}
                 </td>
                 <td style="font-size:12px;color:var(--text-muted);"><%# Eval("UOM") %></td>
                 <td>
-                    <input type="text" class="phys-input <%# IsPhysicalSaved(Eval("MaterialID")) ? "saved" : "" %>"
-                        data-mid='<%# Eval("MaterialID") %>'
-                        value='<%# GetPhysicalQty(Eval("MaterialID")) %>'
-                        placeholder="0"/>
+                    <%# IsPhysicalSaved(Eval("MaterialID"))
+                        ? "<span class='phys-saved'>" + GetPhysicalQty(Eval("MaterialID")) + "</span>"
+                        : "<input type='text' class='phys-input' data-mid='" + Eval("MaterialID") + "' value='' placeholder='0'/>" %>
                 </td>
                 <td>
-                    <button type="button" class="btn-save-row" onclick="saveRow(this);">Save</button>
-                    <span class="save-status">&#x2714; Saved</span>
+                    <%# IsPhysicalSaved(Eval("MaterialID"))
+                        ? "<span class='save-done'>&#x2714; Done</span>"
+                        : "<button type='button' class='btn-save-row' onclick='saveRow(this);'>Save</button>" %>
                 </td>
                 <td class="recon-col num" data-sys='<%# Eval("SystemStock") %>'><%# Convert.ToDecimal(Eval("SystemStock")).ToString("N2") %></td>
                 <td class="recon-col num" data-var="1"></td>
@@ -203,7 +209,11 @@ function saveRow(btn) {
 function showVariances() {
     var rows = document.querySelectorAll('#tblStock tr[data-mid]');
     rows.forEach(function(row) {
-        var phys = parseFloat(row.querySelector('.phys-input').value) || 0;
+        var input = row.querySelector('.phys-input');
+        var saved = row.querySelector('.phys-saved');
+        var phys = 0;
+        if (input) phys = parseFloat(input.value) || 0;
+        else if (saved) phys = parseFloat(saved.innerText) || 0;
         var sysTd = row.querySelector('[data-sys]');
         var varTd = row.querySelector('[data-var]');
         var pctTd = row.querySelector('[data-pct]');
@@ -213,7 +223,6 @@ function showVariances() {
         var pct = sys !== 0 ? (diff / sys) * 100 : (phys !== 0 ? 100 : 0);
         varTd.innerText = diff.toFixed(2);
         pctTd.innerText = pct.toFixed(1) + '%';
-        // Highlight if variance > 1%
         if (Math.abs(pct) > 1) {
             varTd.className = 'recon-col num show var-warn';
             pctTd.className = 'recon-col num show var-warn';
