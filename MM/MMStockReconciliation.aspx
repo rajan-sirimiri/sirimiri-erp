@@ -60,8 +60,6 @@ tr.row-saved{background:#f0faf6;}
 tr.row-saved:hover{background:#e5f5ec;}
 .phys-saved{font-weight:700;font-size:14px;color:var(--teal);text-align:right;display:block;}
 .save-done{font-size:11px;color:var(--teal);font-weight:700;}
-.btn-save-row.saved{background:#b0b0b0;cursor:default;}
-
 
 /* Reconcile columns (hidden initially) */
 .recon-col{display:none;}
@@ -129,6 +127,9 @@ th.recon-col.show{display:table-cell;}
 
 <asp:HiddenField ID="hfTab" runat="server" Value="RM"/>
 <asp:HiddenField ID="hfReconciled" runat="server" Value="0"/>
+<asp:Button ID="btnSaveRow" runat="server" OnClick="btnSaveRow_Click" style="display:none;"/>
+<asp:HiddenField ID="hfSaveData" runat="server" Value=""/>
+<asp:Button ID="btnSaveRow" runat="server" OnClick="btnSaveRow_Click" style="display:none;"/>
 
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
 
@@ -164,16 +165,8 @@ th.recon-col.show{display:table-cell;}
                     <div class="code"><%# Eval("Code") %></div>
                 </td>
                 <td style="font-size:12px;color:var(--text-muted);"><%# Eval("UOM") %></td>
-                <td>
-                    <%# IsPhysicalSaved(Eval("MaterialID"))
-                        ? "<span class='phys-saved'>" + GetPhysicalQty(Eval("MaterialID")) + "</span>"
-                        : "<input type='text' class='phys-input' data-mid='" + Eval("MaterialID") + "' value='' placeholder='0'/>" %>
-                </td>
-                <td>
-                    <%# IsPhysicalSaved(Eval("MaterialID"))
-                        ? "<span class='save-done'>&#x2714; Done</span>"
-                        : "<button type='button' class='btn-save-row' onclick='saveRow(this);'>Save</button>" %>
-                </td>
+                <td><%# RenderPhysicalCell(Eval("MaterialID")) %></td>
+                <td><%# RenderActionCell(Eval("MaterialID")) %></td>
                 <td class="recon-col num" data-sys='<%# Eval("SystemStock") %>'><%# Convert.ToDecimal(Eval("SystemStock")).ToString("N2") %></td>
                 <td class="recon-col num" data-var="1"></td>
                 <td class="recon-col num" data-pct="1"></td>
@@ -201,8 +194,8 @@ function saveRow(btn) {
         erpAlert('Please enter a valid quantity.', {title:'Invalid', type:'warn'});
         return;
     }
-    // Use __doPostBack with encoded argument
-    __doPostBack('<%= btnReconcile.UniqueID %>', 'SAVE_ROW:' + mid + ':' + qty);
+    document.getElementById('<%= hfSaveData.ClientID %>').value = mid + ':' + qty;
+    document.getElementById('<%= btnSaveRow.ClientID %>').click();
 }
 
 // After reconcile, calculate variances client-side

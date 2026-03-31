@@ -13,9 +13,9 @@ namespace MMApp
         protected Panel        pnlAlert, pnlEmpty;
         protected TextBox      txtReconDate;
         protected Repeater     rptStock;
-        protected Button       btnLoadDate, btnReconcile;
+        protected Button       btnLoadDate, btnReconcile, btnSaveRow;
         protected Button       btnTabRM, btnTabPM, btnTabCM, btnTabST;
-        protected HiddenField  hfTab, hfReconciled;
+        protected HiddenField  hfTab, hfReconciled, hfSaveData;
 
         private Dictionary<int, decimal> _physMap;
 
@@ -31,13 +31,7 @@ namespace MMApp
             }
             else
             {
-                // Handle per-row save via __doPostBack
-                string arg = Request["__EVENTARGUMENT"] ?? "";
-                if (arg.StartsWith("SAVE_ROW:"))
-                {
-                    HandleRowSave(arg);
-                    return;
-                }
+                // Postback — nothing special needed here
             }
         }
 
@@ -71,6 +65,14 @@ namespace MMApp
             }
         }
 
+        protected void btnSaveRow_Click(object sender, EventArgs e)
+        {
+            string data = hfSaveData.Value ?? "";
+            if (string.IsNullOrEmpty(data)) return;
+            HandleRowSave("SAVE_ROW:" + data);
+            hfSaveData.Value = "";
+        }
+
         protected void btnTab_Click(object sender, EventArgs e)
         {
             Button btn = (Button)sender;
@@ -90,14 +92,6 @@ namespace MMApp
 
         protected void btnReconcile_Click(object sender, EventArgs e)
         {
-            // Check if this is a row save via __doPostBack
-            string arg = Request["__EVENTARGUMENT"] ?? "";
-            if (arg.StartsWith("SAVE_ROW:"))
-            {
-                HandleRowSave(arg);
-                return;
-            }
-
             DateTime sessionDate;
             if (!DateTime.TryParse(txtReconDate.Text, out sessionDate))
             {
@@ -195,6 +189,24 @@ namespace MMApp
             if (_physMap == null) return false;
             int mid = Convert.ToInt32(materialIdObj);
             return _physMap.ContainsKey(mid);
+        }
+
+        protected string RenderPhysicalCell(object materialIdObj)
+        {
+            int mid = Convert.ToInt32(materialIdObj);
+            if (_physMap != null && _physMap.ContainsKey(mid))
+                return "<span class='phys-saved'>" + _physMap[mid].ToString("0.####") + "</span>";
+            else
+                return "<input type='text' class='phys-input' data-mid='" + mid + "' value='' placeholder='0'/>";
+        }
+
+        protected string RenderActionCell(object materialIdObj)
+        {
+            int mid = Convert.ToInt32(materialIdObj);
+            if (_physMap != null && _physMap.ContainsKey(mid))
+                return "<span class='save-done'>&#x2714; Done</span>";
+            else
+                return "<button type='button' class='btn-save-row' onclick='saveRow(this);'>Save</button>";
         }
 
         private void ShowAlert(string msg, bool success)
