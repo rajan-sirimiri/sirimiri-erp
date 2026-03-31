@@ -12,29 +12,30 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
 
-/* Nav — MM style gradient */
-nav.ua-nav{position:relative;z-index:9;background:linear-gradient(135deg,#1a1a1a 0%,#cc1e1e 100%);display:flex;align-items:center;padding:0 32px;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+/* Header — same as MM */
+header{display:flex;align-items:center;padding:0 40px;height:72px;background:var(--surface);border-bottom:2px solid var(--accent);}
+.header-logo img{height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(204,30,30,.2));}
+.header-center{flex:1;text-align:center;}
+.header-brand{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.10em;color:var(--text);line-height:1;}
+.header-tagline{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.header-user-name{font-size:13px;font-weight:600;text-align:right;}
+.header-user-role{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;}
+.btn-signout{padding:7px 16px;border:1.5px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;font-weight:700;text-decoration:none;letter-spacing:.04em;text-transform:uppercase;}
+.btn-signout:hover{border-color:var(--accent);color:var(--accent);}
+
+/* Nav — MM gradient style */
+nav.ua-nav{background:linear-gradient(135deg,#1a1a1a 0%,#cc1e1e 100%);display:flex;align-items:center;padding:0 32px;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
 .nav-item{display:block;padding:12px 16px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;transition:background .2s;text-decoration:none;}
 .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.18);}
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
-.nav-user{font-size:12px;color:rgba(255,255,255,.7);}
-.nav-logout{font-size:11px;color:rgba(255,255,255,.5);text-decoration:none;padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:5px;}
-.nav-logout:hover{color:#fff;border-color:rgba(255,255,255,.5);}
-
-/* Page header */
-.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 40px;}
-.page-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.07em;}
-.page-title span{color:var(--accent);}
-.page-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
 
 .container{max-width:1100px;margin:24px auto;padding:0 24px;}
 
-/* Cards — MM style with teal left border on titles */
+/* Cards — MM style */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;margin-bottom:20px;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.08em;color:var(--text-muted);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
 .card-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--teal);border-radius:2px;}
 
-/* Form */
 .form-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;}
 .form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;}
 .form-group label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);}
@@ -51,13 +52,12 @@ nav.ua-nav{position:relative;z-index:9;background:linear-gradient(135deg,#1a1a1a
 .alert-success{background:#eafaf1;color:var(--teal);border:1px solid #b2dfdb;}
 .alert-danger{background:#fdf3f2;color:var(--accent);border:1px solid #f5c6cb;}
 
-/* Tabs — MM style */
+/* Tabs */
 .tab-bar{display:flex;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;}
 .tab-btn{padding:14px 24px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;font-family:inherit;transition:all .2s;}
 .tab-btn:hover{color:var(--text);background:var(--surface2);}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface);}
 
-/* Table */
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{background:var(--surface2);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);}
 td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
@@ -74,8 +74,8 @@ tr:hover{background:rgba(26,158,106,0.04);}
 .link-danger{color:var(--accent);}
 .link-orange{color:var(--orange);}
 
-/* Role access config — split panel */
-.role-grid{display:grid;grid-template-columns:220px 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:400px;}
+/* Role access — split panel */
+.role-grid{display:grid;grid-template-columns:220px 1fr;gap:0;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;min-height:400px;}
 .role-list{background:var(--surface2);border-right:1px solid var(--border);}
 .role-item{padding:12px 16px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:1px solid #eee;transition:background .15s;}
 .role-item:hover{background:rgba(26,158,106,0.06);}
@@ -99,25 +99,35 @@ tr:hover{background:rgba(26,158,106,0.04);}
 <body>
 <form id="form1" runat="server">
 
+<!-- Header with logo — same as MM -->
+<header>
+    <div class="header-logo">
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'" />
+    </div>
+    <div class="header-center">
+        <div class="header-brand">Sirimiri Nutrition Food Products</div>
+        <div class="header-tagline">Enterprise Resource Planning</div>
+    </div>
+    <div class="header-right">
+        <div>
+            <div class="header-user-name"><asp:Label ID="lblNavUser" runat="server"/></div>
+            <div class="header-user-role"><asp:Label ID="lblNavRole" runat="server"/></div>
+        </div>
+        <a href="#" class="btn-signout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='UALogout.aspx';}});return false;">&#x2192; Sign Out</a>
+    </div>
+</header>
+
 <nav class="ua-nav">
     <a href="/StockApp/ERPHome.aspx" class="nav-item" title="ERP Home">&#x2302; ERP Home</a>
     <span class="nav-item active">&#x1F511; User Administration</span>
-    <div class="nav-right">
-        <span class="nav-user"><asp:Label ID="lblNavUser" runat="server"/></span>
-        <a href="#" class="nav-logout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='UALogout.aspx';}});return false;">Sign Out</a>
-    </div>
 </nav>
-
-<div class="page-header">
-    <div class="page-title">User <span>Administration</span></div>
-    <div class="page-sub">Manage users, roles, and access control</div>
-</div>
 
 <div class="container">
 
 <asp:Panel ID="pnlAlert" runat="server" Visible="false" CssClass="alert"><asp:Label ID="lblAlert" runat="server"/></asp:Panel>
 
 <asp:HiddenField ID="hfTab" runat="server" Value="users"/>
+<asp:HiddenField ID="hfSelectedRole" runat="server" Value=""/>
 
 <!-- Tabs -->
 <div class="tab-bar">
@@ -186,14 +196,12 @@ tr:hover{background:rgba(26,158,106,0.04);}
 <!-- ═══════ TAB 2: ROLE ACCESS CONFIG ═══════ -->
 <asp:Panel ID="pnlRoles" runat="server" Visible="false">
 
-<asp:HiddenField ID="hfSelectedRole" runat="server" Value=""/>
-
-<div class="role-grid" style="border-top-left-radius:0;border-top-right-radius:0;">
+<div class="role-grid">
     <div class="role-list">
         <asp:Repeater ID="rptRoleList" runat="server">
             <ItemTemplate>
-                <div class='role-item <%# Eval("RoleCode").ToString() == GetSelectedRole() ? "active" : "" %>'
-                     onclick="__doPostBack('<%= btnSelectRole.UniqueID %>', '<%# Eval("RoleCode") %>');">
+                <div class='role-item <%# Eval("RoleCode").ToString() == hfSelectedRole.Value ? "active" : "" %>'
+                     onclick="selectRole('<%# Eval("RoleCode") %>');">
                     <div><%# Eval("RoleName") %></div>
                     <div class="role-desc"><%# Eval("Description") %></div>
                 </div>
@@ -238,6 +246,8 @@ tr:hover{background:rgba(26,158,106,0.04);}
     </div>
 </div>
 
+<!-- Hidden button for role selection postback -->
+<asp:HiddenField ID="hfRoleClick" runat="server" Value=""/>
 <asp:Button ID="btnSelectRole" runat="server" OnClick="btnSelectRole_Click" style="display:none;"/>
 
 </asp:Panel>
@@ -245,6 +255,10 @@ tr:hover{background:rgba(26,158,106,0.04);}
 </div>
 
 <script>
+function selectRole(roleCode) {
+    document.getElementById('<%= hfRoleClick.ClientID %>').value = roleCode;
+    document.getElementById('<%= btnSelectRole.ClientID %>').click();
+}
 function toggleRoleModules(chk, appCode) {
     var panel = document.getElementById('role_modules_' + appCode);
     if (!panel) return;

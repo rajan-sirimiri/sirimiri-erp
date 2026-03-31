@@ -8,9 +8,9 @@ namespace UAApp
 {
     public partial class UAHome : Page
     {
-        protected Label        lblNavUser, lblAlert, lblFormTitle, lblCount, lblRoleName;
+        protected Label        lblNavUser, lblNavRole, lblAlert, lblFormTitle, lblCount, lblRoleName;
         protected Panel        pnlAlert, pnlPassword, pnlUsers, pnlRoles, pnlNoRole, pnlRoleDetail;
-        protected HiddenField  hfEditUserId, hfTab, hfSelectedRole;
+        protected HiddenField  hfEditUserId, hfTab, hfSelectedRole, hfRoleClick;
         protected TextBox      txtFullName, txtUsername, txtPassword;
         protected DropDownList ddlRole;
         protected Button       btnSave, btnCancel, btnTabUsers, btnTabRoles, btnSelectRole, btnSaveRoleAccess;
@@ -20,6 +20,7 @@ namespace UAApp
         {
             if (Session["UA_UserID"] == null) { Response.Redirect("UALogin.aspx"); return; }
             lblNavUser.Text = Session["UA_FullName"]?.ToString() ?? "";
+            if (lblNavRole != null) lblNavRole.Text = Session["UA_Role"]?.ToString() ?? "";
             if (!IsPostBack) { LoadRoleDropdown(); BindUsers(); BindRoleList(); SetActiveTab(); }
         }
 
@@ -135,13 +136,15 @@ namespace UAApp
         private void BindRoleList()
         { rptRoleList.DataSource = UADatabaseHelper.GetAllRoles(); rptRoleList.DataBind(); }
 
-        protected string GetSelectedRole() { return hfSelectedRole.Value ?? ""; }
-
         protected void btnSelectRole_Click(object sender, EventArgs e)
         {
-            string roleCode = Request["__EVENTARGUMENT"] ?? "";
+            string roleCode = hfRoleClick.Value;
             if (!string.IsNullOrEmpty(roleCode))
-            { hfSelectedRole.Value = roleCode; BindRoleList(); LoadSelectedRole(); }
+            {
+                hfSelectedRole.Value = roleCode;
+                BindRoleList();
+                LoadSelectedRole();
+            }
         }
 
         private void LoadSelectedRole()
