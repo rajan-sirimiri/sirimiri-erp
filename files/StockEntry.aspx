@@ -856,6 +856,7 @@
             .date-badge .date-day { font-size: 22px; }
         }
     </style>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 </head>
 <body>
 

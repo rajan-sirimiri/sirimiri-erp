@@ -3,6 +3,7 @@
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Primary Packing — Sirimiri</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 <style>
 :root{
     --bg:#f0f0f0;--surface:#fff;--border:#e0e0e0;

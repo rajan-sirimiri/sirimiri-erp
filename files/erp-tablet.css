@@ -1,0 +1,77 @@
+/* ═══════════════════════════════════════════════════════════
+   SIRIMIRI ERP — Tablet & Responsive Overrides
+   Include: <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
+   Targets: 11-inch tablets (1024x768), 8.5x5.5 landscape
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── TABLET LANDSCAPE (768px - 1100px) ────────────────────── */
+@media (max-width: 1100px) {
+    nav { padding: 0 16px; gap: 4px; }
+    .nav-brand { font-size: 16px; margin-right: 12px; }
+    .nav-item, .nav-link { font-size: 11px; padding: 5px 8px; }
+    .nav-user { font-size: 11px; }
+    .nav-logout, .nav-link[href*="Logout"], .btn-signout { font-size: 10px; padding: 3px 8px; }
+    .page-header { padding: 16px 20px; }
+    .page-title { font-size: 24px; }
+    .page-sub { font-size: 11px; }
+    .container, .main, .main-layout, .page-body { padding-left: 16px; padding-right: 16px; }
+    .card { padding: 16px; }
+    .card-title { font-size: 14px; }
+    .form-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+    .form-grid-3 { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+    table { font-size: 12px; }
+    th { padding: 8px 8px; font-size: 9px; }
+    td { padding: 7px 8px; }
+    input[type="text"], input[type="number"], input[type="date"],
+    select, textarea,
+    .form-group input, .form-group select, .form-group textarea {
+        font-size: 14px !important; padding: 10px 12px !important; min-height: 44px;
+    }
+    select, .aspNetDropDown { min-height: 44px; font-size: 14px !important; }
+    .btn, button, input[type="submit"], input[type="button"],
+    .btn-primary, .btn-teal, .btn-save-row {
+        min-height: 44px; padding: 10px 20px !important; font-size: 13px !important;
+    }
+    .menu-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
+    .main-layout { grid-template-columns: 1fr !important; }
+    .rec-panel { position: static !important; }
+    .quad-grid { grid-template-columns: 1fr !important; }
+    .output-grid { grid-template-columns: 1fr 1fr !important; }
+    .summary, .summary-bar, .stats-grid, .stat-cards { flex-wrap: wrap !important; }
+    .product-info-row, .pi-stat { flex-wrap: wrap; }
+}
+
+/* ── TABLET PORTRAIT (600px - 768px) ──────────────────────── */
+@media (max-width: 768px) {
+    nav { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 4px; }
+    .nav-right { width: 100%; justify-content: flex-end; margin-top: 4px; }
+    .form-grid, .form-grid-2, .form-grid-3 { grid-template-columns: 1fr !important; }
+    .menu-grid { grid-template-columns: 1fr !important; }
+    .card { overflow-x: auto; }
+    table { min-width: 600px; }
+    .hide-tablet { display: none !important; }
+    .footer-bar { flex-direction: column; align-items: stretch; }
+    .footer-bar .btn { width: 100%; text-align: center; }
+    .date-bar { flex-wrap: wrap; }
+    .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn, .tab { white-space: nowrap; font-size: 11px; padding: 10px 14px; }
+}
+
+/* ── TOUCH ENHANCEMENTS (all touch devices) ───────────────── */
+@media (pointer: coarse) {
+    a, button, .btn, .tab-btn, .tab, .nav-item, .nav-link, .menu-card { min-height: 44px; }
+    td a { padding: 4px 2px; }
+    input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; margin-right: 8px; }
+    .menu-card:hover { transform: none; }
+    .btn-save-row { padding: 8px 16px !important; font-size: 12px !important; }
+    #txtRMSearch, #txtSupplierSearch { font-size: 16px !important; min-height: 44px; }
+}
+
+/* ── PRINT ────────────────────────────────────────────────── */
+@media print {
+    nav, .footer-bar, .btn, button, .tab-bar, .nav-right { display: none !important; }
+    .card { border: none; box-shadow: none; padding: 0; }
+    body { font-size: 11px; }
+    table { min-width: auto; font-size: 10px; }
+    th, td { padding: 4px 6px; }
+}

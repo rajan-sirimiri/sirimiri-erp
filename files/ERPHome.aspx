@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
     <style>
         :root {
             --bg:           #f5f5f5;
@@ -344,7 +345,6 @@
 <body>
 
     <form id="form1" runat="server">
-    <asp:HiddenField ID="hfSSOToken" runat="server" Value=""/>
 
     <!-- HEADER -->
     <header>
@@ -383,7 +383,7 @@
         <div class="module-grid">
 
             <!-- 1. Materials Management -->
-            <a href="/MM/MMLogin.aspx" data-sso-module="MM" class="module-card mod-materials">
+            <a href="/MM/MMLogin.aspx" class="module-card mod-materials">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F4E6;</div>
                 <div class="module-info">
@@ -394,7 +394,7 @@
             </a>
 
             <!-- 2. Production -->
-            <a href="/PP/PPLogin.aspx" data-sso-module="PP" class="module-card mod-production">
+            <a href="/PP/PPHome.aspx" class="module-card mod-production">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x2699;&#xFE0F;</div>
                 <div class="module-info">
@@ -405,7 +405,7 @@
             </a>
 
             <!-- 3. Packing -->
-            <a href="/PK/PKLogin.aspx" data-sso-module="PK" class="module-card mod-packing">
+            <a href="/PK/PKHome.aspx" class="module-card mod-packing">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F3F7;&#xFE0F;</div>
                 <div class="module-info">
@@ -453,22 +453,6 @@
     <footer>
         &copy; <%= DateTime.Now.Year %> Sirimiri Nutrition &nbsp;&mdash;&nbsp; ERP v2.0
     </footer>
-
-    <script type="text/javascript">
-        // SSO: append token to module links on page load
-        (function () {
-            var tokenField = document.getElementById('<%= hfSSOToken.ClientID %>');
-            var token = tokenField ? tokenField.value : '';
-            if (!token) return;
-
-            var links = document.querySelectorAll('a[data-sso-module]');
-            for (var i = 0; i < links.length; i++) {
-                var href = links[i].getAttribute('href');
-                var sep = href.indexOf('?') >= 0 ? '&' : '?';
-                links[i].setAttribute('href', href + sep + 'sso=' + token);
-            }
-        })();
-    </script>
 
     </form>
 </body>

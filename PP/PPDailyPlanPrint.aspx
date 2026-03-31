@@ -78,6 +78,7 @@ tr:nth-child(even) td { background: #f9f9f9; }
     body { padding-top: 60px; }
 }
 </style>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 </head>
 <body>
 

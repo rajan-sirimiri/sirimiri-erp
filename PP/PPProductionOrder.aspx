@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Sirimiri PP — Production Order</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 <style>
 :root{
     --accent:#2ecc71; --accent-dark:#27ae60; --accent-light:#eafaf1;

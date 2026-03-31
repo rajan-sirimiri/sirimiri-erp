@@ -72,6 +72,7 @@ tbody tr:hover { background:#fafafa; }
     .bulk-stat     { font-size:13px; color:#333; }
     .bulk-detail   { font-size:12px; color:#c0392b; white-space:pre-wrap; display:block; margin-top:6px; }
 </style>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 </head>
 <body>
 <form id="form1" runat="server">
