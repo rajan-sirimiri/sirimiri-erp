@@ -179,12 +179,20 @@
             <div class="card">
                 <div class="card-title">Material &amp; Supplier</div>
                 <div class="form-grid">
-                    <div class="form-group">
+                    <div class="form-group" style="position:relative;">
                         <label>Raw Material <span class="req">*</span></label>
+                        <input type="text" id="txtRMSearch" placeholder="Type to search material..."
+                            oninput="filterDropdown(this.value, '<%= ddlRM.ClientID %>', 'txtRMSearch');"
+                            onfocus="filterDropdown(this.value, '<%= ddlRM.ClientID %>', 'txtRMSearch');"
+                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5;outline:none;width:100%;" autocomplete="off"/>
                         <asp:DropDownList ID="ddlRM" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlRM_Changed" onchange="onRMChange(this)" />
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="position:relative;">
                         <label>Supplier <span class="req">*</span></label>
+                        <input type="text" id="txtSupplierSearch" placeholder="Type to search supplier..."
+                            oninput="filterDropdown(this.value, '<%= ddlSupplier.ClientID %>', 'txtSupplierSearch');"
+                            onfocus="filterDropdown(this.value, '<%= ddlSupplier.ClientID %>', 'txtSupplierSearch');"
+                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5;outline:none;width:100%;" autocomplete="off"/>
                         <asp:DropDownList ID="ddlSupplier" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSupplier_Changed" />
                     </div>
                     <div class="form-group">
@@ -441,6 +449,40 @@
 </form>
 <script>
     var rmData = <%= RMDataJson %>;
+
+    // Generic searchable dropdown filter
+    function filterDropdown(q, ddlId, searchId) {
+        var ddl = document.getElementById(ddlId);
+        if (!ddl) return;
+        q = q.toLowerCase().trim();
+        var opts = ddl.options;
+        var firstMatch = -1;
+        for (var i = 0; i < opts.length; i++) {
+            var txt = opts[i].text.toLowerCase();
+            if (q === '' || txt.indexOf(q) >= 0 || opts[i].value === '0') {
+                opts[i].style.display = ''; opts[i].disabled = false;
+                if (firstMatch < 0 && i > 0 && txt.indexOf(q) >= 0) firstMatch = i;
+            } else {
+                opts[i].style.display = 'none'; opts[i].disabled = true;
+            }
+        }
+        if (firstMatch >= 0 && q.length >= 2) ddl.selectedIndex = firstMatch;
+        if (q.length >= 1) { ddl.size = Math.min(8, opts.length); ddl.style.position = 'absolute'; ddl.style.zIndex = '999'; ddl.style.width = '100%'; }
+        else { ddl.size = 0; ddl.style.position = ''; ddl.style.zIndex = ''; }
+    }
+    document.addEventListener('change', function(e) {
+        var pairs = [
+            ['<%= ddlSupplier.ClientID %>', 'txtSupplierSearch'],
+            ['<%= ddlRM.ClientID %>', 'txtRMSearch']
+        ];
+        pairs.forEach(function(p) {
+            if (e.target.id === p[0]) {
+                e.target.size = 0; e.target.style.position = ''; e.target.style.zIndex = '';
+                var sb = document.getElementById(p[1]);
+                if (sb) sb.value = e.target.options[e.target.selectedIndex].text;
+            }
+        });
+    });
 
     function onRMChange(sel) {
         var d = rmData[sel.value];
