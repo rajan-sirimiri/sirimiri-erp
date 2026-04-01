@@ -35,15 +35,11 @@ namespace MMApp
                         string fullName = ssoUser["FullName"].ToString();
                         string role     = ssoUser["Role"].ToString();
 
-                        // Check MM access — Super and Admin always allowed
-                        if (role != "Admin" && role != "Super")
+                        // Check MM access — role-based
+                        if (!MMDatabaseHelper.RoleHasAppAccess(role, "MM"))
                         {
-                            var access = MMDatabaseHelper.GetUserAccessList(userId);
-                            if (access.Rows.Count == 0)
-                            {
-                                ShowError("You do not have access to the Materials Management module.");
-                                return;
-                            }
+                            ShowError("You do not have access to the Materials Management module.");
+                            return;
                         }
 
                         Session["MM_UserID"]   = userId;
@@ -86,16 +82,12 @@ namespace MMApp
                 return;
             }
 
-            // Check MM access — Super and Admin always allowed
+            // Check MM access — role-based
             int userId = Convert.ToInt32(user["UserID"]);
             string role = user["Role"].ToString();
 
-            if (role != "Admin" && role != "Super")
-            {
-                var access = MMDatabaseHelper.GetUserAccessList(userId);
-                if (access.Rows.Count == 0)
-                { ShowError("You do not have access to the Materials Management module. Please contact Admin."); return; }
-            }
+            if (!MMDatabaseHelper.RoleHasAppAccess(role, "MM"))
+            { ShowError("You do not have access to the Materials Management module. Please contact Admin."); return; }
 
             Session["MM_UserID"]   = userId;
             Session["MM_Username"] = user["Username"].ToString();

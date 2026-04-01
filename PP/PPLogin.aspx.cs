@@ -29,6 +29,10 @@ namespace PPApp
                         string fullName = ssoUser["FullName"].ToString();
                         string role     = ssoUser["Role"].ToString();
 
+                        // Check PP access — role-based
+                        if (!PPDatabaseHelper.RoleHasAppAccess(role, "PP"))
+                        { ShowError("You do not have access to the Production Planning module."); return; }
+
                         Session["PP_UserID"]   = userId;
                         Session["PP_Username"] = fullName;
                         Session["PP_FullName"] = fullName;
@@ -70,6 +74,10 @@ namespace PPApp
 
             int    userId = Convert.ToInt32(user["UserID"]);
             string role   = user["Role"].ToString();
+
+            // Check PP access — role-based
+            if (!PPDatabaseHelper.RoleHasAppAccess(role, "PP"))
+            { ShowError("You do not have access to the Production Planning module. Please contact Admin."); return; }
 
             Session["PP_UserID"]   = userId;
             Session["PP_Username"] = user["Username"].ToString();

@@ -1692,6 +1692,20 @@ namespace PPApp.DAL
                     new MySqlParameter("?nowc", NowIST()),
                     new MySqlParameter("?oid", orderId));
             }
+
+        // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
+        public static bool RoleHasAppAccess(string roleCode, string appCode)
+        {
+            if (roleCode == "Super") return true;
+            try
+            {
+                var dt = ExecuteQuery(
+                    "SELECT CanAccess FROM ERP_RoleAppAccess WHERE RoleCode=?rc AND AppCode=?ac;",
+                    new MySqlParameter("?rc", roleCode),
+                    new MySqlParameter("?ac", appCode));
+                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["CanAccess"]) == 1;
+            }
+            catch { return true; } // Fail open — if table missing, allow access
         }
     }
 }

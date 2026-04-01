@@ -1466,6 +1466,20 @@ namespace PKApp.DAL
         {
             ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
             ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id AND Status='DRAFT';", new MySqlParameter("?id", dcId));
+
+        // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
+        public static bool RoleHasAppAccess(string roleCode, string appCode)
+        {
+            if (roleCode == "Super") return true;
+            try
+            {
+                var dt = ExecuteQuery(
+                    "SELECT CanAccess FROM ERP_RoleAppAccess WHERE RoleCode=?rc AND AppCode=?ac;",
+                    new MySqlParameter("?rc", roleCode),
+                    new MySqlParameter("?ac", appCode));
+                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["CanAccess"]) == 1;
+            }
+            catch { return true; } // Fail open — if table missing, allow access
         }
     }
 }

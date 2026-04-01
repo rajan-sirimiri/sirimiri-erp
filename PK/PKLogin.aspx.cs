@@ -34,6 +34,10 @@ namespace PKApp
                         string fullName = ssoUser["FullName"].ToString();
                         string role     = ssoUser["Role"].ToString();
 
+                        // Check PK access — role-based
+                        if (!PKDatabaseHelper.RoleHasAppAccess(role, "PK"))
+                        { ShowErr("You do not have access to the Packing & Shipments module."); return; }
+
                         Session["PK_UserID"]   = userId;
                         Session["PK_FullName"] = fullName;
                         Session["PK_Role"]     = role;
@@ -61,6 +65,11 @@ namespace PKApp
 
             var row = PKDatabaseHelper.ValidateUser(u, hash);
             if (row == null) { ShowErr("Invalid credentials."); return; }
+
+            // Check PK access — role-based
+            string pkRole = row["Role"].ToString();
+            if (!PKDatabaseHelper.RoleHasAppAccess(pkRole, "PK"))
+            { ShowErr("You do not have access to the Packing & Shipments module. Please contact Admin."); return; }
 
             Session["PK_UserID"]   = Convert.ToInt32(row["UserID"]);
             Session["PK_FullName"] = row["FullName"].ToString();

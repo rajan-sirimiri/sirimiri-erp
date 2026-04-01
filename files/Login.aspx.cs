@@ -61,6 +61,11 @@ namespace StockApp
                                         ? (object)null
                                         : Convert.ToInt32(user["StateID"]);
 
+                // Check SA access — role-based
+                string saRole = user["Role"].ToString();
+                if (!DatabaseHelper.RoleHasAppAccess(saRole, "SA"))
+                { ShowError("You do not have access to the Sales & Distribution module. Please contact Admin."); return; }
+
                 int uid = Convert.ToInt32(user["UserID"]);
                 bool mustChange = Convert.ToInt32(user["MustChangePwd"]) == 1;
 
