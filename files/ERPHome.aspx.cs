@@ -6,6 +6,8 @@ namespace StockApp
 {
     public partial class ERPHome : Page
     {
+        protected System.Web.UI.WebControls.Panel pnlUACard;
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["UserID"] == null)
