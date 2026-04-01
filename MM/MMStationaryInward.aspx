@@ -138,6 +138,9 @@
     <asp:HiddenField ID="hfTaxable"    runat="server" Value="0" />
     <asp:HiddenField ID="hfGSTAmount"  runat="server" Value="0" />
     <asp:HiddenField ID="hfTotal"      runat="server" Value="0" />
+    <asp:HiddenField ID="hfLoading"   runat="server" Value="0" />
+    <asp:HiddenField ID="hfUnloading" runat="server" Value="0" />
+    <asp:HiddenField ID="hfQtyVerified" runat="server" Value="0" />
     <asp:Button ID="btnSupplierTrigger" runat="server" style="display:none;" OnClick="btnSupplierTrigger_Click" CausesValidation="false" />
 
     <div class="main-layout">

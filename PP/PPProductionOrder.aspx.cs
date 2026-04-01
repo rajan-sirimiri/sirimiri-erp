@@ -200,9 +200,8 @@ namespace PPApp
                 bool ok = PPDatabaseHelper.InitiateOrder(orderId);
                 if (ok)
                 {
-                    ShowAlert("Production initiated. Redirecting to Execution...", true);
+                    ShowAlert("Production initiated successfully.", true);
                     LoadPage();
-                    Response.Redirect("PPProductionExecution.aspx?orderid=" + orderId);
                 }
                 else
                 {

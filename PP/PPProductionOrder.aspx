@@ -107,6 +107,9 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .btn-resume{background:var(--blue);color:#fff;border:none;border-radius:8px;
     padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.03em;}
 .btn-resume:hover{background:#1f6fa3;}
+.btn-execute{background:var(--accent);color:#fff;border:none;border-radius:8px;
+    padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.03em;text-decoration:none;display:inline-block;}
+.btn-execute:hover{background:var(--accent-dark);}
 .btn-save-rev{background:#f0f0f0;color:#333;border:1px solid #ccc;border-radius:6px;
     padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;}
 .btn-save-rev:hover{background:#e0e0e0;}
@@ -314,6 +317,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
                                     OnClientClick="return confirmStop(this);"
                                     CausesValidation="false">⏸ Stop</asp:LinkButton>
+                                <a href='<%# "PPProductionExecution.aspx?orderid=" + Eval("OrderID") %>'
+                                    class="btn-execute"
+                                    style='<%# (Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress") ? "" : "display:none;" %>'>
+                                    &#x25B6; Execute</a>
                                 <asp:LinkButton runat="server"
                                     CommandName="Resume"
                                     CommandArgument='<%# Eval("OrderID") %>'
@@ -403,6 +410,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     Visible='<%# Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Initiated" %>'
                                     OnClientClick="return confirmStop(this);"
                                     CausesValidation="false">⏸ Stop</asp:LinkButton>
+                                <a href='<%# "PPProductionExecution.aspx?orderid=" + Eval("OrderID") %>'
+                                    class="btn-execute"
+                                    style='<%# (Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress") ? "" : "display:none;" %>'>
+                                    &#x25B6; Execute</a>
                                 <asp:LinkButton runat="server"
                                     CommandName="Resume"
                                     CommandArgument='<%# Eval("OrderID") %>'

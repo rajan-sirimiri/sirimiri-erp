@@ -334,6 +334,15 @@
                     </div>
                 </div>
 
+                <div class="form-group-row" style="margin-top:13px;">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Production Line</label>
+                        <asp:DropDownList ID="ddlProductionLine" runat="server">
+                            <asp:ListItem Value="0">-- Select Line --</asp:ListItem>
+                        </asp:DropDownList>
+                    </div>
+                </div>
+
                 <!-- PRE PROCESSED RM FIELDS — shown only for Pre processed RM type -->
                 <div id="divPreprocessFields" style="display:none;margin-top:13px;background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:14px 16px;">
                     <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1565c0;margin-bottom:12px;">&#9881; Pre processing Stage Labels</div>

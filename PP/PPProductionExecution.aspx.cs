@@ -18,6 +18,7 @@ namespace PPApp
         protected Panel         pnlAlert;
         protected DropDownList  ddlShift;
         protected DropDownList  ddlProduct;
+        protected DropDownList  ddlLine;
         protected Button        btnLoad;
         protected Panel         pnlInfo;
         protected Label         lblInfoProduct;
@@ -61,6 +62,7 @@ namespace PPApp
             {
                 pnlInfo.Visible = false;
                 pnlExecution.Style["display"] = "none";
+                LoadProductionLines();
                 LoadProductDropdown(1);
             }
             else
@@ -99,9 +101,31 @@ namespace PPApp
             Session.Remove("PE_OrderID");
         }
 
+        protected void ddlLine_Changed(object sender, EventArgs e)
+        {
+            LoadProductDropdown(Convert.ToInt32(ddlShift.SelectedValue));
+            pnlInfo.Visible = false;
+            pnlExecution.Style["display"] = "none";
+            Session.Remove("PE_OrderID");
+        }
+
+        private void LoadProductionLines()
+        {
+            if (ddlLine == null) return;
+            ddlLine.Items.Clear();
+            ddlLine.Items.Add(new System.Web.UI.WebControls.ListItem("-- All Lines --", "0"));
+            var dt = PPDatabaseHelper.GetActiveProductionLines();
+            foreach (DataRow r in dt.Rows)
+                ddlLine.Items.Add(new System.Web.UI.WebControls.ListItem(r["LineName"].ToString(), r["LineID"].ToString()));
+        }
+
         private void LoadProductDropdown(int shift)
         {
-            var dt = PPDatabaseHelper.GetInitiatedOrdersForShift(shift, PPDatabaseHelper.TodayIST());
+            int lineId = ddlLine != null && ddlLine.SelectedValue != "0"
+                ? Convert.ToInt32(ddlLine.SelectedValue) : 0;
+            var dt = lineId > 0
+                ? PPDatabaseHelper.GetInitiatedOrdersForShiftAndLine(shift, PPDatabaseHelper.TodayIST(), lineId)
+                : PPDatabaseHelper.GetInitiatedOrdersForShift(shift, PPDatabaseHelper.TodayIST());
             ddlProduct.Items.Clear();
             ddlProduct.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Product --", "0"));
             foreach (DataRow r in dt.Rows)

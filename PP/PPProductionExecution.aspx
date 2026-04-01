@@ -305,6 +305,12 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
         <asp:ListItem Value="2">Shift 2 — Evening</asp:ListItem>
     </asp:DropDownList>
 
+    <label>Production Line</label>
+    <asp:DropDownList ID="ddlLine" runat="server" AutoPostBack="true"
+        OnSelectedIndexChanged="ddlLine_Changed">
+        <asp:ListItem Value="0">-- All Lines --</asp:ListItem>
+    </asp:DropDownList>
+
     <label>Product</label>
     <asp:DropDownList ID="ddlProduct" runat="server">
         <asp:ListItem Value="0">-- Select Product --</asp:ListItem>
