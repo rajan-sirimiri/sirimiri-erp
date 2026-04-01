@@ -73,6 +73,11 @@ namespace PPApp
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
 
+            // Module access check
+            string __role = Session["PP_Role"]?.ToString() ?? "";
+            if (!PPDatabaseHelper.RoleHasModuleAccess(__role, "PP", "PP_PRODUCT"))
+            { Response.Redirect("PPHome.aspx"); return; }
+
             lblNavUser.Text = Session["PP_FullName"] as string ?? "";
 
             // Build UOM dropdown items — always needed

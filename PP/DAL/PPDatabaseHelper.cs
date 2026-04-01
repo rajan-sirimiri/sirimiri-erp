@@ -1708,5 +1708,20 @@ namespace PPApp.DAL
             }
             catch { return true; } // Fail open — if table missing, allow access
         }
+
+        public static bool RoleHasModuleAccess(string roleCode, string appCode, string moduleCode)
+        {
+            if (roleCode == "Super") return true;
+            try
+            {
+                var dt = ExecuteQuery(
+                    "SELECT CanAccess FROM ERP_RoleModuleAccess WHERE RoleCode=?rc AND AppCode=?ac AND ModuleCode=?mc;",
+                    new MySqlParameter("?rc", roleCode),
+                    new MySqlParameter("?ac", appCode),
+                    new MySqlParameter("?mc", moduleCode));
+                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["CanAccess"]) == 1;
+            }
+            catch { return true; } // Fail open
+        }
     }
 }

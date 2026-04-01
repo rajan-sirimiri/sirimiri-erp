@@ -14,6 +14,11 @@ namespace StockApp
         {
             if (Session["UserID"] == null) { Response.Redirect("~/Login.aspx"); return; }
 
+            // Module access check
+            string __role = Session["Role"]?.ToString() ?? "";
+            if (!DatabaseHelper.RoleHasModuleAccess(__role, "SA", "SA_DAILY_SALES"))
+            { Response.Redirect("SAHome.aspx"); return; }
+
             lblUserInfo.Text   = Session["FullName"] + " (" + Session["Role"] + ")";
             pnlAdminMenu.Visible = Session["Role"]?.ToString() == "Admin";
 

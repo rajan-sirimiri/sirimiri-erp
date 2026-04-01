@@ -24,6 +24,11 @@ namespace PPApp
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
 
+            // Module access check
+            string __role = Session["PP_Role"]?.ToString() ?? "";
+            if (!PPDatabaseHelper.RoleHasModuleAccess(__role, "PP", "PP_DAILY_PLAN"))
+            { Response.Redirect("PPHome.aspx"); return; }
+
             // Read date from query string
             DateTime planDate = PPDatabaseHelper.TodayIST();
             if (!string.IsNullOrEmpty(Request.QueryString["date"]))

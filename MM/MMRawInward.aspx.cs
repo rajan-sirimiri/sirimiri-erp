@@ -58,6 +58,11 @@ namespace MMApp
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["MM_UserID"] == null) { Response.Redirect("MMLogin.aspx"); return; }
+
+            // Module access check
+            string __role = Session["MM_Role"]?.ToString() ?? "";
+            if (!MMDatabaseHelper.RoleHasModuleAccess(__role, "MM", "MM_RM_GRN"))
+            { Response.Redirect("MMHome.aspx"); return; }
             lblNavUser.Text = Session["MM_FullName"]?.ToString() ?? "";
 
             if (!IsPostBack)

@@ -29,6 +29,11 @@ namespace StockApp
         {
             if (Session["UserID"] == null) Response.Redirect("~/Login.aspx");
 
+            // Module access check
+            string __role = Session["Role"]?.ToString() ?? "";
+            if (!DatabaseHelper.RoleHasModuleAccess(__role, "SA", "SA_USERADMIN"))
+            { Response.Redirect("SAHome.aspx"); return; }
+
             if (!IsPostBack)
             {
                 BindStates();

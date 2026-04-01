@@ -38,6 +38,11 @@ namespace PPApp
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
+
+            // Module access check
+            string __role = Session["PP_Role"]?.ToString() ?? "";
+            if (!PPDatabaseHelper.RoleHasModuleAccess(__role, "PP", "PP_ORDER"))
+            { Response.Redirect("PPHome.aspx"); return; }
             lblNavUser.Text = FullName;
             lblTodayDate.Text = PPDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper();
 

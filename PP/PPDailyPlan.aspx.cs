@@ -49,6 +49,11 @@ namespace PPApp
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
+
+            // Module access check
+            string __role = Session["PP_Role"]?.ToString() ?? "";
+            if (!PPDatabaseHelper.RoleHasModuleAccess(__role, "PP", "PP_DAILY_PLAN"))
+            { Response.Redirect("PPHome.aspx"); return; }
             lblNavUser.Text = Session["PP_FullName"]?.ToString() ?? "";
 
             if (!IsPostBack)

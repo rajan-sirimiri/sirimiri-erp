@@ -16,6 +16,11 @@ namespace StockApp
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["UserID"] == null) { Response.Redirect("~/Login.aspx"); return; }
+
+            // Module access check
+            string __role = Session["Role"]?.ToString() ?? "";
+            if (!DatabaseHelper.RoleHasModuleAccess(__role, "SA", "SA_PRODUCTS"))
+            { Response.Redirect("SAHome.aspx"); return; }
             if (UserRole != "Admin")       { Response.Redirect("~/StockEntry.aspx"); return; }
 
             var lbl = (Label)FindControl("lblUserInfo");

@@ -25,6 +25,11 @@ namespace PKApp
         {
             if (Session["PK_UserID"] == null)
             { Response.Redirect("PKLogin.aspx?ReturnUrl=" + Server.UrlEncode(Request.Url.PathAndQuery)); return; }
+
+            // Module access check
+            string __role = Session["PK_Role"]?.ToString() ?? "";
+            if (!PKDatabaseHelper.RoleHasModuleAccess(__role, "PK", "PK_CUSTOMER"))
+            { Response.Redirect("PKHome.aspx"); return; }
             if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
             if (!IsPostBack) { LoadCustomerTypes(); BindList(); }
         }

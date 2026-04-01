@@ -20,6 +20,11 @@ namespace StockApp
         {
             // Auth check
             if (Session["UserID"] == null) { Response.Redirect("~/Login.aspx"); return; }
+
+            // Module access check
+            string __role = Session["Role"]?.ToString() ?? "";
+            if (!DatabaseHelper.RoleHasModuleAccess(__role, "SA", "SA_IMPORT"))
+            { Response.Redirect("SAHome.aspx"); return; }
             if (UserRole == "FieldUser")   { Response.Redirect("~/StockEntry.aspx"); return; }
 
             if (LblUserInfo != null)
