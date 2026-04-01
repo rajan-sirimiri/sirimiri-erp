@@ -273,6 +273,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
                     <div class="form-group">
                         <label>Qty Consumed <span class="req">*</span></label>
                         <asp:TextBox ID="txtRMQty" runat="server" type="number"
+                            oninput="toggleCloseBtn();"
                             placeholder="0.000" step="0.001" min="0.001"/>
                     </div>
                     <div class="unit-badge"><asp:Label ID="lblRMUnit" runat="server">—</asp:Label></div>
@@ -299,7 +300,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
                 <asp:Button ID="btnClose" runat="server" CssClass="btn-close"
                     Text="&#9632; Close Shift Consumption"
-                    OnClick="btnClose_Click" CausesValidation="false"/>
+                    OnClick="btnClose_Click" CausesValidation="false" Enabled="false"/>
 
                 <!-- Today's closures -->
                 <hr class="divider"/>
@@ -338,6 +339,18 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
 </div>
 </form>
+<script>
+function toggleCloseBtn() {
+    var qty = parseFloat(document.getElementById('<%= txtRMQty.ClientID %>').value) || 0;
+    var btn = document.getElementById('<%= btnClose.ClientID %>');
+    if (btn) {
+        btn.disabled = (qty <= 0);
+        btn.style.opacity = qty > 0 ? '1' : '0.5';
+        btn.style.cursor = qty > 0 ? 'pointer' : 'not-allowed';
+    }
+}
+window.addEventListener('load', function() { toggleCloseBtn(); });
+</script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>
