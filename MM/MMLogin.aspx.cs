@@ -35,8 +35,8 @@ namespace MMApp
                         string fullName = ssoUser["FullName"].ToString();
                         string role     = ssoUser["Role"].ToString();
 
-                        // Check MM access — Admin always allowed
-                        if (role != "Admin")
+                        // Check MM access — Super and Admin always allowed
+                        if (role != "Admin" && role != "Super")
                         {
                             var access = MMDatabaseHelper.GetUserAccessList(userId);
                             if (access.Rows.Count == 0)
@@ -86,11 +86,11 @@ namespace MMApp
                 return;
             }
 
-            // Check MM access — Admin always allowed, others need at least one MM module grant
+            // Check MM access — Super and Admin always allowed
             int userId = Convert.ToInt32(user["UserID"]);
             string role = user["Role"].ToString();
 
-            if (role != "Admin")
+            if (role != "Admin" && role != "Super")
             {
                 var access = MMDatabaseHelper.GetUserAccessList(userId);
                 if (access.Rows.Count == 0)
