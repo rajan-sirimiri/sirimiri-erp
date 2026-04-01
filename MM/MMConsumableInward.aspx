@@ -229,6 +229,14 @@
                         <label>Transportation Cost</label>
                         <asp:TextBox ID="txtTransport" runat="server" placeholder="0.00" onchange="calcAll()" onkeyup="calcAll()" />
                     </div>
+                    <div class="form-group">
+                        <label>Loading Charges</label>
+                        <asp:TextBox ID="txtLoading" runat="server" placeholder="0.00" />
+                    </div>
+                    <div class="form-group">
+                        <label>Unloading Charges</label>
+                        <asp:TextBox ID="txtUnloading" runat="server" placeholder="0.00" />
+                    </div>
                     <div class="form-group span2">
                         <div class="check-row">
                             <asp:CheckBox ID="chkTransportInInvoice" runat="server" onclick="calcAll()" />
@@ -283,7 +291,8 @@
                     </div>
                 </div>
                 <div class="btn-row">
-                    <asp:Button ID="btnReceive" runat="server" Text="Receive Goods" CssClass="btn btn-receive" OnClick="btnReceive_Click" OnClientClick="return syncAmounts()" />
+                    <button type="button" class="btn btn-receive" onclick="showGRNConfirm();">Receive Goods</button>
+                    <asp:Button ID="btnReceive" runat="server" Text="Receive Goods" CssClass="btn btn-receive" OnClick="btnReceive_Click" style="display:none;" />
                     <asp:Button ID="btnReject"  runat="server" Text="Reject Goods"  CssClass="btn btn-reject"  OnClick="btnReject_Click"  CausesValidation="false" OnClientClick="return erpConfirmLink(this,'Reject and discard this GRN entry?',{title:'Reject Goods',okText:'Yes, Reject',btnClass:'danger'})" />
                     <asp:Button ID="btnClear"   runat="server" Text="Clear"          CssClass="btn btn-clear"   OnClick="btnClear_Click"   CausesValidation="false" />
                 </div>
@@ -477,7 +486,67 @@
 
     function syncAmounts() { calcAll(); return true; }
     window.onload = function() { calcAll(); };
+    function showGRNConfirm() {
+        if (!syncAmounts()) return;
+        var g = function(id) { var el = document.getElementById(id); return el ? (el.value || el.innerText || '') : ''; };
+        var ddlText = function(id) { var el = document.getElementById(id); return el && el.selectedIndex >= 0 ? el.options[el.selectedIndex].text : ''; };
+        var material = ddlText('<%= ddlItem.ClientID %>');
+        var supplier = ddlText('<%= ddlSupplier.ClientID %>');
+        var grnDate = g('<%= txtGRNDate.ClientID %>');
+        var invoiceNo = g('<%= txtInvoiceNo.ClientID %>');
+        var qtyInvoice = g('<%= txtQtyInvoice.ClientID %>');
+        var qtyReceived = g('<%= txtQtyReceived.ClientID %>');
+        var rate = g('<%= txtRate.ClientID %>');
+        var transport = g('<%= txtTransport.ClientID %>') || '0';
+        var loading = g('<%= txtLoading.ClientID %>') || '0';
+        var unloading = g('<%= txtUnloading.ClientID %>') || '0';
+        var total = g('dispTotal') || g('<%= hfTotal.ClientID %>');
+        var html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<tr><td style="padding:6px 0;color:#666;width:40%;">Item</td><td style="padding:6px 0;font-weight:600;">' + material + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Supplier</td><td style="padding:6px 0;font-weight:600;">' + supplier + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">GRN Date</td><td style="padding:6px 0;">' + grnDate + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Invoice No</td><td style="padding:6px 0;">' + invoiceNo + '</td></tr>';
+        html += '<tr style="border-top:1px solid #eee;"><td style="padding:6px 0;color:#666;">Qty (Invoice)</td><td style="padding:6px 0;font-weight:600;">' + qtyInvoice + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Qty (Received)</td><td style="padding:6px 0;font-weight:600;">' + qtyReceived + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Rate</td><td style="padding:6px 0;">' + rate + '</td></tr>';
+        html += '<tr style="border-top:1px solid #eee;"><td style="padding:6px 0;color:#666;">Transport Cost</td><td style="padding:6px 0;">Rs. ' + parseFloat(transport).toFixed(2) + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Loading Charges</td><td style="padding:6px 0;">Rs. ' + parseFloat(loading).toFixed(2) + '</td></tr>';
+        html += '<tr><td style="padding:6px 0;color:#666;">Unloading Charges</td><td style="padding:6px 0;">Rs. ' + parseFloat(unloading).toFixed(2) + '</td></tr>';
+        html += '<tr style="border-top:2px solid #1a9e6a;"><td style="padding:8px 0;color:#1a9e6a;font-weight:700;">Total</td><td style="padding:8px 0;font-weight:700;font-size:16px;color:#1a9e6a;">' + total + '</td></tr>';
+        html += '</table>';
+        document.getElementById('grnSummary').innerHTML = html;
+        document.getElementById('chkQtyVerified').checked = false;
+        document.getElementById('grnConfirmOverlay').style.display = 'flex';
+    }
+    function confirmGRN() {
+        document.getElementById('<%= hfQtyVerified.ClientID %>').value = document.getElementById('chkQtyVerified').checked ? '1' : '0';
+        document.getElementById('<%= hfLoading.ClientID %>').value = document.getElementById('<%= txtLoading.ClientID %>').value || '0';
+        document.getElementById('<%= hfUnloading.ClientID %>').value = document.getElementById('<%= txtUnloading.ClientID %>').value || '0';
+        closeGRNConfirm();
+        syncAmounts();
+        document.getElementById('<%= btnReceive.ClientID %>').click();
+    }
+    function closeGRNConfirm() { document.getElementById('grnConfirmOverlay').style.display = 'none'; }
+
 </script>
+
+                <!-- GRN Confirmation Modal -->
+                <div id="grnConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:14px;max-width:520px;width:90%%;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,.2);max-height:80vh;overflow-y:auto;">
+                        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;margin-bottom:16px;border-bottom:2px solid var(--teal);padding-bottom:8px;">Confirm GRN Submission</div>
+                        <div id="grnSummary" style="font-size:13px;line-height:1.8;"></div>
+                        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                                <input type="checkbox" id="chkQtyVerified" style="width:18px;height:18px;accent-color:var(--teal);" />
+                                Quantity Verified
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:10px;margin-top:20px;">
+                            <button type="button" onclick="confirmGRN();" style="flex:1;padding:12px;border:none;border-radius:8px;background:var(--teal);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirm</button>
+                            <button type="button" onclick="closeGRNConfirm();" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;color:#333;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
 <script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>

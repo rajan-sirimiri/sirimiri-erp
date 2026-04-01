@@ -280,6 +280,9 @@ namespace MMApp
                 decimal qtyUOM      = Convert.ToDecimal(txtQtyUOM.Text);
                 decimal rate        = Convert.ToDecimal(txtRate.Text);
                 decimal transport   = string.IsNullOrEmpty(txtTransport.Text) ? 0 : Convert.ToDecimal(txtTransport.Text);
+                decimal loading     = 0; decimal.TryParse(hfLoading.Value, out loading);
+                decimal unloading   = 0; decimal.TryParse(hfUnloading.Value, out unloading);
+                bool    qtyVerified = hfQtyVerified.Value == "1";
                 decimal? gstRate    = null;
                 decimal  gstParsed;
                 if (decimal.TryParse(txtGSTRate.Text, out gstParsed)) gstRate = gstParsed;
@@ -294,6 +297,7 @@ namespace MMApp
                     qtyInvoice, qtyReceived, qtyUOM, rate,
                     txtHSN.Text.Trim(), gstRate, gstAmt,
                     transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
+                    loading, unloading, qtyVerified,
                     total, txtPONo.Text.Trim(), txtRemarks.Text.Trim(),
                     chkQC.Checked, status, userId);
 

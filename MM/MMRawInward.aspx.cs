@@ -19,6 +19,9 @@ namespace MMApp
         protected HiddenField hfTaxable;
         protected HiddenField hfGSTAmount;
         protected HiddenField hfTotal;
+        protected HiddenField hfLoading;
+        protected HiddenField hfUnloading;
+        protected HiddenField hfQtyVerified;
         protected Panel pnlAlert;
         protected Panel pnlEmpty;
         protected Panel pnlRecEmpty;
@@ -348,6 +351,9 @@ namespace MMApp
                 decimal qtyUOM      = Convert.ToDecimal(txtQtyUOM.Text);
                 decimal rate        = Convert.ToDecimal(txtRate.Text);
                 decimal transport   = string.IsNullOrEmpty(txtTransport.Text) ? 0 : Convert.ToDecimal(txtTransport.Text);
+                decimal loading     = 0; decimal.TryParse(hfLoading.Value, out loading);
+                decimal unloading   = 0; decimal.TryParse(hfUnloading.Value, out unloading);
+                bool    qtyVerified = hfQtyVerified.Value == "1";
                 decimal? gstRate    = null;
                 decimal gstParsed;
                 if (decimal.TryParse(txtGSTRate.Text, out gstParsed)) gstRate = gstParsed;
@@ -373,6 +379,7 @@ namespace MMApp
                     qtyInvoice, qtyReceived, qtyUOM, rate,
                     txtHSN.Text.Trim(), gstRate, gstAmt,
                     transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
+                    loading, unloading, qtyVerified,
                     total, txtPONo.Text.Trim(), remarks,
                     chkQC.Checked, status, userId);
 
@@ -407,6 +414,7 @@ namespace MMApp
             chkTransportInGST.Checked = false;
             chkQC.Checked = false;
             hfTaxable.Value = hfGSTAmount.Value = hfTotal.Value = "0";
+            hfLoading.Value = hfUnloading.Value = hfQtyVerified.Value = "0";
             GenerateGRN();
         }
     }

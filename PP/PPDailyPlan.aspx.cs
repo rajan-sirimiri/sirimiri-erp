@@ -63,6 +63,11 @@ namespace PPApp
                 if (!string.IsNullOrEmpty(Request.QueryString["date"]))
                     DateTime.TryParse(Request.QueryString["date"], out planDate);
 
+                // Restrict: no past dates, max 30 days in future
+                DateTime today = PPDatabaseHelper.TodayIST();
+                if (planDate.Date < today.Date) planDate = today;
+                if (planDate.Date > today.AddDays(30).Date) planDate = today.AddDays(30);
+
                 hfPlanDate.Value = planDate.ToString("yyyy-MM-dd");
                 LoadPlanForDate(planDate);
             }
@@ -274,6 +279,12 @@ namespace PPApp
             DateTime current;
             DateTime.TryParse(hfPlanDate.Value, out current);
             DateTime next = current.AddDays(delta);
+
+            // Restrict: no past dates, max 30 days in future
+            DateTime today = PPDatabaseHelper.TodayIST();
+            if (next.Date < today.Date) next = today;
+            if (next.Date > today.AddDays(30).Date) next = today.AddDays(30);
+
             hfPlanDate.Value = next.ToString("yyyy-MM-dd");
             LoadPlanForDate(next);
         }
