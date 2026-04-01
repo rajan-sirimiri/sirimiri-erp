@@ -17,6 +17,10 @@ namespace StockApp
             lblUserName.Text = Session["FullName"]?.ToString() ?? "";
             lblUserRole.Text = Session["Role"]?.ToString() ?? "";
 
+            // Show UA card only for Super role
+            string userRole = Session["Role"]?.ToString() ?? "";
+            pnlUACard.Visible = (userRole == "Super");
+
             if (!IsPostBack)
             {
                 // Generate a fresh SSO token for module links

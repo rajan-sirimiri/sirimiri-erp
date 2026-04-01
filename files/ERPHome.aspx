@@ -309,6 +309,10 @@
         .mod-finance::before           { background: radial-gradient(circle, rgba(16,185,129,0.08), transparent); }
         .mod-finance::after            { background: #10b981; }
 
+        .mod-admin .module-icon-wrap { background: rgba(204,30,30,0.12); color: #cc1e1e; }
+        .mod-admin::before           { background: radial-gradient(circle, rgba(204,30,30,0.08), transparent); }
+        .mod-admin::after            { background: #cc1e1e; }
+
         /* ── STATUS PILL ── */
         .module-status {
             position: absolute; top: 16px; right: 16px;
@@ -446,6 +450,19 @@
                 </div>
                 <div class="module-arrow">&#x2197;</div>
             </div>
+
+            <!-- 7. User Administration — Super only -->
+            <asp:Panel ID="pnlUACard" runat="server" Visible="false">
+            <a href="/UA/UALogin.aspx" class="module-card mod-admin">
+                <span class="module-status status-live">Live</span>
+                <div class="module-icon-wrap">&#x1F511;</div>
+                <div class="module-info">
+                    <div class="module-name">User<br/>Administration</div>
+                    <div class="module-desc">Manage users, roles, and access control across all ERP modules</div>
+                </div>
+                <div class="module-arrow">&#x2197;</div>
+            </a>
+            </asp:Panel>
 
         </div>
     </main>
