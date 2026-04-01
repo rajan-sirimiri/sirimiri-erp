@@ -176,6 +176,18 @@
         </a>
     </div>
 
+    <div class="section-head">Modern Trade</div>
+    <div class="menu-grid">
+        <a href="SASuperMarkets.aspx" class="menu-card cat-entry">
+            <div class="menu-icon">&#x1F6D2;</div>
+            <div>
+                <div class="menu-title">Super Markets</div>
+                <div class="menu-desc">Manage super market listings, orders, invoices and stock replenishment</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+    </div>
+
     <div class="section-head">Reports & Analytics</div>
     <div class="menu-grid">
         <a href="Reports.aspx" class="menu-card cat-report">
