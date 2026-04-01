@@ -32,6 +32,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.TextBox        txtStage1Label;
         protected global::System.Web.UI.WebControls.TextBox        txtStage2Label;
         protected global::System.Web.UI.WebControls.TextBox        txtStage3Label;
+        protected global::System.Web.UI.WebControls.TextBox        txtStage4Label;
         protected global::System.Web.UI.WebControls.TextBox        txtGSTRate;
         protected global::System.Web.UI.WebControls.TextBox        txtBatchSize;
         protected global::System.Web.UI.WebControls.DropDownList   ddlProductType;
@@ -271,7 +272,8 @@ namespace PPApp
                             txtInputRMName.Text.Trim(),
                             txtStage1Label.Text.Trim(),
                             txtStage2Label.Text.Trim(),
-                            txtStage3Label.Text.Trim());
+                            txtStage3Label.Text.Trim(),
+                            txtStage4Label != null ? txtStage4Label.Text.Trim() : null);
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
@@ -422,6 +424,8 @@ namespace PPApp
                     txtStage1Label.Text = stages["Stage1Label"].ToString();
                     txtStage2Label.Text = stages["Stage2Label"].ToString();
                     txtStage3Label.Text = stages["Stage3Label"].ToString();
+                    if (txtStage4Label != null && stages.Table.Columns.Contains("Stage4Label") && stages["Stage4Label"] != DBNull.Value)
+                        txtStage4Label.Text = stages["Stage4Label"].ToString();
                 }
                 // Show preprocess fields via JS
                 ClientScript.RegisterStartupScript(GetType(), "showPrep",
@@ -456,6 +460,7 @@ namespace PPApp
             if (txtStage1Label != null) txtStage1Label.Text = "";
             if (txtStage2Label != null) txtStage2Label.Text = "";
             if (txtStage3Label != null)       txtStage3Label.Text = "";
+            if (txtStage4Label != null)       txtStage4Label.Text = "";
             if (ddlContainerType != null)      ddlContainerType.SelectedIndex = 0;
             if (chkLanguageLabels != null)     chkLanguageLabels.Checked = false;
             if (hfParamsJson != null)          hfParamsJson.Value = "[]";

@@ -370,6 +370,10 @@
                             <label>Stage 3 Label <span class="req">*</span></label>
                             <asp:TextBox ID="txtStage3Label" runat="server" MaxLength="100" placeholder="e.g. Sorted Roasted Peanuts"/>
                         </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Stage 4 Label</label>
+                            <asp:TextBox ID="txtStage4Label" runat="server" MaxLength="100" placeholder="e.g. Final Processed (optional)"/>
+                        </div>
                     </div>
                 </div>
 

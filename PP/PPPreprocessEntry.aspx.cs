@@ -13,15 +13,16 @@ namespace PPApp
         protected Panel        pnlS2Empty, pnlS2Table, pnlS3Empty, pnlS3Table;
         protected Panel        pnlScrapInputs, pnlNoScrap;
         protected DropDownList ddlProduct;
-        protected HiddenField  hfProductId, hfInputRMName, hfStage1Label, hfStage2Label, hfStage3Label, hfOutputUnit;
-        protected Label        lblStage1, lblStage2, lblStage3;
-        protected Label        lblS1Unit, lblS2Unit, lblS3Unit;
-        protected Label        lblS1Total, lblS2Total, lblS3Total;
-        protected Repeater     rptS1, rptS2, rptS3, rptScrapItems;
-        protected Button       btnS1, btnS2, btnS3, btnCloseShift;
-        protected Label        lblRawPeanutStock, lblSortedStock, lblRoastedPending;
-        protected Label        lblInputRMTitle, lblStage2Title, lblStage3Title;
-        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtS1, txtS2, txtS3;
+        protected HiddenField  hfProductId, hfInputRMName, hfStage1Label, hfStage2Label, hfStage3Label, hfStage4Label, hfOutputUnit;
+        protected Label        lblStage1, lblStage2, lblStage3, lblStage4;
+        protected Label        lblS1Unit, lblS2Unit, lblS3Unit, lblS4Unit;
+        protected Label        lblS1Total, lblS2Total, lblS3Total, lblS4Total;
+        protected Repeater     rptS1, rptS2, rptS3, rptS4, rptScrapItems;
+        protected Button       btnS1, btnS2, btnS3, btnS4, btnCloseShift;
+        protected Label        lblRawPeanutStock, lblSortedStock, lblRoastedPending, lblStage4Stock;
+        protected Label        lblInputRMTitle, lblStage2Title, lblStage3Title, lblStage4Title;
+        protected Panel        pnlStage4Card, pnlS4Summary, pnlS4Empty, pnlS4Table;
+        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtS1, txtS2, txtS3, txtS4;
 
         protected int UserID => Session["PP_UserID"] != null ? Convert.ToInt32(Session["PP_UserID"]) : 0;
 
@@ -70,14 +71,24 @@ namespace PPApp
             hfStage1Label.Value = row["Stage1Label"].ToString();
             hfStage2Label.Value = row["Stage2Label"].ToString();
             hfStage3Label.Value = row["Stage3Label"].ToString();
+            string stage4 = row.Table.Columns.Contains("Stage4Label") && row["Stage4Label"] != DBNull.Value
+                ? row["Stage4Label"].ToString() : "";
+            if (hfStage4Label != null) hfStage4Label.Value = stage4;
             hfOutputUnit.Value  = row["OutputUnit"].ToString();
 
             lblStage1.Text = row["Stage1Label"].ToString();
             lblStage2.Text = row["Stage2Label"].ToString();
             lblStage3.Text = row["Stage3Label"].ToString();
+            if (lblStage4 != null) lblStage4.Text = stage4;
+
+            bool hasStage4 = !string.IsNullOrEmpty(stage4);
+            if (pnlStage4Card != null) pnlStage4Card.Visible = hasStage4;
+            if (pnlS4Summary != null) pnlS4Summary.Visible = hasStage4;
+            if (lblStage4Title != null && hasStage4) lblStage4Title.Text = stage4;
 
             string unit = row["OutputUnit"].ToString();
             lblS1Unit.Text = unit; lblS2Unit.Text = unit; lblS3Unit.Text = unit;
+            if (lblS4Unit != null) lblS4Unit.Text = unit;
 
             // Load scrap for input RM
             LoadScrapItems(row["InputRMName"].ToString());
@@ -97,6 +108,7 @@ namespace PPApp
             rmNames.Add(inputRMName);
             if (!string.IsNullOrEmpty(hfStage2Label.Value)) rmNames.Add(hfStage2Label.Value);
             if (!string.IsNullOrEmpty(hfStage3Label.Value)) rmNames.Add(hfStage3Label.Value);
+            if (hfStage4Label != null && !string.IsNullOrEmpty(hfStage4Label.Value)) rmNames.Add(hfStage4Label.Value);
 
             // Get unique RMIDs for all matching names
             var allRMIds = new System.Collections.Generic.List<int>();
@@ -141,18 +153,22 @@ namespace PPApp
             var s1 = PPDatabaseHelper.GetPreprocessStage1LogToday(productId);
             BindStageLog(s1, rptS1, pnlS1Empty, pnlS1Table, lblS1Total, hfOutputUnit.Value);
 
-            // Stages 2 & 3
+            // Stages 2, 3 & 4
             var log = PPDatabaseHelper.GetPreprocessLogToday(productId);
             var s2 = new DataTable(); s2.Columns.Add("Qty", typeof(decimal)); s2.Columns.Add("CreatedAt", typeof(DateTime));
             var s3 = new DataTable(); s3.Columns.Add("Qty", typeof(decimal)); s3.Columns.Add("CreatedAt", typeof(DateTime));
+            var s4 = new DataTable(); s4.Columns.Add("Qty", typeof(decimal)); s4.Columns.Add("CreatedAt", typeof(DateTime));
             foreach (DataRow r in log.Rows)
             {
                 int stage = Convert.ToInt32(r["Stage"]);
                 if (stage == 2) s2.Rows.Add(r["Qty"], r["CreatedAt"]);
                 else if (stage == 3) s3.Rows.Add(r["Qty"], r["CreatedAt"]);
+                else if (stage == 4) s4.Rows.Add(r["Qty"], r["CreatedAt"]);
             }
             BindStageLog(s2, rptS2, pnlS2Empty, pnlS2Table, lblS2Total, hfOutputUnit.Value);
             BindStageLog(s3, rptS3, pnlS3Empty, pnlS3Table, lblS3Total, hfOutputUnit.Value);
+            if (rptS4 != null && pnlS4Empty != null && pnlS4Table != null && lblS4Total != null)
+                BindStageLog(s4, rptS4, pnlS4Empty, pnlS4Table, lblS4Total, hfOutputUnit.Value);
         }
 
         private void BindStageLog(DataTable dt, Repeater rpt, Panel empty, Panel table, Label total, string unit)
@@ -168,6 +184,7 @@ namespace PPApp
         protected void btnS1_Click(object sender, EventArgs e) => RecordStage(1, txtS1?.Value);
         protected void btnS2_Click(object sender, EventArgs e) => RecordStage(2, txtS2?.Value);
         protected void btnS3_Click(object sender, EventArgs e) => RecordStage(3, txtS3?.Value);
+        protected void btnS4_Click(object sender, EventArgs e) => RecordStage(4, txtS4?.Value);
 
         private void RecordStage(int stage, string valStr)
         {
@@ -184,7 +201,8 @@ namespace PPApp
 
             string stageLabel = stage == 1 ? hfStage1Label.Value
                               : stage == 2 ? hfStage2Label.Value
-                              : hfStage3Label.Value;
+                              : stage == 3 ? hfStage3Label.Value
+                              : (hfStage4Label != null ? hfStage4Label.Value : hfStage3Label.Value);
 
             try
             {
@@ -194,6 +212,7 @@ namespace PPApp
                 if (stage == 1 && txtS1 != null) txtS1.Value = "";
                 if (stage == 2 && txtS2 != null) txtS2.Value = "";
                 if (stage == 3 && txtS3 != null) txtS3.Value = "";
+                if (stage == 4 && txtS4 != null) txtS4.Value = "";
                 ShowAlert("Stage " + stage + " — " + qty.ToString("0.###") + " " +
                     hfOutputUnit.Value + " recorded.", true);
                 RefreshAllStages(productId);
@@ -202,8 +221,10 @@ namespace PPApp
                 lblStage1.Text = hfStage1Label.Value;
                 lblStage2.Text = hfStage2Label.Value;
                 lblStage3.Text = hfStage3Label.Value;
+                if (lblStage4 != null && hfStage4Label != null) lblStage4.Text = hfStage4Label.Value;
                 string u = hfOutputUnit.Value;
                 lblS1Unit.Text = u; lblS2Unit.Text = u; lblS3Unit.Text = u;
+                if (lblS4Unit != null) lblS4Unit.Text = u;
             }
             catch (Exception ex)
             {
@@ -247,18 +268,23 @@ namespace PPApp
             string inputRM   = hfInputRMName.Value;
             string stage2RM  = hfStage2Label.Value;
             string stage3RM  = hfStage3Label.Value;
+            string stage4RM  = hfStage4Label != null ? hfStage4Label.Value : "";
             string unit      = hfOutputUnit.Value;
 
             decimal rawStock     = GetRMStock(inputRM);
             decimal sortedStock  = GetRMStock(stage3RM);
             decimal roastedStock = GetRMStock(stage2RM);
+            decimal stage4Stock  = !string.IsNullOrEmpty(stage4RM) ? GetRMStock(stage4RM) : 0;
 
             if (lblInputRMTitle != null) lblInputRMTitle.Text = inputRM;
             if (lblStage2Title  != null) lblStage2Title.Text  = stage2RM;
             if (lblStage3Title  != null) lblStage3Title.Text  = stage3RM;
+            if (lblStage4Title  != null && !string.IsNullOrEmpty(stage4RM)) lblStage4Title.Text = stage4RM;
             lblRawPeanutStock.Text   = rawStock.ToString("0.###")     + " " + unit;
             lblSortedStock.Text      = sortedStock.ToString("0.###")  + " " + unit;
             lblRoastedPending.Text   = roastedStock.ToString("0.###") + " " + unit;
+            if (lblStage4Stock != null) lblStage4Stock.Text = stage4Stock.ToString("0.###") + " " + unit;
+            if (pnlS4Summary != null) pnlS4Summary.Visible = !string.IsNullOrEmpty(stage4RM);
         }
 
         private decimal GetRMStock(string rmName)

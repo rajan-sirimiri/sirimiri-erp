@@ -898,17 +898,18 @@ namespace PPApp.DAL
         // ── PRE PROCESSED RM ─────────────────────────────────────────────────────
 
         public static void SavePreprocessStages(int productId, string inputRMName,
-            string stage1, string stage2, string stage3)
+            string stage1, string stage2, string stage3, string stage4 = null)
         {
             ExecuteNonQuery(
-                "INSERT INTO PP_PreprocessStages (ProductID, InputRMName, Stage1Label, Stage2Label, Stage3Label)" +
-                " VALUES (?pid,?rm,?s1,?s2,?s3)" +
-                " ON DUPLICATE KEY UPDATE InputRMName=?rm, Stage1Label=?s1, Stage2Label=?s2, Stage3Label=?s3;",
+                "INSERT INTO PP_PreprocessStages (ProductID, InputRMName, Stage1Label, Stage2Label, Stage3Label, Stage4Label)" +
+                " VALUES (?pid,?rm,?s1,?s2,?s3,?s4)" +
+                " ON DUPLICATE KEY UPDATE InputRMName=?rm, Stage1Label=?s1, Stage2Label=?s2, Stage3Label=?s3, Stage4Label=?s4;",
                 new MySqlParameter("?pid", productId),
                 new MySqlParameter("?rm",  inputRMName),
                 new MySqlParameter("?s1",  stage1),
                 new MySqlParameter("?s2",  stage2),
-                new MySqlParameter("?s3",  stage3));
+                new MySqlParameter("?s3",  stage3),
+                new MySqlParameter("?s4",  (object)stage4 ?? DBNull.Value));
         }
 
         public static DataRow GetPreprocessStages(int productId)
@@ -922,7 +923,7 @@ namespace PPApp.DAL
         {
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductCode, p.ProductName," +
-                " ps.InputRMName, ps.Stage1Label, ps.Stage2Label, ps.Stage3Label," +
+                " ps.InputRMName, ps.Stage1Label, ps.Stage2Label, ps.Stage3Label, ps.Stage4Label," +
                 " ou.Abbreviation AS OutputUnit" +
                 " FROM PP_Products p" +
                 " JOIN PP_PreprocessStages ps ON ps.ProductID = p.ProductID" +

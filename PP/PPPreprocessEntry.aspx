@@ -47,12 +47,13 @@ select,input[type=number]{width:100%;padding:10px 13px;border:1.5px solid var(--
 select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 
 /* STAGE GRID */
-.stage-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+.stage-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
 .stage-card{background:var(--surface);border-radius:var(--radius);box-shadow:0 2px 12px rgba(0,0,0,.07);
     padding:20px 20px;border-top:4px solid var(--border);}
 .stage-card.s1{border-top-color:#e74c3c;}
 .stage-card.s2{border-top-color:#e67e22;}
 .stage-card.s3{border-top-color:#27ae60;}
+.stage-card.s4{border-top-color:#2980b9;}
 .stage-num{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
     color:var(--text-dim);margin-bottom:6px;}
 .stage-label{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.05em;margin-bottom:14px;}
@@ -96,19 +97,21 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
     padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
 .btn-close-shift:hover{background:#333;}
 
-@media(max-width:900px){.stage-grid{grid-template-columns:1fr;}}
-.stock-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:900px){.stage-grid{grid-template-columns:1fr 1fr;} .stock-summary{grid-template-columns:1fr 1fr;}}
+.stock-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
 .ss-card{background:var(--surface);border-radius:12px;padding:14px 18px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--border);}
 .ss-card.raw{border-left-color:#e74c3c;}
 .ss-card.roasted{border-left-color:#e67e22;}
 .ss-card.sorted{border-left-color:#27ae60;}
+.ss-card.stage4{border-left-color:#2980b9;}
 .ss-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     color:var(--text-dim);margin-bottom:6px;}
 .ss-value{font-family:"Bebas Neue",sans-serif;font-size:24px;letter-spacing:.04em;}
 .ss-card.raw .ss-value{color:#e74c3c;}
 .ss-card.roasted .ss-value{color:#e67e22;}
 .ss-card.sorted .ss-value{color:#27ae60;}
+.ss-card.stage4 .ss-value{color:#2980b9;}
 </style>
 </head>
 <body>
@@ -119,6 +122,7 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 <asp:HiddenField ID="hfStage1Label" runat="server" Value=""/>
 <asp:HiddenField ID="hfStage2Label" runat="server" Value=""/>
 <asp:HiddenField ID="hfStage3Label" runat="server" Value=""/>
+<asp:HiddenField ID="hfStage4Label" runat="server" Value=""/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 
 <nav>
@@ -167,9 +171,15 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
             <div class="ss-value"><asp:Label ID="lblRoastedPending" runat="server">—</asp:Label></div>
         </div>
         <div class="ss-card sorted">
-            <div class="ss-label"><asp:Label ID="lblStage3Title" runat="server">Sorted</asp:Label> — Available for Production</div>
+            <div class="ss-label"><asp:Label ID="lblStage3Title" runat="server">Sorted</asp:Label> — Stage 3 Output</div>
             <div class="ss-value"><asp:Label ID="lblSortedStock" runat="server">—</asp:Label></div>
         </div>
+        <asp:Panel ID="pnlS4Summary" runat="server" Visible="false">
+        <div class="ss-card stage4">
+            <div class="ss-label"><asp:Label ID="lblStage4Title" runat="server">Stage 4</asp:Label> — Available for Production</div>
+            <div class="ss-value"><asp:Label ID="lblStage4Stock" runat="server">—</asp:Label></div>
+        </div>
+        </asp:Panel>
     </div>
 
     <!-- THREE STAGE CARDS -->
@@ -270,6 +280,40 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
                 </asp:Panel>
             </div>
         </div>
+
+        <!-- STAGE 4 (optional — shown only if Stage4Label is set) -->
+        <asp:Panel ID="pnlStage4Card" runat="server" Visible="false">
+        <div class="stage-card s4">
+            <div class="stage-num">Stage 4 — Available for Production</div>
+            <div class="stage-label"><asp:Label ID="lblStage4" runat="server"/></div>
+            <div class="qty-row">
+                <input type="number" step="0.001" min="0.001" id="txtS4" runat="server" placeholder="0.000"/>
+                <span class="unit-tag"><asp:Label ID="lblS4Unit" runat="server"/></span>
+            </div>
+            <asp:Button ID="btnS4" runat="server" CssClass="btn-stage btn-s3"
+                Text="Record Stage 4" OnClick="btnS4_Click" CausesValidation="false"/>
+            <div class="log-section">
+                <div class="log-title">Today's Entries</div>
+                <asp:Panel ID="pnlS4Empty" runat="server"><div style="font-size:11px;color:var(--text-dim);font-style:italic;">No entries yet</div></asp:Panel>
+                <asp:Panel ID="pnlS4Table" runat="server" Visible="false">
+                    <table class="log-table">
+                        <asp:Repeater ID="rptS4" runat="server">
+                            <ItemTemplate>
+                                <tr>
+                                    <td><%# Convert.ToDateTime(Eval("CreatedAt")).ToString("hh:mm tt") %></td>
+                                    <td class="qty"><%# Convert.ToDecimal(Eval("Qty")).ToString("0.###") %></td>
+                                </tr>
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </table>
+                    <div class="log-total tot-s3">
+                        <span>Total Stage 4</span>
+                        <span><asp:Label ID="lblS4Total" runat="server"/></span>
+                    </div>
+                </asp:Panel>
+            </div>
+        </div>
+        </asp:Panel>
 
     </div>
 
