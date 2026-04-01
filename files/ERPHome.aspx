@@ -368,8 +368,8 @@
                     <asp:Label ID="lblUserRole" runat="server" />
                 </div>
             </div>
-            <a href="Logout.aspx" class="btn-signout"
-               onclick="return confirm('Sign out?')">&#x2192; Sign Out</a>
+            <a href="#" class="btn-signout"
+               onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='Logout.aspx';}});return false;">&#x2192; Sign Out</a>
         </div>
     </header>
 
@@ -470,6 +470,8 @@
         })();
     </script>
 
+<script src="/StockApp/erp-modal.js"></script>
+<script src="/StockApp/erp-keepalive.js"></script>
     </form>
 </body>
 </html>
