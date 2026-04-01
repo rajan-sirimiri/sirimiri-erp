@@ -288,6 +288,13 @@ namespace PPApp
                     decimal? uwg2 = null; decimal uwgParsed2;
                     if (txtUnitWeightGrams != null && decimal.TryParse(txtUnitWeightGrams.Text.Trim(), out uwgParsed2) && uwgParsed2 > 0) uwg2 = uwgParsed2;
                     PPDatabaseHelper.UpdateProduct(productId, code, name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId2, uwg2);
+                    if (type == "Pre processed RM")
+                        PPDatabaseHelper.SavePreprocessStages(productId,
+                            txtInputRMName.Text.Trim(),
+                            txtStage1Label.Text.Trim(),
+                            txtStage2Label.Text.Trim(),
+                            txtStage3Label.Text.Trim(),
+                            txtStage4Label != null ? txtStage4Label.Text.Trim() : null);
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
