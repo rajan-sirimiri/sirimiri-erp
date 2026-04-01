@@ -1692,6 +1692,7 @@ namespace PPApp.DAL
                     new MySqlParameter("?nowc", NowIST()),
                     new MySqlParameter("?oid", orderId));
             }
+        }
 
         // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
         public static bool RoleHasAppAccess(string roleCode, string appCode)

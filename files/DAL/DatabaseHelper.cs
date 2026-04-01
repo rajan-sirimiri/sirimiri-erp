@@ -567,6 +567,7 @@ namespace StockApp.DAL
                 ExecuteNonQuery("DELETE FROM ERP_SSOTokens WHERE ExpiresAt < NOW() OR IsUsed = 1;");
             }
             catch { }
+        }
 
         // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
         public static bool RoleHasAppAccess(string roleCode, string appCode)

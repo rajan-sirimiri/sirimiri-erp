@@ -1360,6 +1360,7 @@ namespace MMApp.DAL
                 new MySqlParameter("?var2", variance),
                 new MySqlParameter("?pct", pct),
                 new MySqlParameter("?pct2", pct));
+        }
 
         // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
         public static bool RoleHasAppAccess(string roleCode, string appCode)

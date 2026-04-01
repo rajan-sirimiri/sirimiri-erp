@@ -1466,6 +1466,7 @@ namespace PKApp.DAL
         {
             ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
             ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id AND Status='DRAFT';", new MySqlParameter("?id", dcId));
+        }
 
         // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
         public static bool RoleHasAppAccess(string roleCode, string appCode)
