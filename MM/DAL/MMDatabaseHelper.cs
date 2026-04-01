@@ -703,6 +703,7 @@ namespace MMApp.DAL
             decimal qtyInvoice, decimal qtyActualReceived, decimal qtyInUOM, decimal rate,
             string hsnCode, decimal? gstRate, decimal gstAmount,
             decimal transportCost, bool transportInInvoice, bool transportInGST,
+            decimal loadingCharges, decimal unloadingCharges, bool qtyVerified,
             decimal totalAmount, string poNo, string remarks,
             bool qualityCheck, string status, int createdBy)
         {
@@ -713,10 +714,11 @@ namespace MMApp.DAL
             ExecuteNonQuery(
                 "INSERT INTO MM_RawInward (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID, " +
                 "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, HSNCode, GSTRate, GSTAmount, " +
-                "TransportCost, TransportInInvoice, TransportInGST, ShortageQty, ShortageValue, " +
+                "TransportCost, TransportInInvoice, TransportInGST, LoadingCharges, UnloadingCharges, QtyVerified, " +
+                "ShortageQty, ShortageValue, " +
                 "PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
                 "VALUES (?grn,?dt,?invno,?invdt,?sup,?rm,?qty,?actqty,?qtyuom,?rate,?amt," +
-                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
+                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?load,?unload,?qtyv,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
                 new MySqlParameter("grn",      grnNo),
                 new MySqlParameter("dt",       inwardDate.Date),
                 new MySqlParameter("invno",    invoiceNo),
@@ -734,6 +736,9 @@ namespace MMApp.DAL
                 new MySqlParameter("trans",    transportCost),
                 new MySqlParameter("transinv", transportInInvoice ? 1 : 0),
                 new MySqlParameter("transgst", transportInGST ? 1 : 0),
+                new MySqlParameter("load",     loadingCharges),
+                new MySqlParameter("unload",   unloadingCharges),
+                new MySqlParameter("qtyv",     qtyVerified ? 1 : 0),
                 new MySqlParameter("shqty",    shortageQty),
                 new MySqlParameter("shval",    shortageValue),
                 new MySqlParameter("po",       poNo),
@@ -827,6 +832,7 @@ namespace MMApp.DAL
             decimal qtyInvoice, decimal qtyActualReceived, decimal qtyInUOM, decimal rate,
             string hsnCode, decimal? gstRate, decimal gstAmount,
             decimal transportCost, bool transportInInvoice, bool transportInGST,
+            decimal loadingCharges, decimal unloadingCharges, bool qtyVerified,
             decimal totalAmount, string poNo, string remarks,
             bool qualityCheck, string status, int createdBy)
         {
@@ -837,10 +843,10 @@ namespace MMApp.DAL
             ExecuteNonQuery(
                 "INSERT INTO MM_PackingInward (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, PMID, " +
                 "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, HSNCode, GSTRate, GSTAmount, " +
-                "TransportCost, TransportInInvoice, TransportInGST, ShortageQty, ShortageValue, " +
+                "TransportCost, TransportInInvoice, TransportInGST, LoadingCharges, UnloadingCharges, QtyVerified, ShortageQty, ShortageValue, " +
                 "PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
                 "VALUES (?grn,?dt,?invno,?invdt,?sup,?pm,?qty,?actqty,?qtyuom,?rate,?amt," +
-                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
+                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?load,?unload,?qtyv,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
                 new MySqlParameter("grn",      grnNo),
                 new MySqlParameter("dt",       inwardDate.Date),
                 new MySqlParameter("invno",    invoiceNo),
@@ -1061,6 +1067,7 @@ namespace MMApp.DAL
             decimal qtyInvoice, decimal qtyActualReceived, decimal qtyInUOM, decimal rate,
             string hsnCode, decimal? gstRate, decimal gstAmount,
             decimal transportCost, bool transportInInvoice, bool transportInGST,
+            decimal loadingCharges, decimal unloadingCharges, bool qtyVerified,
             decimal totalAmount, string poNo, string remarks,
             bool qualityCheck, string status, int createdBy)
         {
@@ -1071,10 +1078,10 @@ namespace MMApp.DAL
             ExecuteNonQuery(
                 "INSERT INTO MM_ConsumableInward (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, ConsumableID, " +
                 "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, HSNCode, GSTRate, GSTAmount, " +
-                "TransportCost, TransportInInvoice, TransportInGST, ShortageQty, ShortageValue, " +
+                "TransportCost, TransportInInvoice, TransportInGST, LoadingCharges, UnloadingCharges, QtyVerified, ShortageQty, ShortageValue, " +
                 "PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
                 "VALUES (?grn,?dt,?invno,?invdt,?sup,?con,?qty,?actqty,?qtyuom,?rate,?amt," +
-                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
+                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?load,?unload,?qtyv,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
                 new MySqlParameter("grn",      grnNo),
                 new MySqlParameter("dt",       inwardDate.Date),
                 new MySqlParameter("invno",    invoiceNo),
@@ -1151,6 +1158,7 @@ namespace MMApp.DAL
             decimal qtyInvoice, decimal qtyActualReceived, decimal qtyInUOM, decimal rate,
             string hsnCode, decimal? gstRate, decimal gstAmount,
             decimal transportCost, bool transportInInvoice, bool transportInGST,
+            decimal loadingCharges, decimal unloadingCharges, bool qtyVerified,
             decimal totalAmount, string poNo, string remarks,
             bool qualityCheck, string status, int createdBy)
         {
@@ -1161,10 +1169,10 @@ namespace MMApp.DAL
             ExecuteNonQuery(
                 "INSERT INTO MM_StationaryInward (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, StationaryID, " +
                 "Quantity, QtyActualReceived, QtyInUOM, Rate, Amount, HSNCode, GSTRate, GSTAmount, " +
-                "TransportCost, TransportInInvoice, TransportInGST, ShortageQty, ShortageValue, " +
+                "TransportCost, TransportInInvoice, TransportInGST, LoadingCharges, UnloadingCharges, QtyVerified, ShortageQty, ShortageValue, " +
                 "PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt) " +
                 "VALUES (?grn,?dt,?invno,?invdt,?sup,?st,?qty,?actqty,?qtyuom,?rate,?amt," +
-                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
+                "?hsn,?gstr,?gstamt,?trans,?transinv,?transgst,?load,?unload,?qtyv,?shqty,?shval,?po,?rem,?qc,?stat,?by,NOW());",
                 new MySqlParameter("grn",      grnNo),
                 new MySqlParameter("dt",       inwardDate.Date),
                 new MySqlParameter("invno",    invoiceNo),

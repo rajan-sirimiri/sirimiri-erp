@@ -20,6 +20,9 @@ namespace MMApp
         protected HiddenField        hfTaxable;
         protected HiddenField        hfGSTAmount;
         protected HiddenField        hfTotal;
+        protected HiddenField        hfLoading;
+        protected HiddenField        hfUnloading;
+        protected HiddenField        hfQtyVerified;
         protected Panel              pnlAlert;
         protected Panel              pnlEmpty;
         protected Panel              pnlRecEmpty;
