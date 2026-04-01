@@ -210,12 +210,12 @@
                 <div><div class="menu-title">Stationary &amp; Other<br/>Inward (GRN)</div><div class="menu-desc">Record stationery and misc item receipts, generate GRN numbers</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStockReport" id="lnkRMReport" runat="server" href="MMRMStockReport.aspx" class="menu-card cat-txn">
+            <a id="lnkRMReport" runat="server" href="MMRMStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4CA;</div>
                 <div><div class="menu-title">Raw Material<br/>Stock Report</div><div class="menu-desc">Current stock position with FIFO tracking — view and download as PDF</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkPMStockReport" id="lnkPMReport" runat="server" href="MMPMStockReport.aspx" class="menu-card cat-txn">
+            <a id="lnkPMReport" runat="server" href="MMPMStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Packing Material<br/>Stock Report</div><div class="menu-desc">Opening + GRN received &minus; packing consumed — current PM stock position</div></div>
                 <div class="menu-arrow">&#x2197;</div>
@@ -225,7 +225,7 @@
                 <div><div class="menu-title">Scrap Material<br/>Stock Report</div><div class="menu-desc">Current stock of scrap by-products generated during processing</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStockRecon" id="lnkRecon" runat="server" href="MMStockReconciliation.aspx" class="menu-card cat-txn">
+            <a id="lnkRecon" runat="server" href="MMStockReconciliation.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x2696;&#xFE0F;</div>
                 <div><div class="menu-title">Stock<br/>Reconciliation</div><div class="menu-desc">Reconcile physical stock against system stock — record adjustments and variances</div></div>
                 <div class="menu-arrow">&#x2197;</div>
@@ -233,7 +233,7 @@
         </div>
         <div class="section-head">Data Import</div>
         <div class="menu-grid">
-            <a id="lnkBulkUpload" id="lnkBulk" runat="server" href="MMBulkUpload.aspx" class="menu-card cat-master">
+            <a id="lnkBulk" runat="server" href="MMBulkUpload.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4CA;</div>
                 <div><div class="menu-title">Bulk Upload<br/>(Excel)</div><div class="menu-desc">Import Suppliers, Raw Materials, Packing Materials, Consumables and Stationaries from Excel templates</div></div>
                 <div class="menu-arrow">&#x2197;</div>
