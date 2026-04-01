@@ -156,7 +156,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
 
     <div class="section-head">Masters</div>
     <div class="menu-grid">
-        <a href="PKCustomer.aspx" class="menu-card cat-master">
+        <a id="lnkCustomer" runat="server" href="PKCustomer.aspx" class="menu-card cat-master">
             <div class="menu-icon">&#x1F3E2;</div>
             <div>
                 <div class="menu-title">Customer Master</div>
@@ -164,7 +164,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="PKProductPM.aspx" class="menu-card cat-master">
+        <a id="lnkPMMapping" runat="server" href="PKProductPM.aspx" class="menu-card cat-master">
             <div class="menu-icon">&#x1F517;</div>
             <div>
                 <div class="menu-title">Product PM Mapping</div>
@@ -176,7 +176,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
 
     <div class="section-head">Transactions</div>
     <div class="menu-grid">
-        <a href="PKPrimaryPacking.aspx" class="menu-card cat-txn">
+        <a id="lnkPrimary" runat="server" href="PKPrimaryPacking.aspx" class="menu-card cat-txn">
             <div class="menu-icon">&#x1F6E2;</div>
             <div>
                 <div class="menu-title">Primary Packing</div>
@@ -184,7 +184,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="PKSecondaryPacking.aspx" class="menu-card cat-txn">
+        <a id="lnkSecondary" runat="server" href="PKSecondaryPacking.aspx" class="menu-card cat-txn">
             <div class="menu-icon">&#x1F4CB;</div>
             <div>
                 <div class="menu-title">Secondary Packing &amp; FG</div>
@@ -192,7 +192,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="PKShipment.aspx" class="menu-card cat-txn">
+        <a id="lnkShipment" runat="server" href="PKShipment.aspx" class="menu-card cat-txn">
             <div class="menu-icon">&#x1F69A;</div>
             <div>
                 <div class="menu-title">Shipments</div>
@@ -204,7 +204,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
 
     <div class="section-head">Reports</div>
     <div class="menu-grid">
-        <a href="PKReports.aspx" class="menu-card cat-report">
+        <a id="lnkReports" runat="server" href="PKReports.aspx" class="menu-card cat-report">
             <div class="menu-icon">&#x1F4CA;</div>
             <div>
                 <div class="menu-title">SFG Stock Report</div>
@@ -212,7 +212,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="PKPMStockReport.aspx" class="menu-card cat-report">
+        <a id="lnkPMReport" runat="server" href="PKPMStockReport.aspx" class="menu-card cat-report">
             <div class="menu-icon">&#x1F4E6;</div>
             <div>
                 <div class="menu-title">PM Stock Report</div>
@@ -220,7 +220,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="PKPackingHistory.aspx" class="menu-card cat-report">
+        <a id="lnkHistory" runat="server" href="PKPackingHistory.aspx" class="menu-card cat-report">
             <div class="menu-icon">&#x1F4CB;</div>
             <div>
                 <div class="menu-title">Packing History</div>

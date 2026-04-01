@@ -168,7 +168,7 @@
         <!-- MASTERS -->
         <div class="section-head">Masters</div>
         <div class="menu-grid">
-            <a href="PPProductModel.aspx" class="menu-card cat-master">
+            <a id="lnkProduct" runat="server" href="PPProductModel.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F9EA;</div>
                 <div>
                     <div class="menu-title">Product<br/>Modelling</div>
@@ -176,7 +176,7 @@
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a href="PPDailyPlan.aspx" class="menu-card cat-master">
+            <a id="lnkDailyPlan" runat="server" href="PPDailyPlan.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4C5;</div>
                 <div>
                     <div class="menu-title">Production<br/>Planning</div>
@@ -189,7 +189,7 @@
         <!-- TRANSACTIONS -->
         <div class="section-head">Transactions</div>
         <div class="menu-grid">
-            <a href="PPProductionOrder.aspx" class="menu-card cat-txn">
+            <a id="lnkOrder" runat="server" href="PPProductionOrder.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4CB;</div>
                 <div>
                     <div class="menu-title">Production<br/>Order</div>
@@ -197,7 +197,7 @@
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a href="PPProductionExecution.aspx" class="menu-card cat-txn">
+            <a id="lnkExecution" runat="server" href="PPProductionExecution.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x2699;&#xFE0F;</div>
                 <div>
                     <div class="menu-title">Production<br/>Execution</div>
@@ -205,7 +205,7 @@
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a href="PPPrefilledEntry.aspx" class="menu-card cat-txn">
+            <a id="lnkPrefilled" runat="server" href="PPPrefilledEntry.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F9C3;</div>
                 <div>
                     <div class="menu-title">Prefilled<br/>Conversion Entry</div>
@@ -213,7 +213,7 @@
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a href="PPPreprocessEntry.aspx" class="menu-card cat-txn">
+            <a id="lnkPreprocess" runat="server" href="PPPreprocessEntry.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x2699;&#xFE0F;</div>
                 <div>
                     <div class="menu-title">Pre processed<br/>RM Entry</div>

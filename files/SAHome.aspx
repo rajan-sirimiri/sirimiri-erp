@@ -130,7 +130,7 @@
 
     <div class="section-head">Stock & Inventory</div>
     <div class="menu-grid">
-        <a href="StockEntry.aspx" class="menu-card cat-stock">
+        <a id="lnkDistStock" runat="server" href="StockEntry.aspx" class="menu-card cat-stock">
             <div class="menu-icon">&#x1F4E6;</div>
             <div>
                 <div class="menu-title">Distributor Stock<br/>Position</div>
@@ -138,7 +138,7 @@
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="SAHubStock.aspx" class="menu-card cat-stock">
+        <a id="lnkHubStock" runat="server" href="SAHubStock.aspx" class="menu-card cat-stock">
             <div class="menu-icon">&#x1F3ED;</div>
             <div>
                 <div class="menu-title">HUB Stock</div>
@@ -146,7 +146,7 @@
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="SAFGStock.aspx" class="menu-card cat-stock">
+        <a id="lnkFGStock" runat="server" href="SAFGStock.aspx" class="menu-card cat-stock">
             <div class="menu-icon">&#x1F4CB;</div>
             <div>
                 <div class="menu-title">Finished Goods<br/>Stock Level</div>
@@ -158,7 +158,7 @@
 
     <div class="section-head">Sales Operations</div>
     <div class="menu-grid">
-        <a href="DailySales.aspx" class="menu-card cat-entry">
+        <a id="lnkDailySales" runat="server" href="DailySales.aspx" class="menu-card cat-entry">
             <div class="menu-icon">&#x1F4DD;</div>
             <div>
                 <div class="menu-title">Daily Sales<br/>Entry — SO</div>
@@ -166,7 +166,7 @@
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
-        <a href="SASalesForce.aspx" class="menu-card cat-entry">
+        <a id="lnkSalesForce" runat="server" href="SASalesForce.aspx" class="menu-card cat-entry">
             <div class="menu-icon">&#x1F4F1;</div>
             <div>
                 <div class="menu-title">Sales Force<br/>Order Platform</div>
@@ -178,7 +178,7 @@
 
     <div class="section-head">Modern Trade</div>
     <div class="menu-grid">
-        <a href="SASuperMarkets.aspx" class="menu-card cat-entry">
+        <a id="lnkSuperMarkets" runat="server" href="SASuperMarkets.aspx" class="menu-card cat-entry">
             <div class="menu-icon">&#x1F6D2;</div>
             <div>
                 <div class="menu-title">Super Markets</div>
@@ -190,7 +190,7 @@
 
     <div class="section-head">Reports & Analytics</div>
     <div class="menu-grid">
-        <a href="Reports.aspx" class="menu-card cat-report">
+        <a id="lnkReports" runat="server" href="Reports.aspx" class="menu-card cat-report">
             <div class="menu-icon">&#x1F4CA;</div>
             <div>
                 <div class="menu-title">Reports</div>

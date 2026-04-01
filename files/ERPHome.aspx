@@ -387,7 +387,7 @@
         <div class="module-grid">
 
             <!-- 1. Materials Management -->
-            <a href="/MM/MMLogin.aspx" data-sso-module="MM" class="module-card mod-materials">
+            <a id="lnkMM" runat="server" href="/MM/MMLogin.aspx" data-sso-module="MM" class="module-card mod-materials">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F4E6;</div>
                 <div class="module-info">
@@ -398,7 +398,7 @@
             </a>
 
             <!-- 2. Production -->
-            <a href="/PP/PPLogin.aspx" data-sso-module="PP" class="module-card mod-production">
+            <a id="lnkPP" runat="server" href="/PP/PPLogin.aspx" data-sso-module="PP" class="module-card mod-production">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x2699;&#xFE0F;</div>
                 <div class="module-info">
@@ -409,7 +409,7 @@
             </a>
 
             <!-- 3. Packing -->
-            <a href="/PK/PKLogin.aspx" data-sso-module="PK" class="module-card mod-packing">
+            <a id="lnkPK" runat="server" href="/PK/PKLogin.aspx" data-sso-module="PK" class="module-card mod-packing">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F3F7;&#xFE0F;</div>
                 <div class="module-info">
@@ -420,7 +420,7 @@
             </a>
 
             <!-- 4. Sales BI -->
-            <a href="SAHome.aspx" class="module-card mod-sales">
+            <a id="lnkSA" runat="server" href="SAHome.aspx" class="module-card mod-sales">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F4C8;</div>
                 <div class="module-info">
@@ -431,7 +431,7 @@
             </a>
 
             <!-- 5. BI & Analytics -->
-            <a href="Reports.aspx" class="module-card mod-bi">
+            <a id="lnkBI" runat="server" href="Reports.aspx" class="module-card mod-bi">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F9E0;</div>
                 <div class="module-info">

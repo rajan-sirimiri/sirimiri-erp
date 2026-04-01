@@ -151,37 +151,37 @@
 
         <div class="section-head">Masters</div>
         <div class="menu-grid">
-            <a id="lnkSupplier"        href="MMSupplierReg.aspx"    class="menu-card cat-master">
+            <a id="lnkSupplier" runat="server"        href="MMSupplierReg.aspx"    class="menu-card cat-master">
                 <div class="menu-icon">&#x1F3ED;</div>
                 <div><div class="menu-title">Supplier<br/>Registration</div><div class="menu-desc">Add and manage raw material and packing material suppliers</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkRawMaterial"     href="MMRawMaterial.aspx"    class="menu-card cat-master">
+            <a id="lnkRawMaterial" runat="server"     href="MMRawMaterial.aspx"    class="menu-card cat-master">
                 <div class="menu-icon">&#x1F33F;</div>
                 <div><div class="menu-title">Raw Material<br/>Registration</div><div class="menu-desc">Define raw materials, codes, UOM and reorder levels</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkPackingMaterial" href="MMPackingMaterial.aspx" class="menu-card cat-master">
+            <a id="lnkPackingMaterial" runat="server" href="MMPackingMaterial.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Packing Material<br/>Registration</div><div class="menu-desc">Define packing materials, codes, UOM and reorder levels</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkUOM"             href="MMUOMMaster.aspx"      class="menu-card cat-master">
+            <a id="lnkUOM" runat="server"             href="MMUOMMaster.aspx"      class="menu-card cat-master">
                 <div class="menu-icon">&#x2696;&#xFE0F;</div>
                 <div><div class="menu-title">UOM Master</div><div class="menu-desc">Configure units of measure &mdash; kg, litre, nos, box and more</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkConsumable"      href="MMConsumable.aspx"     class="menu-card cat-master">
+            <a id="lnkConsumable" runat="server"      href="MMConsumable.aspx"     class="menu-card cat-master">
                 <div class="menu-icon">&#x1F9F9;</div>
                 <div><div class="menu-title">Consumables<br/>Registration</div><div class="menu-desc">Define consumable items, codes, UOM and reorder levels</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkScrapMaterial" href="MMScrapMaterial.aspx" class="menu-card cat-master">
+            <a id="lnkScrapMaterial" runat="server" href="MMScrapMaterial.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x267B;&#xFE0F;</div>
                 <div><div class="menu-title">Scrap<br/>Materials</div><div class="menu-desc">Define scrap by-products produced during raw material processing</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStationary"      href="MMStationary.aspx"     class="menu-card cat-master">
+            <a id="lnkStationary" runat="server"      href="MMStationary.aspx"     class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4DD;</div>
                 <div><div class="menu-title">Stationaries &amp;<br/>Other Items</div><div class="menu-desc">Define stationery and miscellaneous items, codes and UOM</div></div>
                 <div class="menu-arrow">&#x2197;</div>
@@ -190,42 +190,42 @@
 
         <div class="section-head">Transactions</div>
         <div class="menu-grid">
-            <a id="lnkRawInward"     href="MMRawInward.aspx"     class="menu-card cat-txn">
+            <a id="lnkRawInward" runat="server"     href="MMRawInward.aspx"     class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F69A;</div>
                 <div><div class="menu-title">Raw Material<br/>Inward (GRN)</div><div class="menu-desc">Record raw material receipts, generate GRN numbers and track quantities</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkPackingInward" href="MMPackingInward.aspx" class="menu-card cat-txn">
+            <a id="lnkPackingInward" runat="server" href="MMPackingInward.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4CB;</div>
                 <div><div class="menu-title">Packing Material<br/>Inward (GRN)</div><div class="menu-desc">Record packing material receipts, generate GRN numbers and track quantities</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkConsumableInward" href="MMConsumableInward.aspx" class="menu-card cat-txn">
+            <a id="lnkConsumableInward" runat="server" href="MMConsumableInward.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F9F4;</div>
                 <div><div class="menu-title">Consumable<br/>Inward (GRN)</div><div class="menu-desc">Record consumable receipts, generate GRN numbers and track quantities</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStationaryInward" href="MMStationaryInward.aspx" class="menu-card cat-txn">
+            <a id="lnkStationaryInward" runat="server" href="MMStationaryInward.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Stationary &amp; Other<br/>Inward (GRN)</div><div class="menu-desc">Record stationery and misc item receipts, generate GRN numbers</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStockReport" href="MMRMStockReport.aspx" class="menu-card cat-txn">
+            <a id="lnkStockReport" id="lnkRMReport" runat="server" href="MMRMStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4CA;</div>
                 <div><div class="menu-title">Raw Material<br/>Stock Report</div><div class="menu-desc">Current stock position with FIFO tracking — view and download as PDF</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkPMStockReport" href="MMPMStockReport.aspx" class="menu-card cat-txn">
+            <a id="lnkPMStockReport" id="lnkPMReport" runat="server" href="MMPMStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Packing Material<br/>Stock Report</div><div class="menu-desc">Opening + GRN received &minus; packing consumed — current PM stock position</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkScrapReport" href="MMScrapStockReport.aspx" class="menu-card cat-txn">
+            <a id="lnkScrapReport" runat="server" href="MMScrapStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#9851;&#xFE0F;</div>
                 <div><div class="menu-title">Scrap Material<br/>Stock Report</div><div class="menu-desc">Current stock of scrap by-products generated during processing</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
-            <a id="lnkStockRecon" href="MMStockReconciliation.aspx" class="menu-card cat-txn">
+            <a id="lnkStockRecon" id="lnkRecon" runat="server" href="MMStockReconciliation.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x2696;&#xFE0F;</div>
                 <div><div class="menu-title">Stock<br/>Reconciliation</div><div class="menu-desc">Reconcile physical stock against system stock — record adjustments and variances</div></div>
                 <div class="menu-arrow">&#x2197;</div>
@@ -233,7 +233,7 @@
         </div>
         <div class="section-head">Data Import</div>
         <div class="menu-grid">
-            <a id="lnkBulkUpload" href="MMBulkUpload.aspx" class="menu-card cat-master">
+            <a id="lnkBulkUpload" id="lnkBulk" runat="server" href="MMBulkUpload.aspx" class="menu-card cat-master">
                 <div class="menu-icon">&#x1F4CA;</div>
                 <div><div class="menu-title">Bulk Upload<br/>(Excel)</div><div class="menu-desc">Import Suppliers, Raw Materials, Packing Materials, Consumables and Stationaries from Excel templates</div></div>
                 <div class="menu-arrow">&#x2197;</div>
