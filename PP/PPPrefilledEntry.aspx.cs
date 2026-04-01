@@ -197,6 +197,7 @@ namespace PPApp
                 ShowAlert("Added " + qty.ToString("0.###") + " " + hfOutputUnit.Value +
                     " of " + productName + " to stock.", true);
                 RefreshTally(productId);
+                RefreshRMStock(productId);
             }
             catch (Exception ex)
             {
@@ -282,6 +283,9 @@ namespace PPApp
                 RefreshClosures(rmId);
                 // Reload scrap inputs for next entry (cleared now)
                 LoadScrapInputs(rmId);
+                // Refresh RM stock display
+                int pid = Convert.ToInt32(hfProductId.Value);
+                if (pid > 0) RefreshRMStock(pid);
             }
             catch (Exception ex)
             {
