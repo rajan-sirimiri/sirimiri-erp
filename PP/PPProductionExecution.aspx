@@ -415,8 +415,8 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
                         <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f57f17;margin-bottom:10px;">&#x2696; Dough Weight Calculation</div>
                         <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
                             <div class="form-group" style="flex:1;min-width:150px;">
-                                <label>Dough Weight (grams)</label>
-                                <asp:TextBox ID="txtDoughWeight" runat="server" type="number" step="1" min="0" placeholder="e.g. 5000"
+                                <label>Dough Weight (kg)</label>
+                                <asp:TextBox ID="txtDoughWeight" runat="server" type="number" step="0.001" min="0" placeholder="e.g. 5"
                                     oninput="calcUnitsFromDough();"/>
                             </div>
                             <div class="form-group" style="flex:1;min-width:150px;">
@@ -689,9 +689,10 @@ window.addEventListener('load', function() {
 <script src="/StockApp/erp-modal.js"></script>
 <script>
 function calcUnitsFromDough() {
-    var dough = parseFloat(document.getElementById('<%= txtDoughWeight.ClientID %>').value) || 0;
+    var doughKg = parseFloat(document.getElementById('<%= txtDoughWeight.ClientID %>').value) || 0;
+    var doughGrams = doughKg * 1000;
     var uwg = parseFloat(document.getElementById('<%= hfUnitWeightGrams.ClientID %>').value) || 0;
-    var units = uwg > 0 ? Math.floor(dough / uwg) : 0;
+    var units = uwg > 0 ? Math.floor(doughGrams / uwg) : 0;
     document.getElementById('divCalcUnits').innerText = units;
     document.getElementById('<%= hfCalcUnits.ClientID %>').value = units;
 }
