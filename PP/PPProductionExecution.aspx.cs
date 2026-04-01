@@ -43,6 +43,11 @@ namespace PPApp
         protected Panel         pnlDynParams;
         protected Repeater      rptDynParams;
         protected Button        btnSaveOutput;
+        protected Panel         pnlDoughWeight;
+        protected TextBox       txtDoughWeight;
+        protected Label         lblUnitWeight;
+        protected HiddenField   hfUnitWeightGrams;
+        protected HiddenField   hfCalcUnits;
         protected Repeater      rptHistory;
         protected Panel         pnlHistoryEmpty;
 
@@ -161,6 +166,12 @@ namespace PPApp
                                      status == "InProgress" ? "status-inprogress" : "status-initiated";
             lblInfoDate.Text       = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
             // lblOutputUnit removed — Actual Output field removed from UI
+
+            // Dough weight calculation — show for products with UnitWeightGrams
+            decimal uwg = order["UnitWeightGrams"] != DBNull.Value ? Convert.ToDecimal(order["UnitWeightGrams"]) : 0;
+            if (pnlDoughWeight != null) pnlDoughWeight.Visible = uwg > 0;
+            if (hfUnitWeightGrams != null) hfUnitWeightGrams.Value = uwg.ToString("0.##");
+            if (lblUnitWeight != null) lblUnitWeight.Text = uwg.ToString("0.##");
 
             // Count completed
             var history = PPDatabaseHelper.GetBatchHistory(orderId);
@@ -329,6 +340,11 @@ namespace PPApp
             var orderRowOut = PPDatabaseHelper.GetProductionOrderById(orderId);
             if (orderRowOut != null && orderRowOut["BatchSize"] != DBNull.Value)
                 output = Convert.ToDecimal(orderRowOut["BatchSize"]);
+
+            // If dough weight was entered, use calculated units instead
+            decimal calcUnits = 0;
+            if (hfCalcUnits != null && decimal.TryParse(hfCalcUnits.Value, out calcUnits) && calcUnits > 0)
+                output = calcUnits;
 
             // ── FIFO STOCK DEDUCTION ──────────────────────────────────────────
             int productId = Convert.ToInt32(PPDatabaseHelper.GetProductionOrderById(orderId)["ProductID"]);

@@ -341,6 +341,11 @@
                             <asp:ListItem Value="0">-- Select Line --</asp:ListItem>
                         </asp:DropDownList>
                     </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Unit Weight (grams)</label>
+                        <asp:TextBox ID="txtUnitWeightGrams" runat="server" placeholder="e.g. 30" type="number" step="0.01" min="0"/>
+                        <div class="field-hint">Weight of one finished unit in grams (for dough-based calculation)</div>
+                    </div>
                 </div>
 
                 <!-- PRE PROCESSED RM FIELDS — shown only for Pre processed RM type -->

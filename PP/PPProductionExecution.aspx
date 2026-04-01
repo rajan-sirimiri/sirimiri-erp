@@ -408,6 +408,35 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
             <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
                 <div class="output-panel" style="margin-top:28px;">
                     <div class="output-title">Record Batch Output</div>
+
+                    <!-- DOUGH WEIGHT — visible only for Laddu Line products with UnitWeightGrams -->
+                    <asp:Panel ID="pnlDoughWeight" runat="server" Visible="false">
+                    <div style="background:#fff8e1;border:2px solid #f9a825;border-radius:10px;padding:16px;margin-bottom:16px;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f57f17;margin-bottom:10px;">&#x2696; Dough Weight Calculation</div>
+                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+                            <div class="form-group" style="flex:1;min-width:150px;">
+                                <label>Dough Weight (grams)</label>
+                                <asp:TextBox ID="txtDoughWeight" runat="server" type="number" step="1" min="0" placeholder="e.g. 5000"
+                                    oninput="calcUnitsFromDough();"/>
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:150px;">
+                                <label>Unit Weight</label>
+                                <div style="padding:9px 12px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;font-weight:700;color:var(--accent);">
+                                    <asp:Label ID="lblUnitWeight" runat="server" Text="--"/> grams
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:150px;">
+                                <label>Calculated Units</label>
+                                <div id="divCalcUnits" style="padding:9px 12px;background:#e8f5e9;border:2px solid var(--accent);border-radius:8px;font-weight:700;font-size:18px;color:var(--accent);">
+                                    0
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </asp:Panel>
+                    <asp:HiddenField ID="hfUnitWeightGrams" runat="server" Value="0"/>
+                    <asp:HiddenField ID="hfCalcUnits" runat="server" Value="0"/>
+
                     <div class="output-grid">
                         <div class="form-group">
                             <label>Remarks</label>
@@ -658,6 +687,15 @@ window.addEventListener('load', function() {
 </script>
 </form>
 <script src="/StockApp/erp-modal.js"></script>
+<script>
+function calcUnitsFromDough() {
+    var dough = parseFloat(document.getElementById('<%= txtDoughWeight.ClientID %>').value) || 0;
+    var uwg = parseFloat(document.getElementById('<%= hfUnitWeightGrams.ClientID %>').value) || 0;
+    var units = uwg > 0 ? Math.floor(dough / uwg) : 0;
+    document.getElementById('divCalcUnits').innerText = units;
+    document.getElementById('<%= hfCalcUnits.ClientID %>').value = units;
+}
+</script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

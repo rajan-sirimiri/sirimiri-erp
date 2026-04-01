@@ -144,7 +144,7 @@ namespace PPApp.DAL
         {
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductCode, p.ProductName, p.Description, p.ProductType, p.ImagePath, " +
-                "p.BatchSize, p.ProdUOMID, p.OutputUOMID, p.HSNCode, p.GSTRate, p.IsActive, p.ProductionLineID, " +
+                "p.BatchSize, p.ProdUOMID, p.OutputUOMID, p.HSNCode, p.GSTRate, p.IsActive, p.ProductionLineID, p.UnitWeightGrams, " +
                 "pu.Abbreviation AS ProdAbbreviation, ou.Abbreviation AS OutputAbbreviation, " +
                 "pl.LineName AS ProductionLineName " +
                 "FROM PP_Products p " +
@@ -187,13 +187,13 @@ namespace PPApp.DAL
 
         public static int AddProduct(string name, string description, string hsnCode,
             decimal? gstRate, int prodUomId, int outputUomId, decimal batchSize, bool isActive,
-            string productType = "Core", string imagePath = null, int? productionLineId = null)
+            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null)
         {
             string code = GenerateProductCode();
             using (var conn = OpenConnection())
             using (var cmd  = new MySqlCommand(
-                "INSERT INTO PP_Products (ProductCode, ProductName, Description, HSNCode, GSTRate, ProdUOMID, OutputUOMID, BatchSize, IsActive, ProductType, ImagePath, ProductionLineID) " +
-                "VALUES (?code,?name,?desc,?hsn,?gst,?produom,?outuom,?batch,?active,?type,?img,?lineId);", conn))
+                "INSERT INTO PP_Products (ProductCode, ProductName, Description, HSNCode, GSTRate, ProdUOMID, OutputUOMID, BatchSize, IsActive, ProductType, ImagePath, ProductionLineID, UnitWeightGrams) " +
+                "VALUES (?code,?name,?desc,?hsn,?gst,?produom,?outuom,?batch,?active,?type,?img,?lineId,?uwg);", conn))
             {
                 cmd.Parameters.AddWithValue("?code",    code);
                 cmd.Parameters.AddWithValue("?name",    name);
@@ -207,6 +207,7 @@ namespace PPApp.DAL
                 cmd.Parameters.AddWithValue("?type",    productType ?? "Core");
                 cmd.Parameters.AddWithValue("?img",     (object)imagePath ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("?lineId",  productionLineId.HasValue ? (object)productionLineId.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("?uwg",     unitWeightGrams.HasValue ? (object)unitWeightGrams.Value : DBNull.Value);
                 cmd.ExecuteNonQuery();
                 using (var idCmd = new MySqlCommand("SELECT LAST_INSERT_ID();", conn))
                     return Convert.ToInt32(idCmd.ExecuteScalar());
@@ -216,12 +217,12 @@ namespace PPApp.DAL
         public static void UpdateProduct(int productId, string code, string name,
             string description, string hsnCode, decimal? gstRate,
             int prodUomId, int outputUomId, decimal batchSize, bool isActive,
-            string productType = "Core", string imagePath = null, int? productionLineId = null)
+            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null)
         {
             ExecuteNonQuery(
                 "UPDATE PP_Products SET ProductCode=?code, ProductName=?name, Description=?desc, " +
                 "HSNCode=?hsn, GSTRate=?gst, ProdUOMID=?produom, OutputUOMID=?outuom, BatchSize=?batch, IsActive=?active, " +
-                "ProductType=?type, ImagePath=?img, ProductionLineID=?lineId " +
+                "ProductType=?type, ImagePath=?img, ProductionLineID=?lineId, UnitWeightGrams=?uwg " +
                 "WHERE ProductID=?id;",
                 new MySqlParameter("?code",    code),
                 new MySqlParameter("?name",    name),
@@ -235,6 +236,7 @@ namespace PPApp.DAL
                 new MySqlParameter("?type",    productType ?? "Core"),
                 new MySqlParameter("?img",     (object)imagePath ?? DBNull.Value),
                 new MySqlParameter("?lineId",  productionLineId.HasValue ? (object)productionLineId.Value : DBNull.Value),
+                new MySqlParameter("?uwg",     unitWeightGrams.HasValue ? (object)unitWeightGrams.Value : DBNull.Value),
                 new MySqlParameter("?id",      productId));
         }
 
@@ -490,6 +492,7 @@ namespace PPApp.DAL
                 "SELECT o.OrderID, o.ProductID, o.Shift, o.Status, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, p.ProductType, " +
+                "p.ProductionLineID, p.UnitWeightGrams, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
