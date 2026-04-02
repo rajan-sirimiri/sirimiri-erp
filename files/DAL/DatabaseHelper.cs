@@ -611,7 +611,7 @@ namespace StockApp.DAL
 
         public static void ExecuteNonQueryPublic(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = new MySqlConnection(ConnectionString))
             using (var cmd = new MySqlCommand(sql, conn))
             {
                 if (prms != null) cmd.Parameters.AddRange(prms);
@@ -621,7 +621,7 @@ namespace StockApp.DAL
 
         public static object ExecuteScalarPublic(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = new MySqlConnection(ConnectionString))
             using (var cmd = new MySqlCommand(sql, conn))
             {
                 if (prms != null) cmd.Parameters.AddRange(prms);
