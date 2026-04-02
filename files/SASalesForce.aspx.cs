@@ -135,17 +135,11 @@ namespace StockApp
         {
             ClearDDL(ddl, "-- Select Area --");
             if (regionId == 0) return;
-            // Areas = ASM/ASE/Sr ASM positions in this region (hierarchy level 4)
             DataTable dt = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT p.PositionID, p.EmployeeName, d.DesignCode" +
-                " FROM SA_OrgPositions p JOIN SA_Designations d ON d.DesignationID=p.DesignationID" +
-                " WHERE p.RegionID=?rid AND d.HierarchyLevel=4 AND p.IsActive=1 ORDER BY p.EmployeeName;",
+                "SELECT AreaID, AreaName, AreaCode FROM SA_Areas WHERE RegionID=?rid AND IsActive=1 ORDER BY SortOrder, AreaName;",
                 new MySqlParameter("?rid", regionId));
             foreach (DataRow r in dt.Rows)
-            {
-                string name = r["EmployeeName"] != DBNull.Value ? r["EmployeeName"].ToString() : "Vacant";
-                ddl.Items.Add(new ListItem(name + " (" + r["DesignCode"] + ")", r["PositionID"].ToString()));
-            }
+                ddl.Items.Add(new ListItem(r["AreaName"].ToString() + " (" + r["AreaCode"] + ")", r["AreaID"].ToString()));
         }
 
         // ── TAB SWITCHING ─────────────────────────────────────────────────
@@ -218,7 +212,7 @@ namespace StockApp
             lblPathChannel.Text = ddlProjChannel.SelectedItem.Text;
 
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
 
@@ -290,7 +284,7 @@ namespace StockApp
                 try
                 {
                     DatabaseHelper.ExecuteNonQueryPublic(
-                        "INSERT INTO SA_Projections (ProjectionMonth, ProjectionYear, StateID, ChannelID, ZoneID, RegionID, PositionID, CreatedBy)" +
+                        "INSERT INTO SA_Projections (ProjectionMonth, ProjectionYear, StateID, ChannelID, ZoneID, RegionID, AreaID, CreatedBy)" +
                         " VALUES (?m,?y,0,?c,?z,?r,?p,?u);",
                         new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                         new MySqlParameter("?c", channelId), new MySqlParameter("?z", zoneId),
@@ -305,7 +299,7 @@ namespace StockApp
                 }
 
                 DataRow newProj = DatabaseHelper.ExecuteQueryRowPublic(
-                    "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
+                    "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
                     new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                     new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
                 if (newProj != null) projId = Convert.ToInt32(newProj["ProjectionID"]);
@@ -351,11 +345,11 @@ namespace StockApp
             if (e.CommandName == "EditProj")
             {
                 DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                    "SELECT p.*, z.ZoneName, r.RegionName, pos.EmployeeName AS AreaName, c.ChannelName" +
+                    "SELECT p.*, z.ZoneName, r.RegionName, ar.AreaName AS AreaName, c.ChannelName" +
                     " FROM SA_Projections p" +
                     " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
                     " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
-                    " LEFT JOIN SA_OrgPositions pos ON pos.PositionID=p.PositionID" +
+                    " LEFT JOIN SA_Areas ar ON ar.AreaID=p.AreaID" +
                     " LEFT JOIN SA_Channels c ON c.ChannelID=p.ChannelID" +
                     " WHERE p.ProjectionID=?pid;",
                     new MySqlParameter("?pid", projId));
@@ -373,10 +367,10 @@ namespace StockApp
                     if (li != null) ddlProjRegion.SelectedValue = proj["RegionID"].ToString();
                     LoadAreas(ddlProjArea, Convert.ToInt32(proj["RegionID"]));
                 }
-                if (proj["PositionID"] != DBNull.Value)
+                if (proj["AreaID"] != DBNull.Value)
                 {
-                    var li = ddlProjArea.Items.FindByValue(proj["PositionID"].ToString());
-                    if (li != null) ddlProjArea.SelectedValue = proj["PositionID"].ToString();
+                    var li = ddlProjArea.Items.FindByValue(proj["AreaID"].ToString());
+                    if (li != null) ddlProjArea.SelectedValue = proj["AreaID"].ToString();
                 }
                 if (proj["ChannelID"] != DBNull.Value)
                     ddlProjChannel.SelectedValue = proj["ChannelID"].ToString();
@@ -405,17 +399,17 @@ namespace StockApp
         {
             DataTable dt = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT p.ProjectionID, IFNULL(z.ZoneName,'—') AS ZoneName, IFNULL(r.RegionName,'—') AS RegionName," +
-                " IFNULL(pos.EmployeeName,'—') AS AreaName, c.ChannelName, p.Status," +
+                " IFNULL(ar.AreaName,'—') AS AreaName, c.ChannelName, p.Status," +
                 " COUNT(pl.LineID) AS ProductCount, IFNULL(SUM(pl.Quantity),0) AS TotalQty" +
                 " FROM SA_Projections p" +
                 " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
                 " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
-                " LEFT JOIN SA_OrgPositions pos ON pos.PositionID=p.PositionID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=p.AreaID" +
                 " JOIN SA_Channels c ON c.ChannelID=p.ChannelID" +
                 " LEFT JOIN SA_ProjectionLines pl ON pl.ProjectionID=p.ProjectionID" +
                 " WHERE p.ProjectionMonth=?m AND p.ProjectionYear=?y" +
-                " GROUP BY p.ProjectionID, z.ZoneName, r.RegionName, pos.EmployeeName, c.ChannelName, p.Status" +
-                " ORDER BY z.ZoneName, r.RegionName, pos.EmployeeName;",
+                " GROUP BY p.ProjectionID, z.ZoneName, r.RegionName, ar.AreaName, c.ChannelName, p.Status" +
+                " ORDER BY z.ZoneName, r.RegionName, ar.AreaName;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear));
             rptProjections.DataSource = dt;
             rptProjections.DataBind();
@@ -431,7 +425,7 @@ namespace StockApp
             if (areaId == 0 || channelId == 0) { pnlShipLines.Visible = false; pnlNoProjection.Visible = false; return; }
 
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
 
@@ -464,13 +458,13 @@ namespace StockApp
 
             // Get projection ID
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
 
             DatabaseHelper.ExecuteNonQueryPublic(
-                "INSERT INTO SA_Shipments (ProjectionID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
+                "INSERT INTO SA_Shipments (ProjectionID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, AreaID, TransportModeID, VehicleNo, Status, CreatedBy)" +
                 " VALUES (?pid,?dt,0,?c,?z,?r,?p,?tm,?vn,'Draft',?u);",
                 new MySqlParameter("?pid", projId > 0 ? (object)projId : DBNull.Value),
                 new MySqlParameter("?dt", DateTime.Parse(shipDate)),
@@ -516,13 +510,13 @@ namespace StockApp
             DataTable dt = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT sh.ShipmentID, sh.ShipmentDate," +
                 " IFNULL(z.ZoneName,'—') AS ZoneName, IFNULL(r.RegionName,'—') AS RegionName," +
-                " IFNULL(pos.EmployeeName,'—') AS AreaName," +
+                " IFNULL(ar.AreaName,'—') AS AreaName," +
                 " c.ChannelName, IFNULL(tm.ModeName,'—') AS TransportMode, sh.Status," +
                 " COUNT(sl.LineID) AS ProductCount" +
                 " FROM SA_Shipments sh" +
                 " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
                 " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
-                " LEFT JOIN SA_OrgPositions pos ON pos.PositionID=sh.PositionID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.AreaID" +
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
