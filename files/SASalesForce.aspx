@@ -95,19 +95,24 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
     <div class="card-title">Add / Edit Projection</div>
     <div class="form-row">
-        <div class="form-group"><label>Zone <span class="req">*</span></label><asp:DropDownList ID="ddlProjZone" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjZone_Changed"/></div>
-        <div class="form-group"><label>Region <span class="req">*</span></label><asp:DropDownList ID="ddlProjRegion" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjRegion_Changed"/></div>
-        <div class="form-group"><label>Area (ASM/ASE) <span class="req">*</span></label><asp:DropDownList ID="ddlProjArea" runat="server"/></div>
+        <div class="form-group"><label>Area <span class="req">*</span></label>
+            <asp:DropDownList ID="ddlProjArea" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjArea_Changed"/></div>
         <div class="form-group"><label>Channel <span class="req">*</span></label><asp:DropDownList ID="ddlProjChannel" runat="server"/></div>
         <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Load" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
     </div>
+
+    <!-- Zone & Region auto-resolved from Area -->
+    <asp:Panel ID="pnlProjZoneRegion" runat="server" Visible="false">
+    <div style="display:flex;gap:16px;margin-bottom:16px;padding:10px 16px;background:#f0f8ff;border:1px solid #c2ddf5;border-radius:8px;">
+        <div style="font-size:11px;"><span style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Zone:</span>
+            <span style="font-weight:600;color:var(--accent);margin-left:4px;"><asp:Label ID="lblProjZone" runat="server" Text="—"/></span></div>
+        <div style="font-size:11px;"><span style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Region:</span>
+            <span style="font-weight:600;color:var(--accent);margin-left:4px;"><asp:Label ID="lblProjRegion" runat="server" Text="—"/></span></div>
+    </div>
+    </asp:Panel>
+    <asp:HiddenField ID="hfProjZoneID" runat="server" Value="0"/>
+    <asp:HiddenField ID="hfProjRegionID" runat="server" Value="0"/>
     <asp:Panel ID="pnlProjLines" runat="server" Visible="false">
-        <div class="sel-path">
-            <span class="path-tag"><asp:Label ID="lblPathZone" runat="server"/></span><span class="path-arrow">&#x25B6;</span>
-            <span class="path-tag"><asp:Label ID="lblPathRegion" runat="server"/></span><span class="path-arrow">&#x25B6;</span>
-            <span class="path-tag"><asp:Label ID="lblPathArea" runat="server"/></span><span class="path-arrow">&#x25B6;</span>
-            <span class="path-tag" style="background:#fff3cd;color:#856404;"><asp:Label ID="lblPathChannel" runat="server"/></span>
-        </div>
         <div class="card-title">Products</div>
         <div id="divProjLines">
             <asp:Repeater ID="rptProjLines" runat="server">

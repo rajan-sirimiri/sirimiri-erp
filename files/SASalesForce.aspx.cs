@@ -10,17 +10,17 @@ namespace StockApp
     public partial class SASalesForce : Page
     {
         protected Label lblUserName, lblUserRole, lblAlert, lblMonthYear, lblProjMonth, lblShipMonth;
-        protected Label lblPathZone, lblPathRegion, lblPathArea, lblPathChannel;
-        protected Label lblShipZone, lblShipRegion;
+        protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion;
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty;
-        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo;
+        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion;
         protected DropDownList ddlMonth, ddlYear;
-        protected DropDownList ddlProjZone, ddlProjRegion, ddlProjArea, ddlProjChannel;
+        protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected TextBox txtShipDate, txtVehicleNo;
         protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment;
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
-        protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId, hfShipZoneID, hfShipRegionID;
+        protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
+        protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -73,30 +73,36 @@ namespace StockApp
 
         private void LoadZoneDropdowns()
         {
-            DataTable zones = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT ZoneID, ZoneName FROM SA_Zones WHERE IsActive=1 ORDER BY SortOrder, ZoneName;");
-            BindDDL(ddlProjZone, zones, "ZoneName", "ZoneID", "-- Select Zone --");
-            // Clear dependent for projection
-            ClearDDL(ddlProjRegion, "-- Select Region --");
-            ClearDDL(ddlProjArea, "-- Select Area --");
+            // All areas with zone/region context — shared query
+            DataTable areas = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT a.AreaID, a.AreaName, a.AreaCode, r.RegionName, z.ZoneName" +
+                " FROM SA_Areas a JOIN SA_Regions r ON r.RegionID=a.RegionID" +
+                " JOIN SA_Zones z ON z.ZoneID=r.ZoneID" +
+                " WHERE a.IsActive=1 ORDER BY z.SortOrder, r.SortOrder, a.SortOrder, a.AreaName;");
 
-            // Ship Area — load ALL areas with zone/region context
+            // Projection Area dropdown
+            if (ddlProjArea != null)
+            {
+                ddlProjArea.Items.Clear();
+                ddlProjArea.Items.Add(new ListItem("-- Select Area --", "0"));
+                foreach (DataRow r in areas.Rows)
+                    ddlProjArea.Items.Add(new ListItem(
+                        r["AreaName"].ToString() + " (" + r["RegionName"] + " / " + r["ZoneName"] + ")",
+                        r["AreaID"].ToString()));
+            }
+
+            // Ship Area dropdown
             if (ddlShipArea != null)
             {
                 ddlShipArea.Items.Clear();
                 ddlShipArea.Items.Add(new ListItem("-- Select Area --", "0"));
-                DataTable areas = DatabaseHelper.ExecuteQueryPublic(
-                    "SELECT a.AreaID, a.AreaName, a.AreaCode, r.RegionName, z.ZoneName" +
-                    " FROM SA_Areas a JOIN SA_Regions r ON r.RegionID=a.RegionID" +
-                    " JOIN SA_Zones z ON z.ZoneID=r.ZoneID" +
-                    " WHERE a.IsActive=1 ORDER BY z.SortOrder, r.SortOrder, a.SortOrder, a.AreaName;");
                 foreach (DataRow r in areas.Rows)
                     ddlShipArea.Items.Add(new ListItem(
                         r["AreaName"].ToString() + " (" + r["RegionName"] + " / " + r["ZoneName"] + ")",
                         r["AreaID"].ToString()));
             }
 
-            // Customers — all active from PK_Customers
+            // Customers
             if (ddlCustomer != null)
             {
                 ddlCustomer.Items.Clear();
@@ -202,16 +208,32 @@ namespace StockApp
             LoadShipmentsList();
         }
 
-        // ── PROJECTION: CASCADING DROPDOWNS ───────────────────────────────
+        // ── PROJECTION: AREA SELECTION (auto-resolves Zone/Region) ────────
 
-        protected void ddlProjZone_Changed(object sender, EventArgs e)
+        protected void ddlProjArea_Changed(object sender, EventArgs e)
         {
-            LoadRegions(ddlProjRegion, Convert.ToInt32(ddlProjZone.SelectedValue));
-            ClearDDL(ddlProjArea, "-- Select Area --");
+            int areaId = Convert.ToInt32(ddlProjArea.SelectedValue);
+            if (areaId > 0)
+            {
+                DataRow area = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT a.RegionID, r.RegionName, r.ZoneID, z.ZoneName" +
+                    " FROM SA_Areas a JOIN SA_Regions r ON r.RegionID=a.RegionID" +
+                    " JOIN SA_Zones z ON z.ZoneID=r.ZoneID WHERE a.AreaID=?aid;",
+                    new MySqlParameter("?aid", areaId));
+                if (area != null)
+                {
+                    if (lblProjZone != null) lblProjZone.Text = area["ZoneName"].ToString();
+                    if (lblProjRegion != null) lblProjRegion.Text = area["RegionName"].ToString();
+                    if (hfProjZoneID != null) hfProjZoneID.Value = area["ZoneID"].ToString();
+                    if (hfProjRegionID != null) hfProjRegionID.Value = area["RegionID"].ToString();
+                    if (pnlProjZoneRegion != null) pnlProjZoneRegion.Visible = true;
+                }
+            }
+            else
+            {
+                if (pnlProjZoneRegion != null) pnlProjZoneRegion.Visible = false;
+            }
         }
-
-        protected void ddlProjRegion_Changed(object sender, EventArgs e)
-        { LoadAreas(ddlProjArea, Convert.ToInt32(ddlProjRegion.SelectedValue)); }
 
         // ── SHIPMENT: AREA SELECTION (auto-resolves Zone/Region) ──────────
 
@@ -247,17 +269,13 @@ namespace StockApp
 
         protected void btnLoadProjection_Click(object sender, EventArgs e)
         {
-            int zoneId = Convert.ToInt32(ddlProjZone.SelectedValue);
-            int regionId = Convert.ToInt32(ddlProjRegion.SelectedValue);
             int areaId = Convert.ToInt32(ddlProjArea.SelectedValue);
             int channelId = Convert.ToInt32(ddlProjChannel.SelectedValue);
-            if (zoneId == 0 || regionId == 0 || areaId == 0 || channelId == 0)
-            { ShowAlert("Please select Zone, Region, Area, and Channel.", false); return; }
+            if (areaId == 0 || channelId == 0)
+            { ShowAlert("Please select Area and Channel.", false); return; }
 
-            lblPathZone.Text = ddlProjZone.SelectedItem.Text;
-            lblPathRegion.Text = ddlProjRegion.SelectedItem.Text;
-            lblPathArea.Text = ddlProjArea.SelectedItem.Text;
-            lblPathChannel.Text = ddlProjChannel.SelectedItem.Text;
+            // Resolve zone/region from area
+            ddlProjArea_Changed(null, null);
 
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
                 "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
@@ -318,12 +336,13 @@ namespace StockApp
 
         protected void btnSaveProjection_Click(object sender, EventArgs e)
         {
-            int zoneId = Convert.ToInt32(ddlProjZone.SelectedValue);
-            int regionId = Convert.ToInt32(ddlProjRegion.SelectedValue);
             int areaId = Convert.ToInt32(ddlProjArea.SelectedValue);
             int channelId = Convert.ToInt32(ddlProjChannel.SelectedValue);
-            if (zoneId == 0 || regionId == 0 || areaId == 0 || channelId == 0)
-            { ShowAlert("Select Zone, Region, Area, and Channel.", false); return; }
+            if (areaId == 0 || channelId == 0)
+            { ShowAlert("Select Area and Channel.", false); return; }
+
+            int zoneId = hfProjZoneID != null ? Convert.ToInt32(hfProjZoneID.Value) : 0;
+            int regionId = hfProjRegionID != null ? Convert.ToInt32(hfProjRegionID.Value) : 0;
 
             int projId = Convert.ToInt32(hfEditProjId.Value);
 
@@ -403,18 +422,7 @@ namespace StockApp
                     new MySqlParameter("?pid", projId));
                 if (proj == null) return;
 
-                // Set cascading dropdowns
-                if (proj["ZoneID"] != DBNull.Value)
-                {
-                    ddlProjZone.SelectedValue = proj["ZoneID"].ToString();
-                    LoadRegions(ddlProjRegion, Convert.ToInt32(proj["ZoneID"]));
-                }
-                if (proj["RegionID"] != DBNull.Value)
-                {
-                    var li = ddlProjRegion.Items.FindByValue(proj["RegionID"].ToString());
-                    if (li != null) ddlProjRegion.SelectedValue = proj["RegionID"].ToString();
-                    LoadAreas(ddlProjArea, Convert.ToInt32(proj["RegionID"]));
-                }
+                // Set Area dropdown
                 if (proj["PositionID"] != DBNull.Value)
                 {
                     var li = ddlProjArea.Items.FindByValue(proj["PositionID"].ToString());
@@ -423,10 +431,12 @@ namespace StockApp
                 if (proj["ChannelID"] != DBNull.Value)
                     ddlProjChannel.SelectedValue = proj["ChannelID"].ToString();
 
-                lblPathZone.Text = proj["ZoneName"]?.ToString() ?? "";
-                lblPathRegion.Text = proj["RegionName"]?.ToString() ?? "";
-                lblPathArea.Text = proj["AreaName"]?.ToString() ?? "";
-                lblPathChannel.Text = proj["ChannelName"]?.ToString() ?? "";
+                // Display resolved zone/region
+                if (lblProjZone != null) lblProjZone.Text = proj["ZoneName"]?.ToString() ?? "—";
+                if (lblProjRegion != null) lblProjRegion.Text = proj["RegionName"]?.ToString() ?? "—";
+                if (hfProjZoneID != null && proj["ZoneID"] != DBNull.Value) hfProjZoneID.Value = proj["ZoneID"].ToString();
+                if (hfProjRegionID != null && proj["RegionID"] != DBNull.Value) hfProjRegionID.Value = proj["RegionID"].ToString();
+                if (pnlProjZoneRegion != null) pnlProjZoneRegion.Visible = true;
 
                 hfEditProjId.Value = projId.ToString();
                 LoadProjLines(projId);
