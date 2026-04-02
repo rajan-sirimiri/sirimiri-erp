@@ -23,6 +23,7 @@ namespace PPApp
         protected Panel         pnlInfo;
         protected Label         lblInfoProduct;
         protected Label         lblInfoCode;
+        protected Label         lblGrammage;
         protected Label         lblInfoBatches;
         protected Label         lblInfoOutput;
         protected Label         lblInfoStatus;
@@ -172,6 +173,20 @@ namespace PPApp
             if (pnlDoughWeight != null) pnlDoughWeight.Visible = uwg > 0;
             if (hfUnitWeightGrams != null) hfUnitWeightGrams.Value = uwg.ToString("0.##");
             if (lblUnitWeight != null) lblUnitWeight.Text = uwg.ToString("0.##");
+
+            // Grammage badge — show product weight next to wheel
+            if (lblGrammage != null)
+            {
+                if (uwg > 0)
+                {
+                    lblGrammage.Text = uwg.ToString("0.##") + "G";
+                    lblGrammage.Visible = true;
+                }
+                else
+                {
+                    lblGrammage.Visible = false;
+                }
+            }
 
             // Count completed
             var history = PPDatabaseHelper.GetBatchHistory(orderId);

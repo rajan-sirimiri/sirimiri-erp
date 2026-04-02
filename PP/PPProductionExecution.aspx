@@ -114,6 +114,13 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* GEAR WHEEL */
 .gear-wrap{position:relative;width:364px;height:364px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.grammage-badge{position:absolute;left:-10px;top:50%;transform:translateY(-50%);
+    background:linear-gradient(135deg,#e91e63,#ff5722);color:#fff;
+    font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.08em;
+    padding:10px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(233,30,99,.4);
+    z-index:10;white-space:nowrap;
+    animation:grammage-pulse 2s ease-in-out infinite;}
+@keyframes grammage-pulse{0%,100%{opacity:1;transform:translateY(-50%) scale(1);}50%{opacity:0.5;transform:translateY(-50%) scale(1.05);}}
 #gearSvg{width:364px;height:364px;object-fit:contain;
     transform-origin:center center;
     transition:filter .3s;}
@@ -375,6 +382,7 @@ select, input, textarea { min-height:44px; font-size:16px !important; } /* preve
 
                 <!-- GEAR WHEEL SVG — centred on tablet -->
                 <div class="gear-wrap">
+                    <asp:Label ID="lblGrammage" runat="server" CssClass="grammage-badge" Visible="false"/>
                     <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
                 </div>
 
