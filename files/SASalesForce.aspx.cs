@@ -17,10 +17,10 @@ namespace StockApp
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected TextBox txtShipDate, txtVehicleNo;
-        protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment;
+        protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment;
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
-        protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID;
+        protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -502,7 +502,15 @@ namespace StockApp
             pnlNoProjection.Visible = lines.Rows.Count == 0;
         }
 
+        // Save as "Saved" — not visible to Shipment team
+        protected void btnSaveShipment_Click(object sender, EventArgs e)
+        { SaveOrCreateShipment("Saved"); }
+
+        // Create Order — visible to Shipment team
         protected void btnCreateShipment_Click(object sender, EventArgs e)
+        { SaveOrCreateShipment("Order"); }
+
+        private void SaveOrCreateShipment(string status)
         {
             int zoneId = hfShipZoneID != null ? Convert.ToInt32(hfShipZoneID.Value) : 0;
             int regionId = hfShipRegionID != null ? Convert.ToInt32(hfShipRegionID.Value) : 0;
@@ -514,6 +522,7 @@ namespace StockApp
             { ShowAlert("Please fill Date and Channel.", false); return; }
 
             int transportId = Convert.ToInt32(ddlTransport.SelectedValue);
+            int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
 
             // Get projection ID
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
@@ -522,23 +531,50 @@ namespace StockApp
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
 
-            DatabaseHelper.ExecuteNonQueryPublic(
-                "INSERT INTO SA_Shipments (ProjectionID, CustomerID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
-                " VALUES (?pid,?cust,?dt,0,?c,?z,?r,?p,?tm,?vn,'Draft',?u);",
-                new MySqlParameter("?pid", projId > 0 ? (object)projId : DBNull.Value),
-                new MySqlParameter("?cust", custId > 0 ? (object)custId : DBNull.Value),
-                new MySqlParameter("?dt", DateTime.Parse(shipDate)),
-                new MySqlParameter("?c", channelId),
-                new MySqlParameter("?z", zoneId > 0 ? (object)zoneId : DBNull.Value),
-                new MySqlParameter("?r", regionId > 0 ? (object)regionId : DBNull.Value),
-                new MySqlParameter("?p", areaId > 0 ? (object)areaId : DBNull.Value),
-                new MySqlParameter("?tm", transportId > 0 ? (object)transportId : DBNull.Value),
-                new MySqlParameter("?vn", txtVehicleNo.Text.Trim()),
-                new MySqlParameter("?u", UserID));
+            int shipId;
+            if (editShipId > 0)
+            {
+                // Update existing shipment
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "UPDATE SA_Shipments SET CustomerID=?cust, ShipmentDate=?dt, ChannelID=?c, ZoneID=?z, RegionID=?r, PositionID=?p," +
+                    " TransportModeID=?tm, VehicleNo=?vn, Status=?st WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?cust", custId > 0 ? (object)custId : DBNull.Value),
+                    new MySqlParameter("?dt", DateTime.Parse(shipDate)),
+                    new MySqlParameter("?c", channelId),
+                    new MySqlParameter("?z", zoneId > 0 ? (object)zoneId : DBNull.Value),
+                    new MySqlParameter("?r", regionId > 0 ? (object)regionId : DBNull.Value),
+                    new MySqlParameter("?p", areaId > 0 ? (object)areaId : DBNull.Value),
+                    new MySqlParameter("?tm", transportId > 0 ? (object)transportId : DBNull.Value),
+                    new MySqlParameter("?vn", txtVehicleNo.Text.Trim()),
+                    new MySqlParameter("?st", status),
+                    new MySqlParameter("?sid", editShipId));
+                shipId = editShipId;
+                // Delete old lines
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+            }
+            else
+            {
+                // Insert new
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "INSERT INTO SA_Shipments (ProjectionID, CustomerID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
+                    " VALUES (?pid,?cust,?dt,0,?c,?z,?r,?p,?tm,?vn,?st,?u);",
+                    new MySqlParameter("?pid", projId > 0 ? (object)projId : DBNull.Value),
+                    new MySqlParameter("?cust", custId > 0 ? (object)custId : DBNull.Value),
+                    new MySqlParameter("?dt", DateTime.Parse(shipDate)),
+                    new MySqlParameter("?c", channelId),
+                    new MySqlParameter("?z", zoneId > 0 ? (object)zoneId : DBNull.Value),
+                    new MySqlParameter("?r", regionId > 0 ? (object)regionId : DBNull.Value),
+                    new MySqlParameter("?p", areaId > 0 ? (object)areaId : DBNull.Value),
+                    new MySqlParameter("?tm", transportId > 0 ? (object)transportId : DBNull.Value),
+                    new MySqlParameter("?vn", txtVehicleNo.Text.Trim()),
+                    new MySqlParameter("?st", status),
+                    new MySqlParameter("?u", UserID));
+                object shipIdObj = DatabaseHelper.ExecuteScalarPublic("SELECT LAST_INSERT_ID();");
+                shipId = Convert.ToInt32(shipIdObj);
+            }
 
-            object shipIdObj = DatabaseHelper.ExecuteScalarPublic("SELECT LAST_INSERT_ID();");
-            int shipId = Convert.ToInt32(shipIdObj);
-
+            // Save line items
             string[] productIds = Request.Form.GetValues("ship_productid");
             string[] shipQtys = Request.Form.GetValues("ship_qty");
             string[] projQtys = Request.Form.GetValues("ship_projqty");
@@ -559,9 +595,12 @@ namespace StockApp
                 }
             }
 
-            ShowAlert("Shipment created.", true);
+            string shipNo = "SH-" + shipId.ToString("D5");
+            string msg = status == "Saved" ? "Shipment " + shipNo + " saved as draft." : "Shipment Order " + shipNo + " created — visible to Shipment team.";
+            ShowAlert(msg, true);
             pnlShipLines.Visible = false;
             txtShipDate.Text = ""; txtVehicleNo.Text = "";
+            if (hfEditShipId != null) hfEditShipId.Value = "0";
             RefreshData();
         }
 
@@ -588,6 +627,78 @@ namespace StockApp
             rptShipments.DataSource = dt;
             rptShipments.DataBind();
             pnlShipEmpty.Visible = dt.Rows.Count == 0;
+        }
+
+        protected void ShipAction_Command(object sender, CommandEventArgs e)
+        {
+            int shipId = Convert.ToInt32(e.CommandArgument);
+            if (e.CommandName == "EditShip")
+            {
+                DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT sh.*, IFNULL(z.ZoneName,'—') AS ZoneName, IFNULL(r.RegionName,'—') AS RegionName" +
+                    " FROM SA_Shipments sh" +
+                    " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
+                    " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
+                    " WHERE sh.ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                if (ship == null) return;
+
+                hfEditShipId.Value = shipId.ToString();
+                txtShipDate.Text = Convert.ToDateTime(ship["ShipmentDate"]).ToString("yyyy-MM-dd");
+
+                // Set Area
+                if (ship["PositionID"] != DBNull.Value)
+                {
+                    var li = ddlShipArea.Items.FindByValue(ship["PositionID"].ToString());
+                    if (li != null) ddlShipArea.SelectedValue = ship["PositionID"].ToString();
+                }
+                // Set Channel
+                if (ship["ChannelID"] != DBNull.Value)
+                    ddlShipChannel.SelectedValue = ship["ChannelID"].ToString();
+                // Set Transport
+                if (ship["TransportModeID"] != DBNull.Value)
+                {
+                    var li = ddlTransport.Items.FindByValue(ship["TransportModeID"].ToString());
+                    if (li != null) ddlTransport.SelectedValue = ship["TransportModeID"].ToString();
+                }
+                // Set Vehicle
+                txtVehicleNo.Text = ship["VehicleNo"]?.ToString() ?? "";
+                // Set Customer
+                if (ddlCustomer != null && ship["CustomerID"] != DBNull.Value)
+                {
+                    var li = ddlCustomer.Items.FindByValue(ship["CustomerID"].ToString());
+                    if (li != null) ddlCustomer.SelectedValue = ship["CustomerID"].ToString();
+                }
+                // Zone/Region display
+                if (lblShipZone != null) lblShipZone.Text = ship["ZoneName"].ToString();
+                if (lblShipRegion != null) lblShipRegion.Text = ship["RegionName"].ToString();
+                if (hfShipZoneID != null && ship["ZoneID"] != DBNull.Value) hfShipZoneID.Value = ship["ZoneID"].ToString();
+                if (hfShipRegionID != null && ship["RegionID"] != DBNull.Value) hfShipRegionID.Value = ship["RegionID"].ToString();
+                if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = true;
+
+                // Load existing line items
+                DataTable lines = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT sl.ProductID, p.ProductName, sl.ProjectedQty AS Quantity" +
+                    " FROM SA_ShipmentLines sl JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                    " WHERE sl.ShipmentID=?sid ORDER BY p.ProductName;",
+                    new MySqlParameter("?sid", shipId));
+                rptShipLines.DataSource = lines;
+                rptShipLines.DataBind();
+                pnlShipLines.Visible = lines.Rows.Count > 0;
+                pnlNoProjection.Visible = false;
+            }
+            RefreshData();
+        }
+
+        protected string GetShipStatusBadge(string status)
+        {
+            switch (status)
+            {
+                case "Saved": return "badge-saved";
+                case "Order": return "badge-order";
+                case "Shipped": return "badge-shipped";
+                default: return "badge-draft";
+            }
         }
 
         private void ShowAlert(string msg, bool success)

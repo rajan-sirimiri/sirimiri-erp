@@ -53,6 +53,7 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
 tr:hover{background:rgba(41,128,185,0.04);}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
 .badge-draft{background:#fff3cd;color:#856404;}.badge-confirmed{background:#eafaf1;color:var(--teal);}.badge-shipped{background:#e8f4fd;color:var(--accent);}
+.badge-saved{background:#f5f5f5;color:#666;}.badge-order{background:#d4edda;color:#155724;}
 .line-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;}
 .line-row select,.line-row input{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;}
 .line-row .prod-sel{flex:3;min-width:200px;}.line-row .qty-inp{flex:1;max-width:100px;}.line-row .uom-sel{flex:1;max-width:120px;}
@@ -203,7 +204,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
                 <input type="hidden" name="ship_productid" value='<%# Eval("ProductID") %>'/><input type="hidden" name="ship_projqty" value='<%# Eval("Quantity") %>'/></td>
             </tr></ItemTemplate>
         </asp:Repeater></table>
-        <div style="margin-top:16px;"><asp:Button ID="btnCreateShipment" runat="server" Text="&#x1F69A; Create Shipment" CssClass="btn btn-primary" OnClick="btnCreateShipment_Click"/></div>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+            <asp:Button ID="btnSaveShipment" runat="server" Text="&#x1F4BE; Save Shipment" CssClass="btn btn-sm" style="background:#f0f0f0;color:#333;border:1px solid #ddd;" OnClick="btnSaveShipment_Click"/>
+            <asp:Button ID="btnCreateShipment" runat="server" Text="&#x1F69A; Create Shipment Order" CssClass="btn btn-primary" OnClick="btnCreateShipment_Click"/>
+        </div>
     </asp:Panel>
     <asp:Panel ID="pnlNoProjection" runat="server" Visible="false"><div style="padding:16px;color:var(--text-dim);font-size:13px;text-align:center;">No projection found. Create a projection first.</div></asp:Panel>
 </div>
@@ -211,20 +215,26 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div class="card-title">Shipments for <asp:Label ID="lblShipMonth" runat="server"/></div>
     <asp:Panel ID="pnlShipEmpty" runat="server"><div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">No shipments yet.</div></asp:Panel>
     <asp:Repeater ID="rptShipments" runat="server">
-        <HeaderTemplate><table><tr><th>Date</th><th>Customer</th><th>Area</th><th>Zone</th><th>Region</th><th>Channel</th><th>Transport</th><th>Items</th><th>Status</th></tr></HeaderTemplate>
-        <ItemTemplate><tr><td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td>
+        <HeaderTemplate><table><tr><th>Ship #</th><th>Date</th><th>Customer</th><th>Area</th><th>Zone</th><th>Region</th><th>Channel</th><th>Transport</th><th>Items</th><th>Status</th><th></th></tr></HeaderTemplate>
+        <ItemTemplate><tr><td style="font-family:monospace;font-weight:600;color:var(--accent);">SH-<%# Eval("ShipmentID").ToString().PadLeft(5,'0') %></td>
+            <td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td>
             <td style="font-weight:500;"><%# Eval("CustomerName") %></td>
             <td style="font-weight:500;"><%# Eval("AreaName") %></td>
             <td style="font-size:11px;"><%# Eval("ZoneName") %></td><td style="font-size:11px;"><%# Eval("RegionName") %></td>
             <td><%# Eval("ChannelName") %></td><td style="font-size:11px;"><%# Eval("TransportMode") %></td>
-            <td><%# Eval("ProductCount") %></td><td><span class='badge <%# Eval("Status").ToString()=="Shipped"?"badge-shipped":"badge-draft" %>'><%# Eval("Status") %></span></td></tr></ItemTemplate>
+            <td><%# Eval("ProductCount") %></td>
+            <td><span class='badge <%# GetShipStatusBadge(Eval("Status").ToString()) %>'><%# Eval("Status") %></span></td>
+            <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
+                Visible='<%# Eval("Status").ToString() != "Shipped" %>'
+                style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;"/></td>
+        </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
     </asp:Repeater>
 </div>
 </asp:Panel>
 
 </div>
-<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/>
+<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/>
 <script>
 function addProjLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
