@@ -94,12 +94,12 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ═══════ TAB 1: PROJECTION ═══════ -->
 <asp:Panel ID="pnlProjection" runat="server">
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
-    <div class="card-title">Add / Edit Projection</div>
+    <div class="card-title">Create / Edit Projection</div>
     <div class="form-row">
         <div class="form-group"><label>Area <span class="req">*</span></label>
             <asp:DropDownList ID="ddlProjArea" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjArea_Changed"/></div>
         <div class="form-group"><label>Channel <span class="req">*</span></label><asp:DropDownList ID="ddlProjChannel" runat="server"/></div>
-        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Load" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
+        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Create Projection" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
     </div>
 
     <!-- Zone & Region auto-resolved from Area -->
@@ -153,7 +153,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ═══════ TAB 2: SHIPMENTS ═══════ -->
 <asp:Panel ID="pnlShipments" runat="server" Visible="false">
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
-    <div class="card-title">Create Shipment</div>
+    <div class="card-title">Create Shipment <asp:Label ID="lblEditingShipId" runat="server" style="color:var(--accent);"/></div>
 
     <!-- ROW 1: Date, Area, Channel -->
     <div class="form-row">

@@ -10,7 +10,7 @@ namespace StockApp
     public partial class SASalesForce : Page
     {
         protected Label lblUserName, lblUserRole, lblAlert, lblMonthYear, lblProjMonth, lblShipMonth;
-        protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion;
+        protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion, lblEditingShipId;
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty;
         protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion;
         protected DropDownList ddlMonth, ddlYear;
@@ -287,6 +287,7 @@ namespace StockApp
                 int projId = Convert.ToInt32(proj["ProjectionID"]);
                 hfEditProjId.Value = projId.ToString();
                 LoadProjLines(projId);
+                ShowAlert("Projection already exists for this Area + Channel. Loaded for editing.", true);
             }
             else
             {
@@ -601,6 +602,7 @@ namespace StockApp
             pnlShipLines.Visible = false;
             txtShipDate.Text = ""; txtVehicleNo.Text = "";
             if (hfEditShipId != null) hfEditShipId.Value = "0";
+            if (lblEditingShipId != null) lblEditingShipId.Text = "";
             RefreshData();
         }
 
@@ -644,6 +646,7 @@ namespace StockApp
                 if (ship == null) return;
 
                 hfEditShipId.Value = shipId.ToString();
+                if (lblEditingShipId != null) lblEditingShipId.Text = "— Editing SH-" + shipId.ToString("D5");
                 txtShipDate.Text = Convert.ToDateTime(ship["ShipmentDate"]).ToString("yyyy-MM-dd");
 
                 // Set Area
