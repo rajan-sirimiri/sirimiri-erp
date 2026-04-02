@@ -25,6 +25,12 @@ namespace UAApp
             lblNavUser.Text = Session["UA_FullName"]?.ToString() ?? "";
             if (lblNavRole != null) lblNavRole.Text = Session["UA_Role"]?.ToString() ?? "";
             if (!IsPostBack) { LoadRoleDropdown(); BindUsers(); BindRoleList(); LoadOrgDropdowns(); SetActiveTab(); }
+            else
+            {
+                SetActiveTab();
+                string tab = hfTab.Value ?? "users";
+                if (tab == "org") { LoadOrgDropdowns(); }
+            }
         }
 
         private void LoadRoleDropdown()
