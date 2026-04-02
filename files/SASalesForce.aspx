@@ -104,7 +104,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
         <div class="form-group"><label>Area <span class="req">*</span></label>
             <asp:DropDownList ID="ddlProjArea" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjArea_Changed"/></div>
         <div class="form-group"><label>Channel <span class="req">*</span></label><asp:DropDownList ID="ddlProjChannel" runat="server"/></div>
-        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Load" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
+        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="&#x27A1; Add Products" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
     </div>
 
     <!-- Zone & Region auto-resolved from Area -->
@@ -149,7 +149,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td><%# Eval("ProductCount") %></td><td style="font-weight:600;"><%# Eval("TotalQty") %></td>
             <td><span class='badge <%# Eval("Status").ToString()=="Confirmed"?"badge-confirmed":"badge-draft" %>'><%# Eval("Status") %></span></td>
             <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command" style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
-                <asp:LinkButton runat="server" Text="Confirm" CommandName="ConfirmProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command" Visible='<%# Eval("Status").ToString()=="Draft" %>' style="color:var(--teal);font-size:11px;font-weight:700;text-decoration:none;"/></td>
+                <asp:LinkButton runat="server" Text="Confirm" CommandName="ConfirmProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command" Visible='<%# Eval("Status").ToString()=="Draft" %>' style="color:var(--teal);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
+                <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command"
+                    OnClientClick="return confirm('Delete this projection?');"
+                    style="color:var(--red);font-size:11px;font-weight:700;text-decoration:none;"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
     </asp:Repeater>
@@ -206,21 +209,29 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <asp:HiddenField ID="hfShipZoneID" runat="server" Value="0"/>
     <asp:HiddenField ID="hfShipRegionID" runat="server" Value="0"/>
 
-    <asp:Panel ID="pnlShipLines" runat="server" Visible="false">
-        <div class="card-title">Products (from Projection)</div>
-        <table><tr><th>Product</th><th>Projected</th><th>Ship Qty</th></tr>
-        <asp:Repeater ID="rptShipLines" runat="server">
-            <ItemTemplate><tr><td style="font-weight:500;"><%# Eval("ProductName") %></td><td><%# Eval("Quantity") %></td>
-                <td><input type="number" name="ship_qty" min="0" step="1" value='<%# Eval("Quantity") %>' style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
-                <input type="hidden" name="ship_productid" value='<%# Eval("ProductID") %>'/><input type="hidden" name="ship_projqty" value='<%# Eval("Quantity") %>'/></td>
-            </tr></ItemTemplate>
-        </asp:Repeater></table>
+    <asp:Panel ID="pnlShipLines" runat="server" Visible="true">
+        <div class="card-title">Products</div>
+        <div id="divShipLines">
+            <asp:Repeater ID="rptShipLines" runat="server">
+                <ItemTemplate>
+                    <div class="line-row">
+                        <select name="ship_product" class="prod-sel">
+                            <option value="0">-- Select Product --</option>
+                            <asp:Literal ID="litShipProductOptions" runat="server"/>
+                        </select>
+                        <input type="number" name="ship_qty" class="qty-inp" min="0" step="1" value='<%# Eval("Quantity") %>' placeholder="Qty"/>
+                        <input type="hidden" name="ship_productid" value='<%# Eval("ProductID") %>'/>
+                        <button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>
+                    </div>
+                </ItemTemplate>
+            </asp:Repeater>
+        </div>
+        <div style="margin-top:8px;"><button type="button" class="btn btn-sm" style="background:#f0f0f0;color:#333;border:1px solid #ddd;" onclick="addShipLine();">+ Add Product</button></div>
         <div style="margin-top:16px;display:flex;gap:10px;">
             <asp:Button ID="btnSaveShipment" runat="server" Text="&#x1F4BE; Save Shipment" CssClass="btn btn-sm" style="background:#f0f0f0;color:#333;border:1px solid #ddd;" OnClick="btnSaveShipment_Click"/>
             <asp:Button ID="btnCreateShipment" runat="server" Text="&#x1F69A; Create Shipment Order" CssClass="btn btn-primary" OnClick="btnCreateShipment_Click"/>
         </div>
     </asp:Panel>
-    <asp:Panel ID="pnlNoProjection" runat="server" Visible="false"><div style="padding:16px;color:var(--text-dim);font-size:13px;text-align:center;">No projection found. Create a projection first.</div></asp:Panel>
     </asp:Panel>
 </div>
 <div class="card">
@@ -238,7 +249,11 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td><span class='badge <%# GetShipStatusBadge(Eval("Status").ToString()) %>'><%# Eval("Status") %></span></td>
             <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
                 Visible='<%# Eval("Status").ToString() != "Shipped" %>'
-                style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;"/></td>
+                style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
+                <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
+                Visible='<%# Eval("Status").ToString() != "Shipped" %>'
+                OnClientClick="return confirm('Delete this shipment?');"
+                style="color:var(--red);font-size:11px;font-weight:700;text-decoration:none;"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
     </asp:Repeater>
@@ -257,6 +272,16 @@ function addProjLine() {
         + '<input type="number" name="proj_qty" class="qty-inp" min="0" step="1" placeholder="Qty"/>'
         + '<select name="proj_uom" class="uom-sel">' + u + '</select>'
         + '<input type="hidden" name="proj_lineid" value="0"/>'
+        + '<button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>';
+    d.appendChild(r);
+}
+function addShipLine() {
+    var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
+    var d = document.getElementById('divShipLines'), r = document.createElement('div');
+    r.className = 'line-row';
+    r.innerHTML = '<select name="ship_product" class="prod-sel"><option value="0">-- Select Product --</option>' + p + '</select>'
+        + '<input type="number" name="ship_qty" class="qty-inp" min="0" step="1" placeholder="Qty"/>'
+        + '<input type="hidden" name="ship_productid" value="0"/>'
         + '<button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
 }

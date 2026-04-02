@@ -12,7 +12,7 @@ namespace StockApp
         protected Label lblUserName, lblUserRole, lblAlert, lblMonthYear, lblProjMonth, lblShipMonth;
         protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion, lblEditingShipId;
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty, pnlProjForm;
-        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion, pnlShipForm;
+        protected Panel pnlShipLines, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion, pnlShipForm;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
@@ -224,8 +224,7 @@ namespace StockApp
         protected void btnNewShipment_Click(object sender, EventArgs e)
         {
             if (pnlShipForm != null) pnlShipForm.Visible = true;
-            if (pnlShipLines != null) pnlShipLines.Visible = false;
-            if (pnlNoProjection != null) pnlNoProjection.Visible = false;
+            if (pnlShipLines != null) pnlShipLines.Visible = true;
             if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = false;
             if (ddlShipArea != null) ddlShipArea.SelectedIndex = 0;
             if (ddlShipChannel != null) ddlShipChannel.SelectedIndex = 0;
@@ -235,6 +234,15 @@ namespace StockApp
             if (txtVehicleNo != null) txtVehicleNo.Text = "";
             if (hfEditShipId != null) hfEditShipId.Value = "0";
             if (lblEditingShipId != null) lblEditingShipId.Text = "";
+            // Show blank product line
+            var dt = new DataTable();
+            dt.Columns.Add("ProductID", typeof(int));
+            dt.Columns.Add("Quantity", typeof(int));
+            dt.Rows.Add(0, 0);
+            rptShipLines.DataSource = dt;
+            rptShipLines.DataBind();
+            SetShipProductOptions();
+            BuildOptionHtml();
             pnlAlert.Visible = false;
         }
 
@@ -290,10 +298,9 @@ namespace StockApp
             {
                 if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = false;
             }
-            LoadShipmentProjection();
         }
 
-        protected void ddlShipChannel_Changed(object sender, EventArgs e) { LoadShipmentProjection(); }
+        protected void ddlShipChannel_Changed(object sender, EventArgs e) { }
 
         // ── PROJECTION CRUD ───────────────────────────────────────────────
 
@@ -363,6 +370,15 @@ namespace StockApp
                 if (litP != null) litP.Text = hfProductOptionsHtml.Value;
                 var litU = item.FindControl("litUOMOptions") as Literal;
                 if (litU != null) litU.Text = hfUOMOptionsHtml.Value;
+            }
+        }
+
+        private void SetShipProductOptions()
+        {
+            foreach (RepeaterItem item in rptShipLines.Items)
+            {
+                var lit = item.FindControl("litShipProductOptions") as Literal;
+                if (lit != null) lit.Text = hfProductOptionsHtml.Value;
             }
         }
 
@@ -483,6 +499,14 @@ namespace StockApp
                     new MySqlParameter("?pid", projId));
                 ShowAlert("Projection confirmed.", true);
             }
+            else if (e.CommandName == "DeleteProj")
+            {
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ProjectionLines WHERE ProjectionID=?pid;",
+                    new MySqlParameter("?pid", projId));
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_Projections WHERE ProjectionID=?pid;",
+                    new MySqlParameter("?pid", projId));
+                ShowAlert("Projection deleted.", true);
+            }
             RefreshData();
         }
 
@@ -508,32 +532,6 @@ namespace StockApp
         }
 
         // ── SHIPMENTS ─────────────────────────────────────────────────────
-
-        private void LoadShipmentProjection()
-        {
-            int areaId = Convert.ToInt32(ddlShipArea.SelectedValue);
-            int channelId = Convert.ToInt32(ddlShipChannel.SelectedValue);
-            if (areaId == 0 || channelId == 0) { pnlShipLines.Visible = false; pnlNoProjection.Visible = false; return; }
-
-            DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
-                new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
-                new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
-
-            if (proj == null)
-            { pnlShipLines.Visible = false; pnlNoProjection.Visible = true; return; }
-
-            int projId = Convert.ToInt32(proj["ProjectionID"]);
-            DataTable lines = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT pl.ProductID, p.ProductName, pl.Quantity" +
-                " FROM SA_ProjectionLines pl JOIN PP_Products p ON p.ProductID=pl.ProductID" +
-                " WHERE pl.ProjectionID=?pid ORDER BY p.ProductName;",
-                new MySqlParameter("?pid", projId));
-            rptShipLines.DataSource = lines;
-            rptShipLines.DataBind();
-            pnlShipLines.Visible = lines.Rows.Count > 0;
-            pnlNoProjection.Visible = lines.Rows.Count == 0;
-        }
 
         // Save as "Saved" — not visible to Shipment team
         protected void btnSaveShipment_Click(object sender, EventArgs e)
@@ -607,23 +605,21 @@ namespace StockApp
                 shipId = Convert.ToInt32(shipIdObj);
             }
 
-            // Save line items
-            string[] productIds = Request.Form.GetValues("ship_productid");
+            // Save line items — read from ship_product dropdowns
+            string[] productIds = Request.Form.GetValues("ship_product");
             string[] shipQtys = Request.Form.GetValues("ship_qty");
-            string[] projQtys = Request.Form.GetValues("ship_projqty");
             if (productIds != null && shipQtys != null)
             {
                 for (int i = 0; i < productIds.Length; i++)
                 {
                     int pid = 0; int.TryParse(productIds[i], out pid);
                     int sq = 0; int.TryParse(shipQtys[i], out sq);
-                    int pq = 0; if (projQtys != null && i < projQtys.Length) int.TryParse(projQtys[i], out pq);
                     if (pid > 0 && sq > 0)
                     {
                         DatabaseHelper.ExecuteNonQueryPublic(
-                            "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,?pq,?sq);",
+                            "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,0,?sq);",
                             new MySqlParameter("?sid", shipId), new MySqlParameter("?pid", pid),
-                            new MySqlParameter("?pq", pq), new MySqlParameter("?sq", sq));
+                            new MySqlParameter("?sq", sq));
                     }
                 }
             }
@@ -719,9 +715,26 @@ namespace StockApp
                     new MySqlParameter("?sid", shipId));
                 rptShipLines.DataSource = lines;
                 rptShipLines.DataBind();
+                SetShipProductOptions();
                 pnlShipLines.Visible = lines.Rows.Count > 0;
-                pnlNoProjection.Visible = false;
                 if (pnlShipForm != null) pnlShipForm.Visible = true;
+            }
+            else if (e.CommandName == "DeleteShip")
+            {
+                // Check status - only allow delete for non-Shipped
+                DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT Status FROM SA_Shipments WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                if (ship != null && ship["Status"].ToString() == "Shipped")
+                { ShowAlert("Cannot delete — shipment already shipped.", false); }
+                else
+                {
+                    DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
+                        new MySqlParameter("?sid", shipId));
+                    DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_Shipments WHERE ShipmentID=?sid;",
+                        new MySqlParameter("?sid", shipId));
+                    ShowAlert("Shipment deleted.", true);
+                }
             }
             RefreshData();
         }
