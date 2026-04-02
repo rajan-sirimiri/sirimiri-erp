@@ -140,9 +140,11 @@ namespace StockApp
                 "SELECT UOMID, Abbreviation, UOMName FROM MM_UOM WHERE IsActive=1 AND UPPER(Abbreviation) IN ('CASE','JAR','BOX') ORDER BY UOMName;");
             var ub = new System.Text.StringBuilder();
             foreach (DataRow r in uoms.Rows)
+            {
                 string abbr = r["Abbreviation"].ToString();
                 string sel = abbr.Equals("JAR", StringComparison.OrdinalIgnoreCase) ? " selected" : "";
                 ub.Append("<option value='" + r["UOMID"] + "'" + sel + ">" + abbr + "</option>");
+            }
             hfUOMOptionsHtml.Value = ub.ToString();
         }
 
