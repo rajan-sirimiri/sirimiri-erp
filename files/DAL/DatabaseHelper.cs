@@ -598,5 +598,35 @@ namespace StockApp.DAL
             }
             catch { return true; } // Fail open
         }
+
+        // ── PUBLIC WRAPPERS (for pages that need direct SQL) ─────────────
+        public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] prms)
+        { return ExecuteQuery(sql, prms); }
+
+        public static DataRow ExecuteQueryRowPublic(string sql, params MySqlParameter[] prms)
+        {
+            var dt = ExecuteQuery(sql, prms);
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        public static void ExecuteNonQueryPublic(string sql, params MySqlParameter[] prms)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(sql, conn))
+            {
+                if (prms != null) cmd.Parameters.AddRange(prms);
+                conn.Open(); cmd.ExecuteNonQuery();
+            }
+        }
+
+        public static object ExecuteScalarPublic(string sql, params MySqlParameter[] prms)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(sql, conn))
+            {
+                if (prms != null) cmd.Parameters.AddRange(prms);
+                conn.Open(); return cmd.ExecuteScalar();
+            }
+        }
     }
 }
