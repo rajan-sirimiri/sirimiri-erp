@@ -12,7 +12,7 @@ namespace UAApp
         protected Panel        pnlAlert, pnlPassword, pnlUsers, pnlRoles, pnlNoRole, pnlRoleDetail, pnlOrg;
         protected HiddenField  hfEditUserId, hfTab, hfSelectedRole, hfRoleClick, hfEditPosId;
         protected TextBox      txtFullName, txtUsername, txtPassword;
-        protected TextBox      txtZoneName, txtZoneCode, txtRegionName, txtRegionCode, txtPosName, txtPosEmpId, txtAreaName, txtAreaCode;
+        protected TextBox      txtZoneName, txtRegionName, txtPosName, txtPosEmpId, txtAreaName;
         protected DropDownList ddlRole;
         protected DropDownList ddlRegionZone, ddlAreaRegion, ddlPosDesig, ddlPosUser, ddlPosZone, ddlPosRegion, ddlPosReportsTo;
         protected Button       btnSave, btnCancel, btnTabUsers, btnTabRoles, btnTabOrg, btnSelectRole, btnSaveRoleAccess;
@@ -271,17 +271,16 @@ namespace UAApp
         protected void btnAddZone_Click(object sender, EventArgs e)
         {
             string name = txtZoneName != null ? txtZoneName.Text.Trim() : "";
-            string code = txtZoneCode != null ? txtZoneCode.Text.Trim() : "";
-            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Enter Zone name and code.", false); return; }
+            if (string.IsNullOrEmpty(name)) { ShowAlert("Enter Zone name.", false); return; }
             try
             {
-                UADatabaseHelper.SaveZone(0, name, code);
-                txtZoneName.Text = ""; txtZoneCode.Text = "";
+                UADatabaseHelper.SaveZone(0, name);
+                txtZoneName.Text = "";
                 ShowAlert("Zone '" + name + "' added.", true);
             }
             catch (Exception ex)
             {
-                ShowAlert(ex.Message.Contains("Duplicate") ? "Zone code '" + code + "' already exists." : "Error: " + ex.Message, false);
+                ShowAlert("Error: " + ex.Message, false);
             }
             LoadOrgDropdowns();
         }
@@ -290,17 +289,16 @@ namespace UAApp
         {
             int zoneId = ddlRegionZone != null ? Convert.ToInt32(ddlRegionZone.SelectedValue) : 0;
             string name = txtRegionName != null ? txtRegionName.Text.Trim() : "";
-            string code = txtRegionCode != null ? txtRegionCode.Text.Trim() : "";
-            if (zoneId == 0 || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Select Zone and enter Region name/code.", false); return; }
+            if (zoneId == 0 || string.IsNullOrEmpty(name)) { ShowAlert("Select Zone and enter Region name.", false); return; }
             try
             {
-                UADatabaseHelper.SaveRegion(0, zoneId, name, code);
-                txtRegionName.Text = ""; txtRegionCode.Text = "";
+                UADatabaseHelper.SaveRegion(0, zoneId, name);
+                txtRegionName.Text = "";
                 ShowAlert("Region '" + name + "' added.", true);
             }
             catch (Exception ex)
             {
-                ShowAlert(ex.Message.Contains("Duplicate") ? "Region code '" + code + "' already exists." : "Error: " + ex.Message, false);
+                ShowAlert("Error: " + ex.Message, false);
             }
             LoadOrgDropdowns();
         }
@@ -309,17 +307,16 @@ namespace UAApp
         {
             int regionId = ddlAreaRegion != null ? Convert.ToInt32(ddlAreaRegion.SelectedValue) : 0;
             string name = txtAreaName != null ? txtAreaName.Text.Trim() : "";
-            string code = txtAreaCode != null ? txtAreaCode.Text.Trim() : "";
-            if (regionId == 0 || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Select Region and enter Area name/code.", false); return; }
+            if (regionId == 0 || string.IsNullOrEmpty(name)) { ShowAlert("Select Region and enter Area name.", false); return; }
             try
             {
-                UADatabaseHelper.SaveArea(0, regionId, name, code);
-                txtAreaName.Text = ""; txtAreaCode.Text = "";
+                UADatabaseHelper.SaveArea(0, regionId, name);
+                txtAreaName.Text = "";
                 ShowAlert("Area '" + name + "' added.", true);
             }
             catch (Exception ex)
             {
-                ShowAlert(ex.Message.Contains("Duplicate") ? "Area code '" + code + "' already exists." : "Error: " + ex.Message, false);
+                ShowAlert("Error: " + ex.Message, false);
             }
             LoadOrgDropdowns();
         }

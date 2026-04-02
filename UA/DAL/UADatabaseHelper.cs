@@ -170,14 +170,24 @@ namespace UAApp.DAL
         public static DataTable GetAllZones()
         { return ExecuteQuery("SELECT * FROM SA_Zones WHERE IsActive=1 ORDER BY SortOrder, ZoneName;"); }
 
-        public static void SaveZone(int zoneId, string zoneName, string zoneCode)
+        public static string GenerateZoneCode()
+        {
+            object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(ZoneCode,3) AS SIGNED)) FROM SA_Zones WHERE ZoneCode LIKE 'ZN%';");
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
+            return "ZN" + next.ToString("D3");
+        }
+
+        public static void SaveZone(int zoneId, string zoneName, string zoneCode = null)
         {
             if (zoneId == 0)
+            {
+                if (string.IsNullOrEmpty(zoneCode)) zoneCode = GenerateZoneCode();
                 ExecuteNonQuery("INSERT INTO SA_Zones (ZoneName, ZoneCode) VALUES (?n,?c);",
                     new MySqlParameter("?n", zoneName), new MySqlParameter("?c", zoneCode));
+            }
             else
-                ExecuteNonQuery("UPDATE SA_Zones SET ZoneName=?n, ZoneCode=?c WHERE ZoneID=?id;",
-                    new MySqlParameter("?n", zoneName), new MySqlParameter("?c", zoneCode), new MySqlParameter("?id", zoneId));
+                ExecuteNonQuery("UPDATE SA_Zones SET ZoneName=?n WHERE ZoneID=?id;",
+                    new MySqlParameter("?n", zoneName), new MySqlParameter("?id", zoneId));
         }
 
         public static void ToggleZoneActive(int zoneId)
@@ -193,14 +203,24 @@ namespace UAApp.DAL
         public static DataTable GetRegionsByZone(int zoneId)
         { return ExecuteQuery("SELECT * FROM SA_Regions WHERE ZoneID=?zid AND IsActive=1 ORDER BY SortOrder, RegionName;", new MySqlParameter("?zid", zoneId)); }
 
-        public static void SaveRegion(int regionId, int zoneId, string regionName, string regionCode)
+        public static string GenerateRegionCode()
+        {
+            object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(RegionCode,3) AS SIGNED)) FROM SA_Regions WHERE RegionCode LIKE 'RG%';");
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
+            return "RG" + next.ToString("D3");
+        }
+
+        public static void SaveRegion(int regionId, int zoneId, string regionName, string regionCode = null)
         {
             if (regionId == 0)
+            {
+                if (string.IsNullOrEmpty(regionCode)) regionCode = GenerateRegionCode();
                 ExecuteNonQuery("INSERT INTO SA_Regions (ZoneID, RegionName, RegionCode) VALUES (?z,?n,?c);",
                     new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?c", regionCode));
+            }
             else
-                ExecuteNonQuery("UPDATE SA_Regions SET ZoneID=?z, RegionName=?n, RegionCode=?c WHERE RegionID=?id;",
-                    new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?c", regionCode), new MySqlParameter("?id", regionId));
+                ExecuteNonQuery("UPDATE SA_Regions SET ZoneID=?z, RegionName=?n WHERE RegionID=?id;",
+                    new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?id", regionId));
         }
 
         // ── AREAS ─────────────────────────────────────────────────────────
@@ -216,14 +236,24 @@ namespace UAApp.DAL
         public static DataTable GetAreasByRegion(int regionId)
         { return ExecuteQuery("SELECT * FROM SA_Areas WHERE RegionID=?rid AND IsActive=1 ORDER BY SortOrder, AreaName;", new MySqlParameter("?rid", regionId)); }
 
-        public static void SaveArea(int areaId, int regionId, string areaName, string areaCode)
+        public static string GenerateAreaCode()
+        {
+            object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(AreaCode,3) AS SIGNED)) FROM SA_Areas WHERE AreaCode LIKE 'AR%';");
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
+            return "AR" + next.ToString("D3");
+        }
+
+        public static void SaveArea(int areaId, int regionId, string areaName, string areaCode = null)
         {
             if (areaId == 0)
+            {
+                if (string.IsNullOrEmpty(areaCode)) areaCode = GenerateAreaCode();
                 ExecuteNonQuery("INSERT INTO SA_Areas (RegionID, AreaName, AreaCode) VALUES (?r,?n,?c);",
                     new MySqlParameter("?r", regionId), new MySqlParameter("?n", areaName), new MySqlParameter("?c", areaCode));
+            }
             else
-                ExecuteNonQuery("UPDATE SA_Areas SET RegionID=?r, AreaName=?n, AreaCode=?c WHERE AreaID=?id;",
-                    new MySqlParameter("?r", regionId), new MySqlParameter("?n", areaName), new MySqlParameter("?c", areaCode), new MySqlParameter("?id", areaId));
+                ExecuteNonQuery("UPDATE SA_Areas SET RegionID=?r, AreaName=?n WHERE AreaID=?id;",
+                    new MySqlParameter("?r", regionId), new MySqlParameter("?n", areaName), new MySqlParameter("?id", areaId));
         }
 
         // ── DESIGNATIONS ──────────────────────────────────────────────────

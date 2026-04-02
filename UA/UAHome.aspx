@@ -267,7 +267,6 @@ tr:hover{background:rgba(26,158,106,0.04);}
             <div class="card-title">Zones</div>
             <div style="display:flex;gap:8px;margin-bottom:12px;">
                 <asp:TextBox ID="txtZoneName" runat="server" placeholder="Zone Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
-                <asp:TextBox ID="txtZoneCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <asp:Button ID="btnAddZone" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddZone_Click"/>
             </div>
             <asp:Repeater ID="rptZones" runat="server">
@@ -290,7 +289,6 @@ tr:hover{background:rgba(26,158,106,0.04);}
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
                 <asp:DropDownList ID="ddlRegionZone" runat="server" style="flex:1;min-width:120px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <asp:TextBox ID="txtRegionName" runat="server" placeholder="Region Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
-                <asp:TextBox ID="txtRegionCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <asp:Button ID="btnAddRegion" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddRegion_Click"/>
             </div>
             <asp:Repeater ID="rptRegions" runat="server">
@@ -318,7 +316,6 @@ tr:hover{background:rgba(26,158,106,0.04);}
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
                 <asp:DropDownList ID="ddlAreaRegion" runat="server" style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <asp:TextBox ID="txtAreaName" runat="server" placeholder="Area Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
-                <asp:TextBox ID="txtAreaCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <asp:Button ID="btnAddArea" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddArea_Click"/>
             </div>
             <asp:Repeater ID="rptAreas" runat="server">
