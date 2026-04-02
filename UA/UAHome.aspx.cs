@@ -9,19 +9,22 @@ namespace UAApp
     public partial class UAHome : Page
     {
         protected Label        lblNavUser, lblNavRole, lblAlert, lblFormTitle, lblCount, lblRoleName;
-        protected Panel        pnlAlert, pnlPassword, pnlUsers, pnlRoles, pnlNoRole, pnlRoleDetail;
-        protected HiddenField  hfEditUserId, hfTab, hfSelectedRole, hfRoleClick;
+        protected Panel        pnlAlert, pnlPassword, pnlUsers, pnlRoles, pnlNoRole, pnlRoleDetail, pnlOrg;
+        protected HiddenField  hfEditUserId, hfTab, hfSelectedRole, hfRoleClick, hfEditPosId;
         protected TextBox      txtFullName, txtUsername, txtPassword;
+        protected TextBox      txtZoneName, txtZoneCode, txtRegionName, txtRegionCode, txtPosName, txtPosEmpId;
         protected DropDownList ddlRole;
-        protected Button       btnSave, btnCancel, btnTabUsers, btnTabRoles, btnSelectRole, btnSaveRoleAccess;
-        protected Repeater     rptUsers, rptRoleList, rptRoleApps;
+        protected DropDownList ddlRegionZone, ddlPosDesig, ddlPosUser, ddlPosZone, ddlPosRegion, ddlPosReportsTo;
+        protected Button       btnSave, btnCancel, btnTabUsers, btnTabRoles, btnTabOrg, btnSelectRole, btnSaveRoleAccess;
+        protected Button       btnAddZone, btnAddRegion, btnSavePos;
+        protected Repeater     rptUsers, rptRoleList, rptRoleApps, rptZones, rptRegions, rptPositions;
 
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["UA_UserID"] == null) { Response.Redirect("UALogin.aspx"); return; }
             lblNavUser.Text = Session["UA_FullName"]?.ToString() ?? "";
             if (lblNavRole != null) lblNavRole.Text = Session["UA_Role"]?.ToString() ?? "";
-            if (!IsPostBack) { LoadRoleDropdown(); BindUsers(); BindRoleList(); SetActiveTab(); }
+            if (!IsPostBack) { LoadRoleDropdown(); BindUsers(); BindRoleList(); LoadOrgDropdowns(); SetActiveTab(); }
         }
 
         private void LoadRoleDropdown()
@@ -36,16 +39,20 @@ namespace UAApp
             hfTab.Value = ((Button)sender).CommandArgument;
             SetActiveTab();
             if (hfTab.Value == "users") { LoadRoleDropdown(); BindUsers(); }
-            else { BindRoleList(); LoadSelectedRole(); }
+            else if (hfTab.Value == "roles") { BindRoleList(); LoadSelectedRole(); }
+            else if (hfTab.Value == "org") { LoadOrgDropdowns(); BindOrgData(); }
             pnlAlert.Visible = false;
         }
 
         private void SetActiveTab()
         {
-            bool isUsers = hfTab.Value != "roles";
-            pnlUsers.Visible = isUsers; pnlRoles.Visible = !isUsers;
-            btnTabUsers.CssClass = isUsers ? "tab-btn active" : "tab-btn";
-            btnTabRoles.CssClass = !isUsers ? "tab-btn active" : "tab-btn";
+            string tab = hfTab.Value ?? "users";
+            pnlUsers.Visible = tab == "users";
+            pnlRoles.Visible = tab == "roles";
+            if (pnlOrg != null) pnlOrg.Visible = tab == "org";
+            btnTabUsers.CssClass = tab == "users" ? "tab-btn active" : "tab-btn";
+            btnTabRoles.CssClass = tab == "roles" ? "tab-btn active" : "tab-btn";
+            if (btnTabOrg != null) btnTabOrg.CssClass = tab == "org" ? "tab-btn active" : "tab-btn";
         }
 
         private void BindUsers()
@@ -185,6 +192,171 @@ namespace UAApp
             }
             ShowAlert("Access saved for role '" + roleCode + "'.", true);
             BindRoleList(); LoadSelectedRole();
+        }
+
+        // ── ORG STRUCTURE ─────────────────────────────────────────────────
+
+        private void LoadOrgDropdowns()
+        {
+            // Zone dropdowns
+            DataTable zones = UADatabaseHelper.GetAllZones();
+            BindZoneDropdown(ddlRegionZone, zones, true);
+            BindZoneDropdown(ddlPosZone, zones, true);
+
+            // Designations
+            if (ddlPosDesig != null)
+            {
+                ddlPosDesig.Items.Clear();
+                ddlPosDesig.Items.Add(new ListItem("-- Select --", "0"));
+                foreach (DataRow r in UADatabaseHelper.GetAllDesignations().Rows)
+                    ddlPosDesig.Items.Add(new ListItem(r["DesignName"].ToString(), r["DesignationID"].ToString()));
+            }
+
+            // Users
+            if (ddlPosUser != null)
+            {
+                ddlPosUser.Items.Clear();
+                ddlPosUser.Items.Add(new ListItem("-- None (Vacant) --", "0"));
+                foreach (DataRow r in UADatabaseHelper.GetAllUsers().Rows)
+                    ddlPosUser.Items.Add(new ListItem(r["FullName"].ToString() + " (" + r["Username"] + ")", r["UserID"].ToString()));
+            }
+
+            // Regions (all)
+            if (ddlPosRegion != null)
+            {
+                ddlPosRegion.Items.Clear();
+                ddlPosRegion.Items.Add(new ListItem("-- None --", "0"));
+                foreach (DataRow r in UADatabaseHelper.GetAllRegions().Rows)
+                    ddlPosRegion.Items.Add(new ListItem(r["RegionName"].ToString() + " (" + r["ZoneName"] + ")", r["RegionID"].ToString()));
+            }
+
+            // Reports To (all positions)
+            if (ddlPosReportsTo != null)
+            {
+                ddlPosReportsTo.Items.Clear();
+                ddlPosReportsTo.Items.Add(new ListItem("-- None --", "0"));
+                foreach (DataRow r in UADatabaseHelper.GetAllOrgPositions().Rows)
+                    ddlPosReportsTo.Items.Add(new ListItem(r["EmployeeName"]?.ToString() + " (" + r["DesignName"] + ")", r["PositionID"].ToString()));
+            }
+
+            BindOrgData();
+        }
+
+        private void BindZoneDropdown(DropDownList ddl, DataTable zones, bool addEmpty)
+        {
+            if (ddl == null) return;
+            ddl.Items.Clear();
+            if (addEmpty) ddl.Items.Add(new ListItem("-- Select Zone --", "0"));
+            foreach (DataRow r in zones.Rows)
+                ddl.Items.Add(new ListItem(r["ZoneName"].ToString(), r["ZoneID"].ToString()));
+        }
+
+        private void BindOrgData()
+        {
+            if (rptZones != null) { rptZones.DataSource = UADatabaseHelper.GetAllZones(); rptZones.DataBind(); }
+            if (rptRegions != null) { rptRegions.DataSource = UADatabaseHelper.GetAllRegions(); rptRegions.DataBind(); }
+            if (rptPositions != null) { rptPositions.DataSource = UADatabaseHelper.GetAllOrgPositions(); rptPositions.DataBind(); }
+        }
+
+        protected void btnAddZone_Click(object sender, EventArgs e)
+        {
+            string name = txtZoneName != null ? txtZoneName.Text.Trim() : "";
+            string code = txtZoneCode != null ? txtZoneCode.Text.Trim() : "";
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Enter Zone name and code.", false); return; }
+            UADatabaseHelper.SaveZone(0, name, code);
+            txtZoneName.Text = ""; txtZoneCode.Text = "";
+            ShowAlert("Zone '" + name + "' added.", true);
+            LoadOrgDropdowns();
+        }
+
+        protected void btnAddRegion_Click(object sender, EventArgs e)
+        {
+            int zoneId = ddlRegionZone != null ? Convert.ToInt32(ddlRegionZone.SelectedValue) : 0;
+            string name = txtRegionName != null ? txtRegionName.Text.Trim() : "";
+            string code = txtRegionCode != null ? txtRegionCode.Text.Trim() : "";
+            if (zoneId == 0 || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Select Zone and enter Region name/code.", false); return; }
+            UADatabaseHelper.SaveRegion(0, zoneId, name, code);
+            txtRegionName.Text = ""; txtRegionCode.Text = "";
+            ShowAlert("Region '" + name + "' added.", true);
+            LoadOrgDropdowns();
+        }
+
+        protected void ddlPosZone_Changed(object sender, EventArgs e)
+        {
+            if (ddlPosRegion == null || ddlPosZone == null) return;
+            int zoneId = Convert.ToInt32(ddlPosZone.SelectedValue);
+            ddlPosRegion.Items.Clear();
+            ddlPosRegion.Items.Add(new ListItem("-- None --", "0"));
+            if (zoneId > 0)
+            {
+                foreach (DataRow r in UADatabaseHelper.GetRegionsByZone(zoneId).Rows)
+                    ddlPosRegion.Items.Add(new ListItem(r["RegionName"].ToString(), r["RegionID"].ToString()));
+            }
+        }
+
+        protected void btnSavePos_Click(object sender, EventArgs e)
+        {
+            int designId = ddlPosDesig != null ? Convert.ToInt32(ddlPosDesig.SelectedValue) : 0;
+            if (designId == 0) { ShowAlert("Select a designation.", false); return; }
+
+            string empName = txtPosName != null ? txtPosName.Text.Trim() : "";
+            string empId = txtPosEmpId != null ? txtPosEmpId.Text.Trim() : "";
+            int? userId = ddlPosUser != null && ddlPosUser.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlPosUser.SelectedValue) : null;
+            int? zoneId = ddlPosZone != null && ddlPosZone.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlPosZone.SelectedValue) : null;
+            int? regionId = ddlPosRegion != null && ddlPosRegion.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlPosRegion.SelectedValue) : null;
+            int? reportsTo = ddlPosReportsTo != null && ddlPosReportsTo.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlPosReportsTo.SelectedValue) : null;
+
+            int posId = hfEditPosId != null ? Convert.ToInt32(hfEditPosId.Value) : 0;
+            UADatabaseHelper.SaveOrgPosition(posId, userId, designId, empId, empName, zoneId, regionId, reportsTo);
+
+            if (txtPosName != null) txtPosName.Text = "";
+            if (txtPosEmpId != null) txtPosEmpId.Text = "";
+            if (hfEditPosId != null) hfEditPosId.Value = "0";
+            ShowAlert(posId == 0 ? "Position created." : "Position updated.", true);
+            LoadOrgDropdowns();
+        }
+
+        protected void OrgAction_Command(object sender, CommandEventArgs e)
+        {
+            int id = Convert.ToInt32(e.CommandArgument);
+            switch (e.CommandName)
+            {
+                case "DelZone": UADatabaseHelper.ToggleZoneActive(id); ShowAlert("Zone removed.", true); break;
+                case "DelRegion":
+                    UADatabaseHelper.ExecuteNonQueryDirect("UPDATE SA_Regions SET IsActive=0 WHERE RegionID=?id;",
+                        new MySql.Data.MySqlClient.MySqlParameter("?id", id));
+                    ShowAlert("Region removed.", true); break;
+                case "EditPos":
+                    DataRow pos = UADatabaseHelper.GetOrgPositionById(id);
+                    if (pos != null)
+                    {
+                        hfEditPosId.Value = id.ToString();
+                        if (ddlPosDesig != null) { var li = ddlPosDesig.Items.FindByValue(pos["DesignationID"].ToString()); if (li != null) ddlPosDesig.SelectedValue = pos["DesignationID"].ToString(); }
+                        if (txtPosName != null) txtPosName.Text = pos["EmployeeName"]?.ToString() ?? "";
+                        if (txtPosEmpId != null) txtPosEmpId.Text = pos["EmployeeID"]?.ToString() ?? "";
+                        if (ddlPosUser != null && pos["UserID"] != DBNull.Value) { var li = ddlPosUser.Items.FindByValue(pos["UserID"].ToString()); if (li != null) ddlPosUser.SelectedValue = pos["UserID"].ToString(); }
+                        if (ddlPosZone != null && pos["ZoneID"] != DBNull.Value) { var li = ddlPosZone.Items.FindByValue(pos["ZoneID"].ToString()); if (li != null) ddlPosZone.SelectedValue = pos["ZoneID"].ToString(); }
+                        if (ddlPosRegion != null && pos["RegionID"] != DBNull.Value) { var li = ddlPosRegion.Items.FindByValue(pos["RegionID"].ToString()); if (li != null) ddlPosRegion.SelectedValue = pos["RegionID"].ToString(); }
+                        if (ddlPosReportsTo != null && pos["ReportsToID"] != DBNull.Value) { var li = ddlPosReportsTo.Items.FindByValue(pos["ReportsToID"].ToString()); if (li != null) ddlPosReportsTo.SelectedValue = pos["ReportsToID"].ToString(); }
+                    }
+                    break;
+                case "DelPos": UADatabaseHelper.TogglePositionActive(id); ShowAlert("Position removed.", true); break;
+            }
+            LoadOrgDropdowns();
+        }
+
+        protected string GetDesigBadgeClass(object hierarchyLevel)
+        {
+            int lvl = Convert.ToInt32(hierarchyLevel);
+            switch (lvl)
+            {
+                case 1: return "badge-md";
+                case 2: return "badge-zsm";
+                case 3: return "badge-rsm";
+                case 4: return "badge-asm";
+                case 5: return "badge-so";
+                default: return "";
+            }
         }
 
         private void ShowAlert(string msg, bool success)

@@ -66,6 +66,9 @@ tr:hover{background:rgba(26,158,106,0.04);}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
 .badge-active{background:#eafaf1;color:var(--teal);}
 .badge-inactive{background:#f5f5f5;color:var(--text-dim);}
+.badge-md{background:#f8d7da;color:#721c24;}.badge-zsm{background:#fff3cd;color:#856404;}
+.badge-rsm{background:#d4edda;color:#155724;}.badge-asm{background:#d1ecf1;color:#0c5460;}
+.badge-so{background:#e2e3e5;color:#383d41;}
 .badge-super{background:rgba(204,30,30,0.08);color:var(--accent);}
 .badge-app{background:rgba(26,158,106,0.1);color:var(--teal);margin:1px 2px;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;display:inline-block;}
 
@@ -133,6 +136,7 @@ tr:hover{background:rgba(26,158,106,0.04);}
 <div class="tab-bar">
     <asp:Button ID="btnTabUsers" runat="server" Text="&#x1F465; Users" CssClass="tab-btn active" OnClick="btnTab_Click" CommandArgument="users"/>
     <asp:Button ID="btnTabRoles" runat="server" Text="&#x1F511; Role Access Config" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="roles"/>
+    <asp:Button ID="btnTabOrg" runat="server" Text="&#x1F3E2; Org Structure" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="org"/>
 </div>
 
 <!-- ═══════ TAB 1: USERS ═══════ -->
@@ -249,6 +253,121 @@ tr:hover{background:rgba(26,158,106,0.04);}
 <!-- Hidden button for role selection postback -->
 <asp:HiddenField ID="hfRoleClick" runat="server" Value=""/>
 <asp:Button ID="btnSelectRole" runat="server" OnClick="btnSelectRole_Click" style="display:none;"/>
+
+</asp:Panel>
+
+<!-- ═══════ TAB 3: ORG STRUCTURE ═══════ -->
+<asp:Panel ID="pnlOrg" runat="server" Visible="false">
+
+<!-- ZONE & REGION MANAGEMENT -->
+<div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <!-- ZONES -->
+        <div style="flex:1;min-width:280px;">
+            <div class="card-title">Zones</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <asp:TextBox ID="txtZoneName" runat="server" placeholder="Zone Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:TextBox ID="txtZoneCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:Button ID="btnAddZone" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddZone_Click"/>
+            </div>
+            <asp:Repeater ID="rptZones" runat="server">
+                <HeaderTemplate><table><tr><th>Zone</th><th>Code</th><th></th></tr></HeaderTemplate>
+                <ItemTemplate>
+                    <tr>
+                        <td style="font-weight:500;"><%# Eval("ZoneName") %></td>
+                        <td style="font-size:11px;color:var(--text-muted);"><%# Eval("ZoneCode") %></td>
+                        <td><asp:LinkButton runat="server" Text="&#x2715;" CommandName="DelZone" CommandArgument='<%# Eval("ZoneID") %>' OnCommand="OrgAction_Command"
+                            style="color:var(--red);font-weight:700;text-decoration:none;"/></td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></table></FooterTemplate>
+            </asp:Repeater>
+        </div>
+
+        <!-- REGIONS -->
+        <div style="flex:1;min-width:280px;">
+            <div class="card-title">Regions</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                <asp:DropDownList ID="ddlRegionZone" runat="server" style="flex:1;min-width:120px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:TextBox ID="txtRegionName" runat="server" placeholder="Region Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:TextBox ID="txtRegionCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:Button ID="btnAddRegion" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddRegion_Click"/>
+            </div>
+            <asp:Repeater ID="rptRegions" runat="server">
+                <HeaderTemplate><table><tr><th>Region</th><th>Code</th><th>Zone</th><th></th></tr></HeaderTemplate>
+                <ItemTemplate>
+                    <tr>
+                        <td style="font-weight:500;"><%# Eval("RegionName") %></td>
+                        <td style="font-size:11px;color:var(--text-muted);"><%# Eval("RegionCode") %></td>
+                        <td style="font-size:11px;"><%# Eval("ZoneName") %></td>
+                        <td><asp:LinkButton runat="server" Text="&#x2715;" CommandName="DelRegion" CommandArgument='<%# Eval("RegionID") %>' OnCommand="OrgAction_Command"
+                            style="color:var(--red);font-weight:700;text-decoration:none;"/></td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></table></FooterTemplate>
+            </asp:Repeater>
+        </div>
+    </div>
+</div>
+
+<!-- POSITIONS -->
+<div class="card">
+    <div class="card-title">Sales Team Positions</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Designation <span style="color:var(--red);">*</span></label>
+            <asp:DropDownList ID="ddlPosDesig" runat="server" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Employee Name</label>
+            <asp:TextBox ID="txtPosName" runat="server" placeholder="Full name" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;min-width:100px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Employee ID</label>
+            <asp:TextBox ID="txtPosEmpId" runat="server" placeholder="EMP-001" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Link User Account</label>
+            <asp:DropDownList ID="ddlPosUser" runat="server" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Zone</label>
+            <asp:DropDownList ID="ddlPosZone" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlPosZone_Changed" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Region</label>
+            <asp:DropDownList ID="ddlPosRegion" runat="server" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);">Reports To</label>
+            <asp:DropDownList ID="ddlPosReportsTo" runat="server" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+        </div>
+        <asp:HiddenField ID="hfEditPosId" runat="server" Value="0"/>
+        <asp:Button ID="btnSavePos" runat="server" Text="Save Position" CssClass="btn btn-teal btn-sm" OnClick="btnSavePos_Click"/>
+    </div>
+
+    <asp:Repeater ID="rptPositions" runat="server">
+        <HeaderTemplate><table><tr><th>Designation</th><th>Name</th><th>Emp ID</th><th>User Account</th><th>Zone</th><th>Region</th><th>Reports To</th><th></th></tr></HeaderTemplate>
+        <ItemTemplate>
+            <tr>
+                <td><span class='badge <%# GetDesigBadgeClass(Eval("HierarchyLevel")) %>'><%# Eval("DesignName") %></span></td>
+                <td style="font-weight:600;"><%# Eval("EmployeeName") ?? "<em style='color:#999'>Vacant</em>" %></td>
+                <td style="font-size:11px;color:var(--text-muted);"><%# Eval("EmployeeID") %></td>
+                <td style="font-size:11px;"><%# Eval("Username") ?? "—" %></td>
+                <td style="font-size:11px;"><%# Eval("ZoneName") ?? "—" %></td>
+                <td style="font-size:11px;"><%# Eval("RegionName") ?? "—" %></td>
+                <td style="font-size:11px;"><%# Eval("ReportsToName") != null ? Eval("ReportsToName") + " (" + Eval("ReportsToDesign") + ")" : "—" %></td>
+                <td>
+                    <asp:LinkButton runat="server" Text="Edit" CommandName="EditPos" CommandArgument='<%# Eval("PositionID") %>' OnCommand="OrgAction_Command"
+                        style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:6px;"/>
+                    <asp:LinkButton runat="server" Text="&#x2715;" CommandName="DelPos" CommandArgument='<%# Eval("PositionID") %>' OnCommand="OrgAction_Command"
+                        style="color:var(--red);font-weight:700;text-decoration:none;"/>
+                </td>
+            </tr>
+        </ItemTemplate>
+        <FooterTemplate></table></FooterTemplate>
+    </asp:Repeater>
+</div>
 
 </asp:Panel>
 

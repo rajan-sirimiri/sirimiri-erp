@@ -165,5 +165,114 @@ namespace UAApp.DAL
             foreach (DataRow r in dt.Rows) { if (sb.Length > 0) sb.Append(","); sb.Append(r["AppCode"]); }
             return sb.ToString();
         }
+
+        // ── ZONES ─────────────────────────────────────────────────────────
+        public static DataTable GetAllZones()
+        { return ExecuteQuery("SELECT * FROM SA_Zones WHERE IsActive=1 ORDER BY SortOrder, ZoneName;"); }
+
+        public static void SaveZone(int zoneId, string zoneName, string zoneCode)
+        {
+            if (zoneId == 0)
+                ExecuteNonQuery("INSERT INTO SA_Zones (ZoneName, ZoneCode) VALUES (?n,?c);",
+                    new MySqlParameter("?n", zoneName), new MySqlParameter("?c", zoneCode));
+            else
+                ExecuteNonQuery("UPDATE SA_Zones SET ZoneName=?n, ZoneCode=?c WHERE ZoneID=?id;",
+                    new MySqlParameter("?n", zoneName), new MySqlParameter("?c", zoneCode), new MySqlParameter("?id", zoneId));
+        }
+
+        public static void ToggleZoneActive(int zoneId)
+        { ExecuteNonQuery("UPDATE SA_Zones SET IsActive=IF(IsActive=1,0,1) WHERE ZoneID=?id;", new MySqlParameter("?id", zoneId)); }
+
+        // ── REGIONS ───────────────────────────────────────────────────────
+        public static DataTable GetAllRegions()
+        {
+            return ExecuteQuery(
+                "SELECT r.*, z.ZoneName FROM SA_Regions r JOIN SA_Zones z ON z.ZoneID=r.ZoneID WHERE r.IsActive=1 ORDER BY z.SortOrder, r.SortOrder, r.RegionName;");
+        }
+
+        public static DataTable GetRegionsByZone(int zoneId)
+        { return ExecuteQuery("SELECT * FROM SA_Regions WHERE ZoneID=?zid AND IsActive=1 ORDER BY SortOrder, RegionName;", new MySqlParameter("?zid", zoneId)); }
+
+        public static void SaveRegion(int regionId, int zoneId, string regionName, string regionCode)
+        {
+            if (regionId == 0)
+                ExecuteNonQuery("INSERT INTO SA_Regions (ZoneID, RegionName, RegionCode) VALUES (?z,?n,?c);",
+                    new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?c", regionCode));
+            else
+                ExecuteNonQuery("UPDATE SA_Regions SET ZoneID=?z, RegionName=?n, RegionCode=?c WHERE RegionID=?id;",
+                    new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?c", regionCode), new MySqlParameter("?id", regionId));
+        }
+
+        // ── DESIGNATIONS ──────────────────────────────────────────────────
+        public static DataTable GetAllDesignations()
+        { return ExecuteQuery("SELECT * FROM SA_Designations WHERE IsActive=1 ORDER BY SortOrder;"); }
+
+        // ── ORG POSITIONS ─────────────────────────────────────────────────
+        public static DataTable GetAllOrgPositions()
+        {
+            return ExecuteQuery(
+                "SELECT p.PositionID, p.EmployeeID, p.EmployeeName, p.IsActive," +
+                " d.DesignName, d.HierarchyLevel, d.DesignCode," +
+                " z.ZoneName, r.RegionName," +
+                " u.Username, u.FullName AS UserFullName," +
+                " mgr.EmployeeName AS ReportsToName, mgrd.DesignName AS ReportsToDesign" +
+                " FROM SA_OrgPositions p" +
+                " JOIN SA_Designations d ON d.DesignationID=p.DesignationID" +
+                " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
+                " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
+                " LEFT JOIN Users u ON u.UserID=p.UserID" +
+                " LEFT JOIN SA_OrgPositions mgr ON mgr.PositionID=p.ReportsToID" +
+                " LEFT JOIN SA_Designations mgrd ON mgrd.DesignationID=mgr.DesignationID" +
+                " WHERE p.IsActive=1 ORDER BY d.SortOrder, z.SortOrder, r.SortOrder, p.EmployeeName;");
+        }
+
+        public static DataRow GetOrgPositionById(int positionId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM SA_OrgPositions WHERE PositionID=?id;", new MySqlParameter("?id", positionId));
+        }
+
+        public static DataTable GetPositionsByDesignation(int hierarchyLevel)
+        {
+            return ExecuteQuery(
+                "SELECT p.PositionID, p.EmployeeName, d.DesignName" +
+                " FROM SA_OrgPositions p JOIN SA_Designations d ON d.DesignationID=p.DesignationID" +
+                " WHERE d.HierarchyLevel=?lvl AND p.IsActive=1 ORDER BY p.EmployeeName;",
+                new MySqlParameter("?lvl", hierarchyLevel));
+        }
+
+        public static void SaveOrgPosition(int positionId, int? userId, int designationId,
+            string employeeId, string employeeName, int? zoneId, int? regionId, int? reportsToId)
+        {
+            if (positionId == 0)
+                ExecuteNonQuery(
+                    "INSERT INTO SA_OrgPositions (UserID, DesignationID, EmployeeID, EmployeeName, ZoneID, RegionID, ReportsToID)" +
+                    " VALUES (?uid,?did,?eid,?ename,?zid,?rid,?rtid);",
+                    new MySqlParameter("?uid", userId.HasValue ? (object)userId.Value : DBNull.Value),
+                    new MySqlParameter("?did", designationId),
+                    new MySqlParameter("?eid", (object)employeeId ?? DBNull.Value),
+                    new MySqlParameter("?ename", (object)employeeName ?? DBNull.Value),
+                    new MySqlParameter("?zid", zoneId.HasValue ? (object)zoneId.Value : DBNull.Value),
+                    new MySqlParameter("?rid", regionId.HasValue ? (object)regionId.Value : DBNull.Value),
+                    new MySqlParameter("?rtid", reportsToId.HasValue ? (object)reportsToId.Value : DBNull.Value));
+            else
+                ExecuteNonQuery(
+                    "UPDATE SA_OrgPositions SET UserID=?uid, DesignationID=?did, EmployeeID=?eid," +
+                    " EmployeeName=?ename, ZoneID=?zid, RegionID=?rid, ReportsToID=?rtid WHERE PositionID=?id;",
+                    new MySqlParameter("?uid", userId.HasValue ? (object)userId.Value : DBNull.Value),
+                    new MySqlParameter("?did", designationId),
+                    new MySqlParameter("?eid", (object)employeeId ?? DBNull.Value),
+                    new MySqlParameter("?ename", (object)employeeName ?? DBNull.Value),
+                    new MySqlParameter("?zid", zoneId.HasValue ? (object)zoneId.Value : DBNull.Value),
+                    new MySqlParameter("?rid", regionId.HasValue ? (object)regionId.Value : DBNull.Value),
+                    new MySqlParameter("?rtid", reportsToId.HasValue ? (object)reportsToId.Value : DBNull.Value),
+                    new MySqlParameter("?id", positionId));
+        }
+
+        public static void TogglePositionActive(int positionId)
+        { ExecuteNonQuery("UPDATE SA_OrgPositions SET IsActive=IF(IsActive=1,0,1) WHERE PositionID=?id;", new MySqlParameter("?id", positionId)); }
+
+        public static void ExecuteNonQueryDirect(string sql, params MySqlParameter[] prms)
+        { ExecuteNonQuery(sql, prms); }
     }
 }
