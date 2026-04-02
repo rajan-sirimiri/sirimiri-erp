@@ -212,7 +212,7 @@ namespace StockApp
             lblPathChannel.Text = ddlProjChannel.SelectedItem.Text;
 
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
 
@@ -284,7 +284,7 @@ namespace StockApp
                 try
                 {
                     DatabaseHelper.ExecuteNonQueryPublic(
-                        "INSERT INTO SA_Projections (ProjectionMonth, ProjectionYear, StateID, ChannelID, ZoneID, RegionID, AreaID, CreatedBy)" +
+                        "INSERT INTO SA_Projections (ProjectionMonth, ProjectionYear, StateID, ChannelID, ZoneID, RegionID, PositionID, CreatedBy)" +
                         " VALUES (?m,?y,0,?c,?z,?r,?p,?u);",
                         new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                         new MySqlParameter("?c", channelId), new MySqlParameter("?z", zoneId),
@@ -299,7 +299,7 @@ namespace StockApp
                 }
 
                 DataRow newProj = DatabaseHelper.ExecuteQueryRowPublic(
-                    "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
+                    "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
                     new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                     new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
                 if (newProj != null) projId = Convert.ToInt32(newProj["ProjectionID"]);
@@ -349,7 +349,7 @@ namespace StockApp
                     " FROM SA_Projections p" +
                     " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
                     " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
-                    " LEFT JOIN SA_Areas ar ON ar.AreaID=p.AreaID" +
+                    " LEFT JOIN SA_Areas ar ON ar.AreaID=p.PositionID" +
                     " LEFT JOIN SA_Channels c ON c.ChannelID=p.ChannelID" +
                     " WHERE p.ProjectionID=?pid;",
                     new MySqlParameter("?pid", projId));
@@ -367,10 +367,10 @@ namespace StockApp
                     if (li != null) ddlProjRegion.SelectedValue = proj["RegionID"].ToString();
                     LoadAreas(ddlProjArea, Convert.ToInt32(proj["RegionID"]));
                 }
-                if (proj["AreaID"] != DBNull.Value)
+                if (proj["PositionID"] != DBNull.Value)
                 {
-                    var li = ddlProjArea.Items.FindByValue(proj["AreaID"].ToString());
-                    if (li != null) ddlProjArea.SelectedValue = proj["AreaID"].ToString();
+                    var li = ddlProjArea.Items.FindByValue(proj["PositionID"].ToString());
+                    if (li != null) ddlProjArea.SelectedValue = proj["PositionID"].ToString();
                 }
                 if (proj["ChannelID"] != DBNull.Value)
                     ddlProjChannel.SelectedValue = proj["ChannelID"].ToString();
@@ -404,7 +404,7 @@ namespace StockApp
                 " FROM SA_Projections p" +
                 " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
                 " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
-                " LEFT JOIN SA_Areas ar ON ar.AreaID=p.AreaID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=p.PositionID" +
                 " JOIN SA_Channels c ON c.ChannelID=p.ChannelID" +
                 " LEFT JOIN SA_ProjectionLines pl ON pl.ProjectionID=p.ProjectionID" +
                 " WHERE p.ProjectionMonth=?m AND p.ProjectionYear=?y" +
@@ -425,7 +425,7 @@ namespace StockApp
             if (areaId == 0 || channelId == 0) { pnlShipLines.Visible = false; pnlNoProjection.Visible = false; return; }
 
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
 
@@ -458,7 +458,7 @@ namespace StockApp
 
             // Get projection ID
             DataRow proj = DatabaseHelper.ExecuteQueryRowPublic(
-                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND AreaID=?p;",
+                "SELECT ProjectionID FROM SA_Projections WHERE ProjectionMonth=?m AND ProjectionYear=?y AND ChannelID=?c AND PositionID=?p;",
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
