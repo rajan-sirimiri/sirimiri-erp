@@ -11,15 +11,16 @@ namespace StockApp
     {
         protected Label lblUserName, lblUserRole, lblAlert, lblMonthYear, lblProjMonth, lblShipMonth;
         protected Label lblPathZone, lblPathRegion, lblPathArea, lblPathChannel;
+        protected Label lblShipZone, lblShipRegion;
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty;
-        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty;
+        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjZone, ddlProjRegion, ddlProjArea, ddlProjChannel;
-        protected DropDownList ddlShipZone, ddlShipRegion, ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
+        protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected TextBox txtShipDate, txtVehicleNo;
         protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment;
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
-        protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
+        protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId, hfShipZoneID, hfShipRegionID;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -68,24 +69,6 @@ namespace StockApp
             DataTable tm = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT ModeID, ModeName FROM SA_TransportModes WHERE IsActive=1 ORDER BY SortOrder;");
             BindDDL(ddlTransport, tm, "ModeName", "ModeID", "-- Select --");
-
-            // Customers — Distributor and Stockist only
-            if (ddlCustomer != null)
-            {
-                DataTable cust = DatabaseHelper.ExecuteQueryPublic(
-                    "SELECT c.CustomerID, c.CustomerName, c.CustomerCode," +
-                    " IFNULL(ct.TypeName,'') AS TypeName" +
-                    " FROM PK_Customers c" +
-                    " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
-                    " WHERE c.IsActive=1 AND UPPER(c.CustomerType) IN ('DISTRIBUTOR','STOCKIST')" +
-                    " ORDER BY c.CustomerName;");
-                ddlCustomer.Items.Clear();
-                ddlCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
-                foreach (DataRow r in cust.Rows)
-                    ddlCustomer.Items.Add(new ListItem(
-                        r["CustomerName"].ToString() + " (" + r["TypeName"] + ")",
-                        r["CustomerID"].ToString()));
-            }
         }
 
         private void LoadZoneDropdowns()
@@ -93,12 +76,47 @@ namespace StockApp
             DataTable zones = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT ZoneID, ZoneName FROM SA_Zones WHERE IsActive=1 ORDER BY SortOrder, ZoneName;");
             BindDDL(ddlProjZone, zones, "ZoneName", "ZoneID", "-- Select Zone --");
-            BindDDL(ddlShipZone, zones, "ZoneName", "ZoneID", "-- Select Zone --");
-            // Clear dependent
+            // Clear dependent for projection
             ClearDDL(ddlProjRegion, "-- Select Region --");
             ClearDDL(ddlProjArea, "-- Select Area --");
-            ClearDDL(ddlShipRegion, "-- Select Region --");
-            ClearDDL(ddlShipArea, "-- Select Area --");
+
+            // Ship Area — load ALL areas with zone/region context
+            if (ddlShipArea != null)
+            {
+                ddlShipArea.Items.Clear();
+                ddlShipArea.Items.Add(new ListItem("-- Select Area --", "0"));
+                DataTable areas = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT a.AreaID, a.AreaName, a.AreaCode, r.RegionName, z.ZoneName" +
+                    " FROM SA_Areas a JOIN SA_Regions r ON r.RegionID=a.RegionID" +
+                    " JOIN SA_Zones z ON z.ZoneID=r.ZoneID" +
+                    " WHERE a.IsActive=1 ORDER BY z.SortOrder, r.SortOrder, a.SortOrder, a.AreaName;");
+                foreach (DataRow r in areas.Rows)
+                    ddlShipArea.Items.Add(new ListItem(
+                        r["AreaName"].ToString() + " (" + r["RegionName"] + " / " + r["ZoneName"] + ")",
+                        r["AreaID"].ToString()));
+            }
+
+            // Customers — all active from PK_Customers
+            if (ddlCustomer != null)
+            {
+                ddlCustomer.Items.Clear();
+                ddlCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
+                DataTable cust = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT c.CustomerID, c.CustomerName, c.CustomerCode, c.City," +
+                    " IFNULL(ct.TypeName,'') AS TypeName" +
+                    " FROM PK_Customers c" +
+                    " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
+                    " WHERE c.IsActive=1 ORDER BY c.CustomerName;");
+                foreach (DataRow r in cust.Rows)
+                {
+                    string city = r["City"] != DBNull.Value ? r["City"].ToString() : "";
+                    string typeName = r["TypeName"].ToString();
+                    string label = r["CustomerName"].ToString();
+                    if (!string.IsNullOrEmpty(typeName)) label += " — " + typeName;
+                    if (!string.IsNullOrEmpty(city)) label += " — " + city;
+                    ddlCustomer.Items.Add(new ListItem(label, r["CustomerID"].ToString()));
+                }
+            }
         }
 
         private void BuildOptionHtml()
@@ -195,22 +213,34 @@ namespace StockApp
         protected void ddlProjRegion_Changed(object sender, EventArgs e)
         { LoadAreas(ddlProjArea, Convert.ToInt32(ddlProjRegion.SelectedValue)); }
 
-        // ── SHIPMENT: CASCADING DROPDOWNS ─────────────────────────────────
+        // ── SHIPMENT: AREA SELECTION (auto-resolves Zone/Region) ──────────
 
-        protected void ddlShipZone_Changed(object sender, EventArgs e)
+        protected void ddlShipArea_Changed(object sender, EventArgs e)
         {
-            LoadRegions(ddlShipRegion, Convert.ToInt32(ddlShipZone.SelectedValue));
-            ClearDDL(ddlShipArea, "-- Select Area --");
-            pnlShipLines.Visible = false; pnlNoProjection.Visible = false;
+            int areaId = Convert.ToInt32(ddlShipArea.SelectedValue);
+            if (areaId > 0)
+            {
+                DataRow area = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT a.AreaID, a.RegionID, r.RegionName, r.ZoneID, z.ZoneName" +
+                    " FROM SA_Areas a JOIN SA_Regions r ON r.RegionID=a.RegionID" +
+                    " JOIN SA_Zones z ON z.ZoneID=r.ZoneID WHERE a.AreaID=?aid;",
+                    new MySqlParameter("?aid", areaId));
+                if (area != null)
+                {
+                    if (lblShipZone != null) lblShipZone.Text = area["ZoneName"].ToString();
+                    if (lblShipRegion != null) lblShipRegion.Text = area["RegionName"].ToString();
+                    if (hfShipZoneID != null) hfShipZoneID.Value = area["ZoneID"].ToString();
+                    if (hfShipRegionID != null) hfShipRegionID.Value = area["RegionID"].ToString();
+                    if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = true;
+                }
+            }
+            else
+            {
+                if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = false;
+            }
+            LoadShipmentProjection();
         }
 
-        protected void ddlShipRegion_Changed(object sender, EventArgs e)
-        {
-            LoadAreas(ddlShipArea, Convert.ToInt32(ddlShipRegion.SelectedValue));
-            pnlShipLines.Visible = false; pnlNoProjection.Visible = false;
-        }
-
-        protected void ddlShipArea_Changed(object sender, EventArgs e) { LoadShipmentProjection(); }
         protected void ddlShipChannel_Changed(object sender, EventArgs e) { LoadShipmentProjection(); }
 
         // ── PROJECTION CRUD ───────────────────────────────────────────────
@@ -464,10 +494,11 @@ namespace StockApp
 
         protected void btnCreateShipment_Click(object sender, EventArgs e)
         {
-            int zoneId = Convert.ToInt32(ddlShipZone.SelectedValue);
-            int regionId = Convert.ToInt32(ddlShipRegion.SelectedValue);
+            int zoneId = hfShipZoneID != null ? Convert.ToInt32(hfShipZoneID.Value) : 0;
+            int regionId = hfShipRegionID != null ? Convert.ToInt32(hfShipRegionID.Value) : 0;
             int areaId = Convert.ToInt32(ddlShipArea.SelectedValue);
             int channelId = Convert.ToInt32(ddlShipChannel.SelectedValue);
+            int custId = ddlCustomer != null ? Convert.ToInt32(ddlCustomer.SelectedValue) : 0;
             string shipDate = txtShipDate.Text.Trim();
             if (channelId == 0 || string.IsNullOrEmpty(shipDate))
             { ShowAlert("Please fill Date and Channel.", false); return; }
@@ -480,8 +511,6 @@ namespace StockApp
                 new MySqlParameter("?m", SelMonth), new MySqlParameter("?y", SelYear),
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
-
-            int custId = ddlCustomer != null ? Convert.ToInt32(ddlCustomer.SelectedValue) : 0;
 
             DatabaseHelper.ExecuteNonQueryPublic(
                 "INSERT INTO SA_Shipments (ProjectionID, CustomerID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
