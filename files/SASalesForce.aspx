@@ -148,6 +148,21 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <asp:Panel ID="pnlShipments" runat="server" Visible="false">
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
     <div class="card-title">Create Shipment</div>
+
+    <!-- CUSTOMER SELECTION -->
+    <div class="form-row">
+        <div class="form-group" style="flex:2;">
+            <label>Customer (Distributor / Stockist) <span class="req">*</span></label>
+            <div style="position:relative;">
+                <input type="text" id="txtCustSearch" placeholder="Type to search customer..." autocomplete="off"
+                    onkeyup="filterCustomerDDL(this.value);"
+                    style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px 8px 0 0;font-family:inherit;font-size:13px;background:#fafafa;outline:none;"/>
+                <asp:DropDownList ID="ddlCustomer" runat="server"
+                    style="width:100%;border-radius:0 0 8px 8px;border-top:none;"/>
+            </div>
+        </div>
+    </div>
+
     <div class="form-row">
         <div class="form-group"><label>Date <span class="req">*</span></label><asp:TextBox ID="txtShipDate" runat="server" TextMode="Date"/></div>
         <div class="form-group"><label>Zone</label><asp:DropDownList ID="ddlShipZone" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlShipZone_Changed"/></div>
@@ -176,8 +191,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div class="card-title">Shipments for <asp:Label ID="lblShipMonth" runat="server"/></div>
     <asp:Panel ID="pnlShipEmpty" runat="server"><div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">No shipments yet.</div></asp:Panel>
     <asp:Repeater ID="rptShipments" runat="server">
-        <HeaderTemplate><table><tr><th>Date</th><th>Zone</th><th>Region</th><th>Area</th><th>Channel</th><th>Transport</th><th>Items</th><th>Status</th></tr></HeaderTemplate>
-        <ItemTemplate><tr><td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td><td style="font-size:11px;"><%# Eval("ZoneName") %></td><td style="font-size:11px;"><%# Eval("RegionName") %></td>
+        <HeaderTemplate><table><tr><th>Date</th><th>Customer</th><th>Zone</th><th>Region</th><th>Area</th><th>Channel</th><th>Transport</th><th>Items</th><th>Status</th></tr></HeaderTemplate>
+        <ItemTemplate><tr><td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td>
+            <td style="font-weight:500;"><%# Eval("CustomerName") %></td>
+            <td style="font-size:11px;"><%# Eval("ZoneName") %></td><td style="font-size:11px;"><%# Eval("RegionName") %></td>
             <td style="font-weight:500;"><%# Eval("AreaName") %></td><td><%# Eval("ChannelName") %></td><td style="font-size:11px;"><%# Eval("TransportMode") %></td>
             <td><%# Eval("ProductCount") %></td><td><span class='badge <%# Eval("Status").ToString()=="Shipped"?"badge-shipped":"badge-draft" %>'><%# Eval("Status") %></span></td></tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
@@ -199,6 +216,15 @@ function addProjLine() {
         + '<input type="hidden" name="proj_lineid" value="0"/>'
         + '<button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
+}
+function filterCustomerDDL(val) {
+    var ddl = document.getElementById('<%= ddlCustomer.ClientID %>');
+    if (!ddl) return;
+    var filter = val.toLowerCase();
+    for (var i = 0; i < ddl.options.length; i++) {
+        var txt = ddl.options[i].text.toLowerCase();
+        ddl.options[i].style.display = (filter === '' || txt.indexOf(filter) >= 0) ? '' : 'none';
+    }
 }
 </script>
 <script src="/StockApp/erp-modal.js"></script><script src="/StockApp/erp-keepalive.js"></script>

@@ -15,7 +15,7 @@ namespace StockApp
         protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjZone, ddlProjRegion, ddlProjArea, ddlProjChannel;
-        protected DropDownList ddlShipZone, ddlShipRegion, ddlShipArea, ddlShipChannel, ddlTransport;
+        protected DropDownList ddlShipZone, ddlShipRegion, ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected TextBox txtShipDate, txtVehicleNo;
         protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment;
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
@@ -68,6 +68,24 @@ namespace StockApp
             DataTable tm = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT ModeID, ModeName FROM SA_TransportModes WHERE IsActive=1 ORDER BY SortOrder;");
             BindDDL(ddlTransport, tm, "ModeName", "ModeID", "-- Select --");
+
+            // Customers — Distributor and Stockist only
+            if (ddlCustomer != null)
+            {
+                DataTable cust = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT c.CustomerID, c.CustomerName, c.CustomerCode," +
+                    " IFNULL(ct.TypeName,'') AS TypeName" +
+                    " FROM PK_Customers c" +
+                    " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
+                    " WHERE c.IsActive=1 AND UPPER(c.CustomerType) IN ('DISTRIBUTOR','STOCKIST')" +
+                    " ORDER BY c.CustomerName;");
+                ddlCustomer.Items.Clear();
+                ddlCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
+                foreach (DataRow r in cust.Rows)
+                    ddlCustomer.Items.Add(new ListItem(
+                        r["CustomerName"].ToString() + " (" + r["TypeName"] + ")",
+                        r["CustomerID"].ToString()));
+            }
         }
 
         private void LoadZoneDropdowns()
@@ -463,10 +481,13 @@ namespace StockApp
                 new MySqlParameter("?c", channelId), new MySqlParameter("?p", areaId));
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
 
+            int custId = ddlCustomer != null ? Convert.ToInt32(ddlCustomer.SelectedValue) : 0;
+
             DatabaseHelper.ExecuteNonQueryPublic(
-                "INSERT INTO SA_Shipments (ProjectionID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
-                " VALUES (?pid,?dt,0,?c,?z,?r,?p,?tm,?vn,'Draft',?u);",
+                "INSERT INTO SA_Shipments (ProjectionID, CustomerID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
+                " VALUES (?pid,?cust,?dt,0,?c,?z,?r,?p,?tm,?vn,'Draft',?u);",
                 new MySqlParameter("?pid", projId > 0 ? (object)projId : DBNull.Value),
+                new MySqlParameter("?cust", custId > 0 ? (object)custId : DBNull.Value),
                 new MySqlParameter("?dt", DateTime.Parse(shipDate)),
                 new MySqlParameter("?c", channelId),
                 new MySqlParameter("?z", zoneId > 0 ? (object)zoneId : DBNull.Value),
@@ -509,11 +530,13 @@ namespace StockApp
         {
             DataTable dt = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT sh.ShipmentID, sh.ShipmentDate," +
+                " IFNULL(cust.CustomerName,'—') AS CustomerName," +
                 " IFNULL(z.ZoneName,'—') AS ZoneName, IFNULL(r.RegionName,'—') AS RegionName," +
                 " IFNULL(ar.AreaName,'—') AS AreaName," +
                 " c.ChannelName, IFNULL(tm.ModeName,'—') AS TransportMode, sh.Status," +
                 " COUNT(sl.LineID) AS ProductCount" +
                 " FROM SA_Shipments sh" +
+                " LEFT JOIN PK_Customers cust ON cust.CustomerID=sh.CustomerID" +
                 " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
                 " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
                 " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.PositionID" +
