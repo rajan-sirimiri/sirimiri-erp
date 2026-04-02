@@ -93,9 +93,9 @@ namespace StockApp
                 sb.Append("<option value='" + r["ProductID"] + "'>" + r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
             hfProductOptionsHtml.Value = sb.ToString();
 
-            // UOMs
+            // UOMs — only CASE, JAR, BOX
             DataTable uoms = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT UOMID, Abbreviation, UOMName FROM MM_UOM WHERE IsActive=1 ORDER BY UOMName;");
+                "SELECT UOMID, Abbreviation, UOMName FROM MM_UOM WHERE IsActive=1 AND UPPER(Abbreviation) IN ('CASE','JAR','BOX') ORDER BY UOMName;");
             var ub = new System.Text.StringBuilder();
             foreach (DataRow r in uoms.Rows)
                 ub.Append("<option value='" + r["UOMID"] + "'>" + r["Abbreviation"] + "</option>");
@@ -464,7 +464,7 @@ namespace StockApp
             int projId = proj != null ? Convert.ToInt32(proj["ProjectionID"]) : 0;
 
             DatabaseHelper.ExecuteNonQueryPublic(
-                "INSERT INTO SA_Shipments (ProjectionID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, AreaID, TransportModeID, VehicleNo, Status, CreatedBy)" +
+                "INSERT INTO SA_Shipments (ProjectionID, ShipmentDate, StateID, ChannelID, ZoneID, RegionID, PositionID, TransportModeID, VehicleNo, Status, CreatedBy)" +
                 " VALUES (?pid,?dt,0,?c,?z,?r,?p,?tm,?vn,'Draft',?u);",
                 new MySqlParameter("?pid", projId > 0 ? (object)projId : DBNull.Value),
                 new MySqlParameter("?dt", DateTime.Parse(shipDate)),
@@ -516,7 +516,7 @@ namespace StockApp
                 " FROM SA_Shipments sh" +
                 " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
                 " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
-                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.AreaID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.PositionID" +
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
