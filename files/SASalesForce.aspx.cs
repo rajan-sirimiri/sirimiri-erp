@@ -11,13 +11,13 @@ namespace StockApp
     {
         protected Label lblUserName, lblUserRole, lblAlert, lblMonthYear, lblProjMonth, lblShipMonth;
         protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion, lblEditingShipId;
-        protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty;
-        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion;
+        protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty, pnlProjForm;
+        protected Panel pnlShipLines, pnlNoProjection, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion, pnlShipForm;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected TextBox txtShipDate, txtVehicleNo;
-        protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment;
+        protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
@@ -208,6 +208,36 @@ namespace StockApp
             LoadShipmentsList();
         }
 
+        // ── CREATE NEW BUTTONS ─────────────────────────────────────────────
+
+        protected void btnNewProjection_Click(object sender, EventArgs e)
+        {
+            if (pnlProjForm != null) pnlProjForm.Visible = true;
+            if (pnlProjLines != null) pnlProjLines.Visible = false;
+            if (pnlProjZoneRegion != null) pnlProjZoneRegion.Visible = false;
+            if (ddlProjArea != null) ddlProjArea.SelectedIndex = 0;
+            if (ddlProjChannel != null) ddlProjChannel.SelectedIndex = 0;
+            if (hfEditProjId != null) hfEditProjId.Value = "0";
+            pnlAlert.Visible = false;
+        }
+
+        protected void btnNewShipment_Click(object sender, EventArgs e)
+        {
+            if (pnlShipForm != null) pnlShipForm.Visible = true;
+            if (pnlShipLines != null) pnlShipLines.Visible = false;
+            if (pnlNoProjection != null) pnlNoProjection.Visible = false;
+            if (pnlZoneRegionInfo != null) pnlZoneRegionInfo.Visible = false;
+            if (ddlShipArea != null) ddlShipArea.SelectedIndex = 0;
+            if (ddlShipChannel != null) ddlShipChannel.SelectedIndex = 0;
+            if (ddlTransport != null) ddlTransport.SelectedIndex = 0;
+            if (ddlCustomer != null) ddlCustomer.SelectedIndex = 0;
+            if (txtShipDate != null) txtShipDate.Text = "";
+            if (txtVehicleNo != null) txtVehicleNo.Text = "";
+            if (hfEditShipId != null) hfEditShipId.Value = "0";
+            if (lblEditingShipId != null) lblEditingShipId.Text = "";
+            pnlAlert.Visible = false;
+        }
+
         // ── PROJECTION: AREA SELECTION (auto-resolves Zone/Region) ────────
 
         protected void ddlProjArea_Changed(object sender, EventArgs e)
@@ -303,6 +333,7 @@ namespace StockApp
                 SetProjOptions();
             }
             pnlProjLines.Visible = true;
+            if (pnlProjForm != null) pnlProjForm.Visible = true;
             BuildOptionHtml();
             RefreshData();
         }
@@ -442,6 +473,7 @@ namespace StockApp
                 hfEditProjId.Value = projId.ToString();
                 LoadProjLines(projId);
                 pnlProjLines.Visible = true;
+                if (pnlProjForm != null) pnlProjForm.Visible = true;
                 BuildOptionHtml();
             }
             else if (e.CommandName == "ConfirmProj")
@@ -689,6 +721,7 @@ namespace StockApp
                 rptShipLines.DataBind();
                 pnlShipLines.Visible = lines.Rows.Count > 0;
                 pnlNoProjection.Visible = false;
+                if (pnlShipForm != null) pnlShipForm.Visible = true;
             }
             RefreshData();
         }

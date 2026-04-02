@@ -94,12 +94,17 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ═══════ TAB 1: PROJECTION ═══════ -->
 <asp:Panel ID="pnlProjection" runat="server">
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
-    <div class="card-title">Create / Edit Projection</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Projection</div>
+        <asp:Button ID="btnNewProjection" runat="server" Text="+ Create New Projection" CssClass="btn btn-primary btn-sm" OnClick="btnNewProjection_Click"/>
+    </div>
+
+    <asp:Panel ID="pnlProjForm" runat="server" Visible="false">
     <div class="form-row">
         <div class="form-group"><label>Area <span class="req">*</span></label>
             <asp:DropDownList ID="ddlProjArea" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjArea_Changed"/></div>
         <div class="form-group"><label>Channel <span class="req">*</span></label><asp:DropDownList ID="ddlProjChannel" runat="server"/></div>
-        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Create Projection" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
+        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="Load" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
     </div>
 
     <!-- Zone & Region auto-resolved from Area -->
@@ -131,6 +136,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
         <div style="margin-top:8px;"><button type="button" class="btn btn-sm" style="background:#f0f0f0;color:#333;border:1px solid #ddd;" onclick="addProjLine();">+ Add Product</button></div>
         <div style="margin-top:16px;display:flex;gap:10px;"><asp:Button ID="btnSaveProjection" runat="server" Text="&#x1F4BE; Save Projection" CssClass="btn btn-teal" OnClick="btnSaveProjection_Click"/></div>
     </asp:Panel>
+    </asp:Panel>
 </div>
 <div class="card">
     <div class="card-title">Projections for <asp:Label ID="lblProjMonth" runat="server"/></div>
@@ -153,7 +159,12 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ═══════ TAB 2: SHIPMENTS ═══════ -->
 <asp:Panel ID="pnlShipments" runat="server" Visible="false">
 <div class="card" style="border-top-left-radius:0;border-top-right-radius:0;">
-    <div class="card-title">Create Shipment <asp:Label ID="lblEditingShipId" runat="server" style="color:var(--accent);"/></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">Shipment <asp:Label ID="lblEditingShipId" runat="server" style="color:var(--accent);"/></div>
+        <asp:Button ID="btnNewShipment" runat="server" Text="+ Create New Shipment" CssClass="btn btn-primary btn-sm" OnClick="btnNewShipment_Click"/>
+    </div>
+
+    <asp:Panel ID="pnlShipForm" runat="server" Visible="false">
 
     <!-- ROW 1: Date, Area, Channel -->
     <div class="form-row">
@@ -210,6 +221,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
         </div>
     </asp:Panel>
     <asp:Panel ID="pnlNoProjection" runat="server" Visible="false"><div style="padding:16px;color:var(--text-dim);font-size:13px;text-align:center;">No projection found. Create a projection first.</div></asp:Panel>
+    </asp:Panel>
 </div>
 <div class="card">
     <div class="card-title">Shipments for <asp:Label ID="lblShipMonth" runat="server"/></div>
