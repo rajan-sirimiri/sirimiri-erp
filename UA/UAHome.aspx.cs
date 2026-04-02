@@ -263,9 +263,16 @@ namespace UAApp
             string name = txtZoneName != null ? txtZoneName.Text.Trim() : "";
             string code = txtZoneCode != null ? txtZoneCode.Text.Trim() : "";
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Enter Zone name and code.", false); return; }
-            UADatabaseHelper.SaveZone(0, name, code);
-            txtZoneName.Text = ""; txtZoneCode.Text = "";
-            ShowAlert("Zone '" + name + "' added.", true);
+            try
+            {
+                UADatabaseHelper.SaveZone(0, name, code);
+                txtZoneName.Text = ""; txtZoneCode.Text = "";
+                ShowAlert("Zone '" + name + "' added.", true);
+            }
+            catch (Exception ex)
+            {
+                ShowAlert(ex.Message.Contains("Duplicate") ? "Zone code '" + code + "' already exists." : "Error: " + ex.Message, false);
+            }
             LoadOrgDropdowns();
         }
 
@@ -275,9 +282,16 @@ namespace UAApp
             string name = txtRegionName != null ? txtRegionName.Text.Trim() : "";
             string code = txtRegionCode != null ? txtRegionCode.Text.Trim() : "";
             if (zoneId == 0 || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Select Zone and enter Region name/code.", false); return; }
-            UADatabaseHelper.SaveRegion(0, zoneId, name, code);
-            txtRegionName.Text = ""; txtRegionCode.Text = "";
-            ShowAlert("Region '" + name + "' added.", true);
+            try
+            {
+                UADatabaseHelper.SaveRegion(0, zoneId, name, code);
+                txtRegionName.Text = ""; txtRegionCode.Text = "";
+                ShowAlert("Region '" + name + "' added.", true);
+            }
+            catch (Exception ex)
+            {
+                ShowAlert(ex.Message.Contains("Duplicate") ? "Region code '" + code + "' already exists." : "Error: " + ex.Message, false);
+            }
             LoadOrgDropdowns();
         }
 
