@@ -151,7 +151,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command" style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
                 <asp:LinkButton runat="server" Text="Confirm" CommandName="ConfirmProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command" Visible='<%# Eval("Status").ToString()=="Draft" %>' style="color:var(--teal);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
                 <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteProj" CommandArgument='<%# Eval("ProjectionID") %>' OnCommand="ProjAction_Command"
-                    OnClientClick="return confirm('Delete this projection?');"
+                    OnClientClick="var btn=this; erpConfirm('Delete this projection?',{title:'Delete Projection',type:'warn',okText:'Delete',onOk:function(){__doPostBack(btn.name,'');}});return false;"
                     style="color:var(--red);font-size:11px;font-weight:700;text-decoration:none;"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
@@ -252,7 +252,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
                 style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
                 <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
                 Visible='<%# Eval("Status").ToString() != "Shipped" %>'
-                OnClientClick="return confirm('Delete this shipment?');"
+                OnClientClick="var btn=this; erpConfirm('Delete this shipment?',{title:'Delete Shipment',type:'warn',okText:'Delete',onOk:function(){__doPostBack(btn.name,'');}});return false;"
                 style="color:var(--red);font-size:11px;font-weight:700;text-decoration:none;"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
