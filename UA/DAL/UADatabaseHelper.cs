@@ -203,6 +203,29 @@ namespace UAApp.DAL
                     new MySqlParameter("?z", zoneId), new MySqlParameter("?n", regionName), new MySqlParameter("?c", regionCode), new MySqlParameter("?id", regionId));
         }
 
+        // ── AREAS ─────────────────────────────────────────────────────────
+        public static DataTable GetAllAreas()
+        {
+            return ExecuteQuery(
+                "SELECT a.*, r.RegionName, z.ZoneName FROM SA_Areas a" +
+                " JOIN SA_Regions r ON r.RegionID=a.RegionID" +
+                " JOIN SA_Zones z ON z.ZoneID=r.ZoneID" +
+                " WHERE a.IsActive=1 ORDER BY z.SortOrder, r.SortOrder, a.SortOrder, a.AreaName;");
+        }
+
+        public static DataTable GetAreasByRegion(int regionId)
+        { return ExecuteQuery("SELECT * FROM SA_Areas WHERE RegionID=?rid AND IsActive=1 ORDER BY SortOrder, AreaName;", new MySqlParameter("?rid", regionId)); }
+
+        public static void SaveArea(int areaId, int regionId, string areaName, string areaCode)
+        {
+            if (areaId == 0)
+                ExecuteNonQuery("INSERT INTO SA_Areas (RegionID, AreaName, AreaCode) VALUES (?r,?n,?c);",
+                    new MySqlParameter("?r", regionId), new MySqlParameter("?n", areaName), new MySqlParameter("?c", areaCode));
+            else
+                ExecuteNonQuery("UPDATE SA_Areas SET RegionID=?r, AreaName=?n, AreaCode=?c WHERE AreaID=?id;",
+                    new MySqlParameter("?r", regionId), new MySqlParameter("?n", areaName), new MySqlParameter("?c", areaCode), new MySqlParameter("?id", areaId));
+        }
+
         // ── DESIGNATIONS ──────────────────────────────────────────────────
         public static DataTable GetAllDesignations()
         { return ExecuteQuery("SELECT * FROM SA_Designations WHERE IsActive=1 ORDER BY SortOrder;"); }

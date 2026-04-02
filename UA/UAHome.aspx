@@ -310,6 +310,35 @@ tr:hover{background:rgba(26,158,106,0.04);}
     </div>
 </div>
 
+<!-- AREAS -->
+<div class="card">
+    <div class="card-title">Areas (within Regions)</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:300px;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                <asp:DropDownList ID="ddlAreaRegion" runat="server" style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:TextBox ID="txtAreaName" runat="server" placeholder="Area Name" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:TextBox ID="txtAreaCode" runat="server" placeholder="Code" style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <asp:Button ID="btnAddArea" runat="server" Text="+ Add" CssClass="btn btn-primary btn-sm" OnClick="btnAddArea_Click"/>
+            </div>
+            <asp:Repeater ID="rptAreas" runat="server">
+                <HeaderTemplate><table><tr><th>Area</th><th>Code</th><th>Region</th><th>Zone</th><th></th></tr></HeaderTemplate>
+                <ItemTemplate>
+                    <tr>
+                        <td style="font-weight:500;"><%# Eval("AreaName") %></td>
+                        <td style="font-size:11px;color:var(--text-muted);"><%# Eval("AreaCode") %></td>
+                        <td style="font-size:11px;"><%# Eval("RegionName") %></td>
+                        <td style="font-size:11px;"><%# Eval("ZoneName") %></td>
+                        <td><asp:LinkButton runat="server" Text="&#x2715;" CommandName="DelArea" CommandArgument='<%# Eval("AreaID") %>' OnCommand="OrgAction_Command"
+                            style="color:var(--red);font-weight:700;text-decoration:none;"/></td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></table></FooterTemplate>
+            </asp:Repeater>
+        </div>
+    </div>
+</div>
+
 <!-- POSITIONS -->
 <div class="card">
     <div class="card-title">Sales Team Positions</div>

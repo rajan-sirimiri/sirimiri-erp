@@ -12,12 +12,12 @@ namespace UAApp
         protected Panel        pnlAlert, pnlPassword, pnlUsers, pnlRoles, pnlNoRole, pnlRoleDetail, pnlOrg;
         protected HiddenField  hfEditUserId, hfTab, hfSelectedRole, hfRoleClick, hfEditPosId;
         protected TextBox      txtFullName, txtUsername, txtPassword;
-        protected TextBox      txtZoneName, txtZoneCode, txtRegionName, txtRegionCode, txtPosName, txtPosEmpId;
+        protected TextBox      txtZoneName, txtZoneCode, txtRegionName, txtRegionCode, txtPosName, txtPosEmpId, txtAreaName, txtAreaCode;
         protected DropDownList ddlRole;
-        protected DropDownList ddlRegionZone, ddlPosDesig, ddlPosUser, ddlPosZone, ddlPosRegion, ddlPosReportsTo;
+        protected DropDownList ddlRegionZone, ddlAreaRegion, ddlPosDesig, ddlPosUser, ddlPosZone, ddlPosRegion, ddlPosReportsTo;
         protected Button       btnSave, btnCancel, btnTabUsers, btnTabRoles, btnTabOrg, btnSelectRole, btnSaveRoleAccess;
-        protected Button       btnAddZone, btnAddRegion, btnSavePos;
-        protected Repeater     rptUsers, rptRoleList, rptRoleApps, rptZones, rptRegions, rptPositions;
+        protected Button       btnAddZone, btnAddRegion, btnAddArea, btnSavePos;
+        protected Repeater     rptUsers, rptRoleList, rptRoleApps, rptZones, rptRegions, rptAreas, rptPositions;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -221,13 +221,22 @@ namespace UAApp
                     ddlPosUser.Items.Add(new ListItem(r["FullName"].ToString() + " (" + r["Username"] + ")", r["UserID"].ToString()));
             }
 
-            // Regions (all)
+            // Regions (all) — for position form and area form
             if (ddlPosRegion != null)
             {
                 ddlPosRegion.Items.Clear();
                 ddlPosRegion.Items.Add(new ListItem("-- None --", "0"));
                 foreach (DataRow r in UADatabaseHelper.GetAllRegions().Rows)
                     ddlPosRegion.Items.Add(new ListItem(r["RegionName"].ToString() + " (" + r["ZoneName"] + ")", r["RegionID"].ToString()));
+            }
+
+            // Area region dropdown
+            if (ddlAreaRegion != null)
+            {
+                ddlAreaRegion.Items.Clear();
+                ddlAreaRegion.Items.Add(new ListItem("-- Select Region --", "0"));
+                foreach (DataRow r in UADatabaseHelper.GetAllRegions().Rows)
+                    ddlAreaRegion.Items.Add(new ListItem(r["RegionName"].ToString() + " (" + r["ZoneName"] + ")", r["RegionID"].ToString()));
             }
 
             // Reports To (all positions)
@@ -255,6 +264,7 @@ namespace UAApp
         {
             if (rptZones != null) { rptZones.DataSource = UADatabaseHelper.GetAllZones(); rptZones.DataBind(); }
             if (rptRegions != null) { rptRegions.DataSource = UADatabaseHelper.GetAllRegions(); rptRegions.DataBind(); }
+            if (rptAreas != null) { rptAreas.DataSource = UADatabaseHelper.GetAllAreas(); rptAreas.DataBind(); }
             if (rptPositions != null) { rptPositions.DataSource = UADatabaseHelper.GetAllOrgPositions(); rptPositions.DataBind(); }
         }
 
@@ -291,6 +301,25 @@ namespace UAApp
             catch (Exception ex)
             {
                 ShowAlert(ex.Message.Contains("Duplicate") ? "Region code '" + code + "' already exists." : "Error: " + ex.Message, false);
+            }
+            LoadOrgDropdowns();
+        }
+
+        protected void btnAddArea_Click(object sender, EventArgs e)
+        {
+            int regionId = ddlAreaRegion != null ? Convert.ToInt32(ddlAreaRegion.SelectedValue) : 0;
+            string name = txtAreaName != null ? txtAreaName.Text.Trim() : "";
+            string code = txtAreaCode != null ? txtAreaCode.Text.Trim() : "";
+            if (regionId == 0 || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code)) { ShowAlert("Select Region and enter Area name/code.", false); return; }
+            try
+            {
+                UADatabaseHelper.SaveArea(0, regionId, name, code);
+                txtAreaName.Text = ""; txtAreaCode.Text = "";
+                ShowAlert("Area '" + name + "' added.", true);
+            }
+            catch (Exception ex)
+            {
+                ShowAlert(ex.Message.Contains("Duplicate") ? "Area code '" + code + "' already exists." : "Error: " + ex.Message, false);
             }
             LoadOrgDropdowns();
         }
@@ -340,6 +369,10 @@ namespace UAApp
                     UADatabaseHelper.ExecuteNonQueryDirect("UPDATE SA_Regions SET IsActive=0 WHERE RegionID=?id;",
                         new MySql.Data.MySqlClient.MySqlParameter("?id", id));
                     ShowAlert("Region removed.", true); break;
+                case "DelArea":
+                    UADatabaseHelper.ExecuteNonQueryDirect("UPDATE SA_Areas SET IsActive=0 WHERE AreaID=?id;",
+                        new MySql.Data.MySqlClient.MySqlParameter("?id", id));
+                    ShowAlert("Area removed.", true); break;
                 case "EditPos":
                     DataRow pos = UADatabaseHelper.GetOrgPositionById(id);
                     if (pos != null)
