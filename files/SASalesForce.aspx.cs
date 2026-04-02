@@ -140,7 +140,9 @@ namespace StockApp
                 "SELECT UOMID, Abbreviation, UOMName FROM MM_UOM WHERE IsActive=1 AND UPPER(Abbreviation) IN ('CASE','JAR','BOX') ORDER BY UOMName;");
             var ub = new System.Text.StringBuilder();
             foreach (DataRow r in uoms.Rows)
-                ub.Append("<option value='" + r["UOMID"] + "'>" + r["Abbreviation"] + "</option>");
+                string abbr = r["Abbreviation"].ToString();
+                string sel = abbr.Equals("JAR", StringComparison.OrdinalIgnoreCase) ? " selected" : "";
+                ub.Append("<option value='" + r["UOMID"] + "'" + sel + ">" + abbr + "</option>");
             hfUOMOptionsHtml.Value = ub.ToString();
         }
 
@@ -213,11 +215,22 @@ namespace StockApp
         protected void btnNewProjection_Click(object sender, EventArgs e)
         {
             if (pnlProjForm != null) pnlProjForm.Visible = true;
-            if (pnlProjLines != null) pnlProjLines.Visible = false;
+            if (pnlProjLines != null) pnlProjLines.Visible = true;
             if (pnlProjZoneRegion != null) pnlProjZoneRegion.Visible = false;
             if (ddlProjArea != null) ddlProjArea.SelectedIndex = 0;
             if (ddlProjChannel != null) ddlProjChannel.SelectedIndex = 0;
             if (hfEditProjId != null) hfEditProjId.Value = "0";
+            // Show blank product line
+            var dt = new DataTable();
+            dt.Columns.Add("LineID", typeof(int));
+            dt.Columns.Add("ProductID", typeof(int));
+            dt.Columns.Add("Quantity", typeof(int));
+            dt.Columns.Add("UOMID", typeof(int));
+            dt.Rows.Add(0, 0, 0, 0);
+            rptProjLines.DataSource = dt;
+            rptProjLines.DataBind();
+            SetProjOptions();
+            BuildOptionHtml();
             pnlAlert.Visible = false;
         }
 
@@ -379,6 +392,8 @@ namespace StockApp
             {
                 var lit = item.FindControl("litShipProductOptions") as Literal;
                 if (lit != null) lit.Text = hfProductOptionsHtml.Value;
+                var litU = item.FindControl("litShipUOMOptions") as Literal;
+                if (litU != null) litU.Text = hfUOMOptionsHtml.Value;
             }
         }
 

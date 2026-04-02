@@ -100,11 +100,11 @@ tr:hover{background:rgba(41,128,185,0.04);}
     </div>
 
     <asp:Panel ID="pnlProjForm" runat="server" Visible="false">
+    <!-- ROW 1: Area + Channel -->
     <div class="form-row">
         <div class="form-group"><label>Area <span class="req">*</span></label>
             <asp:DropDownList ID="ddlProjArea" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjArea_Changed"/></div>
         <div class="form-group"><label>Channel <span class="req">*</span></label><asp:DropDownList ID="ddlProjChannel" runat="server"/></div>
-        <div class="form-group" style="flex:0;"><label>&nbsp;</label><asp:Button ID="btnLoadProjection" runat="server" Text="&#x27A1; Add Products" CssClass="btn btn-primary btn-sm" OnClick="btnLoadProjection_Click"/></div>
     </div>
 
     <!-- Zone & Region auto-resolved from Area -->
@@ -118,7 +118,9 @@ tr:hover{background:rgba(41,128,185,0.04);}
     </asp:Panel>
     <asp:HiddenField ID="hfProjZoneID" runat="server" Value="0"/>
     <asp:HiddenField ID="hfProjRegionID" runat="server" Value="0"/>
-    <asp:Panel ID="pnlProjLines" runat="server" Visible="false">
+
+    <!-- Products - always visible when form is open -->
+    <asp:Panel ID="pnlProjLines" runat="server" Visible="true">
         <div class="card-title">Products</div>
         <div id="divProjLines">
             <asp:Repeater ID="rptProjLines" runat="server">
@@ -220,6 +222,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
                             <asp:Literal ID="litShipProductOptions" runat="server"/>
                         </select>
                         <input type="number" name="ship_qty" class="qty-inp" min="0" step="1" value='<%# Eval("Quantity") %>' placeholder="Qty"/>
+                        <select name="ship_uom" class="uom-sel"><asp:Literal ID="litShipUOMOptions" runat="server"/></select>
                         <input type="hidden" name="ship_productid" value='<%# Eval("ProductID") %>'/>
                         <button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>
                     </div>
@@ -277,10 +280,12 @@ function addProjLine() {
 }
 function addShipLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
+    var u = document.getElementById('<%= hfUOMOptionsHtml.ClientID %>').value;
     var d = document.getElementById('divShipLines'), r = document.createElement('div');
     r.className = 'line-row';
     r.innerHTML = '<select name="ship_product" class="prod-sel"><option value="0">-- Select Product --</option>' + p + '</select>'
         + '<input type="number" name="ship_qty" class="qty-inp" min="0" step="1" placeholder="Qty"/>'
+        + '<select name="ship_uom" class="uom-sel">' + u + '</select>'
         + '<input type="hidden" name="ship_productid" value="0"/>'
         + '<button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
