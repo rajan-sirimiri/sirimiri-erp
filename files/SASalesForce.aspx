@@ -214,7 +214,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <asp:Panel ID="pnlShipLines" runat="server" Visible="true">
         <div class="card-title">Products</div>
         <div id="divShipLines">
-            <asp:Repeater ID="rptShipLines" runat="server">
+            <asp:Repeater ID="rptShipLines" runat="server" OnItemDataBound="rptShipLines_ItemDataBound">
                 <ItemTemplate>
                     <div class="line-row">
                         <select name="ship_product" class="prod-sel">

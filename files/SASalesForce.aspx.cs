@@ -256,7 +256,6 @@ namespace StockApp
             dt.Rows.Add(0, 0);
             rptShipLines.DataSource = dt;
             rptShipLines.DataBind();
-            SetShipProductOptions();
             BuildOptionHtml();
             pnlAlert.Visible = false;
         }
@@ -388,35 +387,19 @@ namespace StockApp
             }
         }
 
-        private void SetShipProductOptions()
+        protected void rptShipLines_ItemDataBound(object sender, RepeaterItemEventArgs e)
         {
-            // Build product options once
-            DataTable products = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
 
-            foreach (RepeaterItem item in rptShipLines.Items)
+            var row = (DataRowView)e.Item.DataItem;
+            int savedPid = row["ProductID"] != DBNull.Value ? Convert.ToInt32(row["ProductID"]) : 0;
+
+            // Product options with correct one selected
+            var lit = e.Item.FindControl("litShipProductOptions") as Literal;
+            if (lit != null)
             {
-                // Get the saved ProductID from the hidden field
-                var hf = item.FindControl("litShipProductOptions")?.Parent;
-                int savedPid = 0;
-                if (hf != null)
-                {
-                    foreach (System.Web.UI.Control c in hf.Controls)
-                    {
-                        var inp = c as System.Web.UI.HtmlControls.HtmlInputHidden;
-                        if (inp != null && inp.Name == "ship_productid")
-                        { int.TryParse(inp.Value, out savedPid); break; }
-                    }
-                }
-                // If no hidden control found, try from DataItem
-                if (savedPid == 0)
-                {
-                    var dv = item.DataItem as System.Data.DataRowView;
-                    if (dv != null && dv.Row.Table.Columns.Contains("ProductID"))
-                        savedPid = Convert.ToInt32(dv["ProductID"]);
-                }
-
-                // Build product options with correct one selected
+                DataTable products = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
                 var sb = new System.Text.StringBuilder();
                 foreach (DataRow r in products.Rows)
                 {
@@ -425,12 +408,12 @@ namespace StockApp
                     sb.Append("<option value='" + pid + "'" + sel + ">" +
                         r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
                 }
-                var lit = item.FindControl("litShipProductOptions") as Literal;
-                if (lit != null) lit.Text = sb.ToString();
-
-                var litU = item.FindControl("litShipUOMOptions") as Literal;
-                if (litU != null) litU.Text = hfUOMOptionsHtml.Value;
+                lit.Text = sb.ToString();
             }
+
+            // UOM options
+            var litU = e.Item.FindControl("litShipUOMOptions") as Literal;
+            if (litU != null) litU.Text = hfUOMOptionsHtml.Value;
         }
 
         protected void btnSaveProjection_Click(object sender, EventArgs e)
@@ -766,7 +749,6 @@ namespace StockApp
                     new MySqlParameter("?sid", shipId));
                 rptShipLines.DataSource = lines;
                 rptShipLines.DataBind();
-                SetShipProductOptions();
                 BuildOptionHtml();
                 pnlShipLines.Visible = lines.Rows.Count > 0;
                 if (pnlShipForm != null) pnlShipForm.Visible = true;
