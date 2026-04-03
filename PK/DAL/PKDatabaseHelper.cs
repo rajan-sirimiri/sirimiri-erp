@@ -1497,5 +1497,92 @@ namespace PKApp.DAL
             }
             catch { return true; } // Fail open
         }
+
+        // ── SA SHIPMENT ORDERS (Sales Force → PK) ─────────────────────────
+
+        /// <summary>Get all SA shipments visible to PK team (Status IN Order, DC, Shipped)</summary>
+        public static DataTable GetSAShipmentOrders()
+        {
+            return ExecuteQuery(
+                "SELECT sh.ShipmentID, sh.ShipmentDate, sh.Status, sh.VehicleNo," +
+                " IFNULL(cust.CustomerName,'—') AS CustomerName," +
+                " IFNULL(ar.AreaName,'—') AS AreaName," +
+                " IFNULL(z.ZoneName,'—') AS ZoneName," +
+                " IFNULL(r.RegionName,'—') AS RegionName," +
+                " c.ChannelName," +
+                " IFNULL(tm.ModeName,'—') AS TransportMode," +
+                " COUNT(sl.LineID) AS ProductCount," +
+                " IFNULL(SUM(sl.ShippedQty),0) AS TotalQty" +
+                " FROM SA_Shipments sh" +
+                " LEFT JOIN PK_Customers cust ON cust.CustomerID=sh.CustomerID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.PositionID" +
+                " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
+                " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
+                " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
+                " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
+                " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
+                " WHERE sh.Status IN ('Order','DC','Shipped')" +
+                " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;");
+        }
+
+        /// <summary>Get line items for a SA shipment order</summary>
+        public static DataTable GetSAShipmentLines(int shipmentId)
+        {
+            return ExecuteQuery(
+                "SELECT sl.LineID, sl.ProductID, p.ProductName, p.ProductCode, sl.ShippedQty AS Qty" +
+                " FROM SA_ShipmentLines sl" +
+                " JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE sl.ShipmentID=?sid ORDER BY p.ProductName;",
+                new MySqlParameter("?sid", shipmentId));
+        }
+
+        /// <summary>Check FG stock availability for all line items in a SA shipment</summary>
+        public static DataTable CheckFGStockForSAOrder(int shipmentId)
+        {
+            return ExecuteQuery(
+                "SELECT sl.ProductID, p.ProductName, sl.ShippedQty AS RequiredQty," +
+                " IFNULL((SELECT SUM(f.QtyPacked) FROM PK_FGStock f WHERE f.ProductID=sl.ProductID),0) AS AvailableQty" +
+                " FROM SA_ShipmentLines sl" +
+                " JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE sl.ShipmentID=?sid ORDER BY p.ProductName;",
+                new MySqlParameter("?sid", shipmentId));
+        }
+
+        /// <summary>Convert SA shipment to DC status</summary>
+        public static void ConvertSAShipmentToDC(int shipmentId)
+        {
+            ExecuteNonQuery("UPDATE SA_Shipments SET Status='DC' WHERE ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+        }
+
+        /// <summary>Complete shipment dispatch — set status to Shipped and deduct FG stock</summary>
+        public static void CompleteSAShipmentDispatch(int shipmentId, int userId)
+        {
+            // Get line items
+            DataTable lines = ExecuteQuery(
+                "SELECT sl.ProductID, sl.ShippedQty FROM SA_ShipmentLines sl WHERE sl.ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+
+            // Deduct FG stock for each product
+            foreach (DataRow r in lines.Rows)
+            {
+                int productId = Convert.ToInt32(r["ProductID"]);
+                int qty = Convert.ToInt32(r["ShippedQty"]);
+                if (qty > 0)
+                {
+                    // Insert negative entry in FG stock to represent deduction
+                    ExecuteNonQuery(
+                        "INSERT INTO PK_FGStock (ProductID, QtyPacked, PackedAt, CreatedBy)" +
+                        " VALUES (?pid, ?qty, NOW(), ?uid);",
+                        new MySqlParameter("?pid", productId),
+                        new MySqlParameter("?qty", -qty),
+                        new MySqlParameter("?uid", userId));
+                }
+            }
+
+            // Update status
+            ExecuteNonQuery("UPDATE SA_Shipments SET Status='Shipped' WHERE ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+        }
     }
 }

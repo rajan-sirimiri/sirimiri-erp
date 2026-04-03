@@ -10,12 +10,15 @@ namespace PKApp
     {
         protected Label lblUser, lblAlert, lblFormTitle;
         protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
+        protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus;
         protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
-        protected HiddenField hfDCID, hfLines, hfProductData;
+        protected Panel pnlSAEmpty, pnlSAList, pnlSADetail;
+        protected HiddenField hfDCID, hfLines, hfProductData, hfSAShipId;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
-        protected Repeater rptDCs, rptViewLines;
+        protected Button btnConvertDC, btnDispatch, btnCloseSADetail;
+        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -34,6 +37,7 @@ namespace PKApp
                 BuildProductData();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 BindDCList();
+                BindSAOrders();
             }
         }
 
@@ -279,6 +283,133 @@ namespace PKApp
 
             BuildProductData();
             if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        // ── SA SHIPMENT ORDERS ──────────────────────────────────────────
+
+        void BindSAOrders()
+        {
+            var dt = PKDatabaseHelper.GetSAShipmentOrders();
+            bool hasRows = dt.Rows.Count > 0;
+            if (pnlSAEmpty != null) pnlSAEmpty.Visible = !hasRows;
+            if (pnlSAList != null) pnlSAList.Visible = hasRows;
+            if (rptSAOrders != null) { rptSAOrders.DataSource = dt; rptSAOrders.DataBind(); }
+        }
+
+        protected string GetSAStatusBadge(string status)
+        {
+            switch (status)
+            {
+                case "Order": return "<span class='badge-order'>Order</span>";
+                case "DC": return "<span class='badge-dc'>DC</span>";
+                case "Shipped": return "<span class='badge-shipped'>Shipped</span>";
+                default: return "<span class='badge-draft'>" + status + "</span>";
+            }
+        }
+
+        protected void rptSAOrders_ItemCommand(object src, RepeaterCommandEventArgs e)
+        {
+            int shipId = Convert.ToInt32(e.CommandArgument);
+
+            if (e.CommandName == "ViewSAOrder")
+            {
+                LoadSAOrderDetail(shipId);
+            }
+            else if (e.CommandName == "ConvertDC")
+            {
+                DoConvertToDC(shipId);
+            }
+            else if (e.CommandName == "Dispatch")
+            {
+                DoCompleteDispatch(shipId);
+            }
+        }
+
+        void LoadSAOrderDetail(int shipId)
+        {
+            hfSAShipId.Value = shipId.ToString();
+            lblSAOrderId.Text = "SH-" + shipId.ToString("D5");
+
+            // Get shipment header
+            var orders = PKDatabaseHelper.GetSAShipmentOrders();
+            DataRow order = null;
+            foreach (DataRow r in orders.Rows)
+                if (Convert.ToInt32(r["ShipmentID"]) == shipId) { order = r; break; }
+
+            if (order != null)
+            {
+                lblSACustomer.Text = order["CustomerName"].ToString();
+                lblSADate.Text = Convert.ToDateTime(order["ShipmentDate"]).ToString("dd-MMM-yyyy");
+                lblSAArea.Text = order["AreaName"] + " (" + order["ZoneName"] + " / " + order["RegionName"] + ")";
+                lblSAStatus.Text = order["Status"].ToString();
+
+                string status = order["Status"].ToString();
+                if (btnConvertDC != null) btnConvertDC.Visible = (status == "Order");
+                if (btnDispatch != null) btnDispatch.Visible = (status == "DC");
+            }
+
+            // Load lines with stock check
+            var lines = PKDatabaseHelper.CheckFGStockForSAOrder(shipId);
+            if (rptSALines != null) { rptSALines.DataSource = lines; rptSALines.DataBind(); }
+
+            pnlSADetail.Visible = true;
+        }
+
+        void DoConvertToDC(int shipId)
+        {
+            // Check FG stock for all line items
+            var stockCheck = PKDatabaseHelper.CheckFGStockForSAOrder(shipId);
+            foreach (DataRow r in stockCheck.Rows)
+            {
+                decimal required = Convert.ToDecimal(r["RequiredQty"]);
+                decimal available = Convert.ToDecimal(r["AvailableQty"]);
+                if (available < required)
+                {
+                    ShowAlert("Cannot convert to DC — insufficient FG stock for " + r["ProductName"] +
+                        " (Need: " + required + ", Available: " + available + ").", false);
+                    LoadSAOrderDetail(shipId);
+                    BindSAOrders();
+                    return;
+                }
+            }
+
+            PKDatabaseHelper.ConvertSAShipmentToDC(shipId);
+            ShowAlert("SH-" + shipId.ToString("D5") + " converted to Delivery Challan. SA side is now read-only.", true);
+            pnlSADetail.Visible = false;
+            BindSAOrders();
+        }
+
+        protected void btnConvertDC_Click(object s, EventArgs e)
+        {
+            int shipId = Convert.ToInt32(hfSAShipId.Value);
+            if (shipId > 0) DoConvertToDC(shipId);
+        }
+
+        void DoCompleteDispatch(int shipId)
+        {
+            try
+            {
+                PKDatabaseHelper.CompleteSAShipmentDispatch(shipId, UserID);
+                ShowAlert("SH-" + shipId.ToString("D5") + " dispatched. FG stock has been deducted.", true);
+                pnlSADetail.Visible = false;
+                BindSAOrders();
+                BuildProductData(); // Refresh FG stock data
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Error dispatching: " + ex.Message, false);
+            }
+        }
+
+        protected void btnDispatch_Click(object s, EventArgs e)
+        {
+            int shipId = Convert.ToInt32(hfSAShipId.Value);
+            if (shipId > 0) DoCompleteDispatch(shipId);
+        }
+
+        protected void btnCloseSADetail_Click(object s, EventArgs e)
+        {
+            pnlSADetail.Visible = false;
         }
 
         // ── HELPERS ──

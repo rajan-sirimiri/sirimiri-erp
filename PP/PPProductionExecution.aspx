@@ -114,12 +114,13 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* GEAR WHEEL */
 .gear-wrap{position:relative;width:364px;height:364px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-.grammage-badge{position:absolute;left:-10px;top:50%;transform:translateY(-50%);
+.grammage-badge{position:absolute;left:-80px;top:50%;transform:translateY(-50%);
     background:linear-gradient(135deg,#e91e63,#ff5722);color:#fff;
     font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.08em;
     padding:10px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(233,30,99,.4);
-    z-index:10;white-space:nowrap;
+    z-index:10;white-space:nowrap;text-align:center;
     animation:grammage-pulse 2s ease-in-out infinite;}
+.grammage-sub{display:block;font-size:11px;letter-spacing:.12em;opacity:0.85;margin-top:2px;font-family:'DM Sans',sans-serif;}
 @keyframes grammage-pulse{0%,100%{opacity:1;transform:translateY(-50%) scale(1);}50%{opacity:0.5;transform:translateY(-50%) scale(1.05);}}
 #gearSvg{width:364px;height:364px;object-fit:contain;
     transform-origin:center center;

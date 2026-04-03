@@ -56,6 +56,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .empty-note{text-align:center;padding:28px;color:var(--text-dim);font-size:13px;}
 .act-link{color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;}.act-link:hover{text-decoration:underline;}
 .locked-msg{background:#f5f5f5;border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;}
+.badge-order{background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.badge-dc{background:#cce5ff;color:#004085;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.badge-shipped{background:#e2e3e5;color:#383d41;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.sa-order-detail{background:#f9f9f9;border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-top:8px;}
 </style></head><body>
 <form id="form1" runat="server">
 <asp:HiddenField ID="hfDCID" runat="server" Value="0"/>
@@ -159,6 +163,70 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         </div>
     </div>
     </asp:Panel>
+
+    <!-- ══════ SA SHIPMENT ORDERS (from Sales Force) ══════ -->
+    <div class="card">
+        <div class="card-title">&#x1F4E6; Sales Force Orders</div>
+        <asp:Panel ID="pnlSAEmpty" runat="server"><div class="empty-note">No pending orders from Sales Force</div></asp:Panel>
+        <asp:Panel ID="pnlSAList" runat="server" Visible="false">
+        <table class="data-table">
+            <thead><tr><th>Order #</th><th>Date</th><th>Customer</th><th>Area</th><th>Channel</th><th>Transport</th><th class="num">Items</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                <asp:Repeater ID="rptSAOrders" runat="server" OnItemCommand="rptSAOrders_ItemCommand">
+                    <ItemTemplate><tr>
+                        <td style="font-family:monospace;font-weight:700;color:var(--accent);">SH-<%# Eval("ShipmentID").ToString().PadLeft(5,'0') %></td>
+                        <td style="font-size:12px;"><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM-yyyy") %></td>
+                        <td style="font-weight:600;"><%# Eval("CustomerName") %></td>
+                        <td style="font-size:11px;"><%# Eval("AreaName") %> <span style="color:var(--text-dim);font-size:10px;">(<%# Eval("ZoneName") %> / <%# Eval("RegionName") %>)</span></td>
+                        <td><%# Eval("ChannelName") %></td>
+                        <td style="font-size:11px;"><%# Eval("TransportMode") %></td>
+                        <td class="num"><%# Eval("ProductCount") %></td>
+                        <td><%# GetSAStatusBadge(Eval("Status").ToString()) %></td>
+                        <td>
+                            <asp:LinkButton runat="server" CommandName="ViewSAOrder" CommandArgument='<%# Eval("ShipmentID") %>'
+                                CssClass="act-link" CausesValidation="false">View</asp:LinkButton>
+                            <asp:LinkButton runat="server" CommandName="ConvertDC" CommandArgument='<%# Eval("ShipmentID") %>'
+                                CssClass="act-link" CausesValidation="false" Visible='<%# Eval("Status").ToString()=="Order" %>'
+                                style="margin-left:8px;color:var(--teal);">Convert to DC</asp:LinkButton>
+                            <asp:LinkButton runat="server" CommandName="Dispatch" CommandArgument='<%# Eval("ShipmentID") %>'
+                                CssClass="act-link" CausesValidation="false" Visible='<%# Eval("Status").ToString()=="DC" %>'
+                                style="margin-left:8px;color:#6f42c1;">Complete Dispatch</asp:LinkButton>
+                        </td>
+                    </tr></ItemTemplate>
+                </asp:Repeater>
+            </tbody>
+        </table>
+        </asp:Panel>
+    </div>
+
+    <!-- SA ORDER DETAIL POPUP -->
+    <asp:Panel ID="pnlSADetail" runat="server" Visible="false">
+    <div class="card">
+        <div class="card-title">Order Details — <asp:Label ID="lblSAOrderId" runat="server"/></div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Customer</span><div style="font-weight:600;"><asp:Label ID="lblSACustomer" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Date</span><div><asp:Label ID="lblSADate" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Area</span><div><asp:Label ID="lblSAArea" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Status</span><div><asp:Label ID="lblSAStatus" runat="server"/></div></div>
+        </div>
+        <asp:Repeater ID="rptSALines" runat="server">
+            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th class="num">Qty (Jars)</th><th class="num">FG Stock</th><th>Stock OK?</th></tr></thead><tbody></HeaderTemplate>
+            <ItemTemplate><tr>
+                <td><strong><%# Eval("ProductName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("ProductCode") %></div></td>
+                <td class="num" style="font-weight:600;"><%# Eval("RequiredQty") %></td>
+                <td class="num"><%# Eval("AvailableQty") %></td>
+                <td><%# Convert.ToDecimal(Eval("AvailableQty")) >= Convert.ToDecimal(Eval("RequiredQty")) ? "<span style='color:var(--teal);font-weight:700;'>✓ OK</span>" : "<span style='color:#e74c3c;font-weight:700;'>✗ Short</span>" %></td>
+            </tr></ItemTemplate>
+            <FooterTemplate></tbody></table></FooterTemplate>
+        </asp:Repeater>
+        <div class="btn-row" style="margin-top:14px;">
+            <asp:Button ID="btnConvertDC" runat="server" Text="Convert to DC" CssClass="btn btn-success" OnClick="btnConvertDC_Click" CausesValidation="false"/>
+            <asp:Button ID="btnDispatch" runat="server" Text="Complete Shipment Dispatch" CssClass="btn btn-primary" OnClick="btnDispatch_Click" CausesValidation="false"/>
+            <asp:Button ID="btnCloseSADetail" runat="server" Text="Close" CssClass="btn btn-secondary" OnClick="btnCloseSADetail_Click" CausesValidation="false"/>
+        </div>
+    </div>
+    </asp:Panel>
+    <asp:HiddenField ID="hfSAShipId" runat="server" Value="0"/>
 
     <!-- ══════ RECENT DCs LIST ══════ -->
     <div class="card">

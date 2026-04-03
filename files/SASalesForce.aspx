@@ -251,10 +251,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td><%# Eval("ProductCount") %></td>
             <td><span class='badge <%# GetShipStatusBadge(Eval("Status").ToString()) %>'><%# Eval("Status") %></span></td>
             <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
-                Visible='<%# Eval("Status").ToString() != "Shipped" %>'
+                Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
                 style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none;margin-right:8px;"/>
                 <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
-                Visible='<%# Eval("Status").ToString() != "Shipped" %>'
+                Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
                 OnClientClick="var href=this.getAttribute('href'); erpConfirm('Delete this shipment?',{title:'Delete Shipment',type:'warn',okText:'Delete',onOk:function(){eval(href);}});return false;"
                 style="color:var(--red);font-size:11px;font-weight:700;text-decoration:none;"/></td>
         </tr></ItemTemplate>

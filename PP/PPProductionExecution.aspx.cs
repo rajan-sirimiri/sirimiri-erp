@@ -179,7 +179,7 @@ namespace PPApp
             {
                 if (uwg > 0)
                 {
-                    lblGrammage.Text = uwg.ToString("0.##") + "G";
+                    lblGrammage.Text = uwg.ToString("0.##") + " G<span class='grammage-sub'>Per Unit</span>";
                     lblGrammage.Visible = true;
                 }
                 else
