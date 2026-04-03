@@ -37,8 +37,8 @@ namespace PKApp
                 BuildProductData();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 BindDCList();
-                BindSAOrders();
             }
+            BindSAOrders();
         }
 
         void BindCustomers()
