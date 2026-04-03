@@ -60,6 +60,7 @@
         .badge-inactive { background:#f0f0f0; color:var(--text-dim); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
         .empty-note { text-align:center; padding:28px; color:var(--text-dim); font-size:13px; }
     </style>
+    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 </head>
 <body>
 <form id="form1" runat="server">

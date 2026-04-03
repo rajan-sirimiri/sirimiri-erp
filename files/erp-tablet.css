@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════
-   SIRIMIRI ERP — Tablet & Responsive Overrides
+   SIRIMIRI ERP — Tablet & Mobile Responsive Overrides
    Include: <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
-   Targets: 11-inch tablets (1024x768), 8.5x5.5 landscape
+   Targets: Desktop (1100+), Tablet (768-1100), Mobile (<768)
    ═══════════════════════════════════════════════════════════ */
 
 /* ── TABLET LANDSCAPE (768px - 1100px) ────────────────────── */
@@ -41,11 +41,12 @@
     .product-info-row, .pi-stat { flex-wrap: wrap; }
 }
 
-/* ── TABLET PORTRAIT (600px - 768px) ──────────────────────── */
+/* ── TABLET PORTRAIT & SMALL TABLETS (600px - 768px) ─────── */
 @media (max-width: 768px) {
     nav { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 4px; }
     .nav-right { width: 100%; justify-content: flex-end; margin-top: 4px; }
     .form-grid, .form-grid-2, .form-grid-3 { grid-template-columns: 1fr !important; }
+    .form-row { flex-direction: column !important; gap: 10px !important; }
     .menu-grid { grid-template-columns: 1fr !important; }
     .card { overflow-x: auto; }
     table { min-width: 600px; }
@@ -55,6 +56,227 @@
     .date-bar { flex-wrap: wrap; }
     .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .tab-btn, .tab { white-space: nowrap; font-size: 11px; padding: 10px 14px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE PHONE (<480px)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+    /* ── NAV BAR ── */
+    nav { 
+        flex-wrap: wrap; height: auto; padding: 6px 10px; gap: 2px; 
+    }
+    .nav-logo { padding: 2px 4px; }
+    .nav-logo img { height: 20px; }
+    .nav-title { font-size: 13px; letter-spacing: .04em; }
+    .nav-right { 
+        width: 100%; justify-content: space-between; margin-top: 4px;
+        gap: 4px; flex-wrap: wrap;
+    }
+    .nav-user { font-size: 10px; display: block; width: 100%; text-align: center; }
+    .nav-link { font-size: 9px; padding: 4px 6px; }
+    .nav-item { font-size: 10px; padding: 6px 8px; }
+
+    /* ── SA-specific nav ── */
+    .sa-nav { padding: 0 10px; height: auto; flex-wrap: wrap; gap: 2px; }
+    .sa-nav .nav-user-group { width: 100%; text-align: center; font-size: 10px; }
+
+    /* ── PAGE HEADER ── */
+    .page-header { padding: 12px 14px; }
+    .page-title { font-size: 20px; letter-spacing: .04em; }
+    .page-sub { font-size: 10px; }
+    .module-strip { padding: 8px 14px; }
+    .module-strip-title { font-size: 14px; }
+
+    /* ── MAIN CONTENT ── */
+    .container, .main, .page-body { 
+        padding: 0 10px !important; margin: 12px auto; 
+        max-width: 100% !important;
+    }
+
+    /* ── CARDS ── */
+    .card { 
+        padding: 14px 12px; margin-bottom: 14px; 
+        border-radius: 10px; overflow-x: auto;
+    }
+    .card-title { font-size: 13px; margin-bottom: 10px; padding-bottom: 8px; }
+
+    /* ── FORMS ── */
+    .form-row { 
+        flex-direction: column !important; 
+        gap: 10px !important; 
+    }
+    .form-row > .form-group,
+    .form-row > div { 
+        flex: 1 1 100% !important; width: 100% !important; 
+        min-width: 0 !important;
+    }
+    .form-group { gap: 4px; }
+    .form-group label, label { font-size: 10px; }
+    .form-grid, .form-grid-2, .form-grid-3 { 
+        grid-template-columns: 1fr !important; gap: 10px !important; 
+    }
+
+    input[type="text"], input[type="number"], input[type="date"],
+    input[type="email"], input[type="tel"], input[type="password"],
+    select, textarea {
+        font-size: 16px !important; /* Prevents iOS zoom on focus */
+        padding: 10px !important;
+        min-height: 44px;
+        width: 100% !important;
+        border-radius: 8px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn, button[type="submit"], input[type="submit"], input[type="button"],
+    .btn-primary, .btn-teal, .btn-success, .btn-secondary, .btn-danger,
+    .btn-sm, .btn-add {
+        min-height: 44px; 
+        padding: 10px 16px !important; 
+        font-size: 12px !important;
+        width: 100%;
+        text-align: center;
+    }
+    .btn-row { 
+        flex-direction: column !important; 
+        gap: 8px !important; 
+    }
+    .btn-row .btn, .btn-row button { width: 100%; }
+
+    /* ── TABLES — horizontal scroll wrapper ── */
+    .card > table, .data-table, table {
+        display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        min-width: 500px; font-size: 11px;
+    }
+    th { padding: 6px 6px; font-size: 8px; white-space: nowrap; }
+    td { padding: 6px 6px; font-size: 11px; }
+    td a, td .act-link { font-size: 10px; }
+
+    /* ── TAB BAR ── */
+    .tab-bar, .tab-row { 
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap !important;
+    }
+    .tab-btn, .tab { 
+        font-size: 10px; padding: 8px 12px; white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* ── MENU GRID (Home pages) ── */
+    .menu-grid { 
+        grid-template-columns: 1fr !important; gap: 10px !important; 
+    }
+    .menu-card { padding: 16px 14px; }
+    .menu-title { font-size: 15px; }
+    .menu-desc { font-size: 11px; }
+    .menu-icon { font-size: 24px; }
+
+    /* ── MONTH/YEAR BAR ── */
+    .month-bar, .date-bar, .section-head { 
+        flex-wrap: wrap; gap: 8px;
+        font-size: 12px;
+    }
+
+    /* ── PRODUCTION EXECUTION — wheel area ── */
+    .gear-area { 
+        flex-direction: column !important; gap: 16px; 
+        margin-bottom: 20px;
+    }
+    .gear-wrap { 
+        width: 260px !important; height: 260px !important; 
+    }
+    #gearSvg { width: 260px !important; height: 260px !important; }
+    .grammage-badge { 
+        position: static !important; transform: none !important;
+        margin: 0 auto 10px; display: block; text-align: center;
+        font-size: 22px;
+    }
+    .gear-buttons-row { 
+        flex-direction: row !important; gap: 16px; 
+    }
+    .btn-start, .btn-end { 
+        width: 64px; height: 64px; font-size: 11px; 
+    }
+    .batch-info-row { font-size: 12px; flex-wrap: wrap; }
+    .exec-panel { padding: 12px; }
+    .exec-title { font-size: 16px; }
+    .dough-panel { padding: 12px; }
+
+    /* ── PRODUCT LINE ROWS ── */
+    .line-row {
+        flex-direction: column !important;
+        gap: 8px !important;
+        padding: 10px !important;
+        align-items: stretch !important;
+    }
+    .line-row .prod-sel { min-width: 100% !important; flex: 1 1 100% !important; }
+    .line-row .qty-inp { max-width: 100% !important; flex: 1 1 100% !important; }
+    .line-row .uom-sel { max-width: 100% !important; flex: 1 1 100% !important; }
+    .line-row .line-remove { align-self: flex-end; }
+
+    /* ── SA ZONE/REGION INFO BAR ── */
+    div[style*="background:#f0f8ff"] {
+        flex-direction: column !important;
+        gap: 6px !important;
+        padding: 8px 12px !important;
+    }
+
+    /* ── ORG STRUCTURE (UA) ── */
+    .org-grid, .org-cols { 
+        grid-template-columns: 1fr !important; 
+    }
+
+    /* ── ALERTS ── */
+    .alert { font-size: 12px; padding: 8px 12px; }
+
+    /* ── UPLOAD AREA ── */
+    .upload-area { padding: 20px 14px; }
+
+    /* ── STEP NUMBERS ── */
+    .step-num { width: 24px; height: 24px; font-size: 11px; }
+
+    /* ── BADGES ── */
+    .badge-draft, .badge-confirmed, .badge-shipped, 
+    .badge-saved, .badge-order, .badge-dc, .badge-final {
+        font-size: 9px; padding: 2px 6px;
+    }
+
+    /* ── HIDE non-essential on mobile ── */
+    .hide-mobile { display: none !important; }
+
+    /* ── PREVENT horizontal overflow on body ── */
+    body { overflow-x: hidden; }
+    form { overflow-x: hidden; }
+
+    /* ── UA MODULE — Org Structure columns ── */
+    .role-grid { grid-template-columns: 1fr !important; min-height: auto !important; }
+    .role-list { max-height: 200px; overflow-y: auto; }
+    .app-access-row { flex-direction: column; align-items: flex-start !important; gap: 6px; }
+    .app-access-row label { min-width: auto !important; }
+    .module-list { margin-left: 0 !important; }
+
+    /* ── UA Org — inline flex containers that hold zones/regions/areas side by side ── */
+    div[style*="display:flex"][style*="gap:10px"],
+    div[style*="display:flex"][style*="gap: 10px"] {
+        flex-direction: column !important;
+    }
+    div[style*="flex:1;min-width:280px"],
+    div[style*="flex:1;min-width:300px"],
+    div[style*="flex:1; min-width:280px"] {
+        min-width: 100% !important; width: 100% !important;
+    }
+
+    /* ── StockApp — ERPHome cards ── */
+    .erp-grid, .app-grid { grid-template-columns: 1fr !important; }
+    .erp-card { padding: 14px; }
+
+    /* ── StockApp — DailySales / StockEntry ── */
+    .entry-grid { grid-template-columns: 1fr !important; }
+
+    /* ── SA SalesForce — inline flex elements ── */
+    .sel-path { flex-wrap: wrap; gap: 4px; }
+    .path-tag { font-size: 10px; padding: 2px 6px; }
 }
 
 /* ── TOUCH ENHANCEMENTS (all touch devices) ───────────────── */
