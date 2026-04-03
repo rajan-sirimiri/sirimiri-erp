@@ -78,6 +78,7 @@
     </Compile>
     <Compile Include="MMChangePassword.aspx.cs">
       <DependentUpon>MMChangePassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>

@@ -1,13 +1,13 @@
--- MySQL dump 10.13  Distrib 8.0.45, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
 --
--- Host: 127.0.0.1    Database: stockdb
+-- Host: localhost    Database: stockdb
 -- ------------------------------------------------------
 -- Server version	8.0.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
+/*!50503 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -33,7 +33,7 @@ CREATE TABLE `auditlog` (
   PRIMARY KEY (`AuditID`),
   KEY `FK_Audit_Users` (`UserID`),
   CONSTRAINT `FK_Audit_Users` FOREIGN KEY (`UserID`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=374 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=410 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -282,7 +282,7 @@ CREATE TABLE `mm_consumables` (
   UNIQUE KEY `ConsumableCode` (`ConsumableCode`),
   KEY `UOMID` (`UOMID`),
   CONSTRAINT `mm_consumables_ibfk_1` FOREIGN KEY (`UOMID`) REFERENCES `mm_uom` (`UOMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -337,7 +337,7 @@ CREATE TABLE `mm_openingstock` (
   UNIQUE KEY `uq_opening_stock` (`MaterialType`,`MaterialID`),
   KEY `FK_OS_User` (`CreatedBy`),
   CONSTRAINT `FK_OS_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=69 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -411,7 +411,7 @@ CREATE TABLE `mm_packingmaterials` (
   UNIQUE KEY `UQ_PM_Code` (`PMCode`),
   KEY `FK_PM_UOM` (`UOMID`),
   CONSTRAINT `FK_PM_UOM` FOREIGN KEY (`UOMID`) REFERENCES `mm_uom` (`UOMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=71 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -433,7 +433,7 @@ CREATE TABLE `mm_physicalstock` (
   PRIMARY KEY (`PhysicalID`),
   UNIQUE KEY `uk_session` (`SessionDate`,`MaterialType`,`MaterialID`),
   KEY `idx_phys_date` (`SessionDate`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -498,7 +498,7 @@ CREATE TABLE `mm_rawinward` (
   CONSTRAINT `FK_RawInward_RM` FOREIGN KEY (`RMID`) REFERENCES `mm_rawmaterials` (`RMID`),
   CONSTRAINT `FK_RawInward_Supplier` FOREIGN KEY (`SupplierID`) REFERENCES `mm_suppliers` (`SupplierID`),
   CONSTRAINT `FK_RawInward_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -523,7 +523,7 @@ CREATE TABLE `mm_rawmaterials` (
   UNIQUE KEY `UQ_RM_Code` (`RMCode`),
   KEY `FK_RM_UOM` (`UOMID`),
   CONSTRAINT `FK_RM_UOM` FOREIGN KEY (`UOMID`) REFERENCES `mm_uom` (`UOMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -682,7 +682,7 @@ CREATE TABLE `mm_stockconsumption` (
   KEY `idx_execution` (`ExecutionID`),
   KEY `idx_order` (`OrderID`),
   KEY `idx_rm` (`RMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -705,7 +705,7 @@ CREATE TABLE `mm_stockreconciliation` (
   PRIMARY KEY (`ReconID`),
   KEY `idx_recon_date` (`ReconDate`),
   KEY `idx_recon_material` (`MaterialType`,`MaterialID`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -732,7 +732,7 @@ CREATE TABLE `mm_suppliers` (
   `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`SupplierID`),
   UNIQUE KEY `UQ_Supplier_Code` (`SupplierCode`)
-) ENGINE=InnoDB AUTO_INCREMENT=308 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=310 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -955,7 +955,7 @@ CREATE TABLE `pk_packingexecution` (
   PRIMARY KEY (`PackingID`),
   UNIQUE KEY `UQ_PK_Batch` (`OrderID`,`BatchNo`),
   CONSTRAINT `FK_PKExec_Order` FOREIGN KEY (`OrderID`) REFERENCES `pp_productionorder` (`OrderID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1125,7 +1125,7 @@ CREATE TABLE `pp_batchexecution` (
   KEY `FK_BE_User` (`CreatedBy`),
   CONSTRAINT `FK_BE_Order` FOREIGN KEY (`OrderID`) REFERENCES `pp_productionorder` (`OrderID`),
   CONSTRAINT `FK_BE_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1145,7 +1145,7 @@ CREATE TABLE `pp_batchparams` (
   KEY `FK_BPParam_Param` (`ParamID`),
   CONSTRAINT `FK_BPParam_Exec` FOREIGN KEY (`ExecutionID`) REFERENCES `pp_batchexecution` (`ExecutionID`),
   CONSTRAINT `FK_BPParam_Param` FOREIGN KEY (`ParamID`) REFERENCES `pp_productparams` (`ParamID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1211,7 +1211,7 @@ CREATE TABLE `pp_dailyplanrow` (
   KEY `FK_DPlanRow_Product` (`ProductID`),
   CONSTRAINT `FK_DPlanRow_Plan` FOREIGN KEY (`PlanID`) REFERENCES `pp_dailyplan` (`PlanID`),
   CONSTRAINT `FK_DPlanRow_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1305,7 +1305,7 @@ CREATE TABLE `pp_productionorder` (
   CONSTRAINT `FK_PO_PlanRow` FOREIGN KEY (`PlanRowID`) REFERENCES `pp_dailyplanrow` (`RowID`) ON DELETE CASCADE,
   CONSTRAINT `FK_PO_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`),
   CONSTRAINT `FK_PO_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1469,7 +1469,7 @@ CREATE TABLE `sa_areas` (
   PRIMARY KEY (`AreaID`),
   UNIQUE KEY `AreaCode` (`AreaCode`),
   KEY `idx_region` (`RegionID`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1531,7 +1531,7 @@ CREATE TABLE `sa_orgpositions` (
   KEY `idx_zone` (`ZoneID`),
   KEY `idx_region` (`RegionID`),
   KEY `idx_reports` (`ReportsToID`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1551,7 +1551,7 @@ CREATE TABLE `sa_projectionlines` (
   PRIMARY KEY (`LineID`),
   UNIQUE KEY `uk_proj_product` (`ProjectionID`,`ProductID`),
   KEY `idx_proj` (`ProjectionID`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1576,7 +1576,7 @@ CREATE TABLE `sa_projections` (
   PRIMARY KEY (`ProjectionID`),
   UNIQUE KEY `uk_month_channel_position` (`ProjectionMonth`,`ProjectionYear`,`ChannelID`,`PositionID`),
   KEY `idx_month_year` (`ProjectionMonth`,`ProjectionYear`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1597,7 +1597,7 @@ CREATE TABLE `sa_regions` (
   PRIMARY KEY (`RegionID`),
   UNIQUE KEY `RegionCode` (`RegionCode`),
   KEY `idx_zone` (`ZoneID`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1615,7 +1615,7 @@ CREATE TABLE `sa_shipmentlines` (
   `ShippedQty` int NOT NULL DEFAULT '0' COMMENT 'Actual shipped (user can modify)',
   PRIMARY KEY (`LineID`),
   KEY `idx_ship` (`ShipmentID`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1644,7 +1644,7 @@ CREATE TABLE `sa_shipments` (
   PRIMARY KEY (`ShipmentID`),
   KEY `idx_date` (`ShipmentDate`),
   KEY `idx_proj` (`ProjectionID`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1772,7 +1772,7 @@ CREATE TABLE `users` (
   KEY `fk_reporting_manager` (`ReportingManagerID`),
   CONSTRAINT `fk_reporting_manager` FOREIGN KEY (`ReportingManagerID`) REFERENCES `users` (`UserID`) ON DELETE SET NULL,
   CONSTRAINT `FK_Users_States` FOREIGN KEY (`StateID`) REFERENCES `states` (`StateID`)
-) ENGINE=InnoDB AUTO_INCREMENT=87 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=89 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1784,4 +1784,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-02  5:26:22
+-- Dump completed on 2026-04-03  9:00:01
