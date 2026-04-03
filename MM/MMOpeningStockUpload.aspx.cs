@@ -43,34 +43,74 @@ namespace MMApp
         {
             using (var wb = new XLWorkbook())
             {
-                var types = new[] {
-                    new { Name = "Raw Materials", Code = "RM", Sample = new[] { "R-001", "Sugar", "500", "42.50", "01-04-2026", "Opening balance" } },
-                    new { Name = "Packing Materials", Code = "PM", Sample = new[] { "PM-001", "Jar 100ml", "1000", "5.25", "01-04-2026", "Opening balance" } },
-                    new { Name = "Consumables", Code = "CN", Sample = new[] { "CN-001", "Gloves", "200", "12.00", "01-04-2026", "Opening balance" } },
-                    new { Name = "Stationaries", Code = "ST", Sample = new[] { "ST-001", "A4 Paper", "50", "280.00", "01-04-2026", "Opening balance" } }
-                };
+                string today = DateTime.Now.ToString("dd-MM-yyyy");
 
-                foreach (var t in types)
+                // ── Raw Materials ──
+                var wsRM = wb.AddWorksheet("Raw Materials");
+                WriteSheetHeader(wsRM);
+                DataTable rmData = MMDatabaseHelper.GetActiveRawMaterials();
+                int row = 3;
+                foreach (DataRow r in rmData.Rows)
                 {
-                    var ws = wb.AddWorksheet(t.Name);
-                    ws.Cell(1, 1).Value = "Fill Material Code, Quantity, Rate, Date. Name is for reference only.";
-                    ws.Range("A1:F1").Merge().Style.Font.SetItalic(true).Font.SetFontColor(XLColor.Gray);
-
-                    string[] headers = { "Material Code *", "Material Name", "Quantity *", "Rate (₹) *", "As Of Date (DD-MM-YYYY) *", "Remarks" };
-                    for (int c = 0; c < headers.Length; c++)
-                    {
-                        ws.Cell(2, c + 1).Value = headers[c];
-                        ws.Cell(2, c + 1).Style.Font.SetBold(true).Font.SetFontColor(XLColor.White)
-                            .Fill.SetBackgroundColor(XLColor.FromHtml("#2C3E50"))
-                            .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
-                    }
-                    for (int c = 0; c < t.Sample.Length; c++)
-                        ws.Cell(3, c + 1).Value = t.Sample[c];
-
-                    ws.Columns().AdjustToContents();
-                    ws.Column(1).Width = 20; ws.Column(2).Width = 35;
-                    ws.SheetView.FreezeRows(2);
+                    wsRM.Cell(row, 1).Value = r["RMCode"].ToString();
+                    wsRM.Cell(row, 2).Value = r["RMName"].ToString();
+                    wsRM.Cell(row, 1).Style.Font.SetFontColor(XLColor.FromHtml("#333333")).Font.SetBold(true);
+                    wsRM.Cell(row, 2).Style.Font.SetFontColor(XLColor.FromHtml("#666666"));
+                    wsRM.Cell(row, 5).Value = today;
+                    row++;
                 }
+                FinalizeSheet(wsRM);
+
+                // ── Packing Materials ──
+                var wsPM = wb.AddWorksheet("Packing Materials");
+                WriteSheetHeader(wsPM);
+                DataTable pmData = MMDatabaseHelper.GetAllPackingMaterials();
+                row = 3;
+                foreach (DataRow r in pmData.Rows)
+                {
+                    if (Convert.ToBoolean(r["IsActive"]) == false) continue;
+                    wsPM.Cell(row, 1).Value = r["PMCode"].ToString();
+                    wsPM.Cell(row, 2).Value = r["PMName"].ToString();
+                    wsPM.Cell(row, 1).Style.Font.SetFontColor(XLColor.FromHtml("#333333")).Font.SetBold(true);
+                    wsPM.Cell(row, 2).Style.Font.SetFontColor(XLColor.FromHtml("#666666"));
+                    wsPM.Cell(row, 5).Value = today;
+                    row++;
+                }
+                FinalizeSheet(wsPM);
+
+                // ── Consumables ──
+                var wsCN = wb.AddWorksheet("Consumables");
+                WriteSheetHeader(wsCN);
+                DataTable cnData = MMDatabaseHelper.GetAllConsumables();
+                row = 3;
+                foreach (DataRow r in cnData.Rows)
+                {
+                    if (Convert.ToBoolean(r["IsActive"]) == false) continue;
+                    wsCN.Cell(row, 1).Value = r["ConsumableCode"].ToString();
+                    wsCN.Cell(row, 2).Value = r["ConsumableName"].ToString();
+                    wsCN.Cell(row, 1).Style.Font.SetFontColor(XLColor.FromHtml("#333333")).Font.SetBold(true);
+                    wsCN.Cell(row, 2).Style.Font.SetFontColor(XLColor.FromHtml("#666666"));
+                    wsCN.Cell(row, 5).Value = today;
+                    row++;
+                }
+                FinalizeSheet(wsCN);
+
+                // ── Stationaries ──
+                var wsST = wb.AddWorksheet("Stationaries");
+                WriteSheetHeader(wsST);
+                DataTable stData = MMDatabaseHelper.GetAllStationaries();
+                row = 3;
+                foreach (DataRow r in stData.Rows)
+                {
+                    if (Convert.ToBoolean(r["IsActive"]) == false) continue;
+                    wsST.Cell(row, 1).Value = r["StationaryCode"].ToString();
+                    wsST.Cell(row, 2).Value = r["StationaryName"].ToString();
+                    wsST.Cell(row, 1).Style.Font.SetFontColor(XLColor.FromHtml("#333333")).Font.SetBold(true);
+                    wsST.Cell(row, 2).Style.Font.SetFontColor(XLColor.FromHtml("#666666"));
+                    wsST.Cell(row, 5).Value = today;
+                    row++;
+                }
+                FinalizeSheet(wsST);
 
                 Response.Clear();
                 Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -81,6 +121,38 @@ namespace MMApp
                     ms.WriteTo(Response.OutputStream);
                 }
                 Response.End();
+            }
+        }
+
+        void WriteSheetHeader(IXLWorksheet ws)
+        {
+            ws.Cell(1, 1).Value = "Fill Quantity, Rate, Date. Code and Name are pre-populated. Do not change the Code column.";
+            ws.Range("A1:F1").Merge().Style.Font.SetItalic(true).Font.SetFontColor(XLColor.Gray);
+
+            string[] headers = { "Material Code *", "Material Name", "Quantity *", "Rate (₹) *", "As Of Date (DD-MM-YYYY) *", "Remarks" };
+            for (int c = 0; c < headers.Length; c++)
+            {
+                ws.Cell(2, c + 1).Value = headers[c];
+                ws.Cell(2, c + 1).Style.Font.SetBold(true).Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromHtml("#2C3E50"))
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+            }
+        }
+
+        void FinalizeSheet(IXLWorksheet ws)
+        {
+            ws.Column(1).Width = 18;
+            ws.Column(2).Width = 40;
+            ws.Column(3).Width = 14;
+            ws.Column(4).Width = 14;
+            ws.Column(5).Width = 24;
+            ws.Column(6).Width = 28;
+            ws.SheetView.FreezeRows(2);
+            // Protect code and name columns (light gray background)
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 2;
+            if (lastRow > 2)
+            {
+                ws.Range(3, 1, lastRow, 2).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#F5F5F5"));
             }
         }
 
