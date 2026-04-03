@@ -70,6 +70,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div class="header-logo"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/></div>
     <div class="header-center"><div class="header-brand">Sirimiri Nutrition Food Products</div><div class="header-tagline">Enterprise Resource Planning</div></div>
     <div class="header-right"><div><div class="header-user-name"><asp:Label ID="lblUserName" runat="server"/></div><div class="header-user-role"><asp:Label ID="lblUserRole" runat="server"/></div></div>
+    <a href="/StockApp/ChangePassword.aspx" class="btn-signout" style="background:transparent;border:1px solid rgba(255,255,255,.25);margin-right:6px;">&#x1F512; Change Password</a>
     <a href="#" class="btn-signout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='Logout.aspx';}});return false;">&#x2192; Sign Out</a></div>
 </header>
 <nav class="sa-nav"><a href="SAHome.aspx" class="nav-item">&#x2302; SA Home</a><span class="nav-item active">&#x1F4F1; Sales Force Order Platform</span></nav>

@@ -120,6 +120,7 @@
                 <div class="header-user-name"><asp:Label ID="lblUserName" runat="server" /></div>
                 <div class="header-user-role"><asp:Label ID="lblUserRole" runat="server" /></div>
             </div>
+            <a href="PPChangePassword.aspx" class="btn-signout" style="background:transparent;border:1px solid rgba(255,255,255,.25);margin-right:6px;">&#x1F512; Change Password</a>
             <a href="#" class="btn-signout" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">&#x2192; Sign Out</a>
         </div>
     </header>
