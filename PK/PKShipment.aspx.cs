@@ -10,15 +10,15 @@ namespace PKApp
     {
         protected Label lblUser, lblAlert, lblFormTitle;
         protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
-        protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus;
+        protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus, lblSAChannel, lblSATransport;
         protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
-        protected Panel pnlSAEmpty, pnlSAList, pnlSADetail;
-        protected HiddenField hfDCID, hfLines, hfProductData, hfSAShipId;
+        protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
+        protected HiddenField hfDCID, hfLines, hfProductData, hfSAShipId, hfSAProductOptions;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
-        protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail;
-        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines;
+        protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
+        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -339,29 +339,100 @@ namespace PKApp
             lblSAOrderId.Text = "SH-" + shipId.ToString("D5");
 
             // Get shipment header
-            var orders = PKDatabaseHelper.GetSAShipmentOrders();
-            DataRow order = null;
-            foreach (DataRow r in orders.Rows)
-                if (Convert.ToInt32(r["ShipmentID"]) == shipId) { order = r; break; }
+            DataRow order = PKDatabaseHelper.GetSAShipmentById(shipId);
+            if (order == null) return;
 
-            if (order != null)
+            lblSACustomer.Text = order["CustomerName"].ToString();
+            lblSADate.Text = Convert.ToDateTime(order["ShipmentDate"]).ToString("dd-MMM-yyyy");
+            lblSAArea.Text = order["AreaName"] + " (" + order["ZoneName"] + " / " + order["RegionName"] + ")";
+            if (lblSAChannel != null) lblSAChannel.Text = order["ChannelName"].ToString();
+            if (lblSATransport != null) lblSATransport.Text = order["TransportMode"].ToString();
+
+            string status = order["Status"].ToString();
+            lblSAStatus.Text = status;
+
+            bool canEdit = (status == "Order" || status == "DC");
+            bool isShipped = (status == "Shipped");
+
+            if (btnConvertDC != null) btnConvertDC.Visible = (status == "Order");
+            if (btnUnconvertDC != null) btnUnconvertDC.Visible = (status == "DC");
+            if (btnDispatch != null) btnDispatch.Visible = (status == "DC");
+            if (btnSaveSAEdit != null) btnSaveSAEdit.Visible = canEdit;
+            if (pnlSAEditLines != null) pnlSAEditLines.Visible = canEdit;
+
+            // Load FG stock check table
+            var stockLines = PKDatabaseHelper.CheckFGStockForSAOrder(shipId);
+            if (rptSALines != null) { rptSALines.DataSource = stockLines; rptSALines.DataBind(); }
+
+            // Load editable lines
+            if (canEdit)
             {
-                lblSACustomer.Text = order["CustomerName"].ToString();
-                lblSADate.Text = Convert.ToDateTime(order["ShipmentDate"]).ToString("dd-MMM-yyyy");
-                lblSAArea.Text = order["AreaName"] + " (" + order["ZoneName"] + " / " + order["RegionName"] + ")";
-                lblSAStatus.Text = order["Status"].ToString();
+                var editLines = PKDatabaseHelper.GetSAShipmentLines(shipId);
+                if (rptSAEditLines != null) { rptSAEditLines.DataSource = editLines; rptSAEditLines.DataBind(); }
 
-                string status = order["Status"].ToString();
-                if (btnConvertDC != null) btnConvertDC.Visible = (status == "Order");
-                if (btnUnconvertDC != null) btnUnconvertDC.Visible = (status == "DC");
-                if (btnDispatch != null) btnDispatch.Visible = (status == "DC");
+                // Build product options HTML for JS addSAEditLine
+                DataTable products = PKDatabaseHelper.ExecuteQueryPublic(
+                    "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
+                var sb = new System.Text.StringBuilder();
+                foreach (DataRow r in products.Rows)
+                    sb.Append("<option value='" + r["ProductID"] + "'>" + r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
+                if (hfSAProductOptions != null) hfSAProductOptions.Value = sb.ToString();
             }
 
-            // Load lines with stock check
-            var lines = PKDatabaseHelper.CheckFGStockForSAOrder(shipId);
-            if (rptSALines != null) { rptSALines.DataSource = lines; rptSALines.DataBind(); }
-
             pnlSADetail.Visible = true;
+        }
+
+        protected void rptSAEditLines_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
+
+            var row = (DataRowView)e.Item.DataItem;
+            int savedPid = row["ProductID"] != DBNull.Value ? Convert.ToInt32(row["ProductID"]) : 0;
+
+            var lit = e.Item.FindControl("litSAEditProduct") as Literal;
+            if (lit != null)
+            {
+                DataTable products = PKDatabaseHelper.ExecuteQueryPublic(
+                    "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
+                var sb = new System.Text.StringBuilder();
+                foreach (DataRow r in products.Rows)
+                {
+                    int pid = Convert.ToInt32(r["ProductID"]);
+                    string sel = (pid == savedPid) ? " selected" : "";
+                    sb.Append("<option value='" + pid + "'" + sel + ">" + r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
+                }
+                lit.Text = sb.ToString();
+            }
+        }
+
+        protected void btnSaveSAEdit_Click(object s, EventArgs e)
+        {
+            int shipId = Convert.ToInt32(hfSAShipId.Value);
+            if (shipId == 0) return;
+
+            string[] pids = Request.Form.GetValues("sa_edit_product");
+            string[] qtys = Request.Form.GetValues("sa_edit_qty");
+
+            if (pids == null || qtys == null)
+            { ShowAlert("No product lines to save.", false); return; }
+
+            var productIds = new System.Collections.Generic.List<int>();
+            var quantities = new System.Collections.Generic.List<int>();
+
+            for (int i = 0; i < pids.Length; i++)
+            {
+                int pid = 0; int.TryParse(pids[i], out pid);
+                int qty = 0; int.TryParse(qtys[i], out qty);
+                if (pid > 0 && qty > 0) { productIds.Add(pid); quantities.Add(qty); }
+            }
+
+            if (productIds.Count == 0)
+            { ShowAlert("Please add at least one product with quantity.", false); return; }
+
+            PKDatabaseHelper.UpdateSAShipmentLines(shipId, productIds.ToArray(), quantities.ToArray());
+            ShowAlert("SH-" + shipId.ToString("D5") + " updated.", true);
+            LoadSAOrderDetail(shipId);
+            BindSAOrders();
         }
 
         void DoConvertToDC(int shipId)

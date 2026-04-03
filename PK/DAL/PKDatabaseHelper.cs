@@ -1562,6 +1562,45 @@ namespace PKApp.DAL
                 new MySqlParameter("?sid", shipmentId));
         }
 
+        /// <summary>Get single SA shipment with full details for editing</summary>
+        public static DataRow GetSAShipmentById(int shipmentId)
+        {
+            return ExecuteQueryRow(
+                "SELECT sh.*, IFNULL(cust.CustomerName,'—') AS CustomerName," +
+                " IFNULL(ar.AreaName,'—') AS AreaName," +
+                " IFNULL(z.ZoneName,'—') AS ZoneName," +
+                " IFNULL(r.RegionName,'—') AS RegionName," +
+                " IFNULL(c.ChannelName,'—') AS ChannelName," +
+                " IFNULL(tm.ModeName,'—') AS TransportMode" +
+                " FROM SA_Shipments sh" +
+                " LEFT JOIN PK_Customers cust ON cust.CustomerID=sh.CustomerID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.PositionID" +
+                " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
+                " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
+                " LEFT JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
+                " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
+                " WHERE sh.ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+        }
+
+        /// <summary>Update SA shipment line items from PK edit</summary>
+        public static void UpdateSAShipmentLines(int shipmentId, int[] productIds, int[] quantities)
+        {
+            ExecuteNonQuery("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+            for (int i = 0; i < productIds.Length; i++)
+            {
+                if (productIds[i] > 0 && quantities[i] > 0)
+                {
+                    ExecuteNonQuery(
+                        "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ShippedQty) VALUES (?sid,?pid,?qty);",
+                        new MySqlParameter("?sid", shipmentId),
+                        new MySqlParameter("?pid", productIds[i]),
+                        new MySqlParameter("?qty", quantities[i]));
+                }
+            }
+        }
+
         /// <summary>Complete shipment dispatch — set status to Shipped and deduct FG stock</summary>
         public static void CompleteSAShipmentDispatch(int shipmentId, int userId)
         {

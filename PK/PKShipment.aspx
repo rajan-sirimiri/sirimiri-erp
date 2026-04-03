@@ -206,16 +206,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         </asp:Panel>
     </div>
 
-    <!-- SA ORDER DETAIL POPUP -->
+    <!-- SA ORDER EDIT/VIEW -->
     <asp:Panel ID="pnlSADetail" runat="server" Visible="false">
     <div class="card">
-        <div class="card-title">Order Details — <asp:Label ID="lblSAOrderId" runat="server"/></div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="card-title">Order — <asp:Label ID="lblSAOrderId" runat="server"/> <asp:Label ID="lblSAStatus" runat="server" style="margin-left:8px;"/></div>
+
+        <!-- Header info -->
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;padding:12px 16px;background:#f0f8ff;border:1px solid #c2ddf5;border-radius:8px;">
             <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Customer</span><div style="font-weight:600;"><asp:Label ID="lblSACustomer" runat="server"/></div></div>
             <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Date</span><div><asp:Label ID="lblSADate" runat="server"/></div></div>
             <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Area</span><div><asp:Label ID="lblSAArea" runat="server"/></div></div>
-            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Status</span><div><asp:Label ID="lblSAStatus" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Channel</span><div><asp:Label ID="lblSAChannel" runat="server"/></div></div>
+            <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;">Transport</span><div><asp:Label ID="lblSATransport" runat="server"/></div></div>
         </div>
+
+        <!-- FG Stock Check table (always shown) -->
         <asp:Repeater ID="rptSALines" runat="server">
             <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th class="num">Qty (Jars)</th><th class="num">FG Stock</th><th>Stock OK?</th></tr></thead><tbody></HeaderTemplate>
             <ItemTemplate><tr>
@@ -226,7 +231,38 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </tr></ItemTemplate>
             <FooterTemplate></tbody></table></FooterTemplate>
         </asp:Repeater>
+
+        <!-- Editable product lines (only for Order/DC status) -->
+        <asp:Panel ID="pnlSAEditLines" runat="server" Visible="false">
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;">EDIT PRODUCTS</div>
+            <div id="divSAEditLines">
+                <asp:Repeater ID="rptSAEditLines" runat="server" OnItemDataBound="rptSAEditLines_ItemDataBound">
+                    <ItemTemplate>
+                        <div class="form-row" style="margin-bottom:6px;align-items:center;">
+                            <div class="form-group" style="flex:3;">
+                                <select name="sa_edit_product" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                                    <option value="0">-- Select Product --</option>
+                                    <asp:Literal ID="litSAEditProduct" runat="server"/>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <input type="number" name="sa_edit_qty" min="0" step="1" value='<%# Eval("Qty") %>'
+                                    style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;" placeholder="Qty"/>
+                            </div>
+                            <div style="flex:0;">
+                                <button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest('.form-row').remove();">&#x2715;</button>
+                            </div>
+                        </div>
+                    </ItemTemplate>
+                </asp:Repeater>
+            </div>
+            <button type="button" class="btn btn-secondary" style="margin-top:8px;font-size:11px;" onclick="addSAEditLine();">+ Add Product</button>
+        </div>
+        </asp:Panel>
+
         <div class="btn-row" style="margin-top:14px;">
+            <asp:Button ID="btnSaveSAEdit" runat="server" Text="&#x1F4BE; Save Changes" CssClass="btn btn-primary" OnClick="btnSaveSAEdit_Click" CausesValidation="false"/>
             <asp:Button ID="btnConvertDC" runat="server" Text="&#x2705; Convert to DC" CssClass="btn btn-success" OnClick="btnConvertDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnUnconvertDC" runat="server" Text="&#x21A9; Unconvert DC" CssClass="btn btn-secondary" OnClick="btnUnconvertDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnDispatch" runat="server" Text="&#x1F69A; Finalize Shipment" CssClass="btn btn-primary" OnClick="btnDispatch_Click" CausesValidation="false"/>
@@ -235,6 +271,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div>
     </asp:Panel>
     <asp:HiddenField ID="hfSAShipId" runat="server" Value="0"/>
+    <asp:HiddenField ID="hfSAProductOptions" runat="server" Value=""/>
 
     <!-- ══════ RECENT DCs LIST ══════ -->
     <div class="card">
@@ -401,6 +438,17 @@ function renderLines(){
 
 function syncLines(){
     document.getElementById('<%= hfLines.ClientID %>').value=JSON.stringify(lines);
+}
+function addSAEditLine(){
+    var p = document.getElementById('<%= hfSAProductOptions.ClientID %>').value;
+    var d = document.getElementById('divSAEditLines');
+    var r = document.createElement('div');
+    r.className = 'form-row';
+    r.style.cssText = 'margin-bottom:6px;align-items:center;';
+    r.innerHTML = '<div class="form-group" style="flex:3;"><select name="sa_edit_product" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select></div>'
+        + '<div class="form-group" style="flex:1;"><input type="number" name="sa_edit_qty" min="0" step="1" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;" placeholder="Qty"/></div>'
+        + '<div style="flex:0;"><button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest(\'.form-row\').remove();">&#x2715;</button></div>';
+    d.appendChild(r);
 }
 </script>
 <script src="/StockApp/erp-modal.js"></script>
