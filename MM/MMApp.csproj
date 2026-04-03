@@ -76,6 +76,9 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="MMChangePassword.aspx.cs">
+      <DependentUpon>MMChangePassword.aspx</DependentUpon>
+    </Compile>
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -90,6 +93,7 @@
     </Compile>
     <Content Include="Global.asax" />
     <Compile Include="Global.asax.cs" />
+    <Content Include="MMChangePassword.aspx" />
     <Content Include="MMLogin.aspx" />
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>

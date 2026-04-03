@@ -37,7 +37,11 @@ namespace UAApp
             Session["UA_UserID"] = userId;
             Session["UA_FullName"] = user["FullName"].ToString();
             Session["UA_Role"] = role;
-            Response.Redirect("UAHome.aspx");
+
+            if (user.Table.Columns.Contains("MustChangePwd") && Convert.ToInt32(user["MustChangePwd"]) == 1)
+                Response.Redirect("UAChangePassword.aspx");
+            else
+                Response.Redirect("UAHome.aspx");
         }
 
         private void ShowAlert(string msg) { pnlAlert.Visible = true; lblAlert.Text = msg; }

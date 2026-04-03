@@ -55,13 +55,7 @@ namespace PKApp
             if (string.IsNullOrEmpty(u) || string.IsNullOrEmpty(p))
             { ShowErr("Enter username and password."); return; }
 
-            string hash;
-            using (var sha = SHA256.Create())
-            {
-                hash = BitConverter.ToString(
-                    sha.ComputeHash(Encoding.UTF8.GetBytes(p)))
-                    .Replace("-", "").ToLower();
-            }
+            string hash = ComputeSHA256(p);
 
             var row = PKDatabaseHelper.ValidateUser(u, hash);
             if (row == null) { ShowErr("Invalid credentials."); return; }
@@ -74,7 +68,11 @@ namespace PKApp
             Session["PK_UserID"]   = Convert.ToInt32(row["UserID"]);
             Session["PK_FullName"] = row["FullName"].ToString();
             Session["PK_Role"]     = row["Role"].ToString();
-            Response.Redirect(GetReturnUrl());
+
+            if (row.Table.Columns.Contains("MustChangePwd") && Convert.ToInt32(row["MustChangePwd"]) == 1)
+                Response.Redirect("~/PKChangePassword.aspx");
+            else
+                Response.Redirect(GetReturnUrl());
         }
 
         // ── SSO token validation (direct DB call) ──
@@ -118,6 +116,16 @@ namespace PKApp
                     return returnUrl;
             }
             return "PKHome.aspx";
+        }
+
+        public static string ComputeSHA256(string input)
+        {
+            using (var sha = SHA256.Create())
+            {
+                return BitConverter.ToString(
+                    sha.ComputeHash(Encoding.UTF8.GetBytes(input)))
+                    .Replace("-", "").ToLower();
+            }
         }
     }
 }

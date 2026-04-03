@@ -21,7 +21,7 @@ namespace PKApp.DAL
         public static DataRow ValidateUser(string username, string hash)
         {
             return ExecuteQueryRow(
-                "SELECT UserID, Username, FullName, Role FROM Users" +
+                "SELECT UserID, Username, FullName, Role, MustChangePwd FROM Users" +
                 " WHERE Username=?u AND PasswordHash=?p AND IsActive=1;",
                 new MySqlParameter("?u", username),
                 new MySqlParameter("?p", hash));
@@ -1629,6 +1629,19 @@ namespace PKApp.DAL
             // Update status
             ExecuteNonQuery("UPDATE SA_Shipments SET Status='Shipped' WHERE ShipmentID=?sid;",
                 new MySqlParameter("?sid", shipmentId));
+        }
+
+        public static bool VerifyPassword(int userId, string passwordHash)
+        {
+            var dt = ExecuteQuery("SELECT UserID FROM Users WHERE UserID=?id AND PasswordHash=?h;",
+                new MySqlParameter("?id", userId), new MySqlParameter("?h", passwordHash));
+            return dt.Rows.Count > 0;
+        }
+
+        public static void ChangePassword(int userId, string newHash)
+        {
+            ExecuteNonQuery("UPDATE Users SET PasswordHash=?h, MustChangePwd=0 WHERE UserID=?id;",
+                new MySqlParameter("?h", newHash), new MySqlParameter("?id", userId));
         }
     }
 }

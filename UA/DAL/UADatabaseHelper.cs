@@ -41,7 +41,7 @@ namespace UAApp.DAL
         public static DataRow ValidateUser(string username, string passwordHash)
         {
             return ExecuteQueryRow(
-                "SELECT UserID, FullName, Username, Role, IsActive FROM Users WHERE Username=?u AND PasswordHash=?p AND IsActive=1;",
+                "SELECT UserID, FullName, Username, Role, IsActive, MustChangePwd FROM Users WHERE Username=?u AND PasswordHash=?p AND IsActive=1;",
                 new MySqlParameter("?u", username), new MySqlParameter("?p", passwordHash));
         }
 
@@ -327,5 +327,18 @@ namespace UAApp.DAL
 
         public static void ExecuteNonQueryDirect(string sql, params MySqlParameter[] prms)
         { ExecuteNonQuery(sql, prms); }
+
+        public static bool VerifyPassword(int userId, string passwordHash)
+        {
+            var dt = ExecuteQuery("SELECT UserID FROM Users WHERE UserID=?id AND PasswordHash=?h;",
+                new MySqlParameter("?id", userId), new MySqlParameter("?h", passwordHash));
+            return dt.Rows.Count > 0;
+        }
+
+        public static void ChangePassword(int userId, string newHash)
+        {
+            ExecuteNonQuery("UPDATE Users SET PasswordHash=?h, MustChangePwd=0 WHERE UserID=?id;",
+                new MySqlParameter("?h", newHash), new MySqlParameter("?id", userId));
+        }
     }
 }

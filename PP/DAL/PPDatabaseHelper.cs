@@ -1764,5 +1764,18 @@ namespace PPApp.DAL
             }
             catch { return true; } // Fail open
         }
+
+        public static bool VerifyPassword(int userId, string passwordHash)
+        {
+            var dt = ExecuteQuery("SELECT UserID FROM Users WHERE UserID=?id AND PasswordHash=?h;",
+                new MySqlParameter("?id", userId), new MySqlParameter("?h", passwordHash));
+            return dt.Rows.Count > 0;
+        }
+
+        public static void ChangePassword(int userId, string newHash)
+        {
+            ExecuteNonQuery("UPDATE Users SET PasswordHash=?h, MustChangePwd=0 WHERE UserID=?id;",
+                new MySqlParameter("?h", newHash), new MySqlParameter("?id", userId));
+        }
     }
 }

@@ -86,7 +86,10 @@ namespace PPApp
 
             PPDatabaseHelper.UpdateLastLogin(userId);
 
-            Response.Redirect("~/PPHome.aspx");
+            if (user.Table.Columns.Contains("MustChangePwd") && Convert.ToInt32(user["MustChangePwd"]) == 1)
+                Response.Redirect("~/PPChangePassword.aspx");
+            else
+                Response.Redirect("~/PPHome.aspx");
         }
 
         // ── SSO token validation (direct DB call) ──
