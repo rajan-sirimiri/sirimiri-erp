@@ -1555,6 +1555,13 @@ namespace PKApp.DAL
                 new MySqlParameter("?sid", shipmentId));
         }
 
+        /// <summary>Unconvert DC back to Order status — SA regains edit rights</summary>
+        public static void UnconvertSAShipmentDC(int shipmentId)
+        {
+            ExecuteNonQuery("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid AND Status='DC';",
+                new MySqlParameter("?sid", shipmentId));
+        }
+
         /// <summary>Complete shipment dispatch — set status to Shipped and deduct FG stock</summary>
         public static void CompleteSAShipmentDispatch(int shipmentId, int userId)
         {

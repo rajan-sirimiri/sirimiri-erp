@@ -17,7 +17,7 @@ namespace PKApp
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
-        protected Button btnConvertDC, btnDispatch, btnCloseSADetail;
+        protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail;
         protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
@@ -315,9 +315,17 @@ namespace PKApp
             {
                 LoadSAOrderDetail(shipId);
             }
+            else if (e.CommandName == "EditSAOrder")
+            {
+                LoadSAOrderDetail(shipId);
+            }
             else if (e.CommandName == "ConvertDC")
             {
                 DoConvertToDC(shipId);
+            }
+            else if (e.CommandName == "UnconvertDC")
+            {
+                DoUnconvertDC(shipId);
             }
             else if (e.CommandName == "Dispatch")
             {
@@ -345,6 +353,7 @@ namespace PKApp
 
                 string status = order["Status"].ToString();
                 if (btnConvertDC != null) btnConvertDC.Visible = (status == "Order");
+                if (btnUnconvertDC != null) btnUnconvertDC.Visible = (status == "DC");
                 if (btnDispatch != null) btnDispatch.Visible = (status == "DC");
             }
 
@@ -383,6 +392,20 @@ namespace PKApp
         {
             int shipId = Convert.ToInt32(hfSAShipId.Value);
             if (shipId > 0) DoConvertToDC(shipId);
+        }
+
+        void DoUnconvertDC(int shipId)
+        {
+            PKDatabaseHelper.UnconvertSAShipmentDC(shipId);
+            ShowAlert("SH-" + shipId.ToString("D5") + " reverted to Order status. SA team can now edit again.", true);
+            pnlSADetail.Visible = false;
+            BindSAOrders();
+        }
+
+        protected void btnUnconvertDC_Click(object s, EventArgs e)
+        {
+            int shipId = Convert.ToInt32(hfSAShipId.Value);
+            if (shipId > 0) DoUnconvertDC(shipId);
         }
 
         void DoCompleteDispatch(int shipId)

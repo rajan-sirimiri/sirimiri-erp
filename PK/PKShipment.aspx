@@ -183,14 +183,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                         <td class="num"><%# Eval("ProductCount") %></td>
                         <td><%# GetSAStatusBadge(Eval("Status").ToString()) %></td>
                         <td>
+                            <asp:LinkButton runat="server" CommandName="EditSAOrder" CommandArgument='<%# Eval("ShipmentID") %>'
+                                CssClass="act-link" CausesValidation="false"
+                                Visible='<%# Eval("Status").ToString() != "Shipped" %>'>Edit</asp:LinkButton>
                             <asp:LinkButton runat="server" CommandName="ViewSAOrder" CommandArgument='<%# Eval("ShipmentID") %>'
-                                CssClass="act-link" CausesValidation="false">View</asp:LinkButton>
+                                CssClass="act-link" CausesValidation="false"
+                                Visible='<%# Eval("Status").ToString() == "Shipped" %>'>View</asp:LinkButton>
                             <asp:LinkButton runat="server" CommandName="ConvertDC" CommandArgument='<%# Eval("ShipmentID") %>'
                                 CssClass="act-link" CausesValidation="false" Visible='<%# Eval("Status").ToString()=="Order" %>'
                                 style="margin-left:8px;color:var(--teal);">Convert to DC</asp:LinkButton>
+                            <asp:LinkButton runat="server" CommandName="UnconvertDC" CommandArgument='<%# Eval("ShipmentID") %>'
+                                CssClass="act-link" CausesValidation="false" Visible='<%# Eval("Status").ToString()=="DC" %>'
+                                style="margin-left:8px;color:var(--accent);">Unconvert DC</asp:LinkButton>
                             <asp:LinkButton runat="server" CommandName="Dispatch" CommandArgument='<%# Eval("ShipmentID") %>'
                                 CssClass="act-link" CausesValidation="false" Visible='<%# Eval("Status").ToString()=="DC" %>'
-                                style="margin-left:8px;color:#6f42c1;">Complete Dispatch</asp:LinkButton>
+                                style="margin-left:8px;color:#6f42c1;">Finalize Shipment</asp:LinkButton>
                         </td>
                     </tr></ItemTemplate>
                 </asp:Repeater>
@@ -220,8 +227,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <FooterTemplate></tbody></table></FooterTemplate>
         </asp:Repeater>
         <div class="btn-row" style="margin-top:14px;">
-            <asp:Button ID="btnConvertDC" runat="server" Text="Convert to DC" CssClass="btn btn-success" OnClick="btnConvertDC_Click" CausesValidation="false"/>
-            <asp:Button ID="btnDispatch" runat="server" Text="Complete Shipment Dispatch" CssClass="btn btn-primary" OnClick="btnDispatch_Click" CausesValidation="false"/>
+            <asp:Button ID="btnConvertDC" runat="server" Text="&#x2705; Convert to DC" CssClass="btn btn-success" OnClick="btnConvertDC_Click" CausesValidation="false"/>
+            <asp:Button ID="btnUnconvertDC" runat="server" Text="&#x21A9; Unconvert DC" CssClass="btn btn-secondary" OnClick="btnUnconvertDC_Click" CausesValidation="false"/>
+            <asp:Button ID="btnDispatch" runat="server" Text="&#x1F69A; Finalize Shipment" CssClass="btn btn-primary" OnClick="btnDispatch_Click" CausesValidation="false"/>
             <asp:Button ID="btnCloseSADetail" runat="server" Text="Close" CssClass="btn btn-secondary" OnClick="btnCloseSADetail_Click" CausesValidation="false"/>
         </div>
     </div>
