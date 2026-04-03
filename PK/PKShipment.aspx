@@ -271,7 +271,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div>
     </asp:Panel>
     <asp:HiddenField ID="hfSAShipId" runat="server" Value="0"/>
-    <asp:HiddenField ID="hfSAProductOptions" runat="server" Value=""/>
+    <asp:HiddenField ID="hfSAProductOptions" runat="server" Value="" ValidateRequestMode="Disabled"/>
 
     <!-- ══════ RECENT DCs LIST ══════ -->
     <div class="card">
