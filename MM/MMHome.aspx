@@ -238,6 +238,11 @@
                 <div><div class="menu-title">Bulk Upload<br/>(Excel)</div><div class="menu-desc">Import Suppliers, Raw Materials, Packing Materials, Consumables and Stationaries from Excel templates</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
+            <a id="lnkOpeningStock" runat="server" href="MMOpeningStockUpload.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F4E6;</div>
+                <div><div class="menu-title">Opening Stock<br/>Upload</div><div class="menu-desc">Upload opening stock with price data for RM, PM, Consumables and Stationaries via Excel</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
         </div>
 
     </main>

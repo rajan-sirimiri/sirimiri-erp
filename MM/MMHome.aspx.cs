@@ -11,7 +11,7 @@ namespace MMApp
         protected global::System.Web.UI.WebControls.Label     lblNavUser;
         protected System.Web.UI.HtmlControls.HtmlAnchor lnkSupplier, lnkRawMaterial, lnkPackingMaterial, lnkConsumable, lnkStationary, lnkScrapMaterial, lnkUOM;
         protected System.Web.UI.HtmlControls.HtmlAnchor lnkRawInward, lnkPackingInward, lnkConsumableInward, lnkStationaryInward;
-        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRMReport, lnkPMReport, lnkScrapReport, lnkRecon, lnkBulk;
+        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRMReport, lnkPMReport, lnkScrapReport, lnkRecon, lnkBulk, lnkOpeningStock;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -39,6 +39,7 @@ namespace MMApp
             if (lnkScrapReport != null) lnkScrapReport.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_SCRAP_REPORT");
             if (lnkRecon != null) lnkRecon.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_RECON");
             if (lnkBulk != null) lnkBulk.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_BULK");
+            if (lnkOpeningStock != null) lnkOpeningStock.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_BULK");
         }
     }
 }

@@ -58,6 +58,11 @@ namespace MMApp.DAL
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
 
+        public static DataRow ExecuteQuerySingleRowPublic(string sql, params MySqlParameter[] parms)
+        {
+            return ExecuteQuerySingleRow(sql, parms);
+        }
+
         private static DataTable ExecuteStoredProcedure(string procedureName, MySqlParameter[] parameters)
         {
             var dt = new DataTable();
