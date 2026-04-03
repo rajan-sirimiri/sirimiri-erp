@@ -1540,7 +1540,7 @@ namespace PKApp.DAL
         public static DataTable CheckFGStockForSAOrder(int shipmentId)
         {
             return ExecuteQuery(
-                "SELECT sl.ProductID, p.ProductName, sl.ShippedQty AS RequiredQty," +
+                "SELECT sl.ProductID, p.ProductName, p.ProductCode, sl.ShippedQty AS RequiredQty," +
                 " IFNULL((SELECT SUM(f.QtyPacked) FROM PK_FGStock f WHERE f.ProductID=sl.ProductID),0) AS AvailableQty" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID=sl.ProductID" +
