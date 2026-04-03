@@ -29,7 +29,7 @@ namespace UAApp
             {
                 SetActiveTab();
                 string tab = hfTab.Value ?? "users";
-                if (tab == "org") { LoadOrgDropdowns(); }
+                if (tab == "org") { BindOrgData(); }
             }
         }
 
