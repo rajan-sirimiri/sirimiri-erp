@@ -76,8 +76,13 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Content Include="PKChangePassword.aspx" />
     <!-- Login / Logout -->
     <Content Include="PKLogin.aspx" />
+    <Compile Include="PKChangePassword.aspx.cs">
+      <DependentUpon>PKChangePassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="PKLogin.aspx.cs">
       <DependentUpon>PKLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

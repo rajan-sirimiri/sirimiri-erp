@@ -7,7 +7,7 @@
     <ProductVersion>
     </ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-UA1234567890}</ProjectGuid>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-000000000000}</ProjectGuid>
     <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -57,7 +57,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DAL\UADatabaseHelper.cs" />
+    <Content Include="UAChangePassword.aspx" />
     <Content Include="UALogin.aspx" />
+    <Compile Include="UAChangePassword.aspx.cs">
+      <DependentUpon>UAChangePassword.aspx</DependentUpon>
+    </Compile>
     <Compile Include="UALogin.aspx.cs">
       <DependentUpon>UALogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

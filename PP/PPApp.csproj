@@ -69,9 +69,13 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Content Include="Global.asax" />
+    <Content Include="PPChangePassword.aspx" />
     <Content Include="PPDailyPlan.aspx" />
     <Content Include="PPDailyPlanPrint.aspx" />
     <Content Include="PPLogin.aspx" />
+    <Compile Include="PPChangePassword.aspx.cs">
+      <DependentUpon>PPChangePassword.aspx</DependentUpon>
+    </Compile>
     <Compile Include="PPDailyPlan.aspx.cs">
       <DependentUpon>PPDailyPlan.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
