@@ -41,6 +41,27 @@ namespace PPApp
                 BindProductList();
                 pnlStages.Visible = false;
             }
+            else
+            {
+                // Re-apply stage 4 visibility on postback
+                int pid = 0;
+                if (hfProductId != null && int.TryParse(hfProductId.Value, out pid) && pid > 0)
+                {
+                    var dt2 = PPDatabaseHelper.GetPreprocessProducts();
+                    foreach (DataRow r in dt2.Rows)
+                    {
+                        if (Convert.ToInt32(r["ProductID"]) == pid)
+                        {
+                            string s4 = r.Table.Columns.Contains("Stage4Label") && r["Stage4Label"] != DBNull.Value
+                                ? r["Stage4Label"].ToString() : "";
+                            bool hasS4 = !string.IsNullOrEmpty(s4);
+                            if (pnlStage4Card != null) pnlStage4Card.Visible = hasS4;
+                            if (pnlS4Summary != null) pnlS4Summary.Visible = hasS4;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         private void BindProductList()
