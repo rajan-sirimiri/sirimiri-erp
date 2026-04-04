@@ -43,39 +43,117 @@ namespace MMApp
         protected void btnDownloadTemplate_Click(object sender, EventArgs e)
         {
             var uomLookup = BuildUOMLookup();
+            // Reverse lookup: UOMID → abbreviation
+            var uomReverse = new Dictionary<int, string>();
+            foreach (var kv in uomLookup) uomReverse[kv.Value] = kv.Key;
+
             using (var wb = new XLWorkbook())
             {
                 // ── Suppliers ──
                 var wsSup = wb.AddWorksheet("Suppliers");
                 WriteHeader(wsSup, "SupplierName *", "ContactPerson", "Phone", "Email", "GSTNo", "PAN", "Address", "City", "State", "PinCode");
-                WriteSample(wsSup, 3, "ABC Traders", "Ramesh Kumar", "9876543210", "abc@example.com", "33AABCA1234A1ZB", "AABCA1234A", "123 Main St", "Chennai", "Tamil Nadu", "600001");
+                int row = 3;
+                DataTable supData = MMDatabaseHelper.GetAllSuppliers();
+                foreach (DataRow r in supData.Rows)
+                {
+                    if (r.Table.Columns.Contains("IsActive") && Convert.ToInt32(r["IsActive"]) == 0) continue;
+                    wsSup.Cell(row, 1).Value = r["SupplierName"].ToString();
+                    wsSup.Cell(row, 2).Value = r.Table.Columns.Contains("ContactPerson") && r["ContactPerson"] != DBNull.Value ? r["ContactPerson"].ToString() : "";
+                    wsSup.Cell(row, 3).Value = r.Table.Columns.Contains("Phone") && r["Phone"] != DBNull.Value ? r["Phone"].ToString() : "";
+                    wsSup.Cell(row, 4).Value = r.Table.Columns.Contains("Email") && r["Email"] != DBNull.Value ? r["Email"].ToString() : "";
+                    wsSup.Cell(row, 5).Value = r.Table.Columns.Contains("GSTNo") && r["GSTNo"] != DBNull.Value ? r["GSTNo"].ToString() : "";
+                    wsSup.Cell(row, 6).Value = r.Table.Columns.Contains("PAN") && r["PAN"] != DBNull.Value ? r["PAN"].ToString() : "";
+                    wsSup.Cell(row, 7).Value = r.Table.Columns.Contains("Address") && r["Address"] != DBNull.Value ? r["Address"].ToString() : "";
+                    wsSup.Cell(row, 8).Value = r.Table.Columns.Contains("City") && r["City"] != DBNull.Value ? r["City"].ToString() : "";
+                    wsSup.Cell(row, 9).Value = r.Table.Columns.Contains("State") && r["State"] != DBNull.Value ? r["State"].ToString() : "";
+                    wsSup.Cell(row, 10).Value = r.Table.Columns.Contains("PinCode") && r["PinCode"] != DBNull.Value ? r["PinCode"].ToString() : "";
+                    StyleExistingRow(wsSup, row, 10);
+                    row++;
+                }
                 FinalizeSheet(wsSup, 10);
 
                 // ── Raw Materials ──
                 var wsRM = wb.AddWorksheet("Raw Materials");
                 WriteHeader(wsRM, "RawMaterialName *", "UOM *", "HSNCode", "GSTRate", "ReorderLevel", "Description");
-                WriteSample(wsRM, 3, "Wheat Flour", "kg", "1101", "5", "500", "Fine wheat flour");
+                row = 3;
+                DataTable rmData = MMDatabaseHelper.GetAllRawMaterials();
+                foreach (DataRow r in rmData.Rows)
+                {
+                    if (r.Table.Columns.Contains("IsActive") && Convert.ToInt32(r["IsActive"]) == 0) continue;
+                    wsRM.Cell(row, 1).Value = r["RMName"].ToString();
+                    int uomId = Convert.ToInt32(r["UOMID"]);
+                    wsRM.Cell(row, 2).Value = uomReverse.ContainsKey(uomId) ? uomReverse[uomId] : "";
+                    wsRM.Cell(row, 3).Value = r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                    wsRM.Cell(row, 4).Value = r["GSTRate"] != DBNull.Value ? r["GSTRate"].ToString() : "";
+                    wsRM.Cell(row, 5).Value = r["ReorderLevel"] != DBNull.Value ? r["ReorderLevel"].ToString() : "";
+                    wsRM.Cell(row, 6).Value = r["Description"] != DBNull.Value ? r["Description"].ToString() : "";
+                    StyleExistingRow(wsRM, row, 6);
+                    row++;
+                }
                 WriteUOMRef(wsRM, uomLookup, 8);
                 FinalizeSheet(wsRM, 6);
 
                 // ── Packing Materials ──
                 var wsPM = wb.AddWorksheet("Packing Materials");
                 WriteHeader(wsPM, "PackingMaterialName *", "UOM *", "Category", "HSNCode", "GSTRate", "ReorderLevel", "Description");
-                WriteSample(wsPM, 3, "200g Pouch", "nos", "LABEL", "3923", "18", "1000", "");
+                row = 3;
+                DataTable pmData = MMDatabaseHelper.GetAllPackingMaterials();
+                foreach (DataRow r in pmData.Rows)
+                {
+                    if (r.Table.Columns.Contains("IsActive") && Convert.ToInt32(r["IsActive"]) == 0) continue;
+                    wsPM.Cell(row, 1).Value = r["PMName"].ToString();
+                    int uomId = Convert.ToInt32(r["UOMID"]);
+                    wsPM.Cell(row, 2).Value = uomReverse.ContainsKey(uomId) ? uomReverse[uomId] : "";
+                    wsPM.Cell(row, 3).Value = r.Table.Columns.Contains("PMCategory") && r["PMCategory"] != DBNull.Value ? r["PMCategory"].ToString() : "";
+                    wsPM.Cell(row, 4).Value = r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                    wsPM.Cell(row, 5).Value = r["GSTRate"] != DBNull.Value ? r["GSTRate"].ToString() : "";
+                    wsPM.Cell(row, 6).Value = r["ReorderLevel"] != DBNull.Value ? r["ReorderLevel"].ToString() : "";
+                    wsPM.Cell(row, 7).Value = r["Description"] != DBNull.Value ? r["Description"].ToString() : "";
+                    StyleExistingRow(wsPM, row, 7);
+                    row++;
+                }
                 WriteUOMRef(wsPM, uomLookup, 9);
                 FinalizeSheet(wsPM, 7);
 
                 // ── Consumables ──
                 var wsCN = wb.AddWorksheet("Consumables");
                 WriteHeader(wsCN, "ConsumableName *", "UOM *", "HSNCode", "GSTRate", "ReorderLevel", "Description");
-                WriteSample(wsCN, 3, "Gloves (Box)", "box", "3926", "18", "50", "");
+                row = 3;
+                DataTable cnData = MMDatabaseHelper.GetAllConsumables();
+                foreach (DataRow r in cnData.Rows)
+                {
+                    if (r.Table.Columns.Contains("IsActive") && Convert.ToInt32(r["IsActive"]) == 0) continue;
+                    wsCN.Cell(row, 1).Value = r["ConsumableName"].ToString();
+                    int uomId = Convert.ToInt32(r["UOMID"]);
+                    wsCN.Cell(row, 2).Value = uomReverse.ContainsKey(uomId) ? uomReverse[uomId] : "";
+                    wsCN.Cell(row, 3).Value = r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                    wsCN.Cell(row, 4).Value = r["GSTRate"] != DBNull.Value ? r["GSTRate"].ToString() : "";
+                    wsCN.Cell(row, 5).Value = r["ReorderLevel"] != DBNull.Value ? r["ReorderLevel"].ToString() : "";
+                    wsCN.Cell(row, 6).Value = r["Description"] != DBNull.Value ? r["Description"].ToString() : "";
+                    StyleExistingRow(wsCN, row, 6);
+                    row++;
+                }
                 WriteUOMRef(wsCN, uomLookup, 8);
                 FinalizeSheet(wsCN, 6);
 
                 // ── Stationaries ──
                 var wsST = wb.AddWorksheet("Stationaries");
                 WriteHeader(wsST, "StationaryName *", "UOM *", "HSNCode", "GSTRate", "ReorderLevel", "Description");
-                WriteSample(wsST, 3, "A4 Paper Ream", "pkt", "4802", "12", "20", "");
+                row = 3;
+                DataTable stData = MMDatabaseHelper.GetAllStationaries();
+                foreach (DataRow r in stData.Rows)
+                {
+                    if (r.Table.Columns.Contains("IsActive") && Convert.ToInt32(r["IsActive"]) == 0) continue;
+                    wsST.Cell(row, 1).Value = r["StationaryName"].ToString();
+                    int uomId = Convert.ToInt32(r["UOMID"]);
+                    wsST.Cell(row, 2).Value = uomReverse.ContainsKey(uomId) ? uomReverse[uomId] : "";
+                    wsST.Cell(row, 3).Value = r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                    wsST.Cell(row, 4).Value = r["GSTRate"] != DBNull.Value ? r["GSTRate"].ToString() : "";
+                    wsST.Cell(row, 5).Value = r["ReorderLevel"] != DBNull.Value ? r["ReorderLevel"].ToString() : "";
+                    wsST.Cell(row, 6).Value = r["Description"] != DBNull.Value ? r["Description"].ToString() : "";
+                    StyleExistingRow(wsST, row, 6);
+                    row++;
+                }
                 WriteUOMRef(wsST, uomLookup, 8);
                 FinalizeSheet(wsST, 6);
 
@@ -89,7 +167,7 @@ namespace MMApp
 
         void WriteHeader(IXLWorksheet ws, params string[] headers)
         {
-            ws.Cell(1, 1).Value = "Fill data starting from row 3. Row 2 is a sample — delete or overwrite it.";
+            ws.Cell(1, 1).Value = "Existing data shown below (gray). Add new items at the bottom. Duplicates are skipped on import.";
             ws.Range("A1:" + GetColLetter(headers.Length) + "1").Merge().Style.Font.SetItalic(true).Font.SetFontColor(XLColor.Gray);
             for (int c = 0; c < headers.Length; c++)
             {
@@ -97,6 +175,15 @@ namespace MMApp
                 ws.Cell(2, c + 1).Style.Font.SetBold(true).Font.SetFontColor(XLColor.White)
                     .Fill.SetBackgroundColor(XLColor.FromHtml("#2C3E50"))
                     .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+            }
+        }
+
+        void StyleExistingRow(IXLWorksheet ws, int row, int cols)
+        {
+            for (int c = 1; c <= cols; c++)
+            {
+                ws.Cell(row, c).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#F5F5F5"));
+                ws.Cell(row, c).Style.Font.SetFontColor(XLColor.FromHtml("#666666"));
             }
         }
         void WriteSample(IXLWorksheet ws, int row, params string[] vals)
