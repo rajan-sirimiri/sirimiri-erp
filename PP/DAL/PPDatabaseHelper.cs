@@ -1088,6 +1088,78 @@ namespace PPApp.DAL
                     new MySqlParameter("?now",   NowIST()),
                     new MySqlParameter("?by",    userId));
             }
+            else if (stage == 4)
+            {
+                // Stage 4: Deduct from Stage 3 RM, Add to Stage 4 RM
+                // stageLabel = Stage 4 RM name (e.g. "Sorted Roasted Peanuts")
+
+                // Look up Stage 4 RM
+                var rmRow4 = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", stageLabel));
+                if (rmRow4 == null)
+                    throw new Exception("Stage 4 RM '" + stageLabel + "' not found in Raw Materials.");
+                int rmId4 = Convert.ToInt32(rmRow4["RMID"]);
+
+                // Look up Stage 3 RM to deduct from
+                var stagesRow = ExecuteQueryRow(
+                    "SELECT Stage3Label FROM PP_PreprocessStages WHERE ProductID=?pid;",
+                    new MySqlParameter("?pid", productId));
+                string stage3Label = stagesRow != null ? stagesRow["Stage3Label"].ToString() : "";
+                var rmRow3 = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", stage3Label));
+                if (rmRow3 == null)
+                    throw new Exception("Stage 3 RM '" + stage3Label + "' not found in Raw Materials.");
+                int s3RmId = Convert.ToInt32(rmRow3["RMID"]);
+
+                // Check Stage 3 RM available stock
+                decimal s3Available = GetAvailableStock(s3RmId);
+                if (qty > s3Available)
+                    throw new Exception("STOCK_SHORTFALL:" + stage3Label +
+                        ": available " + s3Available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
+
+                // Add to Stage 4 RM stock as internal GRN
+                ExecuteNonQuery(
+                    "INSERT INTO MM_RawInward" +
+                    " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
+                    "  Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
+                    "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
+                    "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
+                    " VALUES (?grn,?dt,'PREPROCESS',NULL,?sup,?rmid," +
+                    "  ?qty,?qty,?qty,0,0,NULL,NULL,0,0,0,0,0,0,NULL,?rem,1,'Approved',?by,NOW());",
+                    new MySqlParameter("?grn",  grnNo),
+                    new MySqlParameter("?dt",   NowIST().Date),
+                    new MySqlParameter("?sup",  supplierId),
+                    new MySqlParameter("?rmid", rmId4),
+                    new MySqlParameter("?qty",  qty),
+                    new MySqlParameter("?rem",  remarks),
+                    new MySqlParameter("?by",   userId));
+
+                // Deduct from Stage 3 RM stock
+                ExecuteNonQuery(
+                    "INSERT INTO MM_StockConsumption" +
+                    " (ExecutionID, OrderID, BatchNo, RMID, SourceType, SourceID, QtyConsumed, ConsumedAt, CreatedBy)" +
+                    " VALUES (0, ?pid, 3, ?rmid, 'PREPROCESS', 0, ?qty, ?now, ?by);",
+                    new MySqlParameter("?pid",  productId),
+                    new MySqlParameter("?rmid", s3RmId),
+                    new MySqlParameter("?qty",  qty),
+                    new MySqlParameter("?now",  NowIST()),
+                    new MySqlParameter("?by",   userId));
+
+                // Log Stage 4 for tracking
+                ExecuteNonQuery(
+                    "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
+                    " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
+                    new MySqlParameter("?pid",   productId),
+                    new MySqlParameter("?stage", stage),
+                    new MySqlParameter("?qty",   qty),
+                    new MySqlParameter("?rem",   remarks),
+                    new MySqlParameter("?now",   NowIST()),
+                    new MySqlParameter("?by",    userId));
+            }
         }
 
         public static decimal GetPreprocessStageTotal(int productId, int stage)

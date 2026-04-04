@@ -284,7 +284,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                             <td style="text-align:center;">
                                 <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
-                                    Visible='<%# Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Stopped" %>'
+                                    Visible='<%# Eval("Status").ToString() != "Completed" %>'
                                     CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
@@ -388,7 +388,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                             <td style="text-align:center;">
                                 <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
-                                    Visible='<%# Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Stopped" %>'
+                                    Visible='<%# Eval("Status").ToString() != "Completed" %>'
                                     CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
