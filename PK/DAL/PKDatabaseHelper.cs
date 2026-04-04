@@ -1643,5 +1643,40 @@ namespace PKApp.DAL
             ExecuteNonQuery("UPDATE Users SET PasswordHash=?h, MustChangePwd=0 WHERE UserID=?id;",
                 new MySqlParameter("?h", newHash), new MySqlParameter("?id", userId));
         }
+
+        // ── SA PROJECTIONS (Read-only for PK) ─────────────────────────────
+
+        public static DataTable GetSAProjections(int month, int year)
+        {
+            return ExecuteQuery(
+                "SELECT p.ProjectionID, p.ProjectionMonth, p.ProjectionYear, p.Status," +
+                " IFNULL(ar.AreaName,'—') AS AreaName," +
+                " IFNULL(z.ZoneName,'—') AS ZoneName," +
+                " IFNULL(r.RegionName,'—') AS RegionName," +
+                " c.ChannelName," +
+                " COUNT(pl.LineID) AS ProductCount," +
+                " IFNULL(SUM(pl.Quantity),0) AS TotalQty" +
+                " FROM SA_Projections p" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=p.PositionID" +
+                " LEFT JOIN SA_Zones z ON z.ZoneID=p.ZoneID" +
+                " LEFT JOIN SA_Regions r ON r.RegionID=p.RegionID" +
+                " JOIN SA_Channels c ON c.ChannelID=p.ChannelID" +
+                " LEFT JOIN SA_ProjectionLines pl ON pl.ProjectionID=p.ProjectionID" +
+                " WHERE p.ProjectionMonth=?m AND p.ProjectionYear=?y" +
+                " GROUP BY p.ProjectionID ORDER BY ar.AreaName, c.ChannelName;",
+                new MySqlParameter("?m", month), new MySqlParameter("?y", year));
+        }
+
+        public static DataTable GetSAProjectionLines(int projectionId)
+        {
+            return ExecuteQuery(
+                "SELECT pl.ProductID, pr.ProductName, pr.ProductCode, pl.Quantity," +
+                " IFNULL(u.Abbreviation,'') AS UOMAbbrv" +
+                " FROM SA_ProjectionLines pl" +
+                " JOIN PP_Products pr ON pr.ProductID=pl.ProductID" +
+                " LEFT JOIN MM_UOM u ON u.UOMID=pl.UOMID" +
+                " WHERE pl.ProjectionID=?pid ORDER BY pr.ProductName;",
+                new MySqlParameter("?pid", projectionId));
+        }
     }
 }

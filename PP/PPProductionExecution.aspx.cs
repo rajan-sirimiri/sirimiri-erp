@@ -134,10 +134,29 @@ namespace PPApp
                 : PPDatabaseHelper.GetInitiatedOrdersForShift(shift, PPDatabaseHelper.TodayIST());
             ddlProduct.Items.Clear();
             ddlProduct.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Product --", "0"));
+
+            bool anyPrioritySet = false;
             foreach (DataRow r in dt.Rows)
-                ddlProduct.Items.Add(new System.Web.UI.WebControls.ListItem(
-                    r["ProductName"].ToString() + " (" + r["EffectiveBatches"] + " batches)",
-                    r["OrderID"].ToString()));
+                if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) > 0)
+                { anyPrioritySet = true; break; }
+
+            foreach (DataRow r in dt.Rows)
+            {
+                string priority = r["ExecutionPriority"] != DBNull.Value ? Convert.ToInt32(r["ExecutionPriority"]).ToString() : "";
+                string prefix = !string.IsNullOrEmpty(priority) && Convert.ToInt32(priority) > 0
+                    ? "[#" + priority + "] " : "";
+                string status = r["Status"].ToString();
+
+                bool isActive = !anyPrioritySet
+                    || status == "InProgress"
+                    || (priority == "1");
+
+                var item = new System.Web.UI.WebControls.ListItem(
+                    prefix + r["ProductName"].ToString() + " (" + r["EffectiveBatches"] + " batches)",
+                    r["OrderID"].ToString());
+                if (!isActive) item.Attributes.Add("disabled", "disabled");
+                ddlProduct.Items.Add(item);
+            }
         }
 
         // ── RENDER ORDER ──────────────────────────────────────────────────────

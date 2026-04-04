@@ -1284,7 +1284,7 @@ namespace PPApp.DAL
 
             return ExecuteQuery(
                 "SELECT o.OrderID, o.PlanRowID, o.Shift, o.ProductID, " +
-                "o.OrderedBatches, o.RevisedBatches, o.Status, o.InitiatedAt, " +
+                "o.OrderedBatches, o.RevisedBatches, o.Status, o.InitiatedAt, o.ExecutionPriority, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
@@ -1295,7 +1295,7 @@ namespace PPApp.DAL
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
                 "WHERE o.PlanID = ?pid AND o.Shift = ?sh " +
-                "ORDER BY o.OrderID;",
+                "ORDER BY CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, o.OrderID;",
                 new MySqlParameter("?pid", planId),
                 new MySqlParameter("?sh",  shift));
         }
@@ -1428,14 +1428,14 @@ namespace PPApp.DAL
             return ExecuteQuery(
                 "SELECT o.OrderID, o.ProductID, p.ProductName, p.ProductCode, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status " +
+                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "WHERE o.Shift = ?sh AND o.OrderDate = ?dt " +
                 "AND o.Status IN ('Initiated','InProgress','Stopped') " +
                 "AND p.ProductType != 'Prefilled Conversion' " +
-                "ORDER BY p.ProductName;",
+                "ORDER BY CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, p.ProductName;",
                 new MySqlParameter("?sh", shift),
                 new MySqlParameter("?dt", orderDate.Date));
         }
@@ -1446,7 +1446,7 @@ namespace PPApp.DAL
             return ExecuteQuery(
                 "SELECT o.OrderID, o.ProductID, p.ProductName, p.ProductCode, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status " +
+                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
@@ -1454,10 +1454,23 @@ namespace PPApp.DAL
                 "AND p.ProductionLineID = ?lineId " +
                 "AND o.Status IN ('Initiated','InProgress','Stopped') " +
                 "AND p.ProductType != 'Prefilled Conversion' " +
-                "ORDER BY p.ProductName;",
+                "ORDER BY CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, p.ProductName;",
                 new MySqlParameter("?sh", shift),
                 new MySqlParameter("?dt", orderDate.Date),
                 new MySqlParameter("?lineId", lineId));
+        }
+
+        // ── EXECUTION PRIORITY ──────────────────────────────────────────
+        public static void SetExecutionPriority(int orderId, int priority)
+        {
+            ExecuteNonQuery("UPDATE PP_ProductionOrder SET ExecutionPriority=?p WHERE OrderID=?id;",
+                new MySqlParameter("?p", priority), new MySqlParameter("?id", orderId));
+        }
+
+        public static void ClearExecutionPriorities(int shift, DateTime orderDate)
+        {
+            ExecuteNonQuery("UPDATE PP_ProductionOrder SET ExecutionPriority=NULL WHERE Shift=?sh AND OrderDate=?dt AND Status IN ('Initiated','InProgress','Stopped');",
+                new MySqlParameter("?sh", shift), new MySqlParameter("?dt", orderDate.Date));
         }
 
         // ── PRODUCTION LINES ─────────────────────────────────────────────

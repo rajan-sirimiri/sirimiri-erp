@@ -35,6 +35,9 @@ namespace PPApp
         protected Repeater  rptProgress;
         protected Panel     pnlProgressEmpty;
 
+        // Priority buttons
+        protected global::System.Web.UI.WebControls.Button btnClearPriority1, btnClearPriority2;
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["PP_UserID"] == null) { Response.Redirect("PPLogin.aspx"); return; }
@@ -240,6 +243,63 @@ namespace PPApp
                 ShowAlert("Production resumed.", true);
                 LoadPage();
             }
+            else if (e.CommandName == "SetPriority")
+            {
+                int shift = Convert.ToInt32(hfActiveShift.Value);
+                DateTime today = PPDatabaseHelper.TodayIST();
+                var orders = PPDatabaseHelper.GetOrCreateProductionOrders(
+                    GetCurrentPlanId(), shift, today, UserID);
+
+                int maxPriority = 0;
+                foreach (DataRow r in orders.Rows)
+                    if (r["ExecutionPriority"] != DBNull.Value)
+                    { int p = Convert.ToInt32(r["ExecutionPriority"]); if (p > maxPriority) maxPriority = p; }
+
+                DataRow thisOrder = PPDatabaseHelper.GetProductionOrder(orderId);
+                if (thisOrder != null && thisOrder["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(thisOrder["ExecutionPriority"]) > 0)
+                {
+                    PPDatabaseHelper.SetExecutionPriority(orderId, 0);
+                    ResequencePriorities(shift, today);
+                }
+                else
+                {
+                    PPDatabaseHelper.SetExecutionPriority(orderId, maxPriority + 1);
+                }
+                LoadPage();
+            }
+        }
+
+        private void ResequencePriorities(int shift, DateTime date)
+        {
+            int planId = GetCurrentPlanId();
+            var orders = PPDatabaseHelper.GetOrCreateProductionOrders(planId, shift, date, UserID);
+            var prioritized = new System.Collections.Generic.List<int>();
+            foreach (DataRow r in orders.Rows)
+                if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) > 0)
+                    prioritized.Add(Convert.ToInt32(r["OrderID"]));
+            for (int i = 0; i < prioritized.Count; i++)
+                PPDatabaseHelper.SetExecutionPriority(prioritized[i], i + 1);
+        }
+
+        private int GetCurrentPlanId()
+        {
+            DateTime today = PPDatabaseHelper.TodayIST();
+            var plan = PPDatabaseHelper.GetDailyPlan(today);
+            return plan != null ? Convert.ToInt32(plan["PlanID"]) : 0;
+        }
+
+        protected void btnClearPriority1_Click(object s, EventArgs e)
+        { PPDatabaseHelper.ClearExecutionPriorities(1, PPDatabaseHelper.TodayIST()); ShowAlert("Priority cleared for Shift 1.", true); LoadPage(); }
+
+        protected void btnClearPriority2_Click(object s, EventArgs e)
+        { PPDatabaseHelper.ClearExecutionPriorities(2, PPDatabaseHelper.TodayIST()); ShowAlert("Priority cleared for Shift 2.", true); LoadPage(); }
+
+        protected string GetPriorityBtnClass(object status, object priority)
+        {
+            string st = status?.ToString() ?? "";
+            if (st == "Completed") return "priority-btn completed";
+            if (priority != null && priority != DBNull.Value && Convert.ToInt32(priority) > 0) return "priority-btn set";
+            return "priority-btn";
         }
 
         private int GetCompletedBatches(int orderId)

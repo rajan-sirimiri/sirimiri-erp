@@ -64,6 +64,15 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* ORDER TABLE */
 .order-table{width:100%;border-collapse:collapse;font-size:13px;}
+.priority-btn{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:#fff;cursor:pointer;
+    font-size:13px;font-weight:700;color:var(--text-dim);display:inline-flex;align-items:center;justify-content:center;transition:all .2s;text-decoration:none;}
+.priority-btn:hover{border-color:var(--accent);color:var(--accent);}
+.priority-btn.set{background:var(--accent);border-color:var(--accent);color:#fff;animation:priorityPop .3s ease;}
+.priority-btn.completed{background:#ccc;border-color:#ccc;color:#fff;cursor:default;}
+@keyframes priorityPop{0%{transform:scale(1);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
+.btn-clear-priority{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:10px;
+    font-weight:700;color:var(--text-dim);cursor:pointer;margin-left:10px;}
+.btn-clear-priority:hover{border-color:var(--accent);color:var(--accent);}
 .order-table th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     color:var(--text-dim);padding:0 8px 10px 0;border-bottom:2px solid var(--border);text-align:left;}
 .order-table th:not(:first-child){text-align:center;}
@@ -245,6 +254,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
             <!-- SHIFT 1 ORDERS -->
             <div id="divShift1" runat="server">
+                <div style="text-align:right;margin-bottom:8px;">
+                    <asp:Button ID="btnClearPriority1" runat="server" Text="Clear Priority" CssClass="btn-clear-priority"
+                        OnClick="btnClearPriority1_Click" CausesValidation="false"/>
+                </div>
                 <asp:Panel ID="pnlShift1Empty" runat="server" Visible="false">
                     <div class="empty-state">
                         <div class="empty-icon">&#128203;</div>
@@ -257,6 +270,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <HeaderTemplate>
                         <table class="order-table">
                         <tr>
+                            <th style="text-align:center;width:50px;">Priority</th>
                             <th>Sr</th>
                             <th>Product</th>
                             <th>Ordered</th>
@@ -267,6 +281,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     </HeaderTemplate>
                     <ItemTemplate>
                         <tr>
+                            <td style="text-align:center;">
+                                <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
+                                    Visible='<%# Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Stopped" %>'
+                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                            </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>
                                 <div class="prod-name"><%# Eval("ProductName") %></div>
@@ -338,6 +358,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
             <!-- SHIFT 2 ORDERS -->
             <div id="divShift2" runat="server" style="display:none;">
+                <div style="text-align:right;margin-bottom:8px;">
+                    <asp:Button ID="btnClearPriority2" runat="server" Text="Clear Priority" CssClass="btn-clear-priority"
+                        OnClick="btnClearPriority2_Click" CausesValidation="false"/>
+                </div>
                 <asp:Panel ID="pnlShift2Empty" runat="server" Visible="false">
                     <div class="empty-state">
                         <div class="empty-icon">&#128203;</div>
@@ -350,6 +374,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <HeaderTemplate>
                         <table class="order-table">
                         <tr>
+                            <th style="text-align:center;width:50px;">Priority</th>
                             <th>Sr</th>
                             <th>Product</th>
                             <th>Ordered</th>
@@ -360,6 +385,12 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     </HeaderTemplate>
                     <ItemTemplate>
                         <tr>
+                            <td style="text-align:center;">
+                                <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
+                                    CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
+                                    Visible='<%# Eval("Status").ToString() == "Initiated" || Eval("Status").ToString() == "InProgress" || Eval("Status").ToString() == "Stopped" %>'
+                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                            </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>
                                 <div class="prod-name"><%# Eval("ProductName") %></div>

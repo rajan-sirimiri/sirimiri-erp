@@ -54,6 +54,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .line-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .line-table tfoot td{border-top:2px solid var(--border);font-weight:700;}
 .empty-note{text-align:center;padding:28px;color:var(--text-dim);font-size:13px;}
+.ship-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;}
+.ship-tab{padding:12px 24px;font-size:12px;font-weight:700;letter-spacing:.04em;border:none;background:transparent;cursor:pointer;color:var(--text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;}
+.ship-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:#f5faff;}
+.ship-tab-panel{display:none;}.ship-tab-panel.active{display:block;}
+.proj-card{background:#f9f9f9;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.proj-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.proj-title{font-weight:700;font-size:13px;}
+.proj-meta{font-size:11px;color:var(--text-muted);}
+.proj-detail{margin-top:12px;display:none;}.proj-detail.open{display:block;}
 .act-link{color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;}.act-link:hover{text-decoration:underline;}
 .locked-msg{background:#f5f5f5;border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;}
 .badge-order{background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
@@ -164,7 +173,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div>
     </asp:Panel>
 
-    <!-- ══════ SA SHIPMENT ORDERS (from Sales Force) ══════ -->
+    <!-- ══════ TAB BAR ══════ -->
+    <div class="ship-tab-bar">
+        <button type="button" class="ship-tab active" onclick="switchShipTab('dc')">&#x1F4CB; Delivery Challans</button>
+        <button type="button" class="ship-tab" onclick="switchShipTab('sa')">&#x1F4E6; Sales Force Orders</button>
+        <button type="button" class="ship-tab" onclick="switchShipTab('proj')">&#x1F4CA; Sales Projections</button>
+    </div>
+
+    <!-- ══════ TAB: SALES FORCE ORDERS ══════ -->
+    <div id="tabSA" class="ship-tab-panel">
     <div class="card">
         <div class="card-title">&#x1F4E6; Sales Force Orders</div>
         <asp:Panel ID="pnlSAEmpty" runat="server"><div class="empty-note">No pending orders from Sales Force</div></asp:Panel>
@@ -274,6 +291,54 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     <asp:HiddenField ID="hfSAProductOptions" runat="server" Value="" ValidateRequestMode="Disabled"/>
 
     <!-- ══════ RECENT DCs LIST ══════ -->
+    </div><!-- end tabSA -->
+
+    <!-- ══════ TAB: SALES PROJECTIONS ══════ -->
+    <div id="tabProj" class="ship-tab-panel">
+    <div class="card">
+        <div class="card-title">&#x1F4CA; Sales Projections (Read Only)</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+            <asp:DropDownList ID="ddlProjMonth" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjMonth_Changed"
+                style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"/>
+            <asp:DropDownList ID="ddlProjYear" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjYear_Changed"
+                style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"/>
+        </div>
+        <asp:Panel ID="pnlProjEmpty" runat="server"><div class="empty-note">No projections found for this period</div></asp:Panel>
+        <asp:Repeater ID="rptProjections" runat="server">
+            <ItemTemplate>
+                <div class="proj-card">
+                    <div class="proj-header" onclick="toggleProjDetail(this)">
+                        <div>
+                            <span class="proj-title"><%# Eval("AreaName") %></span>
+                            <span class="proj-meta" style="margin-left:8px;"><%# Eval("ChannelName") %></span>
+                            <span class='<%# Eval("Status").ToString()=="Confirmed" ? "badge-final" : "badge-draft" %>' style="margin-left:8px;"><%# Eval("Status") %></span>
+                        </div>
+                        <div>
+                            <span class="proj-meta"><%# Eval("ProductCount") %> products &middot; <%# string.Format("{0:N0}", Eval("TotalQty")) %> units</span>
+                            <span style="margin-left:6px;font-size:14px;">&#x25BC;</span>
+                        </div>
+                    </div>
+                    <div class="proj-detail">
+                        <div class="proj-meta" style="margin-bottom:8px;">Zone: <%# Eval("ZoneName") %> &middot; Region: <%# Eval("RegionName") %></div>
+                        <asp:Repeater ID="rptProjLines" runat="server" DataSource='<%# GetProjectionLines(Eval("ProjectionID")) %>'>
+                            <HeaderTemplate><table class="line-table"><thead><tr><th>Product</th><th>Code</th><th class="num">Quantity</th><th>UOM</th></tr></thead><tbody></HeaderTemplate>
+                            <ItemTemplate><tr>
+                                <td style="font-weight:600;"><%# Eval("ProductName") %></td>
+                                <td style="font-size:11px;color:var(--text-dim);"><%# Eval("ProductCode") %></td>
+                                <td class="num" style="font-weight:700;"><%# string.Format("{0:N0}", Eval("Quantity")) %></td>
+                                <td><%# Eval("UOMAbbrv") %></td>
+                            </tr></ItemTemplate>
+                            <FooterTemplate></tbody></table></FooterTemplate>
+                        </asp:Repeater>
+                    </div>
+                </div>
+            </ItemTemplate>
+        </asp:Repeater>
+    </div>
+    </div><!-- end tabProj -->
+
+    <!-- ══════ TAB: DELIVERY CHALLANS ══════ -->
+    <div id="tabDC" class="ship-tab-panel active">
     <div class="card">
         <div class="card-title">&#x1F4CB; Recent Delivery Challans</div>
         <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No delivery challans yet</div></asp:Panel>
@@ -297,9 +362,28 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         </table>
         </asp:Panel>
     </div>
+    </div><!-- end tabDC -->
 </div>
 </form>
 <script>
+function switchShipTab(tab) {
+    var panels = document.querySelectorAll('.ship-tab-panel');
+    var tabs = document.querySelectorAll('.ship-tab');
+    for (var i = 0; i < panels.length; i++) panels[i].classList.remove('active');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    var map = {dc:'tabDC', sa:'tabSA', proj:'tabProj'};
+    var p = document.getElementById(map[tab]);
+    if (p) p.classList.add('active');
+    // Highlight tab
+    var idx = {dc:0, sa:1, proj:2};
+    if (tabs[idx[tab]]) tabs[idx[tab]].classList.add('active');
+}
+function toggleProjDetail(el) {
+    var detail = el.parentElement.querySelector('.proj-detail');
+    if (detail) detail.classList.toggle('open');
+    var arrow = el.querySelector('span:last-child');
+    if (arrow) arrow.innerHTML = detail.classList.contains('open') ? '&#x25B2;' : '&#x25BC;';
+}
 // Generic searchable dropdown filter
 function filterDropdown(q, ddlId, searchId) {
     var ddl = document.getElementById(ddlId);

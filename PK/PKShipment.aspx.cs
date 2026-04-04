@@ -18,7 +18,9 @@ namespace PKApp
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
-        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines;
+        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
+        protected Panel pnlProjEmpty;
+        protected DropDownList ddlProjMonth, ddlProjYear;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -37,6 +39,8 @@ namespace PKApp
                 BuildProductData();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 BindDCList();
+                LoadProjDropdowns();
+                BindProjections();
             }
             BindSAOrders();
         }
@@ -664,5 +668,41 @@ tfoot td{border-top:2px solid #333;font-weight:700;font-size:13px;}
             Response.Write(html);
             Response.End();
         }
+
+        // ── PROJECTIONS (Read-only) ────────────────────────────────────────
+
+        void LoadProjDropdowns()
+        {
+            if (ddlProjMonth == null || ddlProjYear == null) return;
+            ddlProjMonth.Items.Clear();
+            string[] months = { "January","February","March","April","May","June","July","August","September","October","November","December" };
+            for (int i = 0; i < 12; i++)
+                ddlProjMonth.Items.Add(new System.Web.UI.WebControls.ListItem(months[i], (i + 1).ToString()));
+            ddlProjMonth.SelectedValue = DateTime.Now.Month.ToString();
+
+            ddlProjYear.Items.Clear();
+            int yr = DateTime.Now.Year;
+            for (int y = yr - 1; y <= yr + 1; y++)
+                ddlProjYear.Items.Add(new System.Web.UI.WebControls.ListItem(y.ToString(), y.ToString()));
+            ddlProjYear.SelectedValue = yr.ToString();
+        }
+
+        void BindProjections()
+        {
+            if (ddlProjMonth == null || ddlProjYear == null) return;
+            int month = Convert.ToInt32(ddlProjMonth.SelectedValue);
+            int year = Convert.ToInt32(ddlProjYear.SelectedValue);
+            var dt = PKDatabaseHelper.GetSAProjections(month, year);
+            if (rptProjections != null) { rptProjections.DataSource = dt; rptProjections.DataBind(); }
+            if (pnlProjEmpty != null) pnlProjEmpty.Visible = dt.Rows.Count == 0;
+        }
+
+        protected DataTable GetProjectionLines(object projectionId)
+        {
+            return PKDatabaseHelper.GetSAProjectionLines(Convert.ToInt32(projectionId));
+        }
+
+        protected void ddlProjMonth_Changed(object s, EventArgs e) { BindProjections(); }
+        protected void ddlProjYear_Changed(object s, EventArgs e) { BindProjections(); }
     }
 }
