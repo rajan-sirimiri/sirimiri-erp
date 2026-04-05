@@ -34,14 +34,17 @@ namespace PPApp
         protected Label        lblClosureUnit;
         protected HiddenField  hfProductId;
         protected HiddenField  hfShiftClosed;
+        protected HiddenField  hfShiftStarted;
         protected HiddenField  hfRMStockQty, hfRMStockUnit, hfRMDisplayName;
         protected Panel        pnlRMStock;
         protected Repeater     rptRMStock;
         protected Label        lblRMName, lblRMStockQty, lblRMStockUnit;
         protected Panel        pnlScrapEntry;
+        protected Panel        pnlStartShift, pnlAddStock, pnlShiftStartedMsg;
         protected Repeater     rptScrapInputs;
         protected Button       btnCheckScrap;
         protected Button       btnCloseShift;
+        protected Button       btnStartShift;
         protected Panel        pnlShiftClosedMsg;
         protected Panel        pnlRightCard;
         protected HiddenField  hfOutputUnit;
@@ -69,12 +72,11 @@ namespace PPApp
             }
             else
             {
-                // Restore shift closed visual state on every postback
+                // Restore shift state on every postback
+                bool started = hfShiftStarted.Value == "1";
                 bool closed = hfShiftClosed.Value == "1";
+                SetShiftStartedState(started);
                 SetShiftClosedState(closed);
-                // NOTE: Do NOT reload scrap inputs here — that would clear user-entered values.
-                // Scrap inputs are loaded only when RM is selected (ddlRM_Changed).
-                // On postback the repeater rebinds only if LoadScrapInputs is explicitly called.
             }
         }
 
@@ -95,9 +97,11 @@ namespace PPApp
             int productId = Convert.ToInt32(ddlProduct.SelectedValue);
             if (productId == 0) { pnlEntry.Visible = false; return; }
 
-            hfProductId.Value  = productId.ToString();
+            hfProductId.Value    = productId.ToString();
             hfShiftClosed.Value  = "0";
+            hfShiftStarted.Value = "0";
             if (pnlScrapEntry != null) pnlScrapEntry.Visible = false;
+            SetShiftStartedState(false);
             SetShiftClosedState(false);
 
             // Get product output unit
@@ -206,23 +210,38 @@ namespace PPApp
             }
         }
 
+        protected void btnStartShift_Click(object sender, EventArgs e)
+        {
+            hfShiftStarted.Value = "1";
+            SetShiftStartedState(true);
+            ShowAlert("Shift started. You can now add items to stock.", true);
+        }
+
         protected void btnCloseShift_Click(object sender, EventArgs e)
         {
             hfShiftClosed.Value = "1";
             SetShiftClosedState(true);
-            ShowAlert("Shift closed. You can now record Raw Material consumed.", true);
+            ShowAlert("Shift closed. You can now record Raw Material consumed and scrap.", true);
+        }
+
+        private void SetShiftStartedState(bool started)
+        {
+            if (pnlStartShift != null) pnlStartShift.Visible = !started;
+            if (pnlAddStock != null) pnlAddStock.Visible = started && hfShiftClosed.Value != "1";
+            if (pnlShiftStartedMsg != null) pnlShiftStartedMsg.Visible = started && hfShiftClosed.Value != "1";
+            if (btnCloseShift != null) btnCloseShift.Visible = started && hfShiftClosed.Value != "1";
         }
 
         private void SetShiftClosedState(bool closed)
         {
-            // Close Shift button — hide once clicked
-            btnCloseShift.Visible     = !closed;
-            pnlShiftClosedMsg.Visible = closed;
-            // Right card — enabled only after shift is closed
+            if (btnCloseShift != null) btnCloseShift.Visible = !closed && hfShiftStarted.Value == "1";
+            if (pnlShiftClosedMsg != null) pnlShiftClosedMsg.Visible = closed;
             if (pnlRightCard != null)
                 pnlRightCard.CssClass = closed ? "" : "right-card-disabled";
-            // Disable/enable Close Shift Consumption button
-            btnClose.Enabled = closed;
+            if (btnClose != null) btnClose.Enabled = closed;
+            // Disable Add to Stock after shift is closed
+            if (pnlAddStock != null && closed) pnlAddStock.Visible = false;
+            if (pnlShiftStartedMsg != null && closed) pnlShiftStartedMsg.Visible = false;
         }
 
         private void LoadScrapInputs(int rmId)
