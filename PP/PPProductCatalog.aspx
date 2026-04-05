@@ -26,7 +26,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .nav-link{color:#fff;font-size:12px;font-weight:600;text-decoration:none;opacity:.8;}
 .nav-link:hover{opacity:1;}
 
-.page-layout{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - var(--nav-h));overflow:hidden;}
+.page-layout{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - var(--nav-h));overflow:hidden;}
 
 /* LEFT PANEL - Product List */
 .list-panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
@@ -44,9 +44,9 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .prod-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
 .prod-icon.core{background:#e8f5e9;} .prod-icon.conversion{background:#e3f2fd;} .prod-icon.prefilled{background:#fff3e0;} .prod-icon.preprocess{background:#fce4ec;}
 .prod-info{flex:1;min-width:0;}
-.prod-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prod-name{font-size:13px;font-weight:600;word-wrap:break-word;}
 .prod-meta{font-size:10px;color:var(--text-dim);margin-top:2px;}
-.prod-type{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.prod-type{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;}
 .type-core{background:#e8f5e9;color:#2e7d32;} .type-conversion{background:#e3f2fd;color:#1565c0;}
 .type-prefilled{background:#fff3e0;color:#e65100;} .type-preprocess{background:#fce4ec;color:#c62828;}
 
@@ -96,6 +96,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <form id="form1" runat="server">
 
 <asp:HiddenField ID="hfSelectedProductId" runat="server" Value="0"/>
+<asp:Button ID="btnSelect" runat="server" OnClick="btnSelect_Click" style="display:none" CausesValidation="false"/>
 
 <nav>
     <a class="nav-logo" href="PPHome.aspx">
@@ -265,7 +266,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <script>
 function selectProduct(id) {
     document.getElementById('<%= hfSelectedProductId.ClientID %>').value = id;
-    __doPostBack('<%= hfSelectedProductId.ClientID %>', id);
+    document.getElementById('<%= btnSelect.ClientID %>').click();
 }
 function filterProducts(q) {
     q = q.toLowerCase();

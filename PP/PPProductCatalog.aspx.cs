@@ -11,6 +11,7 @@ namespace PPApp
     {
         protected Label       lblNavUser, lblCount;
         protected HiddenField hfSelectedProductId;
+        protected Button      btnSelect;
         protected Repeater    rptProducts;
         protected Panel       pnlEmpty, pnlDetail;
 
@@ -45,14 +46,14 @@ namespace PPApp
             {
                 BindProductList();
             }
-            else
-            {
-                // Handle product selection
-                BindProductList();
-                int selId = 0;
-                if (int.TryParse(hfSelectedProductId.Value, out selId) && selId > 0)
-                    LoadProductDetail(selId);
-            }
+        }
+
+        protected void btnSelect_Click(object sender, EventArgs e)
+        {
+            BindProductList();
+            int selId = 0;
+            if (int.TryParse(hfSelectedProductId.Value, out selId) && selId > 0)
+                LoadProductDetail(selId);
         }
 
         private void BindProductList()
