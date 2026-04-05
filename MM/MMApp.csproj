@@ -82,6 +82,7 @@
     </Compile>
     <Compile Include="MMCNStockReport.aspx.cs">
       <DependentUpon>MMCNStockReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>
@@ -145,6 +146,7 @@
     </Compile>
     <Compile Include="MMSTStockReport.aspx.cs">
       <DependentUpon>MMSTStockReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMUOMMaster.aspx.cs">
       <DependentUpon>MMUOMMaster.aspx</DependentUpon>
