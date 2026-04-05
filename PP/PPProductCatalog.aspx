@@ -96,6 +96,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <form id="form1" runat="server">
 
 <asp:HiddenField ID="hfSelectedProductId" runat="server" Value="0"/>
+<asp:HiddenField ID="hfTypeFilter" runat="server" Value=""/>
 <asp:Button ID="btnSelect" runat="server" OnClick="btnSelect_Click" style="display:none" CausesValidation="false"/>
 
 <nav>
@@ -122,7 +123,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             <input type="text" id="txtSearch" placeholder="Search products..." onkeyup="filterProducts()"/>
         </div>
         <div style="padding:0 18px 8px;">
-            <select id="ddlTypeFilter" onchange="filterProducts()" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;background:#fafafa;outline:none;color:var(--text);">
+            <select id="ddlTypeFilter" onchange="onTypeChange()" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;background:#fafafa;outline:none;color:var(--text);">
                 <option value="">All Types</option>
                 <option value="Core">Core</option>
                 <option value="Conversion">Conversion</option>
@@ -277,6 +278,11 @@ function selectProduct(id) {
     document.getElementById('<%= hfSelectedProductId.ClientID %>').value = id;
     document.getElementById('<%= btnSelect.ClientID %>').click();
 }
+function onTypeChange() {
+    var v = document.getElementById('ddlTypeFilter').value;
+    document.getElementById('<%= hfTypeFilter.ClientID %>').value = v;
+    filterProducts();
+}
 function filterProducts() {
     var q = (document.getElementById('txtSearch').value || '').toLowerCase();
     var t = (document.getElementById('ddlTypeFilter').value || '').toLowerCase();
@@ -289,6 +295,13 @@ function filterProducts() {
         el.style.display = (matchName && matchType) ? '' : 'none';
     });
 }
+window.addEventListener('load', function() {
+    var saved = document.getElementById('<%= hfTypeFilter.ClientID %>').value;
+    if (saved) {
+        document.getElementById('ddlTypeFilter').value = saved;
+        filterProducts();
+    }
+});
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
