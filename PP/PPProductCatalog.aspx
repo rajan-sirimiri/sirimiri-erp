@@ -224,7 +224,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                     <td><%# Eval("Abbreviation") %></td>
                                     <td class="num"><%# Convert.ToDecimal(Eval("Quantity")).ToString("0.###") %></td>
                                     <td class="num" style="color:var(--text-muted);"><%# FormatRate(Eval("UnitRate")) %></td>
-                                    <td class="num" style="font-weight:600;"><%# FormatBOMCost(Eval("Quantity"), Eval("UnitRate")) %></td>
+                                    <td class="num" style="font-weight:600;"><%# FormatConvertedCost(Eval("ConvertedCost")) %></td>
                                 </tr>
                             </ItemTemplate>
                         </asp:Repeater>

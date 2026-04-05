@@ -111,43 +111,58 @@ namespace PPApp
                 ? "<span class='tag tag-yes'>Yes</span>"
                 : "<span class='tag tag-no'>No</span>";
 
-            // BOM
-            bool showBOM = (ptype == "Core" || ptype == "Conversion" || ptype == "Prefilled Conversion");
-            pnlBOM.Visible = showBOM;
-            if (showBOM)
+            // BOM — show for any product that has BOM entries
+            var bom = PPDatabaseHelper.GetBOMByProduct(productId);
+            if (bom.Rows.Count > 0)
             {
-                var bom = PPDatabaseHelper.GetBOMByProduct(productId);
-                if (bom.Rows.Count == 0)
-                {
-                    pnlBOMEmpty.Visible = true;
-                    pnlBOMTable.Visible = false;
-                }
-                else
-                {
-                    pnlBOMEmpty.Visible = false;
-                    pnlBOMTable.Visible = true;
-                    rptBOM.DataSource   = bom;
-                    rptBOM.DataBind();
+                pnlBOM.Visible      = true;
+                pnlBOMEmpty.Visible = false;
+                pnlBOMTable.Visible = true;
 
-                    decimal totalCost = 0;
-                    foreach (DataRow r in bom.Rows)
-                    {
-                        decimal q = Convert.ToDecimal(r["Quantity"]);
-                        decimal u = r["UnitRate"] != DBNull.Value ? Convert.ToDecimal(r["UnitRate"]) : 0;
-                        totalCost += q * u;
-                    }
-                    lblBOMTotal.Text = totalCost.ToString("N2");
+                // Add computed column for UOM-converted cost
+                bom.Columns.Add("ConvertedCost", typeof(decimal));
+                foreach (DataRow r in bom.Rows)
+                {
+                    decimal q = Convert.ToDecimal(r["Quantity"]);
+                    decimal u = r["UnitRate"] != DBNull.Value ? Convert.ToDecimal(r["UnitRate"]) : 0;
+                    string bomUOM = r["Abbreviation"].ToString();
+                    string matType = r["MaterialType"].ToString();
+                    int matId = Convert.ToInt32(r["MaterialID"]);
+
+                    // Get material's base UOM for conversion
+                    string baseUOM = bomUOM;
+                    string tbl = matType == "RM" ? "MM_RawMaterials" : matType == "PM" ? "MM_PackingMaterials" : "MM_Consumables";
+                    string idCol = matType == "RM" ? "RMID" : matType == "PM" ? "PMID" : "ConsumableID";
+                    var uomRow = PPDatabaseHelper.ExecuteQueryPublic(
+                        "SELECT u.Abbreviation FROM " + tbl + " m JOIN MM_UOM u ON u.UOMID=m.UOMID WHERE m." + idCol + "=?id;",
+                        new MySql.Data.MySqlClient.MySqlParameter("?id", matId));
+                    if (uomRow.Rows.Count > 0) baseUOM = uomRow.Rows[0]["Abbreviation"].ToString();
+
+                    decimal convFactor = GetUOMConversionFactor(bomUOM, baseUOM);
+                    r["ConvertedCost"] = Math.Round((q * convFactor) * u, 2);
                 }
+
+                rptBOM.DataSource = bom;
+                rptBOM.DataBind();
+
+                decimal totalCost = 0;
+                foreach (DataRow r in bom.Rows)
+                    totalCost += Convert.ToDecimal(r["ConvertedCost"]);
+                lblBOMTotal.Text = totalCost.ToString("N2");
+            }
+            else
+            {
+                pnlBOM.Visible = false;
             }
 
-            // Pre-Process Stages
-            bool showStages = (ptype == "Pre processed RM");
-            pnlStages.Visible = showStages;
-            if (showStages)
+            // Pre-Process Stages — show only if stages actually exist for this product
+            pnlStages.Visible = false;
+            if (ptype == "Pre processed RM")
             {
                 DataRow stages = PPDatabaseHelper.GetPreprocessStages(productId);
                 if (stages != null)
                 {
+                    pnlStages.Visible = true;
                     lblInputRM.Text = stages["InputRMName"] != DBNull.Value
                         ? stages["InputRMName"].ToString() : "—";
 
@@ -212,6 +227,35 @@ namespace PPApp
             decimal r = (rate != null && rate != DBNull.Value) ? Convert.ToDecimal(rate) : 0;
             decimal cost = q * r;
             return cost > 0 ? cost.ToString("N2") : "—";
+        }
+
+        protected string FormatConvertedCost(object val)
+        {
+            if (val == null || val == DBNull.Value) return "—";
+            decimal d = Convert.ToDecimal(val);
+            return d > 0 ? d.ToString("N2") : "—";
+        }
+
+        private static decimal GetUOMConversionFactor(string fromUnit, string toUnit)
+        {
+            if (fromUnit == toUnit) return 1m;
+            string f = fromUnit.Trim().ToLower();
+            string t = toUnit.Trim().ToLower();
+            string[] kg = { "kg", "kgs", "kilo", "kilogram", "kilograms" };
+            string[] g  = { "g", "gm", "gram", "grams", "grm" };
+            string[] mg = { "mg", "milligram", "milligrams" };
+            string[] l  = { "l", "ltr", "litre", "liter", "litres", "liters" };
+            string[] ml = { "ml", "millilitre", "milliliter", "millilitres", "milliliters" };
+            bool In(string v, string[] arr) { foreach (var a in arr) if (v == a) return true; return false; }
+            if (In(f, g) && In(t, kg))   return 0.001m;
+            if (In(f, mg) && In(t, kg))  return 0.000001m;
+            if (In(f, mg) && In(t, g))   return 0.001m;
+            if (In(f, kg) && In(t, g))   return 1000m;
+            if (In(f, kg) && In(t, mg))  return 1000000m;
+            if (In(f, g) && In(t, mg))   return 1000m;
+            if (In(f, ml) && In(t, l))   return 0.001m;
+            if (In(f, l) && In(t, ml))   return 1000m;
+            return 1m;
         }
     }
 }
