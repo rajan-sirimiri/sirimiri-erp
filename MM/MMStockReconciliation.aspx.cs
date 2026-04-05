@@ -289,7 +289,7 @@ namespace MMApp
         {
             int mid = Convert.ToInt32(materialIdObj);
             if (_physMap != null && _physMap.ContainsKey(mid))
-                return "<span class='phys-saved'>" + _physMap[mid].ToString("0.####") + "</span>";
+                return "<input type='text' class='phys-input saved' data-mid='" + mid + "' value='" + _physMap[mid].ToString("0.####") + "'/>";
             else
                 return "<input type='text' class='phys-input' data-mid='" + mid + "' value='' placeholder='0'/>";
         }
@@ -298,7 +298,7 @@ namespace MMApp
         {
             int mid = Convert.ToInt32(materialIdObj);
             if (_physMap != null && _physMap.ContainsKey(mid))
-                return "<span class='save-done'>&#x2714; Done</span>";
+                return "<span class='save-done'>&#x2714;</span> <button type='button' class='btn-save-row' onclick='saveRow(this);'>Update</button>";
             else
                 return "<button type='button' class='btn-save-row' onclick='saveRow(this);'>Save</button>";
         }

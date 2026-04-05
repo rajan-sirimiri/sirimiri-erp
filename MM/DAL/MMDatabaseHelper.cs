@@ -1483,42 +1483,50 @@ namespace MMApp.DAL
             switch (materialType)
             {
                 case "RM":
-                    sql = "SELECT r.RMID AS MaterialID, r.RMCode AS Code, r.RMName AS Name, u.Abbreviation AS UOM," +
+                    sql = "SELECT t.* FROM (" +
+                          "SELECT r.RMID AS MaterialID, r.RMCode AS Code, r.RMName AS Name, u.Abbreviation AS UOM," +
                           " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0) - IFNULL(con.TotalConsumed,0), 4) AS SystemStock" +
                           " FROM MM_RawMaterials r" +
                           " JOIN MM_UOM u ON u.UOMID = r.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='RM' AND os.MaterialID=r.RMID" +
                           " LEFT JOIN (SELECT RMID, SUM(QtyActualReceived) AS TotalReceived FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID=r.RMID" +
                           " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID=r.RMID" +
-                          " WHERE r.IsActive=1 ORDER BY r.RMName;";
+                          " WHERE r.IsActive=1 AND LOWER(TRIM(r.RMName)) != 'ro water'" +
+                          ") t WHERE t.SystemStock > 0 ORDER BY t.Name;";
                     break;
                 case "PM":
-                    sql = "SELECT p.PMID AS MaterialID, p.PMCode AS Code, p.PMName AS Name, u.Abbreviation AS UOM," +
+                    sql = "SELECT t.* FROM (" +
+                          "SELECT p.PMID AS MaterialID, p.PMCode AS Code, p.PMName AS Name, u.Abbreviation AS UOM," +
                           " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0) - IFNULL(con.TotalConsumed,0), 4) AS SystemStock" +
                           " FROM MM_PackingMaterials p" +
                           " JOIN MM_UOM u ON u.UOMID = p.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='PM' AND os.MaterialID=p.PMID" +
                           " LEFT JOIN (SELECT PMID, SUM(QtyActualReceived) AS TotalReceived FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID=p.PMID" +
                           " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID=p.PMID" +
-                          " WHERE p.IsActive=1 ORDER BY p.PMName;";
+                          " WHERE p.IsActive=1" +
+                          ") t WHERE t.SystemStock > 0 ORDER BY t.Name;";
                     break;
                 case "CM":
-                    sql = "SELECT c.ConsumableID AS MaterialID, c.ConsumableCode AS Code, c.ConsumableName AS Name, u.Abbreviation AS UOM," +
+                    sql = "SELECT t.* FROM (" +
+                          "SELECT c.ConsumableID AS MaterialID, c.ConsumableCode AS Code, c.ConsumableName AS Name, u.Abbreviation AS UOM," +
                           " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0), 4) AS SystemStock" +
                           " FROM MM_Consumables c" +
                           " JOIN MM_UOM u ON u.UOMID = c.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='CM' AND os.MaterialID=c.ConsumableID" +
                           " LEFT JOIN (SELECT ConsumableID, SUM(QtyActualReceived) AS TotalReceived FROM MM_ConsumableInward GROUP BY ConsumableID) grn ON grn.ConsumableID=c.ConsumableID" +
-                          " WHERE c.IsActive=1 ORDER BY c.ConsumableName;";
+                          " WHERE c.IsActive=1" +
+                          ") t WHERE t.SystemStock > 0 ORDER BY t.Name;";
                     break;
                 case "ST":
-                    sql = "SELECT s.StationaryID AS MaterialID, s.StationaryCode AS Code, s.StationaryName AS Name, u.Abbreviation AS UOM," +
+                    sql = "SELECT t.* FROM (" +
+                          "SELECT s.StationaryID AS MaterialID, s.StationaryCode AS Code, s.StationaryName AS Name, u.Abbreviation AS UOM," +
                           " ROUND(IFNULL(os.Quantity,0) + IFNULL(grn.TotalReceived,0), 4) AS SystemStock" +
                           " FROM MM_Stationaries s" +
                           " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
                           " LEFT JOIN MM_OpeningStock os ON os.MaterialType='ST' AND os.MaterialID=s.StationaryID" +
                           " LEFT JOIN (SELECT StationaryID, SUM(QtyActualReceived) AS TotalReceived FROM MM_StationaryInward GROUP BY StationaryID) grn ON grn.StationaryID=s.StationaryID" +
-                          " WHERE s.IsActive=1 ORDER BY s.StationaryName;";
+                          " WHERE s.IsActive=1" +
+                          ") t WHERE t.SystemStock > 0 ORDER BY t.Name;";
                     break;
             }
             return ExecuteQuery(sql);

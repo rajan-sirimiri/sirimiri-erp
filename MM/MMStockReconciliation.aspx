@@ -140,7 +140,7 @@ th.recon-col.show{display:table-cell;}
     </div>
 
     <asp:Panel ID="pnlEmpty" runat="server" Visible="false">
-        <div class="empty">No active materials found for this type.</div>
+        <div class="empty">No materials with stock on hand found for this type.</div>
     </asp:Panel>
 
     <asp:Repeater ID="rptStock" runat="server">
@@ -204,15 +204,21 @@ function showVariances() {
     var rows = document.querySelectorAll('#tblStock tr[data-mid]');
     rows.forEach(function(row) {
         var input = row.querySelector('.phys-input');
-        var saved = row.querySelector('.phys-saved');
         var phys = 0;
         if (input) phys = parseFloat(input.value) || 0;
-        else if (saved) phys = parseFloat(saved.innerText) || 0;
         var sysTd = row.querySelector('[data-sys]');
         var varTd = row.querySelector('[data-var]');
         var pctTd = row.querySelector('[data-pct]');
         if (!sysTd || !varTd) return;
         var sys = parseFloat(sysTd.getAttribute('data-sys')) || 0;
+        // Only show variance for items with physical count entered
+        if (!input || input.value.trim() === '') {
+            varTd.innerText = '—';
+            pctTd.innerText = '—';
+            varTd.className = 'recon-col num show';
+            pctTd.className = 'recon-col num show';
+            return;
+        }
         var diff = phys - sys;
         var pct = sys !== 0 ? (diff / sys) * 100 : (phys !== 0 ? 100 : 0);
         varTd.innerText = diff.toFixed(2);
