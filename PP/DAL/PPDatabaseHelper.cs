@@ -1111,7 +1111,7 @@ namespace PPApp.DAL
 
                 // Look up Stage 3 RM to deduct from
                 var stagesRow = ExecuteQueryRow(
-                    "SELECT Stage3Label FROM PP_PreprocessStages WHERE ProductID=?pid;",
+                    "SELECT Stage3Label, InputRMName FROM PP_PreprocessStages WHERE ProductID=?pid;",
                     new MySqlParameter("?pid", productId));
                 string stage3Label = stagesRow != null ? stagesRow["Stage3Label"].ToString() : "";
                 var rmRow3 = ExecuteQueryRow(
@@ -1128,7 +1128,65 @@ namespace PPApp.DAL
                     throw new Exception("STOCK_SHORTFALL:" + stage3Label +
                         ": available " + s3Available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
 
-                // Add to Stage 4 RM stock as internal GRN
+                // ── PRICING CALCULATION for Pre Processed RM ──
+                decimal rate = 0;
+                decimal amount = 0;
+
+                // Check if this product has IsPriceCalcProduct flag set
+                var prodRow = ExecuteQueryRow(
+                    "SELECT IsPriceCalcProduct FROM PP_Products WHERE ProductID=?pid;",
+                    new MySqlParameter("?pid", productId));
+                bool isPriceCalc = prodRow != null && prodRow["IsPriceCalcProduct"] != DBNull.Value
+                    && Convert.ToInt32(prodRow["IsPriceCalcProduct"]) == 1;
+
+                if (isPriceCalc && stagesRow != null)
+                {
+                    // Get Stage 1 input RM name and its latest cost per unit
+                    string inputRMName = stagesRow["InputRMName"].ToString();
+                    var inputRMRow = ExecuteQueryRow(
+                        "SELECT RMID FROM MM_RawMaterials" +
+                        " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                        new MySqlParameter("?name", inputRMName));
+
+                    if (inputRMRow != null)
+                    {
+                        int inputRmId = Convert.ToInt32(inputRMRow["RMID"]);
+
+                        // Get latest cost per unit of input RM (most recent GRN with Rate > 0)
+                        object latestCostObj = ExecuteScalar(
+                            "SELECT Rate FROM MM_RawInward" +
+                            " WHERE RMID=?rmid AND QtyActualReceived > 0 AND Rate > 0" +
+                            " ORDER BY InwardID DESC LIMIT 1;",
+                            new MySqlParameter("?rmid", inputRmId));
+
+                        // Fallback to opening stock rate
+                        if (latestCostObj == null || latestCostObj == DBNull.Value)
+                            latestCostObj = ExecuteScalar(
+                                "SELECT Rate FROM MM_OpeningStock WHERE MaterialType='RM' AND MaterialID=?rmid;",
+                                new MySqlParameter("?rmid", inputRmId));
+
+                        decimal inputRMPrice = (latestCostObj != null && latestCostObj != DBNull.Value)
+                            ? Convert.ToDecimal(latestCostObj) : 0;
+
+                        // Get today's Stage 1 total quantity (most recent batch = today's entries)
+                        object s1QtyObj = ExecuteScalar(
+                            "SELECT IFNULL(SUM(Qty),0) FROM PP_PreprocessLog" +
+                            " WHERE ProductID=?pid AND Stage=1 AND DATE(CreatedAt)=?today;",
+                            new MySqlParameter("?pid", productId),
+                            new MySqlParameter("?today", TodayIST()));
+                        decimal stage1Qty = (s1QtyObj != null && s1QtyObj != DBNull.Value)
+                            ? Convert.ToDecimal(s1QtyObj) : 0;
+
+                        // Calculate: Rate = (Stage1 Qty × Input RM Price) / Stage4 Qty
+                        if (stage1Qty > 0 && qty > 0 && inputRMPrice > 0)
+                        {
+                            rate = Math.Round((stage1Qty * inputRMPrice) / qty, 2);
+                            amount = Math.Round(qty * rate, 2);
+                        }
+                    }
+                }
+
+                // Add to Stage 4 RM stock as internal GRN — WITH calculated rate
                 ExecuteNonQuery(
                     "INSERT INTO MM_RawInward" +
                     " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
@@ -1136,13 +1194,15 @@ namespace PPApp.DAL
                     "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
                     "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
                     " VALUES (?grn,?dt,'PREPROCESS',NULL,?sup,?rmid," +
-                    "  ?qty,?qty,?qty,0,0,NULL,NULL,0,0,0,0,0,0,NULL,?rem,1,'Approved',?by,NOW());",
+                    "  ?qty,?qty,?qty,?rate,?amt,NULL,NULL,0,0,0,0,0,0,NULL,?rem,1,'Approved',?by,NOW());",
                     new MySqlParameter("?grn",  grnNo),
                     new MySqlParameter("?dt",   NowIST().Date),
                     new MySqlParameter("?sup",  supplierId),
                     new MySqlParameter("?rmid", rmId4),
                     new MySqlParameter("?qty",  qty),
-                    new MySqlParameter("?rem",  remarks),
+                    new MySqlParameter("?rate", rate),
+                    new MySqlParameter("?amt",  amount),
+                    new MySqlParameter("?rem",  remarks + (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "")),
                     new MySqlParameter("?by",   userId));
 
                 // Deduct from Stage 3 RM stock
