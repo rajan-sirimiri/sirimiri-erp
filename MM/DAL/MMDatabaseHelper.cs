@@ -497,6 +497,51 @@ namespace MMApp.DAL
                 new MySqlParameter("id", rmId));
         }
 
+        // ── CONVERSION LOSS PRICING ─────────────────────────────────────────
+
+        public static void SaveConversionLossSettings(int rmId, int? derivedFromRMID, decimal? conversionLossPct)
+        {
+            ExecuteNonQuery(
+                "UPDATE MM_RawMaterials SET DerivedFromRMID=?dfr, ConversionLossPct=?clp WHERE RMID=?id;",
+                new MySqlParameter("?dfr", derivedFromRMID.HasValue ? (object)derivedFromRMID.Value : DBNull.Value),
+                new MySqlParameter("?clp", conversionLossPct.HasValue ? (object)conversionLossPct.Value : DBNull.Value),
+                new MySqlParameter("?id",  rmId));
+        }
+
+        /// <summary>
+        /// When a source RM's price changes (via GRN or Opening Stock),
+        /// find all RMs that derive from it and update their latest GRN rate.
+        /// DerivedRM price = sourcePrice × (1 + ConversionLossPct/100)
+        /// </summary>
+        public static void UpdateDerivedRMPrices(int sourceRmId, decimal sourceRate)
+        {
+            if (sourceRate <= 0) return;
+
+            // Find all RMs that derive from this source RM
+            var derivedRMs = ExecuteQuery(
+                "SELECT RMID, ConversionLossPct FROM MM_RawMaterials" +
+                " WHERE DerivedFromRMID=?sid AND ConversionLossPct IS NOT NULL AND IsActive=1;",
+                new MySqlParameter("?sid", sourceRmId));
+
+            foreach (DataRow r in derivedRMs.Rows)
+            {
+                int derivedRmId = Convert.ToInt32(r["RMID"]);
+                decimal lossPct = Convert.ToDecimal(r["ConversionLossPct"]);
+                decimal derivedRate = Math.Round(sourceRate * (1 + lossPct / 100m), 2);
+
+                // Update or insert opening stock with the calculated rate
+                // This ensures the derived RM always has a current price
+                ExecuteNonQuery(
+                    "INSERT INTO MM_OpeningStock (MaterialType, MaterialID, Quantity, Rate, AsOfDate, Remarks, CreatedBy)" +
+                    " VALUES ('RM', ?rmid, 0, ?rate, CURDATE(), ?rem, 1)" +
+                    " ON DUPLICATE KEY UPDATE Rate=?rate, Remarks=?rem, UpdatedAt=NOW();",
+                    new MySqlParameter("?rmid", derivedRmId),
+                    new MySqlParameter("?rate", derivedRate),
+                    new MySqlParameter("?rem",  "Auto-priced from source RM#" + sourceRmId +
+                        " @ ₹" + sourceRate.ToString("0.00") + " + " + lossPct.ToString("0.##") + "% loss = ₹" + derivedRate.ToString("0.00")));
+            }
+        }
+
         // ── SCRAP MATERIALS ──────────────────────────────────────────────────────
 
         public static DataTable GetAllScrapMaterials()
@@ -865,7 +910,13 @@ namespace MMApp.DAL
                 new MySqlParameter("qc",       qualityCheck ? 1 : 0),
                 new MySqlParameter("stat",     status),
                 new MySqlParameter("by",       createdBy));
-            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+            int newId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+
+            // Trigger derived RM price update (e.g. Black Sesame → Roasted Black Sesame)
+            if (rate > 0)
+                UpdateDerivedRMPrices(rmId, rate);
+
+            return newId;
         }
 
         public static void UpdateRawInward(int inwardId, DateTime inwardDate, DateTime? invoiceDate,

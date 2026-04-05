@@ -44,6 +44,11 @@ namespace MMApp
         protected Label   lblOSLastSaved;
         protected Button  btnSaveOS;
 
+        // ── Conversion Loss controls ──
+        protected DropDownList ddlDerivedFromRM;
+        protected TextBox     txtConversionLoss;
+        protected Button      btnSaveConversion;
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["MM_UserID"] == null) { Response.Redirect("MMLogin.aspx"); return; }
@@ -221,6 +226,7 @@ namespace MMApp
                 SetFormMode(true);
                 pnlAlert.Visible      = false;
                 LoadOpeningStock(rmId);
+                LoadConversionSettings(rmId);
                 lblOSMaterialName.Text = dr["RMName"].ToString();
             }
         }
@@ -270,8 +276,61 @@ namespace MMApp
                 MMDatabaseHelper.SaveOpeningStock("RM", rmId, qty, rate, asOfDate, txtOSRemarks.Text.Trim(), userId);
                 ShowAlert("Opening stock saved successfully.", true);
                 LoadOpeningStock(rmId);
+
+                // Trigger price update for any derived RMs (e.g. Roasted Black Sesame from Black Sesame)
+                MMDatabaseHelper.UpdateDerivedRMPrices(rmId, rate);
             }
             catch (Exception ex) { ShowAlert("Error saving opening stock: " + ex.Message, false); }
+        }
+
+        protected void btnSaveConversion_Click(object sender, EventArgs e)
+        {
+            int rmId = Convert.ToInt32(hfRMID.Value);
+            if (rmId == 0) { ShowAlert("Please select a material first.", false); return; }
+
+            int derivedFromId = ddlDerivedFromRM != null ? Convert.ToInt32(ddlDerivedFromRM.SelectedValue) : 0;
+            decimal lossPct = 0;
+            decimal.TryParse(txtConversionLoss != null ? txtConversionLoss.Text.Trim() : "", out lossPct);
+
+            try
+            {
+                MMDatabaseHelper.SaveConversionLossSettings(rmId, derivedFromId > 0 ? (int?)derivedFromId : null, lossPct > 0 ? (decimal?)lossPct : null);
+                ShowAlert("Conversion loss settings saved.", true);
+                LoadConversionSettings(rmId);
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+        }
+
+        private void LoadConversionSettings(int rmId)
+        {
+            // Load Derived From RM dropdown
+            if (ddlDerivedFromRM != null)
+            {
+                ddlDerivedFromRM.Items.Clear();
+                ddlDerivedFromRM.Items.Add(new System.Web.UI.WebControls.ListItem("-- None --", "0"));
+                var allRM = MMDatabaseHelper.GetActiveRawMaterials();
+                foreach (DataRow r in allRM.Rows)
+                {
+                    int id = Convert.ToInt32(r["RMID"]);
+                    if (id == rmId) continue; // Don't allow self-reference
+                    ddlDerivedFromRM.Items.Add(new System.Web.UI.WebControls.ListItem(
+                        r["RMName"].ToString(), id.ToString()));
+                }
+            }
+
+            // Load current settings
+            var rm = MMDatabaseHelper.GetRawMaterialById(rmId);
+            if (rm != null)
+            {
+                if (ddlDerivedFromRM != null && rm.Table.Columns.Contains("DerivedFromRMID") && rm["DerivedFromRMID"] != DBNull.Value)
+                {
+                    try { ddlDerivedFromRM.SelectedValue = rm["DerivedFromRMID"].ToString(); } catch { }
+                }
+                if (txtConversionLoss != null && rm.Table.Columns.Contains("ConversionLossPct") && rm["ConversionLossPct"] != DBNull.Value)
+                    txtConversionLoss.Text = Convert.ToDecimal(rm["ConversionLossPct"]).ToString("0.##");
+                else if (txtConversionLoss != null)
+                    txtConversionLoss.Text = "";
+            }
         }
 
         private void ClearForm()
