@@ -854,33 +854,31 @@ namespace PPApp.DAL
             int supplierId = Convert.ToInt32(supObj);
 
             // ── PRICING for Prefilled Conversion ──
-            // Rate = ((RM Units × RM Price) - (Scrap Qty × Scrap Price)) / FG Units
-            // Calculated at end of shift — use today's consumption and production data
+            // Rate = ((Actual RM Consumed × RM Price) - (Scrap Qty × Scrap Price)) / FG Output Qty
+            // Uses today's ACTUAL shift consumption, not BOM theoretical quantities
             decimal rate = 0;
             decimal amount = 0;
 
-            // Get BOM to find input RM and its cost
+            // Get BOM to identify which RMs are used (for RM IDs and prices)
             var bom = GetBOMByProduct(productId);
             decimal totalInputCost = 0;
-            decimal totalInputQty = 0;
             foreach (DataRow bomRow in bom.Rows)
             {
                 if (bomRow["MaterialType"].ToString() == "RM")
                 {
-                    decimal bomQty = Convert.ToDecimal(bomRow["Quantity"]);
-                    decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
-                    string bomUOM = bomRow["Abbreviation"].ToString();
-
-                    // Get RM base UOM for conversion
                     int matId = Convert.ToInt32(bomRow["MaterialID"]);
-                    var rmUomRow = ExecuteQueryRow(
-                        "SELECT u.Abbreviation FROM MM_RawMaterials r JOIN MM_UOM u ON u.UOMID=r.UOMID WHERE r.RMID=?id;",
-                        new MySqlParameter("?id", matId));
-                    string rmBaseUOM = rmUomRow != null ? rmUomRow["Abbreviation"].ToString() : bomUOM;
+                    decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
 
-                    decimal convertedQty = bomQty * GetUOMConversionFactor(bomUOM, rmBaseUOM);
-                    totalInputCost += convertedQty * unitRate;
-                    totalInputQty += convertedQty;
+                    // Get today's ACTUAL shift consumption for this RM
+                    object actualQtyObj = ExecuteScalar(
+                        "SELECT IFNULL(SUM(QtyConsumed),0) FROM MM_StockConsumption" +
+                        " WHERE RMID=?rmid AND SourceType='SHIFT' AND DATE(ConsumedAt)=?today;",
+                        new MySqlParameter("?rmid", matId),
+                        new MySqlParameter("?today", TodayIST()));
+                    decimal actualQty = (actualQtyObj != null && actualQtyObj != DBNull.Value)
+                        ? Convert.ToDecimal(actualQtyObj) : 0;
+
+                    totalInputCost += actualQty * unitRate;
                 }
             }
 
@@ -902,7 +900,7 @@ namespace PPApp.DAL
                         decimal scrapPrice = (scrapPriceObj != null && scrapPriceObj != DBNull.Value)
                             ? Convert.ToDecimal(scrapPriceObj) : 0;
 
-                        // Get today's scrap qty for this RM from ScrapStock
+                        // Get today's scrap qty from ScrapStock
                         object scrapQtyObj = ExecuteScalar(
                             "SELECT IFNULL(SUM(QtyGenerated),0) FROM MM_ScrapStock" +
                             " WHERE ScrapID=?sid AND DATE(GeneratedAt)=?today;",
@@ -916,7 +914,7 @@ namespace PPApp.DAL
                 }
             }
 
-            // Calculate: Rate = (Total Input Cost - Scrap Recovery) / Output Qty
+            // Calculate: Rate = (Actual Input Cost - Scrap Recovery) / Output Qty
             decimal effectiveCost = totalInputCost - scrapDeduction;
             if (effectiveCost < 0) effectiveCost = 0;
             if (qty > 0 && effectiveCost > 0)
