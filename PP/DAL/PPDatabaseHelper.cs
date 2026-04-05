@@ -881,18 +881,16 @@ namespace PPApp.DAL
         public static string UpdatePrefilledRates(int productId, int rmId, decimal rmQtyConsumed,
             Dictionary<int, decimal> scrapAmounts)
         {
-            // Get today's total output for this product (only unpriced entries)
-            var entries = GetPrefilledEntriesToday(productId);
-            decimal totalOutput = 0;
-            int unpricedCount = 0;
-            foreach (DataRow r in entries.Rows)
-            {
-                totalOutput += Convert.ToDecimal(r["Qty"]);
-                // Count entries that haven't been priced yet
-                // (Check if the GRN's Remarks doesn't contain "Rate=")
-                // All today's entries count toward output regardless
-            }
-            if (totalOutput <= 0) return "No output entries found today.";
+            // Get today's UNPRICED output for this product (Rate=0 only)
+            object unpricedQtyObj = ExecuteScalar(
+                "SELECT IFNULL(SUM(QtyActualReceived),0) FROM MM_RawInward" +
+                " WHERE InvoiceNo='PREFILLED' AND DATE(InwardDate)=?today" +
+                " AND Remarks LIKE ?pat AND Rate=0;",
+                new MySqlParameter("?today", TodayIST()),
+                new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
+            decimal totalOutput = (unpricedQtyObj != null && unpricedQtyObj != DBNull.Value)
+                ? Convert.ToDecimal(unpricedQtyObj) : 0;
+            if (totalOutput <= 0) return "No unpriced output entries found today.";
 
             // Get RM unit price from BOM
             var bom = GetBOMByProduct(productId);
@@ -947,6 +945,7 @@ namespace PPApp.DAL
                 new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
 
             return "Rate ₹" + rate.ToString("0.00") + "/unit applied. Output: " + totalOutput.ToString("0.###") +
+                ", RM consumed: " + rmQtyConsumed.ToString("0.###") +
                 ", RM cost: ₹" + totalInputCost.ToString("0.00") +
                 ", Scrap recovery: ₹" + scrapDeduction.ToString("0.00");
         }
