@@ -879,18 +879,35 @@ namespace PPApp.DAL
         /// then updates ALL today's unpriced prefilled GRNs for this product.
         /// </summary>
         public static string UpdatePrefilledRates(int productId, int rmId, decimal rmQtyConsumed,
-            Dictionary<int, decimal> scrapAmounts)
+            Dictionary<int, decimal> scrapAmounts, string shiftStartTime = "")
         {
-            // Get today's UNPRICED output for this product (Rate=0 only)
-            object unpricedQtyObj = ExecuteScalar(
-                "SELECT IFNULL(SUM(QtyActualReceived),0) FROM MM_RawInward" +
-                " WHERE InvoiceNo='PREFILLED' AND DATE(InwardDate)=?today" +
-                " AND Remarks LIKE ?pat AND Rate=0;",
+            // Build time filter — only count entries created after shift started
+            string timeFilter = "";
+            MySqlParameter timeParam = null;
+            if (!string.IsNullOrEmpty(shiftStartTime))
+            {
+                DateTime startDt;
+                if (DateTime.TryParse(shiftStartTime, out startDt))
+                {
+                    timeFilter = " AND i.CreatedAt >= ?startTime";
+                    timeParam = new MySqlParameter("?startTime", startDt);
+                }
+            }
+
+            // Get this shift's UNPRICED output (Rate=0, created after shift start)
+            string sumSql = "SELECT IFNULL(SUM(i.QtyActualReceived),0) FROM MM_RawInward i" +
+                " WHERE i.InvoiceNo='PREFILLED' AND DATE(i.InwardDate)=?today" +
+                " AND i.Remarks LIKE ?pat AND i.Rate=0" + timeFilter + ";";
+            var sumParams = new System.Collections.Generic.List<MySqlParameter> {
                 new MySqlParameter("?today", TodayIST()),
-                new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
+                new MySqlParameter("?pat", "%ProductID=" + productId + "%")
+            };
+            if (timeParam != null) sumParams.Add(timeParam);
+
+            object unpricedQtyObj = ExecuteScalar(sumSql, sumParams.ToArray());
             decimal totalOutput = (unpricedQtyObj != null && unpricedQtyObj != DBNull.Value)
                 ? Convert.ToDecimal(unpricedQtyObj) : 0;
-            if (totalOutput <= 0) return "No unpriced output entries found today.";
+            if (totalOutput <= 0) return "No unpriced output entries found for this shift.";
 
             // Get RM unit price from BOM
             var bom = GetBOMByProduct(productId);
@@ -931,18 +948,27 @@ namespace PPApp.DAL
             if (totalOutput > 0 && effectiveCost > 0)
                 rate = Math.Round(effectiveCost / totalOutput, 2);
 
-            // Update ALL today's unpriced prefilled GRNs for this product
+            // Update this shift's unpriced prefilled GRNs
             string rateInfo = " | Rate=₹" + rate.ToString("0.00") + "/unit"
                 + (scrapDeduction > 0 ? " ScrapRecovery=₹" + scrapDeduction.ToString("0.00") : "");
-            ExecuteNonQuery(
-                "UPDATE MM_RawInward SET Rate=?rate, Amount=ROUND(QtyActualReceived * ?rate, 2)," +
+            string updSql = "UPDATE MM_RawInward SET Rate=?rate, Amount=ROUND(QtyActualReceived * ?rate, 2)," +
                 " Remarks=CONCAT(Remarks, ?info)" +
                 " WHERE InvoiceNo='PREFILLED' AND DATE(InwardDate)=?today" +
-                " AND Remarks LIKE ?pat AND Rate=0;",
+                " AND Remarks LIKE ?pat AND Rate=0" +
+                (!string.IsNullOrEmpty(shiftStartTime) ? " AND CreatedAt >= ?startTime" : "") + ";";
+            var updParams = new System.Collections.Generic.List<MySqlParameter> {
                 new MySqlParameter("?rate", rate),
                 new MySqlParameter("?info", rateInfo),
                 new MySqlParameter("?today", TodayIST()),
-                new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
+                new MySqlParameter("?pat", "%ProductID=" + productId + "%")
+            };
+            if (!string.IsNullOrEmpty(shiftStartTime))
+            {
+                DateTime startDt2;
+                if (DateTime.TryParse(shiftStartTime, out startDt2))
+                    updParams.Add(new MySqlParameter("?startTime", startDt2));
+            }
+            ExecuteNonQuery(updSql, updParams.ToArray());
 
             return "Rate ₹" + rate.ToString("0.00") + "/unit applied. Output: " + totalOutput.ToString("0.###") +
                 ", RM consumed: " + rmQtyConsumed.ToString("0.###") +

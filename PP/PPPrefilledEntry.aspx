@@ -129,6 +129,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 <asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftStarted"  runat="server" Value="0"/>
+<asp:HiddenField ID="hfShiftStartTime" runat="server" Value=""/>
 <asp:HiddenField ID="hfRMStockQty"     runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMStockUnit"    runat="server" Value=""/>
 <asp:HiddenField ID="hfRMDisplayName"  runat="server" Value=""/>

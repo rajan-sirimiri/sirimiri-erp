@@ -35,6 +35,7 @@ namespace PPApp
         protected HiddenField  hfProductId;
         protected HiddenField  hfShiftClosed;
         protected HiddenField  hfShiftStarted;
+        protected HiddenField  hfShiftStartTime;
         protected HiddenField  hfRMStockQty, hfRMStockUnit, hfRMDisplayName;
         protected Panel        pnlRMStock;
         protected Repeater     rptRMStock;
@@ -100,6 +101,7 @@ namespace PPApp
             hfProductId.Value    = productId.ToString();
             hfShiftClosed.Value  = "0";
             hfShiftStarted.Value = "0";
+            hfShiftStartTime.Value = "";
             if (pnlScrapEntry != null) pnlScrapEntry.Visible = false;
             SetShiftStartedState(false);
             SetShiftClosedState(false);
@@ -213,6 +215,7 @@ namespace PPApp
         protected void btnStartShift_Click(object sender, EventArgs e)
         {
             hfShiftStarted.Value = "1";
+            hfShiftStartTime.Value = PPDatabaseHelper.NowIST().ToString("yyyy-MM-dd HH:mm:ss");
             SetShiftStartedState(true);
             ShowAlert("Shift started. You can now add items to stock.", true);
         }
@@ -299,7 +302,10 @@ namespace PPApp
                 int pid = Convert.ToInt32(hfProductId.Value);
                 string priceResult = "";
                 if (pid > 0)
-                    priceResult = PPDatabaseHelper.UpdatePrefilledRates(pid, rmId, qty, scrapAmounts);
+                {
+                    string startTime = hfShiftStartTime != null ? hfShiftStartTime.Value : "";
+                    priceResult = PPDatabaseHelper.UpdatePrefilledRates(pid, rmId, qty, scrapAmounts, startTime);
+                }
 
                 txtRMQty.Text         = "";
                 pnlScrapEntry.Visible = false;
