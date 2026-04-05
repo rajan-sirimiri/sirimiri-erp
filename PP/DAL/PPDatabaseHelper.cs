@@ -459,14 +459,45 @@ namespace PPApp.DAL
             object supObj = ExecuteScalar(
                 "SELECT SupplierID FROM MM_Suppliers WHERE SupplierCode = 'INT-PROD' LIMIT 1;");
             if (supObj == null || supObj == DBNull.Value)
-                throw new Exception("Internal Production supplier not found. Please run: " +
-                    "INSERT INTO MM_Suppliers (SupplierCode, SupplierName, ContactPerson, Phone, Email, " +
-                    "Address, City, State, PinCode, GSTIN, IsActive, CreatedAt) " +
-                    "VALUES ('INT-PROD','Internal Production','System','','','','','','','',1,NOW());");
+                throw new Exception("Internal Production supplier not found.");
             int supplierId = Convert.ToInt32(supObj);
 
+            // ── PRICING: Calculate cost from BOM inputs ──
+            decimal rate = 0;
+            decimal amount = 0;
+
+            // Get the ProductID from the order
+            var orderRow = ExecuteQueryRow(
+                "SELECT ProductID FROM PP_ProductionOrder WHERE OrderID=?oid;",
+                new MySqlParameter("?oid", orderNo));
+            if (orderRow != null)
+            {
+                int productId = Convert.ToInt32(orderRow["ProductID"]);
+                var bom = GetBOMByProduct(productId);
+
+                // Sum(BOM Qty × UnitRate) for RM items only (RM is the primary cost driver)
+                decimal totalInputCost = 0;
+                foreach (DataRow bomRow in bom.Rows)
+                {
+                    if (bomRow["MaterialType"].ToString() == "RM")
+                    {
+                        decimal bomQty = Convert.ToDecimal(bomRow["Quantity"]);
+                        decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
+                        totalInputCost += bomQty * unitRate;
+                    }
+                }
+
+                // Rate = Total BOM Input Cost / Output Qty
+                if (totalInputCost > 0 && qty > 0)
+                {
+                    rate = Math.Round(totalInputCost / qty, 2);
+                    amount = Math.Round(qty * rate, 2);
+                }
+            }
+
             string grnNo   = "INT-" + NowIST().ToString("yyyyMMddHHmmss") + "-" + rmId + "-" + batchNo;
-            string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo;
+            string remarks = "Internal production: " + productName + " | Order #" + orderNo + " Batch #" + batchNo
+                + (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "");
             ExecuteNonQuery(
                 "INSERT INTO MM_RawInward " +
                 "(GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
@@ -474,7 +505,7 @@ namespace PPApp.DAL
                 " HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
                 " ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
                 " VALUES (?grn,?dt,'INTERNAL',NULL,?sup,?rmid," +
-                " ?qty,?qty,?qty,0,0," +
+                " ?qty,?qty,?qty,?rate,?amt," +
                 " NULL,NULL,0,0,0,0," +
                 " 0,0,NULL,?rem,1,'Approved',?by,NOW());",
                 new MySqlParameter("?grn",  grnNo),
@@ -482,6 +513,8 @@ namespace PPApp.DAL
                 new MySqlParameter("?sup",  supplierId),
                 new MySqlParameter("?rmid", rmId),
                 new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?rate", rate),
+                new MySqlParameter("?amt",  amount),
                 new MySqlParameter("?rem",  remarks),
                 new MySqlParameter("?by",   userId));
         }
@@ -806,6 +839,72 @@ namespace PPApp.DAL
             if (supObj == null || supObj == DBNull.Value)
                 throw new Exception("Internal Production supplier (INT-PROD) not found.");
             int supplierId = Convert.ToInt32(supObj);
+
+            // ── PRICING for Prefilled Conversion ──
+            // Rate = ((RM Units × RM Price) - (Scrap Qty × Scrap Price)) / FG Units
+            // Calculated at end of shift — use today's consumption and production data
+            decimal rate = 0;
+            decimal amount = 0;
+
+            // Get BOM to find input RM and its cost
+            var bom = GetBOMByProduct(productId);
+            decimal totalInputCost = 0;
+            decimal totalInputQty = 0;
+            foreach (DataRow bomRow in bom.Rows)
+            {
+                if (bomRow["MaterialType"].ToString() == "RM")
+                {
+                    decimal bomQty = Convert.ToDecimal(bomRow["Quantity"]);
+                    decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
+                    totalInputCost += bomQty * unitRate;
+                    totalInputQty += bomQty;
+                }
+            }
+
+            // Get scrap cost deduction — find linked scrap materials via BOM RM
+            decimal scrapDeduction = 0;
+            foreach (DataRow bomRow in bom.Rows)
+            {
+                if (bomRow["MaterialType"].ToString() == "RM")
+                {
+                    int bomRmId = Convert.ToInt32(bomRow["MaterialID"]);
+                    var scrapLinks = GetScrapMaterialsForRM(bomRmId);
+                    foreach (DataRow scrapRow in scrapLinks.Rows)
+                    {
+                        int scrapId = Convert.ToInt32(scrapRow["ScrapID"]);
+                        // Get current scrap price
+                        object scrapPriceObj = ExecuteScalar(
+                            "SELECT CurrentPrice FROM MM_ScrapMaterials WHERE ScrapID=?sid;",
+                            new MySqlParameter("?sid", scrapId));
+                        decimal scrapPrice = (scrapPriceObj != null && scrapPriceObj != DBNull.Value)
+                            ? Convert.ToDecimal(scrapPriceObj) : 0;
+
+                        // Get today's scrap qty for this RM from ScrapStock
+                        object scrapQtyObj = ExecuteScalar(
+                            "SELECT IFNULL(SUM(Quantity),0) FROM MM_ScrapStock" +
+                            " WHERE ScrapID=?sid AND DATE(CreatedAt)=?today;",
+                            new MySqlParameter("?sid", scrapId),
+                            new MySqlParameter("?today", TodayIST()));
+                        decimal scrapQty = (scrapQtyObj != null && scrapQtyObj != DBNull.Value)
+                            ? Convert.ToDecimal(scrapQtyObj) : 0;
+
+                        scrapDeduction += scrapQty * scrapPrice;
+                    }
+                }
+            }
+
+            // Calculate: Rate = (Total Input Cost - Scrap Recovery) / Output Qty
+            decimal effectiveCost = totalInputCost - scrapDeduction;
+            if (effectiveCost < 0) effectiveCost = 0;
+            if (qty > 0 && effectiveCost > 0)
+            {
+                rate = Math.Round(effectiveCost / qty, 2);
+                amount = Math.Round(qty * rate, 2);
+            }
+
+            remarks += (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "")
+                + (scrapDeduction > 0 ? " | ScrapRecovery=₹" + scrapDeduction.ToString("0.00") : "");
+
             ExecuteNonQuery(
                 "INSERT INTO MM_RawInward" +
                 " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
@@ -813,7 +912,7 @@ namespace PPApp.DAL
                 "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
                 "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
                 " VALUES (?grn,?dt,'PREFILLED',NULL,?sup,?rmid," +
-                "  ?qty,?qty,?qty,0,0," +
+                "  ?qty,?qty,?qty,?rate,?amt," +
                 "  NULL,NULL,0,0,0,0," +
                 "  0,0,NULL,?rem,1,'Approved',?by,NOW());",
                 new MySqlParameter("?grn",  grnNo),
@@ -821,6 +920,8 @@ namespace PPApp.DAL
                 new MySqlParameter("?sup",  supplierId),
                 new MySqlParameter("?rmid", rmId),
                 new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?rate", rate),
+                new MySqlParameter("?amt",  amount),
                 new MySqlParameter("?rem",  remarks),
                 new MySqlParameter("?by",   userId));
         }
