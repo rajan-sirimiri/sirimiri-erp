@@ -929,7 +929,7 @@ namespace PPApp.DAL
         public static DataTable GetPreprocessProducts()
         {
             return ExecuteQuery(
-                "SELECT p.ProductID, p.ProductCode, p.ProductName," +
+                "SELECT p.ProductID, p.ProductCode, p.ProductName, p.BatchSize, p.IsPriceCalcProduct," +
                 " ps.InputRMName, ps.Stage1Label, ps.Stage2Label, ps.Stage3Label, ps.Stage4Label," +
                 " ou.Abbreviation AS OutputUnit" +
                 " FROM PP_Products p" +

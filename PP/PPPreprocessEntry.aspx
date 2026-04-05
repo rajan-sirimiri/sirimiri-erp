@@ -124,6 +124,8 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 <asp:HiddenField ID="hfStage3Label" runat="server" Value=""/>
 <asp:HiddenField ID="hfStage4Label" runat="server" Value=""/>
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
+<asp:HiddenField ID="hfBatchSize"   runat="server" Value="0"/>
+<asp:HiddenField ID="hfIsPriceCalc" runat="server" Value="0"/>
 
 <nav>
     <a class="nav-logo" href="PPHome.aspx">

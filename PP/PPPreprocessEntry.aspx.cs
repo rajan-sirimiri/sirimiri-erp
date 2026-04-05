@@ -14,6 +14,7 @@ namespace PPApp
         protected Panel        pnlScrapInputs, pnlNoScrap;
         protected DropDownList ddlProduct;
         protected HiddenField  hfProductId, hfInputRMName, hfStage1Label, hfStage2Label, hfStage3Label, hfStage4Label, hfOutputUnit;
+        protected HiddenField  hfBatchSize, hfIsPriceCalc;
         protected Label        lblStage1, lblStage2, lblStage3, lblStage4;
         protected Label        lblS1Unit, lblS2Unit, lblS3Unit, lblS4Unit;
         protected Label        lblS1Total, lblS2Total, lblS3Total, lblS4Total;
@@ -57,6 +58,17 @@ namespace PPApp
                             bool hasS4 = !string.IsNullOrEmpty(s4);
                             if (pnlStage4Card != null) pnlStage4Card.Visible = hasS4;
                             if (pnlS4Summary != null) pnlS4Summary.Visible = hasS4;
+
+                            // Re-apply Stage 1 lock for IsPriceCalcProduct
+                            bool isPCalc = r.Table.Columns.Contains("IsPriceCalcProduct") && r["IsPriceCalcProduct"] != DBNull.Value
+                                && Convert.ToInt32(r["IsPriceCalcProduct"]) == 1;
+                            decimal bs = r.Table.Columns.Contains("BatchSize") && r["BatchSize"] != DBNull.Value
+                                ? Convert.ToDecimal(r["BatchSize"]) : 0;
+                            if (isPCalc && bs > 0 && txtS1 != null)
+                            {
+                                txtS1.Value = bs.ToString("0.###");
+                                txtS1.Disabled = true;
+                            }
                             break;
                         }
                     }
@@ -96,6 +108,26 @@ namespace PPApp
                 ? row["Stage4Label"].ToString() : "";
             if (hfStage4Label != null) hfStage4Label.Value = stage4;
             hfOutputUnit.Value  = row["OutputUnit"].ToString();
+
+            // Store BatchSize and IsPriceCalcProduct
+            decimal batchSize = row.Table.Columns.Contains("BatchSize") && row["BatchSize"] != DBNull.Value
+                ? Convert.ToDecimal(row["BatchSize"]) : 0;
+            bool isPriceCalc = row.Table.Columns.Contains("IsPriceCalcProduct") && row["IsPriceCalcProduct"] != DBNull.Value
+                && Convert.ToInt32(row["IsPriceCalcProduct"]) == 1;
+            if (hfBatchSize != null) hfBatchSize.Value = batchSize.ToString("0.###");
+            if (hfIsPriceCalc != null) hfIsPriceCalc.Value = isPriceCalc ? "1" : "0";
+
+            // Pre-populate Stage 1 with BatchSize if IsPriceCalcProduct
+            if (isPriceCalc && batchSize > 0 && txtS1 != null)
+            {
+                txtS1.Value = batchSize.ToString("0.###");
+                txtS1.Disabled = true;
+            }
+            else if (txtS1 != null)
+            {
+                txtS1.Value = "";
+                txtS1.Disabled = false;
+            }
 
             lblStage1.Text = row["Stage1Label"].ToString();
             lblStage2.Text = row["Stage2Label"].ToString();
@@ -212,9 +244,29 @@ namespace PPApp
             int productId = Convert.ToInt32(hfProductId.Value);
             if (productId == 0) { ShowAlert("Please select a product.", false); return; }
 
+            // For IsPriceCalcProduct: Stage 1 is fixed to BatchSize, Stages 2-4 cannot exceed BatchSize
+            bool isPCalc = hfIsPriceCalc != null && hfIsPriceCalc.Value == "1";
+            decimal batchSz = 0;
+            if (hfBatchSize != null) decimal.TryParse(hfBatchSize.Value, out batchSz);
+
             decimal qty;
-            if (!decimal.TryParse(valStr, out qty) || qty <= 0)
-            { ShowAlert("Please enter a valid quantity for Stage " + stage + ".", false); return; }
+            if (isPCalc && stage == 1 && batchSz > 0)
+            {
+                // Stage 1 is always the batch size — use it directly
+                qty = batchSz;
+            }
+            else
+            {
+                if (!decimal.TryParse(valStr, out qty) || qty <= 0)
+                { ShowAlert("Please enter a valid quantity for Stage " + stage + ".", false); return; }
+            }
+
+            // Validate: Stages 2-4 cannot exceed BatchSize for IsPriceCalcProduct
+            if (isPCalc && batchSz > 0 && stage > 1 && qty > batchSz)
+            {
+                ShowAlert("Quantity (" + qty.ToString("0.###") + ") cannot exceed batch size (" + batchSz.ToString("0.###") + ").", false);
+                return;
+            }
 
             string productName = ddlProduct.SelectedItem?.Text ?? "";
             int bracket = productName.IndexOf(" (");
