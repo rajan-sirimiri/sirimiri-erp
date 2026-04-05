@@ -476,6 +476,8 @@ namespace PPApp.DAL
                 var bom = GetBOMByProduct(productId);
 
                 // Sum(BOM Qty × UnitRate) for RM items only (RM is the primary cost driver)
+                // UnitRate is per RM's base UOM — BOM Qty may be in a different UOM (e.g. grams vs kg)
+                // Must convert BOM qty to RM base UOM before multiplying
                 decimal totalInputCost = 0;
                 foreach (DataRow bomRow in bom.Rows)
                 {
@@ -483,7 +485,18 @@ namespace PPApp.DAL
                     {
                         decimal bomQty = Convert.ToDecimal(bomRow["Quantity"]);
                         decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
-                        totalInputCost += bomQty * unitRate;
+                        string bomUOM = bomRow["Abbreviation"].ToString();
+
+                        // Get RM base UOM
+                        int matId = Convert.ToInt32(bomRow["MaterialID"]);
+                        var rmUomRow = ExecuteQueryRow(
+                            "SELECT u.Abbreviation FROM MM_RawMaterials r JOIN MM_UOM u ON u.UOMID=r.UOMID WHERE r.RMID=?id;",
+                            new MySqlParameter("?id", matId));
+                        string rmBaseUOM = rmUomRow != null ? rmUomRow["Abbreviation"].ToString() : bomUOM;
+
+                        // Convert BOM qty to RM base UOM
+                        decimal convertedQty = bomQty * GetUOMConversionFactor(bomUOM, rmBaseUOM);
+                        totalInputCost += convertedQty * unitRate;
                     }
                 }
 
@@ -856,8 +869,18 @@ namespace PPApp.DAL
                 {
                     decimal bomQty = Convert.ToDecimal(bomRow["Quantity"]);
                     decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
-                    totalInputCost += bomQty * unitRate;
-                    totalInputQty += bomQty;
+                    string bomUOM = bomRow["Abbreviation"].ToString();
+
+                    // Get RM base UOM for conversion
+                    int matId = Convert.ToInt32(bomRow["MaterialID"]);
+                    var rmUomRow = ExecuteQueryRow(
+                        "SELECT u.Abbreviation FROM MM_RawMaterials r JOIN MM_UOM u ON u.UOMID=r.UOMID WHERE r.RMID=?id;",
+                        new MySqlParameter("?id", matId));
+                    string rmBaseUOM = rmUomRow != null ? rmUomRow["Abbreviation"].ToString() : bomUOM;
+
+                    decimal convertedQty = bomQty * GetUOMConversionFactor(bomUOM, rmBaseUOM);
+                    totalInputCost += convertedQty * unitRate;
+                    totalInputQty += convertedQty;
                 }
             }
 

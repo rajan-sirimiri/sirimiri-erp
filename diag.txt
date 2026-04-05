@@ -1,0 +1,20 @@
+# ProductID	ProductName	ProductType	BatchSize
+2	Liquid Jaggery	Conversion	116.000
+
+
+====
+
+# BOMID	MaterialType	MaterialID	Quantity	Abbreviation	MaterialName	LatestRMRate	OpeningRate
+4	RM	6	60.000	kg	Sugar		43.00
+5	RM	5	2.000	kg	Laddu Jaggery		45.00
+6	RM	7	30.000	kg	Liquid Glucose		40.00
+7	RM	24	24.000	kg	RO Water		0.00
+123	RM	25	200.000	g	Salt		29.00
+
+===========
+# InwardID	GRNNo	InwardDate	RMName	Quantity	QtyActualReceived	Rate	Amount	Remarks
+37	INT-20260405123942-23-1	2026-04-05	Liquid Jaggery	116.000	116.000	83.36	9669.76	Internal production: Liquid Jaggery | Order #72 Batch #1 | Rate=₹83.36/unit
+36	INT-20260405123840-23-1	2026-04-05	Liquid Jaggery	116.000	116.000	83.36	9669.76	Internal production: Liquid Jaggery | Order #66 Batch #1 | Rate=₹83.36/unit
+35	INT-20260405122025-23-1	2026-04-05	Liquid Jaggery	116.000	116.000	0.00	0.00	Internal production: Liquid Jaggery | Order #62 Batch #1
+2	INT-20260404144656-23-2	2026-04-04	Liquid Jaggery	116.000	116.000	0.00	0.00	Internal production: Liquid Jaggery | Order #1 Batch #2
+1	INT-20260404144640-23-1	2026-04-04	Liquid Jaggery	116.000	116.000	0.00	0.00	Internal production: Liquid Jaggery | Order #1 Batch #1
