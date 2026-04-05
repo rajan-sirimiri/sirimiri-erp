@@ -351,6 +351,13 @@
                 <!-- PRE PROCESSED RM FIELDS — shown only for Pre processed RM type -->
                 <div id="divPreprocessFields" style="display:none;margin-top:13px;background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:14px 16px;">
                     <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1565c0;margin-bottom:12px;">&#9881; Pre processing Stage Labels</div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1565c0;">
+                            <asp:CheckBox ID="chkPriceCalc" runat="server"/>
+                            Is this a Price Calculation Product?
+                        </label>
+                        <div style="font-size:10px;color:#666;margin-top:4px;margin-left:28px;">When checked, the system will calculate the cost per unit based on Stage 1 input price and Stage 4 output quantity.</div>
+                    </div>
                     <div class="form-group-row">
                         <div class="form-group" style="margin-bottom:0">
                             <label>Input Raw Material Name <span class="req">*</span></label>

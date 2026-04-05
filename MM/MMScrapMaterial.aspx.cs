@@ -22,6 +22,9 @@ namespace MMApp
         protected Label        lblCount;
         protected Panel        pnlEmpty;
         protected Repeater     rptList;
+        protected Panel        pnlPriceHistory, pnlHistoryEmpty;
+        protected Repeater     rptPriceHistory;
+        protected Label        lblHistoryScrapName;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -115,8 +118,35 @@ namespace MMApp
                 btnToggle.Text    = Convert.ToBoolean(row["IsActive"]) ? "Deactivate" : "Activate";
                 btnToggle.Visible = true;
                 pnlAlert.Visible  = false;
+                if (pnlPriceHistory != null) pnlPriceHistory.Visible = false;
                 BindUOM();
                 try { ddlUOM.SelectedValue = row["UOMID"].ToString(); } catch { }
+            }
+            else if (e.CommandName == "SetPrice")
+            {
+                int scrapId = Convert.ToInt32(e.CommandArgument);
+                var txtNewPrice = e.Item.FindControl("txtNewPrice") as TextBox;
+                if (txtNewPrice == null || string.IsNullOrEmpty(txtNewPrice.Text.Trim()))
+                { ShowAlert("Please enter a price.", false); return; }
+                decimal price;
+                if (!decimal.TryParse(txtNewPrice.Text.Trim(), out price) || price < 0)
+                { ShowAlert("Please enter a valid price.", false); return; }
+
+                int userId = Convert.ToInt32(Session["MM_UserID"]);
+                MMDatabaseHelper.SetScrapPrice(scrapId, price, userId);
+                ShowAlert("Price updated to ₹" + price.ToString("0.00"), true);
+                BindList();
+            }
+            else if (e.CommandName == "PriceHistory")
+            {
+                int scrapId = Convert.ToInt32(e.CommandArgument);
+                var scrap = MMDatabaseHelper.GetScrapMaterialById(scrapId);
+                if (lblHistoryScrapName != null)
+                    lblHistoryScrapName.Text = scrap != null ? scrap["ScrapName"].ToString() : "";
+                var history = MMDatabaseHelper.GetScrapPriceHistory(scrapId);
+                if (rptPriceHistory != null) { rptPriceHistory.DataSource = history; rptPriceHistory.DataBind(); }
+                if (pnlHistoryEmpty != null) pnlHistoryEmpty.Visible = history.Rows.Count == 0;
+                if (pnlPriceHistory != null) pnlPriceHistory.Visible = true;
             }
         }
 

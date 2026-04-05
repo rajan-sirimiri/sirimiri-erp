@@ -24,6 +24,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.TextBox       txtUnitSizes;
         protected global::System.Web.UI.WebControls.TextBox       txtContainersPerCase;
         protected global::System.Web.UI.WebControls.CheckBox      chkLanguageLabels;
+        protected global::System.Web.UI.WebControls.CheckBox      chkPriceCalc;
         protected global::System.Web.UI.WebControls.HiddenField  hfParamsJson;
         protected global::System.Web.UI.WebControls.HiddenField  hfRemarksJson;
         protected global::System.Web.UI.WebControls.Panel        pnlRemarksAlert;
@@ -268,12 +269,15 @@ namespace PPApp
                     productId = PPDatabaseHelper.AddProduct(name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId, uwg);
                     hfProductID.Value = productId.ToString();
                     if (type == "Pre processed RM")
+                    {
                         PPDatabaseHelper.SavePreprocessStages(productId,
                             txtInputRMName.Text.Trim(),
                             txtStage1Label.Text.Trim(),
                             txtStage2Label.Text.Trim(),
                             txtStage3Label.Text.Trim(),
                             txtStage4Label != null ? txtStage4Label.Text.Trim() : null);
+                        PPDatabaseHelper.SetPriceCalcFlag(productId, chkPriceCalc != null && chkPriceCalc.Checked);
+                    }
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
@@ -289,12 +293,15 @@ namespace PPApp
                     if (txtUnitWeightGrams != null && decimal.TryParse(txtUnitWeightGrams.Text.Trim(), out uwgParsed2) && uwgParsed2 > 0) uwg2 = uwgParsed2;
                     PPDatabaseHelper.UpdateProduct(productId, code, name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId2, uwg2);
                     if (type == "Pre processed RM")
+                    {
                         PPDatabaseHelper.SavePreprocessStages(productId,
                             txtInputRMName.Text.Trim(),
                             txtStage1Label.Text.Trim(),
                             txtStage2Label.Text.Trim(),
                             txtStage3Label.Text.Trim(),
                             txtStage4Label != null ? txtStage4Label.Text.Trim() : null);
+                        PPDatabaseHelper.SetPriceCalcFlag(productId, chkPriceCalc != null && chkPriceCalc.Checked);
+                    }
                     PPDatabaseHelper.SavePackingSpec(productId,
                         ddlContainerType.SelectedValue,
                         txtUnitSizes.Text.Trim(),
@@ -414,6 +421,10 @@ namespace PPApp
                     chkLanguageLabels.Checked = row.Table.Columns.Contains("HasLanguageLabels")
                         && row["HasLanguageLabels"] != DBNull.Value
                         && Convert.ToInt32(row["HasLanguageLabels"]) == 1;
+                if (chkPriceCalc != null)
+                    chkPriceCalc.Checked = row.Table.Columns.Contains("IsPriceCalcProduct")
+                        && row["IsPriceCalcProduct"] != DBNull.Value
+                        && Convert.ToInt32(row["IsPriceCalcProduct"]) == 1;
                 // Show containers-per-case row if JAR or BOX
                 string ct = row["ContainerType"] == DBNull.Value ? "" : row["ContainerType"].ToString();
                 if (ct == "JAR" || ct == "BOX")
@@ -470,6 +481,7 @@ namespace PPApp
             if (txtStage4Label != null)       txtStage4Label.Text = "";
             if (ddlContainerType != null)      ddlContainerType.SelectedIndex = 0;
             if (chkLanguageLabels != null)     chkLanguageLabels.Checked = false;
+            if (chkPriceCalc != null)         chkPriceCalc.Checked = false;
             if (hfParamsJson != null)          hfParamsJson.Value = "[]";
             ClientScript.RegisterStartupScript(GetType(), "clearparams", "loadParamsFromJson('[]');", true);
             if (txtUnitSizes != null)          txtUnitSizes.Text = "";

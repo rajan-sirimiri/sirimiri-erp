@@ -141,8 +141,15 @@
                                 <span class="mat-name"><%# Eval("ScrapName") %></span>
                                 <span class="mat-code"><%# Eval("ScrapCode") %></span>
                             </div>
-                            <div class="mat-actions">
+                            <div class="mat-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 <span class="mat-uom"><%# Eval("Abbreviation") %></span>
+                                <span style="font-weight:700;color:#1a9e6a;font-size:13px;">₹<%# Convert.ToDecimal(Eval("CurrentPrice")).ToString("0.00") %></span>
+                                <asp:TextBox runat="server" ID="txtNewPrice" placeholder="New ₹" 
+                                    style="width:80px;padding:5px 8px;border:1px solid #e0e0e0;border-radius:6px;font-size:12px;text-align:right;"/>
+                                <asp:LinkButton runat="server" CommandName="SetPrice"
+                                    CommandArgument='<%# Eval("ScrapID") %>'
+                                    CssClass="btn-secondary" style="font-size:10px;padding:4px 10px;background:#1a9e6a;color:#fff;border:none;"
+                                    CausesValidation="false">Set Price</asp:LinkButton>
                                 <span class='<%# (bool)Eval("IsActive") ? "badge-active" : "badge-inactive" %>'>
                                     <%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>
                                 </span>
@@ -150,15 +157,44 @@
                                     CommandArgument='<%# Eval("ScrapID") %>'
                                     CssClass="btn-secondary" style="font-size:11px;padding:4px 10px;"
                                     CausesValidation="false">Edit</asp:LinkButton>
+                                <asp:LinkButton runat="server" CommandName="PriceHistory"
+                                    CommandArgument='<%# Eval("ScrapID") %>'
+                                    CssClass="btn-secondary" style="font-size:10px;padding:4px 8px;background:transparent;color:#2980b9;border:1px solid #2980b9;"
+                                    CausesValidation="false">History</asp:LinkButton>
                             </div>
                         </div>
                     </ItemTemplate>
                 </asp:Repeater>
             </div>
         </div>
-    </div>
 
-</div>
-</form>
+        <!-- PRICE HISTORY PANEL -->
+        <asp:Panel ID="pnlPriceHistory" runat="server" Visible="false">
+        <div class="card" style="margin-top:16px;">
+            <div class="card-title">&#x1F4C8; Price History — <asp:Label ID="lblHistoryScrapName" runat="server"/></div>
+            <asp:Panel ID="pnlHistoryEmpty" runat="server"><div class="empty-note">No price history</div></asp:Panel>
+            <asp:Repeater ID="rptPriceHistory" runat="server">
+                <HeaderTemplate>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead><tr>
+                        <th style="text-align:left;padding:8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:2px solid #e0e0e0;">Date</th>
+                        <th style="text-align:right;padding:8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:2px solid #e0e0e0;">Price (₹)</th>
+                        <th style="text-align:left;padding:8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:2px solid #e0e0e0;">Remarks</th>
+                        <th style="text-align:left;padding:8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:2px solid #e0e0e0;">Set On</th>
+                    </tr></thead><tbody>
+                </HeaderTemplate>
+                <ItemTemplate>
+                    <tr>
+                        <td style="padding:8px;border-bottom:1px solid #f0f0f0;"><%# Convert.ToDateTime(Eval("EffectiveDate")).ToString("dd-MMM-yyyy") %></td>
+                        <td style="padding:8px;text-align:right;font-weight:700;color:#1a9e6a;border-bottom:1px solid #f0f0f0;">₹<%# Convert.ToDecimal(Eval("Price")).ToString("0.00") %></td>
+                        <td style="padding:8px;font-size:11px;color:#666;border-bottom:1px solid #f0f0f0;"><%# Eval("Remarks") %></td>
+                        <td style="padding:8px;font-size:11px;color:#999;border-bottom:1px solid #f0f0f0;"><%# Convert.ToDateTime(Eval("CreatedAt")).ToString("dd-MMM-yyyy hh:mm tt") %></td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></tbody></table></FooterTemplate>
+            </asp:Repeater>
+        </div>
+        </asp:Panel>
+    </div>
 </body>
 </html>

@@ -419,7 +419,7 @@ namespace MMApp.DAL
         {
             return ExecuteQuery(
                 "SELECT s.ScrapID, s.ScrapCode, s.ScrapName, s.Description," +
-                " s.UOMID, u.UOMName, u.Abbreviation, s.IsActive, s.CreatedAt" +
+                " s.UOMID, s.CurrentPrice, u.UOMName, u.Abbreviation, s.IsActive, s.CreatedAt" +
                 " FROM MM_ScrapMaterials s JOIN MM_UOM u ON u.UOMID=s.UOMID" +
                 " ORDER BY s.ScrapName;");
         }
@@ -471,6 +471,36 @@ namespace MMApp.DAL
                 "UPDATE MM_ScrapMaterials SET IsActive=?a WHERE ScrapID=?id;",
                 new MySqlParameter("a",  isActive ? 1 : 0),
                 new MySqlParameter("id", scrapId));
+        }
+
+        // ── SCRAP PRICING ────────────────────────────────────────────────
+
+        public static void SetScrapPrice(int scrapId, decimal price, int userId)
+        {
+            // Update current price
+            ExecuteNonQuery("UPDATE MM_ScrapMaterials SET CurrentPrice=?p WHERE ScrapID=?id;",
+                new MySqlParameter("?p", price), new MySqlParameter("?id", scrapId));
+            // Log to history
+            ExecuteNonQuery(
+                "INSERT INTO MM_ScrapPriceHistory (ScrapID, Price, EffectiveDate, CreatedBy)" +
+                " VALUES (?id, ?p, CURDATE(), ?by);",
+                new MySqlParameter("?id", scrapId), new MySqlParameter("?p", price),
+                new MySqlParameter("?by", userId));
+        }
+
+        public static DataTable GetScrapPriceHistory(int scrapId)
+        {
+            return ExecuteQuery(
+                "SELECT HistoryID, Price, EffectiveDate, Remarks, CreatedAt" +
+                " FROM MM_ScrapPriceHistory WHERE ScrapID=?id ORDER BY EffectiveDate DESC, HistoryID DESC;",
+                new MySqlParameter("?id", scrapId));
+        }
+
+        public static decimal GetScrapCurrentPrice(int scrapId)
+        {
+            object val = ExecuteScalar("SELECT CurrentPrice FROM MM_ScrapMaterials WHERE ScrapID=?id;",
+                new MySqlParameter("?id", scrapId));
+            return val != null && val != DBNull.Value ? Convert.ToDecimal(val) : 0;
         }
 
         private static string GenerateScrapCode()

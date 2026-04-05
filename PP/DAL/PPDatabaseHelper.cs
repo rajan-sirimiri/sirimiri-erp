@@ -919,6 +919,13 @@ namespace PPApp.DAL
                 new MySqlParameter("?pid", productId));
         }
 
+        public static void SetPriceCalcFlag(int productId, bool isCalcProduct)
+        {
+            ExecuteNonQuery("UPDATE PP_Products SET IsPriceCalcProduct=?v WHERE ProductID=?pid;",
+                new MySqlParameter("?v", isCalcProduct ? 1 : 0),
+                new MySqlParameter("?pid", productId));
+        }
+
         public static DataTable GetPreprocessProducts()
         {
             return ExecuteQuery(
