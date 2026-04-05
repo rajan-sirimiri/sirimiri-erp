@@ -1,23 +1,10 @@
-# ProductID	ProductName	ProductType	BatchSize
-20	Grated Coconut	Prefilled Conversion	475.000
-===================
-# BOMID	MaterialType	MaterialID	Quantity	BomUOM	MaterialName	RMBaseUOM	LatestRate	OpeningRate
-55	RM	1	1000.000	kg	Raw Coconut	kg		53.00
-=================
-# RMID	RMName	ScrapID	ScrapName	CurrentPrice
-1	Raw Coconut	1	Coconut Shell	23.00
-========================
-# ScrapStockID	ScrapName	QtyGenerated	GeneratedAt	SourceRMName
-5	Peanut Punnakku	0.500000	2026-04-05 10:50:12	Raw Peanut
-6	Peanut Kurunai	2.000000	2026-04-05 10:50:12	Raw Peanut
-7	Peanut Skin	2.000000	2026-04-05 10:50:12	Raw Peanut
-8	Peanut Spoiled Nuts	2.000000	2026-04-05 10:50:12	Raw Peanut
-9	Coconut Shell	30.000000	2026-04-05 13:14:09	Raw Coconut
+# RMID	RMName	QtyConsumed	SourceType	ConsumedAt
+16	Raw Banana	129.000000	SHIFT	2026-04-05 13:31:04
+16	Raw Banana	60.000000	SHIFT	2026-04-05 13:36:39
+===============
 
-
-========
-
-# InwardID	GRNNo	RMName	Quantity	Rate	Amount	Remarks
-39	PRE-20260405131334-2	Grated Coconut	100.000	530.00	53000.00	Prefilled: Product=Grated Coconut ProductID=20 | Rate=₹530.00/unit
-16	PRE-20260405080727-2	Grated Coconut	12.000	0.00	0.00	Prefilled: Product=Grated Coconut ProductID=20
-15	PRE-20260405080426-2	Grated Coconut	10.000	0.00	0.00	Prefilled: Product=Grated Coconut ProductID=20
+# MaterialID	RMName	Quantity	Abbreviation
+16	Raw Banana	70.000	kg
+===
+# Rate	Amount	Remarks
+103.20	5160.00	Prefilled: Product=Grated Banana ProductID=19 | Rate=₹103.20/unit

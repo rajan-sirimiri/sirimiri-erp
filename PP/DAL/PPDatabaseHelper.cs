@@ -853,13 +853,40 @@ namespace PPApp.DAL
                 throw new Exception("Internal Production supplier (INT-PROD) not found.");
             int supplierId = Convert.ToInt32(supObj);
 
-            // ── PRICING for Prefilled Conversion ──
-            // Rate = ((Actual RM Consumed × RM Price) - (Scrap Qty × Scrap Price)) / FG Output Qty
-            // Uses today's ACTUAL shift consumption, not BOM theoretical quantities
-            decimal rate = 0;
-            decimal amount = 0;
+            // Rate=0 at entry time — pricing calculated on shift closure
+            ExecuteNonQuery(
+                "INSERT INTO MM_RawInward" +
+                " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
+                "  Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
+                "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
+                "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
+                " VALUES (?grn,?dt,'PREFILLED',NULL,?sup,?rmid," +
+                "  ?qty,?qty,?qty,0,0," +
+                "  NULL,NULL,0,0,0,0," +
+                "  0,0,NULL,?rem,1,'Approved',?by,NOW());",
+                new MySqlParameter("?grn",  grnNo),
+                new MySqlParameter("?dt",   NowIST().Date),
+                new MySqlParameter("?sup",  supplierId),
+                new MySqlParameter("?rmid", rmId),
+                new MySqlParameter("?qty",  qty),
+                new MySqlParameter("?rem",  remarks),
+                new MySqlParameter("?by",   userId));
+        }
 
-            // Get BOM to identify which RMs are used (for RM IDs and prices)
+        /// <summary>
+        /// Called on shift closure — calculates rate from actual RM consumed and scrap recovery,
+        /// then updates ALL today's prefilled GRNs for this product.
+        /// </summary>
+        public static string UpdatePrefilledRates(int productId)
+        {
+            // Get today's total output for this product
+            var entries = GetPrefilledEntriesToday(productId);
+            decimal totalOutput = 0;
+            foreach (DataRow r in entries.Rows)
+                totalOutput += Convert.ToDecimal(r["Qty"]);
+            if (totalOutput <= 0) return "No output entries found today.";
+
+            // Get BOM RMs and their prices, sum actual shift consumption
             var bom = GetBOMByProduct(productId);
             decimal totalInputCost = 0;
             foreach (DataRow bomRow in bom.Rows)
@@ -869,7 +896,7 @@ namespace PPApp.DAL
                     int matId = Convert.ToInt32(bomRow["MaterialID"]);
                     decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
 
-                    // Get today's ACTUAL shift consumption for this RM
+                    // Actual shift consumption for this RM today
                     object actualQtyObj = ExecuteScalar(
                         "SELECT IFNULL(SUM(QtyConsumed),0) FROM MM_StockConsumption" +
                         " WHERE RMID=?rmid AND SourceType='SHIFT' AND DATE(ConsumedAt)=?today;",
@@ -878,11 +905,12 @@ namespace PPApp.DAL
                     decimal actualQty = (actualQtyObj != null && actualQtyObj != DBNull.Value)
                         ? Convert.ToDecimal(actualQtyObj) : 0;
 
+                    // actualQty is already in RM base UOM (recorded via RecordShiftConsumption)
                     totalInputCost += actualQty * unitRate;
                 }
             }
 
-            // Get scrap cost deduction — find linked scrap materials via BOM RM
+            // Scrap cost deduction
             decimal scrapDeduction = 0;
             foreach (DataRow bomRow in bom.Rows)
             {
@@ -893,14 +921,12 @@ namespace PPApp.DAL
                     foreach (DataRow scrapRow in scrapLinks.Rows)
                     {
                         int scrapId = Convert.ToInt32(scrapRow["ScrapID"]);
-                        // Get current scrap price
                         object scrapPriceObj = ExecuteScalar(
                             "SELECT CurrentPrice FROM MM_ScrapMaterials WHERE ScrapID=?sid;",
                             new MySqlParameter("?sid", scrapId));
                         decimal scrapPrice = (scrapPriceObj != null && scrapPriceObj != DBNull.Value)
                             ? Convert.ToDecimal(scrapPriceObj) : 0;
 
-                        // Get today's scrap qty from ScrapStock
                         object scrapQtyObj = ExecuteScalar(
                             "SELECT IFNULL(SUM(QtyGenerated),0) FROM MM_ScrapStock" +
                             " WHERE ScrapID=?sid AND DATE(GeneratedAt)=?today;",
@@ -914,37 +940,30 @@ namespace PPApp.DAL
                 }
             }
 
-            // Calculate: Rate = (Actual Input Cost - Scrap Recovery) / Output Qty
+            // Calculate rate
             decimal effectiveCost = totalInputCost - scrapDeduction;
             if (effectiveCost < 0) effectiveCost = 0;
-            if (qty > 0 && effectiveCost > 0)
-            {
-                rate = Math.Round(effectiveCost / qty, 2);
-                amount = Math.Round(qty * rate, 2);
-            }
+            decimal rate = 0;
+            if (totalOutput > 0 && effectiveCost > 0)
+                rate = Math.Round(effectiveCost / totalOutput, 2);
 
-            remarks += (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "")
-                + (scrapDeduction > 0 ? " | ScrapRecovery=₹" + scrapDeduction.ToString("0.00") : "");
-
+            // Update ALL today's prefilled GRNs for this product
+            string rateInfo = " | Rate=₹" + rate.ToString("0.00") + "/unit"
+                + (scrapDeduction > 0 ? " ScrapRecovery=₹" + scrapDeduction.ToString("0.00") : "");
             ExecuteNonQuery(
-                "INSERT INTO MM_RawInward" +
-                " (GRNNo, InwardDate, InvoiceNo, InvoiceDate, SupplierID, RMID," +
-                "  Quantity, QtyActualReceived, QtyInUOM, Rate, Amount," +
-                "  HSNCode, GSTRate, GSTAmount, TransportCost, TransportInInvoice, TransportInGST," +
-                "  ShortageQty, ShortageValue, PONo, Remarks, QualityCheck, Status, CreatedBy, CreatedAt)" +
-                " VALUES (?grn,?dt,'PREFILLED',NULL,?sup,?rmid," +
-                "  ?qty,?qty,?qty,?rate,?amt," +
-                "  NULL,NULL,0,0,0,0," +
-                "  0,0,NULL,?rem,1,'Approved',?by,NOW());",
-                new MySqlParameter("?grn",  grnNo),
-                new MySqlParameter("?dt",   NowIST().Date),
-                new MySqlParameter("?sup",  supplierId),
-                new MySqlParameter("?rmid", rmId),
-                new MySqlParameter("?qty",  qty),
+                "UPDATE MM_RawInward SET Rate=?rate, Amount=ROUND(QtyActualReceived * ?rate, 2)," +
+                " Remarks=CONCAT(Remarks, ?info)" +
+                " WHERE InvoiceNo='PREFILLED' AND DATE(InwardDate)=?today" +
+                " AND Remarks LIKE ?pat AND Rate=0;",
                 new MySqlParameter("?rate", rate),
-                new MySqlParameter("?amt",  amount),
-                new MySqlParameter("?rem",  remarks),
-                new MySqlParameter("?by",   userId));
+                new MySqlParameter("?info", rateInfo),
+                new MySqlParameter("?today", TodayIST()),
+                new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
+
+            return "Rate ₹" + rate.ToString("0.00") + "/unit applied to " + entries.Rows.Count +
+                " entries. Output: " + totalOutput.ToString("0.###") +
+                ", Input cost: ₹" + totalInputCost.ToString("0.00") +
+                ", Scrap recovery: ₹" + scrapDeduction.ToString("0.00");
         }
 
         public static void RecordShiftConsumption(int rmId, decimal qty,

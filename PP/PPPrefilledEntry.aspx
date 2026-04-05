@@ -128,6 +128,7 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
 <asp:HiddenField ID="hfProductId"      runat="server" Value="0"/>
 <asp:HiddenField ID="hfShiftClosed"    runat="server" Value="0"/>
+<asp:HiddenField ID="hfShiftStarted"  runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMStockQty"     runat="server" Value="0"/>
 <asp:HiddenField ID="hfRMStockUnit"    runat="server" Value=""/>
 <asp:HiddenField ID="hfRMDisplayName"  runat="server" Value=""/>
@@ -200,8 +201,14 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
             <div class="card">
                 <span class="section-badge badge-tally">&#9654; Running Tally</span>
                 <div class="card-title">Add to Stock</div>
-                <div class="card-sub">Enter qty just produced and click Add — stock increases immediately</div>
+                <div class="card-sub">Start the shift, then enter qty produced and click Add — stock increases immediately</div>
 
+                <asp:Panel ID="pnlStartShift" runat="server">
+                    <asp:Button ID="btnStartShift" runat="server" CssClass="btn-add" style="background:#1a1a1a;"
+                        Text="&#9654; START THE SHIFT" OnClick="btnStartShift_Click" CausesValidation="false"/>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlAddStock" runat="server" Visible="false">
                 <div class="qty-row">
                     <div class="form-group">
                         <label>Qty Produced <span class="req">*</span></label>
@@ -213,10 +220,17 @@ select:focus,input:focus{border-color:var(--accent);background:#fff;}
 
                 <asp:Button ID="btnAdd" runat="server" CssClass="btn-add"
                     Text="+ Add to Stock" OnClick="btnAdd_Click" CausesValidation="false"/>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlShiftStartedMsg" runat="server" Visible="false">
+                    <div style="background:#eaf4fb;border:1px solid #bee3f8;border-radius:9px;
+                        padding:10px 14px;margin-top:10px;font-size:12px;font-weight:700;
+                        color:var(--blue);">&#9654; Shift started — add items to stock as you produce</div>
+                </asp:Panel>
 
                 <asp:Button ID="btnCloseShift" runat="server" CssClass="btn-close-shift"
-                    Text="&#9654; CLOSE THE SHIFT"
-                    OnClick="btnCloseShift_Click" CausesValidation="false"/>
+                    Text="&#9632; CLOSE THE SHIFT"
+                    OnClick="btnCloseShift_Click" CausesValidation="false" Visible="false"/>
 
                 <asp:Panel ID="pnlShiftClosedMsg" runat="server" Visible="false">
                     <div style="background:#eafaf1;border:1px solid #a9dfbf;border-radius:9px;
