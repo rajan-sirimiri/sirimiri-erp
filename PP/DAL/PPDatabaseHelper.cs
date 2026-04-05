@@ -1142,11 +1142,11 @@ namespace PPApp.DAL
                 if (isPriceCalc && stagesRow != null)
                 {
                     // Get Stage 1 input RM name and its latest cost per unit
-                    string inputRMName = stagesRow["InputRMName"].ToString();
+                    string stage1RMName = stagesRow["InputRMName"].ToString();
                     var inputRMRow = ExecuteQueryRow(
                         "SELECT RMID FROM MM_RawMaterials" +
                         " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                        new MySqlParameter("?name", inputRMName));
+                        new MySqlParameter("?name", stage1RMName));
 
                     if (inputRMRow != null)
                     {
