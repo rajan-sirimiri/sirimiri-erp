@@ -508,6 +508,38 @@ namespace MMApp.DAL
                 new MySqlParameter("?id",  rmId));
         }
 
+        // Overload: save with non-nullable params (used from source RM perspective)
+        public static void SaveConversionLossSettings(int derivedRmId, int sourceRmId, decimal lossPct)
+        {
+            ExecuteNonQuery(
+                "UPDATE MM_RawMaterials SET DerivedFromRMID=?src, ConversionLossPct=?pct WHERE RMID=?id;",
+                new MySqlParameter("?src", sourceRmId),
+                new MySqlParameter("?pct", lossPct),
+                new MySqlParameter("?id",  derivedRmId));
+        }
+
+        /// <summary>
+        /// Find the derived RM that gets its price from this source RM
+        /// </summary>
+        public static DataRow GetDerivedRMForSource(int sourceRmId)
+        {
+            return ExecuteQuerySingleRow(
+                "SELECT RMID, RMName, ConversionLossPct FROM MM_RawMaterials" +
+                " WHERE DerivedFromRMID=?sid AND IsActive=1 LIMIT 1;",
+                new MySqlParameter("?sid", sourceRmId));
+        }
+
+        /// <summary>
+        /// Clear conversion loss settings for any RM that derives from this source
+        /// </summary>
+        public static void ClearConversionLossForSource(int sourceRmId)
+        {
+            ExecuteNonQuery(
+                "UPDATE MM_RawMaterials SET DerivedFromRMID=NULL, ConversionLossPct=NULL" +
+                " WHERE DerivedFromRMID=?sid;",
+                new MySqlParameter("?sid", sourceRmId));
+        }
+
         /// <summary>
         /// When a source RM's price changes (via GRN or Opening Stock),
         /// find all RMs that derive from it and update their latest GRN rate.

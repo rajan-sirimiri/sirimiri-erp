@@ -222,11 +222,11 @@
                 <!-- CONVERSION LOSS PRICING -->
                 <div style="margin-top:18px;background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 16px;">
                     <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f57f17;margin-bottom:10px;">&#x1F504; Conversion Loss Pricing</div>
-                    <div style="font-size:11px;color:#666;margin-bottom:10px;">If this RM's price is derived from another RM with a conversion loss (e.g. Roasted Black Sesame from Black Sesame), set the source RM and loss %.</div>
+                    <div style="font-size:11px;color:#666;margin-bottom:10px;">When this RM's price changes (via GRN or Opening Stock), automatically update the derived RM's price with the conversion loss added.<br/>Example: Black Sesame → Roasted Black Sesame at +3% loss.</div>
                     <div class="os-grid">
                         <div class="form-group">
-                            <label>Source RM (Derived From)</label>
-                            <asp:DropDownList ID="ddlDerivedFromRM" runat="server" />
+                            <label>Derived RM (price gets updated)</label>
+                            <asp:DropDownList ID="ddlDerivedRM" runat="server" />
                         </div>
                         <div class="form-group">
                             <label>Conversion Loss %</label>

@@ -45,7 +45,7 @@ namespace MMApp
         protected Button  btnSaveOS;
 
         // ── Conversion Loss controls ──
-        protected DropDownList ddlDerivedFromRM;
+        protected DropDownList ddlDerivedRM;
         protected TextBox     txtConversionLoss;
         protected Button      btnSaveConversion;
 
@@ -285,51 +285,65 @@ namespace MMApp
 
         protected void btnSaveConversion_Click(object sender, EventArgs e)
         {
-            int rmId = Convert.ToInt32(hfRMID.Value);
-            if (rmId == 0) { ShowAlert("Please select a material first.", false); return; }
+            int sourceRmId = Convert.ToInt32(hfRMID.Value);
+            if (sourceRmId == 0) { ShowAlert("Please select a material first.", false); return; }
 
-            int derivedFromId = ddlDerivedFromRM != null ? Convert.ToInt32(ddlDerivedFromRM.SelectedValue) : 0;
+            int derivedRmId = ddlDerivedRM != null ? Convert.ToInt32(ddlDerivedRM.SelectedValue) : 0;
             decimal lossPct = 0;
             decimal.TryParse(txtConversionLoss != null ? txtConversionLoss.Text.Trim() : "", out lossPct);
 
             try
             {
-                MMDatabaseHelper.SaveConversionLossSettings(rmId, derivedFromId > 0 ? (int?)derivedFromId : null, lossPct > 0 ? (decimal?)lossPct : null);
-                ShowAlert("Conversion loss settings saved.", true);
-                LoadConversionSettings(rmId);
+                // Save settings on the DERIVED RM: DerivedFromRMID = this source RM, ConversionLossPct = loss
+                if (derivedRmId > 0 && lossPct > 0)
+                {
+                    MMDatabaseHelper.SaveConversionLossSettings(derivedRmId, sourceRmId, lossPct);
+                    ShowAlert("Conversion loss saved: when " + txtName.Text + " price changes, derived RM will be updated at +" + lossPct.ToString("0.##") + "% loss.", true);
+                }
+                else
+                {
+                    // Clear any existing setting — find derived RM that points to this source
+                    MMDatabaseHelper.ClearConversionLossForSource(sourceRmId);
+                    ShowAlert("Conversion loss settings cleared.", true);
+                }
+                LoadConversionSettings(sourceRmId);
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
 
-        private void LoadConversionSettings(int rmId)
+        private void LoadConversionSettings(int sourceRmId)
         {
-            // Load Derived From RM dropdown
-            if (ddlDerivedFromRM != null)
+            // Load dropdown of other RMs to pick the derived RM
+            if (ddlDerivedRM != null)
             {
-                ddlDerivedFromRM.Items.Clear();
-                ddlDerivedFromRM.Items.Add(new System.Web.UI.WebControls.ListItem("-- None --", "0"));
+                ddlDerivedRM.Items.Clear();
+                ddlDerivedRM.Items.Add(new System.Web.UI.WebControls.ListItem("-- None --", "0"));
                 var allRM = MMDatabaseHelper.GetActiveRawMaterials();
                 foreach (DataRow r in allRM.Rows)
                 {
                     int id = Convert.ToInt32(r["RMID"]);
-                    if (id == rmId) continue; // Don't allow self-reference
-                    ddlDerivedFromRM.Items.Add(new System.Web.UI.WebControls.ListItem(
+                    if (id == sourceRmId) continue;
+                    ddlDerivedRM.Items.Add(new System.Web.UI.WebControls.ListItem(
                         r["RMName"].ToString(), id.ToString()));
                 }
             }
 
-            // Load current settings
-            var rm = MMDatabaseHelper.GetRawMaterialById(rmId);
-            if (rm != null)
+            // Find derived RM that has DerivedFromRMID = this source RM
+            var derivedRow = MMDatabaseHelper.GetDerivedRMForSource(sourceRmId);
+            if (derivedRow != null)
             {
-                if (ddlDerivedFromRM != null && rm.Table.Columns.Contains("DerivedFromRMID") && rm["DerivedFromRMID"] != DBNull.Value)
+                if (ddlDerivedRM != null)
                 {
-                    try { ddlDerivedFromRM.SelectedValue = rm["DerivedFromRMID"].ToString(); } catch { }
+                    try { ddlDerivedRM.SelectedValue = derivedRow["RMID"].ToString(); } catch { }
                 }
-                if (txtConversionLoss != null && rm.Table.Columns.Contains("ConversionLossPct") && rm["ConversionLossPct"] != DBNull.Value)
-                    txtConversionLoss.Text = Convert.ToDecimal(rm["ConversionLossPct"]).ToString("0.##");
+                if (txtConversionLoss != null && derivedRow["ConversionLossPct"] != DBNull.Value)
+                    txtConversionLoss.Text = Convert.ToDecimal(derivedRow["ConversionLossPct"]).ToString("0.##");
                 else if (txtConversionLoss != null)
                     txtConversionLoss.Text = "";
+            }
+            else
+            {
+                if (txtConversionLoss != null) txtConversionLoss.Text = "";
             }
         }
 
