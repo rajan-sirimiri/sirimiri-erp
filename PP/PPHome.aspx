@@ -137,6 +137,7 @@
             <span class="nav-item">Masters <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
                 <a href="PPProductModel.aspx">Product Modelling</a>
+                <a href="PPProductCatalog.aspx">Product Catalog</a>
                 <a href="PPDailyPlan.aspx">Production Planning</a>
             </div>
         </div>
@@ -174,6 +175,14 @@
                 <div>
                     <div class="menu-title">Product<br/>Modelling</div>
                     <div class="menu-desc">Define finished products, BOM, raw material linkages and standard batch sizes</div>
+                </div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkCatalog" runat="server" href="PPProductCatalog.aspx" class="menu-card cat-master">
+                <div class="menu-icon">&#x1F4D6;</div>
+                <div>
+                    <div class="menu-title">Product<br/>Catalog</div>
+                    <div class="menu-desc">View all products with recipe, BOM, preprocess stages and batch parameters at a glance</div>
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>

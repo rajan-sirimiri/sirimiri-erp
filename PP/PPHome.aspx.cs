@@ -6,7 +6,7 @@ namespace PPApp
 {
     public partial class PPHome : Page
     {
-        protected System.Web.UI.HtmlControls.HtmlAnchor lnkProduct, lnkDailyPlan, lnkOrder, lnkExecution, lnkPrefilled, lnkPreprocess;
+        protected System.Web.UI.HtmlControls.HtmlAnchor lnkProduct, lnkCatalog, lnkDailyPlan, lnkOrder, lnkExecution, lnkPrefilled, lnkPreprocess;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -29,6 +29,7 @@ namespace PPApp
             // Hide menu cards based on role access
             string ppRole = Session["PP_Role"]?.ToString() ?? "";
             if (lnkProduct != null) lnkProduct.Visible = PPDatabaseHelper.RoleHasModuleAccess(ppRole, "PP", "PP_PRODUCT");
+            if (lnkCatalog != null) lnkCatalog.Visible = PPDatabaseHelper.RoleHasModuleAccess(ppRole, "PP", "PP_PRODUCT");
             if (lnkDailyPlan != null) lnkDailyPlan.Visible = PPDatabaseHelper.RoleHasModuleAccess(ppRole, "PP", "PP_DAILY_PLAN");
             if (lnkOrder != null) lnkOrder.Visible = PPDatabaseHelper.RoleHasModuleAccess(ppRole, "PP", "PP_ORDER");
             if (lnkExecution != null) lnkExecution.Visible = PPDatabaseHelper.RoleHasModuleAccess(ppRole, "PP", "PP_EXECUTION");

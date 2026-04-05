@@ -106,6 +106,7 @@
     </Compile>
     <Content Include="PPPrefilledEntry.aspx" />
     <Content Include="PPPreprocessEntry.aspx" />
+    <Content Include="PPProductCatalog.aspx" />
     <Content Include="PPProductionExecution.aspx" />
     <Content Include="PPProductionOrder.aspx" />
     <Content Include="PPProductModel.aspx" />
@@ -116,6 +117,9 @@
     <Compile Include="PPPreprocessEntry.aspx.cs">
       <DependentUpon>PPPreprocessEntry.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PPProductCatalog.aspx.cs">
+      <DependentUpon>PPProductCatalog.aspx</DependentUpon>
     </Compile>
     <Compile Include="PPProductionExecution.aspx.cs">
       <DependentUpon>PPProductionExecution.aspx</DependentUpon>
