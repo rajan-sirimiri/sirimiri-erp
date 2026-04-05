@@ -305,6 +305,8 @@ namespace MMApp.DAL
                 "   - IFNULL(con.TotalConsumed, 0)" +
                 " , 4) AS CurrentStock," +
                 " r.ReorderLevel," +
+                " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
+                " IFNULL(avg30.AvgRate, IFNULL(latest.LatestRate, IFNULL(os.Rate, 0))) AS Avg30DayCost," +
                 " NULL AS ReconStatus," +
                 " NULL AS ReconDate" +
                 " FROM MM_RawMaterials r" +
@@ -314,6 +316,16 @@ namespace MMApp.DAL
                 "            FROM MM_RawInward GROUP BY RMID) grn ON grn.RMID = r.RMID" +
                 " LEFT JOIN (SELECT RMID, SUM(QtyConsumed) AS TotalConsumed" +
                 "            FROM MM_StockConsumption GROUP BY RMID) con ON con.RMID = r.RMID" +
+                " LEFT JOIN (SELECT RMID, Rate AS LatestRate FROM MM_RawInward" +
+                "            WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardID = (SELECT MAX(InwardID) FROM MM_RawInward i2" +
+                "                            WHERE i2.RMID = MM_RawInward.RMID AND i2.Rate > 0)" +
+                "           ) latest ON latest.RMID = r.RMID" +
+                " LEFT JOIN (SELECT RMID," +
+                "            SUM(QtyActualReceived * Rate) / NULLIF(SUM(QtyActualReceived), 0) AS AvgRate" +
+                "            FROM MM_RawInward WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)" +
+                "            GROUP BY RMID) avg30 ON avg30.RMID = r.RMID" +
                 " WHERE r.IsActive = 1 AND LOWER(TRIM(r.RMName)) != 'ro water'" +
                 " ORDER BY CurrentStock DESC, r.RMName ASC;");
         }
@@ -330,7 +342,9 @@ namespace MMApp.DAL
                 " IFNULL(os.Quantity, 0) AS OpeningStock," +
                 " IFNULL(grn.TotalReceived, 0) AS TotalReceived," +
                 " IFNULL(con.TotalConsumed, 0) AS TotalConsumed," +
-                " p.ReorderLevel" +
+                " p.ReorderLevel," +
+                " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
+                " IFNULL(avg30.AvgRate, IFNULL(latest.LatestRate, IFNULL(os.Rate, 0))) AS Avg30DayCost" +
                 " FROM MM_PackingMaterials p" +
                 " JOIN MM_UOM u ON u.UOMID = p.UOMID" +
                 " LEFT JOIN MM_OpeningStock os ON os.MaterialType='PM' AND os.MaterialID=p.PMID" +
@@ -338,8 +352,78 @@ namespace MMApp.DAL
                 "            FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = p.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed" +
                 "            FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = p.PMID" +
+                " LEFT JOIN (SELECT PMID, Rate AS LatestRate FROM MM_PackingInward" +
+                "            WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardID = (SELECT MAX(InwardID) FROM MM_PackingInward i2" +
+                "                            WHERE i2.PMID = MM_PackingInward.PMID AND i2.Rate > 0)" +
+                "           ) latest ON latest.PMID = p.PMID" +
+                " LEFT JOIN (SELECT PMID," +
+                "            SUM(QtyActualReceived * Rate) / NULLIF(SUM(QtyActualReceived), 0) AS AvgRate" +
+                "            FROM MM_PackingInward WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)" +
+                "            GROUP BY PMID) avg30 ON avg30.PMID = p.PMID" +
                 " WHERE p.IsActive = 1" +
                 " ORDER BY CurrentStock DESC, p.PMName ASC;");
+        }
+
+        public static DataTable GetCNStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsumableID, c.ConsumableCode, c.ConsumableName, u.Abbreviation AS UOM," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                " , 4) AS CurrentStock," +
+                " c.ReorderLevel," +
+                " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
+                " IFNULL(avg30.AvgRate, IFNULL(latest.LatestRate, IFNULL(os.Rate, 0))) AS Avg30DayCost" +
+                " FROM MM_Consumables c" +
+                " JOIN MM_UOM u ON u.UOMID = c.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='CN' AND os.MaterialID=c.ConsumableID" +
+                " LEFT JOIN (SELECT ConsumableID, SUM(QtyActualReceived) AS TotalReceived" +
+                "            FROM MM_ConsumableInward GROUP BY ConsumableID) grn ON grn.ConsumableID = c.ConsumableID" +
+                " LEFT JOIN (SELECT ConsumableID, Rate AS LatestRate FROM MM_ConsumableInward" +
+                "            WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardID = (SELECT MAX(InwardID) FROM MM_ConsumableInward i2" +
+                "                            WHERE i2.ConsumableID = MM_ConsumableInward.ConsumableID AND i2.Rate > 0)" +
+                "           ) latest ON latest.ConsumableID = c.ConsumableID" +
+                " LEFT JOIN (SELECT ConsumableID," +
+                "            SUM(QtyActualReceived * Rate) / NULLIF(SUM(QtyActualReceived), 0) AS AvgRate" +
+                "            FROM MM_ConsumableInward WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)" +
+                "            GROUP BY ConsumableID) avg30 ON avg30.ConsumableID = c.ConsumableID" +
+                " WHERE c.IsActive = 1" +
+                " ORDER BY CurrentStock DESC, c.ConsumableName ASC;");
+        }
+
+        public static DataTable GetSTStockReport()
+        {
+            return ExecuteQuery(
+                "SELECT s.StationaryID, s.StationaryCode, s.StationaryName, u.Abbreviation AS UOM," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                " , 4) AS CurrentStock," +
+                " s.ReorderLevel," +
+                " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
+                " IFNULL(avg30.AvgRate, IFNULL(latest.LatestRate, IFNULL(os.Rate, 0))) AS Avg30DayCost" +
+                " FROM MM_Stationaries s" +
+                " JOIN MM_UOM u ON u.UOMID = s.UOMID" +
+                " LEFT JOIN MM_OpeningStock os ON os.MaterialType='ST' AND os.MaterialID=s.StationaryID" +
+                " LEFT JOIN (SELECT StationaryID, SUM(QtyActualReceived) AS TotalReceived" +
+                "            FROM MM_StationaryInward GROUP BY StationaryID) grn ON grn.StationaryID = s.StationaryID" +
+                " LEFT JOIN (SELECT StationaryID, Rate AS LatestRate FROM MM_StationaryInward" +
+                "            WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardID = (SELECT MAX(InwardID) FROM MM_StationaryInward i2" +
+                "                            WHERE i2.StationaryID = MM_StationaryInward.StationaryID AND i2.Rate > 0)" +
+                "           ) latest ON latest.StationaryID = s.StationaryID" +
+                " LEFT JOIN (SELECT StationaryID," +
+                "            SUM(QtyActualReceived * Rate) / NULLIF(SUM(QtyActualReceived), 0) AS AvgRate" +
+                "            FROM MM_StationaryInward WHERE QtyActualReceived > 0 AND Rate > 0" +
+                "            AND InwardDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)" +
+                "            GROUP BY StationaryID) avg30 ON avg30.StationaryID = s.StationaryID" +
+                " WHERE s.IsActive = 1" +
+                " ORDER BY CurrentStock DESC, s.StationaryName ASC;");
         }
 
         public static DataTable GetAllRawMaterials()

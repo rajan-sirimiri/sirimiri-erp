@@ -6,7 +6,7 @@ using MMApp.DAL;
 
 namespace MMApp
 {
-    public partial class MMRMStockReport : Page
+    public partial class MMCNStockReport : Page
     {
         protected Label    lblNavUser;
         protected Label    lblReportDate;
@@ -25,7 +25,7 @@ namespace MMApp
 
             // Module access check
             string __role = Session["MM_Role"]?.ToString() ?? "";
-            if (!MMDatabaseHelper.RoleHasModuleAccess(__role, "MM", "MM_RM_REPORT"))
+            if (!MMDatabaseHelper.RoleHasModuleAccess(__role, "MM", "MM_CN_REPORT"))
             { Response.Redirect("MMHome.aspx"); return; }
             lblNavUser.Text = Session["MM_FullName"] as string ?? "";
 
@@ -44,7 +44,7 @@ namespace MMApp
             lblReportDate.Text = now;
             lblPrintDate.Text  = now;
 
-            var dt = MMDatabaseHelper.GetRMStockReport();
+            var dt = MMDatabaseHelper.GetCNStockReport();
 
             rptStock.DataSource = dt;
             rptStock.DataBind();

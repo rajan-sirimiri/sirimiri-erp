@@ -1,10 +1,10 @@
-<%@ Page Language="C#" AutoEventWireup="true" Inherits="MMApp.MMRMStockReport" %>
+<%@ Page Language="C#" AutoEventWireup="true" Inherits="MMApp.MMCNStockReport" %>
 <!DOCTYPE html>
 <html lang="en">
 <head runat="server">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Raw Material Stock Report &mdash; MM</title>
+    <title>Consumable Stock Report &mdash; MM</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
     <style>
@@ -44,8 +44,8 @@
         .stock-table tr:last-child td { border-bottom:none; }
         .stock-table tr:hover td { background:#f9f9f9; }
 
-        .rm-name { font-weight:600; color:var(--text); }
-        .rm-code { font-size:11px; color:var(--text-dim); margin-top:1px; }
+        .cn-name { font-weight:600; color:var(--text); }
+        .cn-code { font-size:11px; color:var(--text-dim); margin-top:1px; }
         .sr-num { font-size:11px; color:var(--text-dim); }
 
         .stock-ok    { color:var(--teal); font-weight:700; }
@@ -78,7 +78,7 @@
     <a href="MMHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
     <a href="MMHome.aspx" class="nav-item">Home</a>
     <a href="MMRawInward.aspx" class="nav-item">Raw GRN</a>
-    <a href="MMRMStockReport.aspx" class="nav-item active">Stock Report</a>
+    <a href="MMCNStockReport.aspx" class="nav-item active">Stock Report</a>
     <div class="nav-right">
         <span class="nav-user"><asp:Label ID="lblNavUser" runat="server"/></span>
         <a href="MMLogout.aspx" class="nav-logout">Logout</a>
@@ -87,7 +87,7 @@
 
 <div class="page-header">
     <div>
-        <div class="page-title">Raw Material <span>Stock Report</span></div>
+        <div class="page-title">Consumable <span>Stock Report</span></div>
         <div class="page-sub">Current stock position — Opening Stock + GRN Received − Production Consumed</div>
     </div>
     <div class="header-actions">
@@ -102,12 +102,12 @@
 <div class="main">
     <div class="card">
         <div class="card-header">
-            <span class="card-title">&#128230; Raw Materials — Stock Position</span>
+            <span class="card-title">&#128230;#128230; Consumables — Stock Position</span>
             <span class="report-date">As of <asp:Label ID="lblReportDate" runat="server"/></span>
         </div>
 
         <div class="print-header">
-            Sirimiri Nutrition Food Products &nbsp;|&nbsp; Raw Material Stock Report &nbsp;|&nbsp;
+            Sirimiri Nutrition Food Products &nbsp;|&nbsp; Consumable Stock Report &nbsp;|&nbsp;
             As of <asp:Label ID="lblPrintDate" runat="server"/>
         </div>
 
@@ -134,8 +134,8 @@
                     <ItemTemplate>
                         <tr>
                             <td class="sr-num"><%# Container.ItemIndex + 1 %></td>
-                            <td><span class="rm-code"><%# Eval("RMCode") %></span></td>
-                            <td><span class="rm-name"><%# Eval("RMName") %></span></td>
+                            <td><span class="cn-code"><%# Eval("ConsumableCode") %></span></td>
+                            <td><span class="cn-name"><%# Eval("ConsumableName") %></span></td>
                             <td><%# Eval("UOM") %></td>
                             <td class="num">
                                 <span class='<%# GetStockClass(Eval("CurrentStock"), Eval("ReorderLevel")) %>'>

@@ -55,6 +55,7 @@
         .movement-dim { color:var(--text-dim); font-size:12px; }
 
         .summary-bar { display:flex; gap:24px; padding:12px 24px; background:#f9f9f9; border-top:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); }
+        .total-value-banner { background:linear-gradient(135deg,#1a9e6a,#2ecc71); color:#fff; padding:14px 24px; border-radius:10px; font-size:16px; margin-bottom:16px; text-align:center; letter-spacing:.03em; }
         .summary-item { font-size:12px; color:var(--text-muted); }
         .summary-item strong { color:var(--text); }
 
@@ -112,6 +113,10 @@
             As of <asp:Label ID="lblPrintDate" runat="server"/>
         </div>
 
+        <div class="total-value-banner">
+            Total Stock Value: <strong>₹<asp:Label ID="lblTotalValue" runat="server"/></strong>
+        </div>
+
         <table class="stock-table">
             <thead>
                 <tr>
@@ -119,10 +124,10 @@
                     <th>Code</th>
                     <th>Material Name</th>
                     <th>UOM</th>
-                    <th class="num">Opening</th>
-                    <th class="num">Received</th>
-                    <th class="num">Consumed</th>
                     <th class="num">Current Stock</th>
+                    <th class="num">Latest Cost/Unit (₹)</th>
+                    <th class="num">30-Day Avg Cost (₹)</th>
+                    <th class="num">Stock Value (₹)</th>
                     <th class="num">Reorder Level</th>
                 </tr>
             </thead>
@@ -134,14 +139,14 @@
                             <td><span class="pm-code"><%# Eval("PMCode") %></span></td>
                             <td><span class="pm-name"><%# Eval("PMName") %></span></td>
                             <td><%# Eval("UOM") %></td>
-                            <td class="num movement-dim"><%# FormatQty(Eval("OpeningStock")) %></td>
-                            <td class="num movement-dim"><%# FormatQty(Eval("TotalReceived")) %></td>
-                            <td class="num movement-dim"><%# FormatQty(Eval("TotalConsumed")) %></td>
                             <td class="num">
                                 <span class='<%# GetStockClass(Eval("CurrentStock"), Eval("ReorderLevel")) %>'>
                                     <%# FormatQty(Eval("CurrentStock")) %>
                                 </span>
                             </td>
+                            <td class="num"><%# FormatCurrency(Eval("LatestCostPerUnit")) %></td>
+                            <td class="num"><%# FormatCurrency(Eval("Avg30DayCost")) %></td>
+                            <td class="num" style="font-weight:600;"><%# FormatCurrency(CalcStockValue(Eval("CurrentStock"), Eval("LatestCostPerUnit"))) %></td>
                             <td class="num"><%# FormatQty(Eval("ReorderLevel")) %></td>
                         </tr>
                     </ItemTemplate>

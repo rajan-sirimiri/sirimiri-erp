@@ -16,6 +16,7 @@ namespace MMApp
         protected Label    lblInStock;
         protected Label    lblLow;
         protected Label    lblZero;
+        protected Label    lblTotalValue;
         protected Button   btnRefresh;
 
         protected void Page_Load(object sender, EventArgs e)
@@ -50,10 +51,13 @@ namespace MMApp
 
             int total = dt.Rows.Count;
             int inStock = 0, low = 0, zero = 0;
+            decimal totalValue = 0;
             foreach (DataRow row in dt.Rows)
             {
                 decimal stock = Convert.ToDecimal(row["CurrentStock"]);
                 decimal reorder = row["ReorderLevel"] == DBNull.Value ? 0 : Convert.ToDecimal(row["ReorderLevel"]);
+                decimal latestCost = row["LatestCostPerUnit"] != DBNull.Value ? Convert.ToDecimal(row["LatestCostPerUnit"]) : 0;
+                if (stock > 0) totalValue += stock * latestCost;
                 if (stock <= 0)           zero++;
                 else if (reorder > 0 && stock <= reorder) low++;
                 else                      inStock++;
@@ -63,6 +67,7 @@ namespace MMApp
             lblInStock.Text = inStock.ToString();
             lblLow.Text     = low.ToString();
             lblZero.Text    = zero.ToString();
+            if (lblTotalValue != null) lblTotalValue.Text = totalValue.ToString("N2");
         }
 
         protected string FormatQty(object val)
@@ -70,6 +75,19 @@ namespace MMApp
             if (val == null || val == DBNull.Value) return "0";
             decimal d = Convert.ToDecimal(val);
             return d.ToString("0.###");
+        }
+
+        protected string FormatCurrency(object val)
+        {
+            if (val == null || val == DBNull.Value) return "0.00";
+            return Convert.ToDecimal(val).ToString("N2");
+        }
+
+        protected object CalcStockValue(object stockVal, object rateVal)
+        {
+            decimal stock = (stockVal != null && stockVal != DBNull.Value) ? Convert.ToDecimal(stockVal) : 0;
+            decimal rate = (rateVal != null && rateVal != DBNull.Value) ? Convert.ToDecimal(rateVal) : 0;
+            return stock > 0 ? stock * rate : 0m;
         }
 
         protected string GetStockClass(object stockVal, object reorderVal)

@@ -221,6 +221,16 @@
                 <div><div class="menu-title">Packing Material<br/>Stock Report</div><div class="menu-desc">Opening + GRN received &minus; packing consumed — current PM stock position</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
+            <a id="lnkCNReport" runat="server" href="MMCNStockReport.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F9F4;</div>
+                <div><div class="menu-title">Consumable<br/>Stock Report</div><div class="menu-desc">Current consumable stock position with cost per unit and stock value</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkSTReport" runat="server" href="MMSTStockReport.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F4DD;</div>
+                <div><div class="menu-title">Stationary<br/>Stock Report</div><div class="menu-desc">Current stationary &amp; other items stock position with cost per unit and stock value</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
             <a id="lnkScrapReport" runat="server" href="MMScrapStockReport.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#9851;&#xFE0F;</div>
                 <div><div class="menu-title">Scrap Material<br/>Stock Report</div><div class="menu-desc">Current stock of scrap by-products generated during processing</div></div>
