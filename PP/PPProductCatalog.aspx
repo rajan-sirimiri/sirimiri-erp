@@ -119,7 +119,16 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             <span class="list-count"><asp:Label ID="lblCount" runat="server"/></span>
         </div>
         <div class="list-search">
-            <input type="text" id="txtSearch" placeholder="Search products..." onkeyup="filterProducts(this.value)"/>
+            <input type="text" id="txtSearch" placeholder="Search products..." onkeyup="filterProducts()"/>
+        </div>
+        <div style="padding:0 18px 8px;">
+            <select id="ddlTypeFilter" onchange="filterProducts()" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;background:#fafafa;outline:none;color:var(--text);">
+                <option value="">All Types</option>
+                <option value="Core">Core</option>
+                <option value="Conversion">Conversion</option>
+                <option value="Prefilled Conversion">Prefilled Conversion</option>
+                <option value="Pre processed RM">Pre Processed RM</option>
+            </select>
         </div>
         <div class="list-body" id="productList">
             <asp:Repeater ID="rptProducts" runat="server">
@@ -268,13 +277,16 @@ function selectProduct(id) {
     document.getElementById('<%= hfSelectedProductId.ClientID %>').value = id;
     document.getElementById('<%= btnSelect.ClientID %>').click();
 }
-function filterProducts(q) {
-    q = q.toLowerCase();
+function filterProducts() {
+    var q = (document.getElementById('txtSearch').value || '').toLowerCase();
+    var t = (document.getElementById('ddlTypeFilter').value || '').toLowerCase();
     var items = document.querySelectorAll('.prod-item');
     items.forEach(function(el) {
         var name = (el.getAttribute('data-name') || '').toLowerCase();
         var type = (el.getAttribute('data-type') || '').toLowerCase();
-        el.style.display = (name.indexOf(q) >= 0 || type.indexOf(q) >= 0) ? '' : 'none';
+        var matchName = !q || name.indexOf(q) >= 0;
+        var matchType = !t || type === t;
+        el.style.display = (matchName && matchType) ? '' : 'none';
     });
 }
 </script>
