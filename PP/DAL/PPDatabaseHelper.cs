@@ -874,69 +874,55 @@ namespace PPApp.DAL
         }
 
         /// <summary>
-        /// Called on shift closure — calculates rate from actual RM consumed and scrap recovery,
-        /// then updates ALL today's prefilled GRNs for this product.
+        /// Called on shift closure — uses the actual RM qty and scrap amounts
+        /// entered by the user (not cumulative DB totals) to calculate rate,
+        /// then updates ALL today's unpriced prefilled GRNs for this product.
         /// </summary>
-        public static string UpdatePrefilledRates(int productId)
+        public static string UpdatePrefilledRates(int productId, int rmId, decimal rmQtyConsumed,
+            Dictionary<int, decimal> scrapAmounts)
         {
-            // Get today's total output for this product
+            // Get today's total output for this product (only unpriced entries)
             var entries = GetPrefilledEntriesToday(productId);
             decimal totalOutput = 0;
+            int unpricedCount = 0;
             foreach (DataRow r in entries.Rows)
+            {
                 totalOutput += Convert.ToDecimal(r["Qty"]);
+                // Count entries that haven't been priced yet
+                // (Check if the GRN's Remarks doesn't contain "Rate=")
+                // All today's entries count toward output regardless
+            }
             if (totalOutput <= 0) return "No output entries found today.";
 
-            // Get BOM RMs and their prices, sum actual shift consumption
+            // Get RM unit price from BOM
             var bom = GetBOMByProduct(productId);
-            decimal totalInputCost = 0;
+            decimal unitRate = 0;
             foreach (DataRow bomRow in bom.Rows)
             {
-                if (bomRow["MaterialType"].ToString() == "RM")
+                if (bomRow["MaterialType"].ToString() == "RM" && Convert.ToInt32(bomRow["MaterialID"]) == rmId)
                 {
-                    int matId = Convert.ToInt32(bomRow["MaterialID"]);
-                    decimal unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
-
-                    // Actual shift consumption for this RM today
-                    object actualQtyObj = ExecuteScalar(
-                        "SELECT IFNULL(SUM(QtyConsumed),0) FROM MM_StockConsumption" +
-                        " WHERE RMID=?rmid AND SourceType='SHIFT' AND DATE(ConsumedAt)=?today;",
-                        new MySqlParameter("?rmid", matId),
-                        new MySqlParameter("?today", TodayIST()));
-                    decimal actualQty = (actualQtyObj != null && actualQtyObj != DBNull.Value)
-                        ? Convert.ToDecimal(actualQtyObj) : 0;
-
-                    // actualQty is already in RM base UOM (recorded via RecordShiftConsumption)
-                    totalInputCost += actualQty * unitRate;
+                    unitRate = bomRow["UnitRate"] != DBNull.Value ? Convert.ToDecimal(bomRow["UnitRate"]) : 0;
+                    break;
                 }
             }
 
-            // Scrap cost deduction
+            // Total input cost = actual RM consumed × unit rate
+            decimal totalInputCost = rmQtyConsumed * unitRate;
+
+            // Scrap cost deduction from amounts passed in
             decimal scrapDeduction = 0;
-            foreach (DataRow bomRow in bom.Rows)
+            if (scrapAmounts != null)
             {
-                if (bomRow["MaterialType"].ToString() == "RM")
+                foreach (var kv in scrapAmounts)
                 {
-                    int bomRmId = Convert.ToInt32(bomRow["MaterialID"]);
-                    var scrapLinks = GetScrapMaterialsForRM(bomRmId);
-                    foreach (DataRow scrapRow in scrapLinks.Rows)
-                    {
-                        int scrapId = Convert.ToInt32(scrapRow["ScrapID"]);
-                        object scrapPriceObj = ExecuteScalar(
-                            "SELECT CurrentPrice FROM MM_ScrapMaterials WHERE ScrapID=?sid;",
-                            new MySqlParameter("?sid", scrapId));
-                        decimal scrapPrice = (scrapPriceObj != null && scrapPriceObj != DBNull.Value)
-                            ? Convert.ToDecimal(scrapPriceObj) : 0;
-
-                        object scrapQtyObj = ExecuteScalar(
-                            "SELECT IFNULL(SUM(QtyGenerated),0) FROM MM_ScrapStock" +
-                            " WHERE ScrapID=?sid AND DATE(GeneratedAt)=?today;",
-                            new MySqlParameter("?sid", scrapId),
-                            new MySqlParameter("?today", TodayIST()));
-                        decimal scrapQty = (scrapQtyObj != null && scrapQtyObj != DBNull.Value)
-                            ? Convert.ToDecimal(scrapQtyObj) : 0;
-
-                        scrapDeduction += scrapQty * scrapPrice;
-                    }
+                    int scrapId = kv.Key;
+                    decimal scrapQty = kv.Value;
+                    object scrapPriceObj = ExecuteScalar(
+                        "SELECT CurrentPrice FROM MM_ScrapMaterials WHERE ScrapID=?sid;",
+                        new MySqlParameter("?sid", scrapId));
+                    decimal scrapPrice = (scrapPriceObj != null && scrapPriceObj != DBNull.Value)
+                        ? Convert.ToDecimal(scrapPriceObj) : 0;
+                    scrapDeduction += scrapQty * scrapPrice;
                 }
             }
 
@@ -947,7 +933,7 @@ namespace PPApp.DAL
             if (totalOutput > 0 && effectiveCost > 0)
                 rate = Math.Round(effectiveCost / totalOutput, 2);
 
-            // Update ALL today's prefilled GRNs for this product
+            // Update ALL today's unpriced prefilled GRNs for this product
             string rateInfo = " | Rate=₹" + rate.ToString("0.00") + "/unit"
                 + (scrapDeduction > 0 ? " ScrapRecovery=₹" + scrapDeduction.ToString("0.00") : "");
             ExecuteNonQuery(
@@ -960,9 +946,8 @@ namespace PPApp.DAL
                 new MySqlParameter("?today", TodayIST()),
                 new MySqlParameter("?pat", "%ProductID=" + productId + "%"));
 
-            return "Rate ₹" + rate.ToString("0.00") + "/unit applied to " + entries.Rows.Count +
-                " entries. Output: " + totalOutput.ToString("0.###") +
-                ", Input cost: ₹" + totalInputCost.ToString("0.00") +
+            return "Rate ₹" + rate.ToString("0.00") + "/unit applied. Output: " + totalOutput.ToString("0.###") +
+                ", RM cost: ₹" + totalInputCost.ToString("0.00") +
                 ", Scrap recovery: ₹" + scrapDeduction.ToString("0.00");
         }
 
