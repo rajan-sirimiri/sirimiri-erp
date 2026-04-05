@@ -904,8 +904,8 @@ namespace PPApp.DAL
 
                         // Get today's scrap qty for this RM from ScrapStock
                         object scrapQtyObj = ExecuteScalar(
-                            "SELECT IFNULL(SUM(Quantity),0) FROM MM_ScrapStock" +
-                            " WHERE ScrapID=?sid AND DATE(CreatedAt)=?today;",
+                            "SELECT IFNULL(SUM(QtyGenerated),0) FROM MM_ScrapStock" +
+                            " WHERE ScrapID=?sid AND DATE(GeneratedAt)=?today;",
                             new MySqlParameter("?sid", scrapId),
                             new MySqlParameter("?today", TodayIST()));
                         decimal scrapQty = (scrapQtyObj != null && scrapQtyObj != DBNull.Value)
