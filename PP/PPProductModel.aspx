@@ -431,6 +431,59 @@
                     </div>
                 </div>
 
+                <!-- FG PACKING OPTIONS -->
+                <div class="packing-spec-panel" style="margin-top:13px;background:#e8f5e9;border-color:#a5d6a7;">
+                    <div class="packing-spec-title" style="color:#2e7d32;">&#x1F4E6; FG Packing Options (Selling Forms)</div>
+                    <div style="font-size:11px;color:#666;margin-bottom:12px;">Define how this product can be sold — e.g. JAR of 50, CASE of 12, Individual PCS</div>
+
+                    <asp:Repeater ID="rptFGPackOptions" runat="server" OnItemCommand="rptFGPackOptions_ItemCommand">
+                        <HeaderTemplate>
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">
+                            <tr>
+                                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:1px solid #c8e6c9;">Form</th>
+                                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:1px solid #c8e6c9;">Units/Pack</th>
+                                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#999;border-bottom:1px solid #c8e6c9;">Description</th>
+                                <th style="width:60px;border-bottom:1px solid #c8e6c9;"></th>
+                            </tr>
+                        </HeaderTemplate>
+                        <ItemTemplate>
+                            <tr>
+                                <td style="padding:6px 8px;font-weight:600;border-bottom:1px solid #e8f5e9;"><%# Eval("PackForm") %></td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #e8f5e9;"><%# Eval("UnitsPerPack") %></td>
+                                <td style="padding:6px 8px;color:#555;border-bottom:1px solid #e8f5e9;"><%# Eval("Description") %></td>
+                                <td style="padding:6px 8px;border-bottom:1px solid #e8f5e9;">
+                                    <asp:LinkButton runat="server" CommandName="DeleteFGPack" CommandArgument='<%# Eval("OptionID") %>'
+                                        CssClass="btn-del-param" CausesValidation="false"
+                                        OnClientClick="return confirm('Remove this packing option?');">&#x2716;</asp:LinkButton>
+                                </td>
+                            </tr>
+                        </ItemTemplate>
+                        <FooterTemplate></table></FooterTemplate>
+                    </asp:Repeater>
+
+                    <asp:Panel ID="pnlNoFGPack" runat="server" Visible="false">
+                        <div style="font-size:12px;color:#999;padding:8px 0;">No packing options defined yet.</div>
+                    </asp:Panel>
+
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                        <asp:DropDownList ID="ddlFGPackForm" runat="server"
+                            style="padding:6px 10px;border:1px solid #c8e6c9;border-radius:6px;font-size:12px;font-family:inherit;">
+                            <asp:ListItem Value="">-- Form --</asp:ListItem>
+                            <asp:ListItem Value="PCS">PCS</asp:ListItem>
+                            <asp:ListItem Value="JAR">JAR</asp:ListItem>
+                            <asp:ListItem Value="BOX">BOX</asp:ListItem>
+                            <asp:ListItem Value="CASE">CASE</asp:ListItem>
+                        </asp:DropDownList>
+                        <asp:TextBox ID="txtFGPackUnits" runat="server" MaxLength="5" placeholder="Units"
+                            style="width:70px;padding:6px 8px;border:1px solid #c8e6c9;border-radius:6px;font-size:12px;text-align:right;font-family:inherit;"/>
+                        <asp:TextBox ID="txtFGPackDesc" runat="server" MaxLength="100" placeholder="e.g. JAR of 50 pcs"
+                            style="flex:1;min-width:140px;padding:6px 10px;border:1px solid #c8e6c9;border-radius:6px;font-size:12px;font-family:inherit;"/>
+                        <asp:Button ID="btnAddFGPack" runat="server" Text="+ Add" CssClass="btn-add-param"
+                            OnClick="btnAddFGPack_Click" CausesValidation="false"
+                            style="background:#2e7d32;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"/>
+                    </div>
+                </div>
+
                 <div class="form-group" style="margin-top:13px;">
                     <label>Expected Qty Output (per batch) <span class="req">*</span></label>
                     <div style="display:flex;align-items:center;gap:10px;">

@@ -75,6 +75,7 @@
     <Content Include="PPLogin.aspx" />
     <Compile Include="PPChangePassword.aspx.cs">
       <DependentUpon>PPChangePassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="PPDailyPlan.aspx.cs">
       <DependentUpon>PPDailyPlan.aspx</DependentUpon>
@@ -120,6 +121,7 @@
     </Compile>
     <Compile Include="PPProductCatalog.aspx.cs">
       <DependentUpon>PPProductCatalog.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="PPProductionExecution.aspx.cs">
       <DependentUpon>PPProductionExecution.aspx</DependentUpon>

@@ -2080,5 +2080,49 @@ namespace PPApp.DAL
             ExecuteNonQuery("UPDATE Users SET PasswordHash=?h, MustChangePwd=0 WHERE UserID=?id;",
                 new MySqlParameter("?h", newHash), new MySqlParameter("?id", userId));
         }
+
+        // ══════════════════════════════════════════════════════════
+        // FG PACKING OPTIONS
+        // ══════════════════════════════════════════════════════════
+
+        public static DataTable GetFGPackingOptions(int productId)
+        {
+            return ExecuteQuery(
+                "SELECT OptionID, PackForm, UnitsPerPack, Description FROM PP_FGPackingOptions" +
+                " WHERE ProductID=?pid AND IsActive=1 ORDER BY PackForm, UnitsPerPack;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        public static void SaveFGPackingOption(int productId, string packForm, int unitsPerPack, string description)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PP_FGPackingOptions (ProductID, PackForm, UnitsPerPack, Description)" +
+                " VALUES (?pid, ?pf, ?upp, ?desc)" +
+                " ON DUPLICATE KEY UPDATE Description=?desc2, IsActive=1;",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?pf", packForm),
+                new MySqlParameter("?upp", unitsPerPack),
+                new MySqlParameter("?desc", description ?? ""),
+                new MySqlParameter("?desc2", description ?? ""));
+        }
+
+        public static void DeleteFGPackingOption(int optionId)
+        {
+            ExecuteNonQuery(
+                "DELETE FROM PP_FGPackingOptions WHERE OptionID=?oid;",
+                new MySqlParameter("?oid", optionId));
+        }
+
+        /// Get distinct pack forms for dropdowns (from existing options across all products)
+        public static DataTable GetDistinctPackForms()
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT PackForm FROM PP_FGPackingOptions WHERE IsActive=1" +
+                " UNION SELECT 'PCS'" +
+                " UNION SELECT DISTINCT ContainerType FROM PP_Products" +
+                " WHERE ContainerType IS NOT NULL AND ContainerType != ''" +
+                " UNION SELECT 'CASE'" +
+                " ORDER BY 1;");
+        }
     }
 }

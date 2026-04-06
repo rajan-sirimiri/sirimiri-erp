@@ -48,6 +48,12 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.Button         btnClear;
         protected global::System.Web.UI.WebControls.Button         btnToggleActive;
         protected global::System.Web.UI.WebControls.Label          lblCount;
+        protected global::System.Web.UI.WebControls.Repeater        rptFGPackOptions;
+        protected global::System.Web.UI.WebControls.Panel           pnlNoFGPack;
+        protected global::System.Web.UI.WebControls.DropDownList    ddlFGPackForm;
+        protected global::System.Web.UI.WebControls.TextBox         txtFGPackUnits;
+        protected global::System.Web.UI.WebControls.TextBox         txtFGPackDesc;
+        protected global::System.Web.UI.WebControls.Button          btnAddFGPack;
         protected global::System.Web.UI.WebControls.Panel          pnlEmpty;
         protected global::System.Web.UI.WebControls.Repeater       rptProducts;
         protected global::System.Web.UI.WebControls.Panel          pnlBOM;
@@ -464,6 +470,9 @@ namespace PPApp
             bool isActive = Convert.ToBoolean(row["IsActive"]);
             btnToggleActive.Text    = isActive ? "Deactivate" : "Activate";
             btnToggleActive.Visible = true;
+
+            // Load FG Packing Options
+            BindFGPackOptions(productId);
         }
 
         private void ClearForm()
@@ -817,6 +826,48 @@ namespace PPApp
             var dt = PPDatabaseHelper.GetActiveProductionLines();
             foreach (System.Data.DataRow r in dt.Rows)
                 ddlProductionLine.Items.Add(new System.Web.UI.WebControls.ListItem(r["LineName"].ToString(), r["LineID"].ToString()));
+        }
+
+        // ── FG PACKING OPTIONS ──────────────────────────────────────
+
+        private void BindFGPackOptions(int productId)
+        {
+            if (productId <= 0 || rptFGPackOptions == null) return;
+            var dt = PPDatabaseHelper.GetFGPackingOptions(productId);
+            rptFGPackOptions.DataSource = dt;
+            rptFGPackOptions.DataBind();
+            if (pnlNoFGPack != null) pnlNoFGPack.Visible = dt.Rows.Count == 0;
+        }
+
+        protected void btnAddFGPack_Click(object sender, EventArgs e)
+        {
+            int productId = Convert.ToInt32(hfProductID.Value);
+            if (productId <= 0) { ShowAlert("Save the product first before adding packing options.", false); return; }
+            string form = ddlFGPackForm.SelectedValue;
+            if (string.IsNullOrEmpty(form)) { ShowAlert("Select a packing form.", false); return; }
+            int units = 1;
+            int.TryParse(txtFGPackUnits.Text.Trim(), out units);
+            if (units < 1) units = 1;
+            string desc = txtFGPackDesc.Text.Trim();
+            if (string.IsNullOrEmpty(desc)) desc = form + " of " + units;
+
+            PPDatabaseHelper.SaveFGPackingOption(productId, form, units, desc);
+            BindFGPackOptions(productId);
+            txtFGPackUnits.Text = "";
+            txtFGPackDesc.Text = "";
+            ddlFGPackForm.SelectedIndex = 0;
+            ShowAlert("Packing option added.", true);
+        }
+
+        protected void rptFGPackOptions_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "DeleteFGPack")
+            {
+                int optionId = Convert.ToInt32(e.CommandArgument);
+                PPDatabaseHelper.DeleteFGPackingOption(optionId);
+                int productId = Convert.ToInt32(hfProductID.Value);
+                BindFGPackOptions(productId);
+            }
         }
     }
 }
