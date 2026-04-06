@@ -65,6 +65,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 .empty-note{text-align:center;padding:30px;color:var(--text-dim);font-size:13px;}
 .save-bar{margin-top:16px;display:flex;gap:12px;align-items:center;}
+.btn-save-row{background:var(--teal);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-save-row:hover{background:#148a5b;}
 </style>
 </head>
 <body>
@@ -117,33 +119,34 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <asp:Panel ID="pnlProducts" runat="server">
 <div class="card">
     <div class="card-title">&#x1F4E6; Product Mapping</div>
-    <div class="card-sub">Map each Tally product name to an ERP product. Select the selling form and pieces per unit.</div>
+    <div class="card-sub">Map each Tally product name to an ERP product + packing option. Click Save on each row.</div>
     <div class="summary-bar">
         <div class="summary-stat"><div class="val" style="color:var(--orange);"><asp:Label ID="lblProductCount" runat="server" Text="0"/></div><div class="lbl">Unmapped</div></div>
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblProductMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
+    <asp:HiddenField ID="hfSaveProductData" runat="server" Value=""/>
+    <asp:Button ID="btnSaveOneProduct" runat="server" OnClick="btnSaveOneProduct_Click" style="display:none;"/>
+
     <asp:Repeater ID="rptUnmappedProducts" runat="server">
         <HeaderTemplate>
-            <div style="max-height:500px;overflow-y:auto;">
-            <table class="map-table">
+            <div style="max-height:600px;overflow-y:auto;">
+            <table class="map-table" id="tblProducts">
             <thead><tr>
                 <th style="width:30px;">#</th>
                 <th>Tally Product Name</th>
-                <th>ERP Product</th>
-                <th>Form</th>
-                <th>Pcs/Unit</th>
-                <th>MRP</th>
+                <th>ERP Product — Packing Option</th>
+                <th style="width:80px;">MRP</th>
+                <th style="width:70px;"></th>
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr>
+            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
-                <td><%# RenderProductDropdown(Eval("TallyName")) %></td>
-                <td><%# RenderFormDropdown(Eval("TallyName")) %></td>
-                <td><%# RenderPPUInput(Eval("TallyName")) %></td>
+                <td><%# RenderProductFGDropdown(Eval("TallyName")) %></td>
                 <td><%# RenderMRPInput(Eval("TallyName")) %></td>
+                <td><button type="button" class="btn-save-row" onclick="saveProductRow(this);">Save</button></td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
@@ -159,35 +162,36 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <asp:Panel ID="pnlScrap" runat="server" Visible="false">
 <div class="card">
     <div class="card-title">&#9851; Scrap / Misc Item Mapping</div>
-    <div class="card-sub">Items like Coconut Shell, broken peanuts, Carton Box — map to ERP scrap materials. Items not selected will remain unmapped.</div>
+    <div class="card-sub">Map scrap items to ERP scrap materials. Click Save on each row.</div>
     <div class="summary-bar">
         <div class="summary-stat"><div class="val" style="color:var(--orange);"><asp:Label ID="lblScrapCount" runat="server" Text="0"/></div><div class="lbl">Unmapped</div></div>
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblScrapMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
+    <asp:HiddenField ID="hfSaveScrapData" runat="server" Value=""/>
+    <asp:Button ID="btnSaveOneScrap" runat="server" OnClick="btnSaveOneScrap_Click" style="display:none;"/>
+
     <asp:Repeater ID="rptUnmappedScrap" runat="server">
         <HeaderTemplate>
             <div style="max-height:500px;overflow-y:auto;">
-            <table class="map-table">
+            <table class="map-table" id="tblScrap">
             <thead><tr>
                 <th style="width:30px;">#</th>
                 <th>Tally Item Name</th>
                 <th>ERP Scrap Material</th>
+                <th style="width:70px;"></th>
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr>
+            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
                 <td><%# RenderScrapDropdown(Eval("TallyName")) %></td>
+                <td><button type="button" class="btn-save-row" onclick="saveScrapRow(this);">Save</button></td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
     </asp:Repeater>
-
-    <div class="save-bar">
-        <asp:Button ID="btnSaveScrap" runat="server" Text="&#x1F4BE; Save Scrap Mappings" CssClass="btn btn-teal" OnClick="btnSaveScrap_Click"/>
-    </div>
 </div>
 </asp:Panel>
 
@@ -195,35 +199,36 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <asp:Panel ID="pnlCustomers" runat="server" Visible="false">
 <div class="card">
     <div class="card-title">&#x1F465; Customer Mapping</div>
-    <div class="card-sub">Map each Tally customer name to an ERP customer (PK_Customers). Unmapped customers can be added in PK module first.</div>
+    <div class="card-sub">Customers auto-matched on upload. Remaining unmatched shown below — click Save on each row.</div>
     <div class="summary-bar">
         <div class="summary-stat"><div class="val" style="color:var(--orange);"><asp:Label ID="lblCustomerCount" runat="server" Text="0"/></div><div class="lbl">Unmapped</div></div>
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblCustomerMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
+    <asp:HiddenField ID="hfSaveCustomerData" runat="server" Value=""/>
+    <asp:Button ID="btnSaveOneCustomer" runat="server" OnClick="btnSaveOneCustomer_Click" style="display:none;"/>
+
     <asp:Repeater ID="rptUnmappedCustomers" runat="server">
         <HeaderTemplate>
-            <div style="max-height:500px;overflow-y:auto;">
-            <table class="map-table">
+            <div style="max-height:600px;overflow-y:auto;">
+            <table class="map-table" id="tblCustomers">
             <thead><tr>
                 <th style="width:30px;">#</th>
                 <th>Tally Customer Name</th>
                 <th>ERP Customer</th>
+                <th style="width:70px;"></th>
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr>
+            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
                 <td><%# RenderCustomerDropdown(Eval("TallyName")) %></td>
+                <td><button type="button" class="btn-save-row" onclick="saveCustomerRow(this);">Save</button></td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
     </asp:Repeater>
-
-    <div class="save-bar">
-        <asp:Button ID="btnSaveCustomers" runat="server" Text="&#x1F4BE; Save Customer Mappings" CssClass="btn btn-teal" OnClick="btnSaveCustomers_Click"/>
-    </div>
 </div>
 </asp:Panel>
 
@@ -231,6 +236,34 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 </div>
 </form>
+<script>
+function saveProductRow(btn) {
+    var row = btn.closest('tr');
+    var tally = row.getAttribute('data-tally');
+    var sel = row.querySelector('select');
+    var mrpInput = row.querySelector('input[name^="mrp_"]');
+    if (!sel || !sel.value) { alert('Please select a product + packing option.'); return; }
+    var mrp = mrpInput ? mrpInput.value : '';
+    document.getElementById('<%= hfSaveProductData.ClientID %>').value = tally + '||' + sel.value + '||' + mrp;
+    document.getElementById('<%= btnSaveOneProduct.ClientID %>').click();
+}
+function saveScrapRow(btn) {
+    var row = btn.closest('tr');
+    var tally = row.getAttribute('data-tally');
+    var sel = row.querySelector('select');
+    if (!sel || !sel.value || sel.value === '0') { alert('Please select a scrap material.'); return; }
+    document.getElementById('<%= hfSaveScrapData.ClientID %>').value = tally + '||' + sel.value;
+    document.getElementById('<%= btnSaveOneScrap.ClientID %>').click();
+}
+function saveCustomerRow(btn) {
+    var row = btn.closest('tr');
+    var tally = row.getAttribute('data-tally');
+    var sel = row.querySelector('select');
+    if (!sel || !sel.value || sel.value === '0') { alert('Please select a customer.'); return; }
+    document.getElementById('<%= hfSaveCustomerData.ClientID %>').value = tally + '||' + sel.value;
+    document.getElementById('<%= btnSaveOneCustomer.ClientID %>').click();
+}
+</script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

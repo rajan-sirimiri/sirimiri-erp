@@ -14,9 +14,11 @@ namespace FINApp
         protected System.Web.UI.WebControls.Label        lblNavUser, lblAlert;
         protected System.Web.UI.WebControls.Panel        pnlAlert, pnlResults;
         protected System.Web.UI.WebControls.FileUpload   fileUpload;
-        protected System.Web.UI.WebControls.Button       btnUpload, btnSaveProducts, btnSaveScrap, btnSaveCustomers;
+        protected System.Web.UI.WebControls.Button       btnUpload;
+        protected System.Web.UI.WebControls.Button       btnSaveOneProduct, btnSaveOneScrap, btnSaveOneCustomer;
         protected System.Web.UI.WebControls.Button       btnTabProducts, btnTabScrap, btnTabCustomers;
         protected System.Web.UI.WebControls.HiddenField  hfTab;
+        protected System.Web.UI.WebControls.HiddenField  hfSaveProductData, hfSaveScrapData, hfSaveCustomerData;
 
         // Unmapped lists
         protected System.Web.UI.WebControls.Repeater     rptUnmappedProducts, rptUnmappedScrap, rptUnmappedCustomers;
@@ -170,31 +172,38 @@ namespace FINApp
             if (lblProductMapped != null) lblProductMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveProducts_Click(object sender, EventArgs e)
+        protected void btnSaveOneProduct_Click(object sender, EventArgs e)
         {
-            int saved = 0;
-            foreach (string key in Request.Form.AllKeys)
-            {
-                if (key == null || !key.StartsWith("prod_")) continue;
-                string tallyName = key.Substring(5); // strip "prod_"
-                string pidStr = Request.Form[key];
-                if (string.IsNullOrEmpty(pidStr) || pidStr == "0") continue;
+            string data = hfSaveProductData.Value ?? "";
+            hfSaveProductData.Value = "";
+            if (string.IsNullOrEmpty(data)) return;
 
-                int productId = Convert.ToInt32(pidStr);
-                string form = Request.Form["form_" + tallyName] ?? "PCS";
-                int ppu = 1;
-                int.TryParse(Request.Form["ppu_" + tallyName], out ppu);
-                if (ppu < 1) ppu = 1;
-                decimal? mrp = null;
-                decimal m;
-                if (decimal.TryParse(Request.Form["mrp_" + tallyName], out m) && m > 0) mrp = m;
+            // Format: tallyName||ProductID|PackForm|UnitsPerPack||MRP
+            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
+            if (parts.Length < 2) return;
 
-                FINDatabaseHelper.SaveProductMapping(tallyName, productId, form, ppu, mrp);
-                saved++;
-            }
+            string tallyName = parts[0];
+            string combo = parts[1];
+            string mrpStr = parts.Length > 2 ? parts[2] : "";
 
+            string[] comboParts = combo.Split('|');
+            if (comboParts.Length < 3) return;
+
+            int productId;
+            if (!int.TryParse(comboParts[0], out productId) || productId <= 0) return;
+            string form = comboParts[1];
+            int ppu = 1;
+            int.TryParse(comboParts[2], out ppu);
+            if (ppu < 1) ppu = 1;
+
+            decimal? mrp = null;
+            decimal m;
+            if (decimal.TryParse(mrpStr, out m) && m > 0) mrp = m;
+
+            FINDatabaseHelper.SaveProductMapping(tallyName, productId, form, ppu, mrp);
             BindUnmappedProducts();
-            ShowAlert("Saved " + saved + " product mapping(s).", saved > 0);
+            pnlResults.Visible = true;
+            ShowAlert("Saved: " + tallyName, true);
         }
 
         // ── SCRAP MAPPING ──
@@ -221,23 +230,23 @@ namespace FINApp
             if (lblScrapMapped != null) lblScrapMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveScrap_Click(object sender, EventArgs e)
+        protected void btnSaveOneScrap_Click(object sender, EventArgs e)
         {
-            int saved = 0;
-            foreach (string key in Request.Form.AllKeys)
-            {
-                if (key == null || !key.StartsWith("scrap_")) continue;
-                string tallyName = key.Substring(6);
-                string sidStr = Request.Form[key];
-                if (string.IsNullOrEmpty(sidStr) || sidStr == "0") continue;
+            string data = hfSaveScrapData.Value ?? "";
+            hfSaveScrapData.Value = "";
+            if (string.IsNullOrEmpty(data)) return;
 
-                int scrapId = Convert.ToInt32(sidStr);
-                FINDatabaseHelper.SaveScrapMapping(tallyName, scrapId);
-                saved++;
-            }
+            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
+            if (parts.Length < 2) return;
 
+            string tallyName = parts[0];
+            int scrapId;
+            if (!int.TryParse(parts[1], out scrapId) || scrapId <= 0) return;
+
+            FINDatabaseHelper.SaveScrapMapping(tallyName, scrapId);
             BindUnmappedScrap();
-            ShowAlert("Saved " + saved + " scrap mapping(s).", saved > 0);
+            pnlResults.Visible = true;
+            ShowAlert("Saved: " + tallyName, true);
         }
 
         // ── CUSTOMER MAPPING ──
@@ -264,58 +273,43 @@ namespace FINApp
             if (lblCustomerMapped != null) lblCustomerMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveCustomers_Click(object sender, EventArgs e)
+        protected void btnSaveOneCustomer_Click(object sender, EventArgs e)
         {
-            int saved = 0;
-            foreach (string key in Request.Form.AllKeys)
-            {
-                if (key == null || !key.StartsWith("cust_")) continue;
-                string tallyName = key.Substring(5);
-                string cidStr = Request.Form[key];
-                if (string.IsNullOrEmpty(cidStr) || cidStr == "0") continue;
+            string data = hfSaveCustomerData.Value ?? "";
+            hfSaveCustomerData.Value = "";
+            if (string.IsNullOrEmpty(data)) return;
 
-                int customerId = Convert.ToInt32(cidStr);
-                FINDatabaseHelper.SaveCustomerMapping(tallyName, customerId);
-                saved++;
-            }
+            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
+            if (parts.Length < 2) return;
 
+            string tallyName = parts[0];
+            int customerId;
+            if (!int.TryParse(parts[1], out customerId) || customerId <= 0) return;
+
+            FINDatabaseHelper.SaveCustomerMapping(tallyName, customerId);
             BindUnmappedCustomers();
-            ShowAlert("Saved " + saved + " customer mapping(s).", saved > 0);
+            pnlResults.Visible = true;
+            ShowAlert("Saved: " + tallyName, true);
         }
 
         // ── HELPERS ──
 
-        protected string RenderProductDropdown(object tallyNameObj)
+        protected string RenderProductFGDropdown(object tallyNameObj)
         {
             string tallyName = tallyNameObj.ToString();
             string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyName);
-            var products = FINDatabaseHelper.GetAllProducts();
+            var options = FINDatabaseHelper.GetProductsWithFGOptions();
             var sb = new System.Text.StringBuilder();
-            sb.Append("<select name='prod_" + safeName + "' class='map-select'>");
-            sb.Append("<option value='0'>-- Select Product --</option>");
-            foreach (DataRow r in products.Rows)
-                sb.Append("<option value='" + r["ProductID"] + "'>" +
-                    System.Web.HttpUtility.HtmlEncode(r["ProductName"] + " (" + r["ProductCode"] + ")") + "</option>");
+            sb.Append("<select name='prodfg_" + safeName + "' class='map-select'>");
+            sb.Append("<option value=''>-- Select Product + Packing --</option>");
+            foreach (DataRow r in options.Rows)
+            {
+                string val = r["ProductID"] + "|" + r["PackForm"] + "|" + r["UnitsPerPack"];
+                sb.Append("<option value='" + System.Web.HttpUtility.HtmlAttributeEncode(val) + "'>" +
+                    System.Web.HttpUtility.HtmlEncode(r["DisplayLabel"]) + "</option>");
+            }
             sb.Append("</select>");
             return sb.ToString();
-        }
-
-        protected string RenderFormDropdown(object tallyNameObj)
-        {
-            string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
-            var forms = FINDatabaseHelper.GetSellingForms();
-            var sb = new System.Text.StringBuilder();
-            sb.Append("<select name='form_" + safeName + "' class='form-select'>");
-            foreach (string f in forms)
-                sb.Append("<option value='" + f + "'>" + f + "</option>");
-            sb.Append("</select>");
-            return sb.ToString();
-        }
-
-        protected string RenderPPUInput(object tallyNameObj)
-        {
-            string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
-            return "<input type='number' name='ppu_" + safeName + "' value='1' min='1' class='ppu-input'/>";
         }
 
         protected string RenderMRPInput(object tallyNameObj)
@@ -329,8 +323,8 @@ namespace FINApp
             string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
             var scraps = FINDatabaseHelper.GetAllScrapMaterials();
             var sb = new System.Text.StringBuilder();
-            sb.Append("<select name='scrap_" + safeName + "' class='map-select'>");
-            sb.Append("<option value='0'>-- Not Scrap --</option>");
+            sb.Append("<select class='map-select'>");
+            sb.Append("<option value='0'>-- Select Scrap --</option>");
             foreach (DataRow r in scraps.Rows)
                 sb.Append("<option value='" + r["ScrapID"] + "'>" +
                     System.Web.HttpUtility.HtmlEncode(r["ScrapName"] + " (" + r["ScrapCode"] + ")") + "</option>");
@@ -343,7 +337,7 @@ namespace FINApp
             string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
             var customers = FINDatabaseHelper.GetAllCustomers();
             var sb = new System.Text.StringBuilder();
-            sb.Append("<select name='cust_" + safeName + "' class='map-select'>");
+            sb.Append("<select class='map-select'>");
             sb.Append("<option value='0'>-- Select Customer --</option>");
             foreach (DataRow r in customers.Rows)
             {
