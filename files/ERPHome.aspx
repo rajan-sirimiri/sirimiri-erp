@@ -443,14 +443,14 @@
             </a>
 
             <!-- 6. Finance -->
-            <div class="module-card mod-finance" style="opacity:.5;cursor:default;pointer-events:none;">
+            <a href="/FIN/FINLogin.aspx" data-sso-module="FIN" class="module-card mod-finance" style="text-decoration:none;">
                 <div class="module-icon-wrap">&#x1F4B0;</div>
                 <div class="module-info">
                     <div class="module-name">Finance</div>
-                    <div class="module-desc">Accounts receivable, credit tracking, payment reconciliation &amp; P&amp;L</div>
+                    <div class="module-desc">Tally data import, mapping, reconciliation &amp; financial reports</div>
                 </div>
                 <div class="module-arrow">&#x2197;</div>
-            </div>
+            </a>
 
             <!-- 7. User Administration — Super only -->
             <asp:Panel ID="pnlUACard" runat="server" Visible="false">

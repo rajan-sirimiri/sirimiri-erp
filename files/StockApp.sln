@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PKApp", "..\PK\PKApp.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA", "..\UA\UA.csproj", "{A1B2C3D4-E5F6-7890-ABCD-000000000000}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FINApp", "..\FIN\FINApp.csproj", "{140F1651-6B80-4D90-BDFF-F7324D11CA01}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-000000000000}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-000000000000}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-000000000000}.Release|Any CPU.Build.0 = Release|Any CPU
+		{140F1651-6B80-4D90-BDFF-F7324D11CA01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{140F1651-6B80-4D90-BDFF-F7324D11CA01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{140F1651-6B80-4D90-BDFF-F7324D11CA01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{140F1651-6B80-4D90-BDFF-F7324D11CA01}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

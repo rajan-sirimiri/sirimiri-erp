@@ -89,9 +89,11 @@
     <Content Include="StockEntry.aspx" />
     <Compile Include="SAHome.aspx.cs">
       <DependentUpon>SAHome.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="SASalesForce.aspx.cs">
       <DependentUpon>SASalesForce.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="StockEntry.aspx.cs">
       <DependentUpon>StockEntry.aspx</DependentUpon>

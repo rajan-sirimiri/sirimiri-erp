@@ -61,6 +61,7 @@
     <Content Include="UALogin.aspx" />
     <Compile Include="UAChangePassword.aspx.cs">
       <DependentUpon>UAChangePassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="UALogin.aspx.cs">
       <DependentUpon>UALogin.aspx</DependentUpon>
