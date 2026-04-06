@@ -238,8 +238,27 @@ namespace FINApp.DAL
         public static DataTable GetAllProducts()
         {
             return ExecuteQuery(
-                "SELECT ProductID, ProductCode, ProductName FROM PP_Products" +
+                "SELECT ProductID, ProductCode, ProductName, ContainerType FROM PP_Products" +
                 " WHERE IsActive=1 ORDER BY ProductName;");
+        }
+
+        /// Get distinct selling forms: PCS + container types from PP_Products + CASE
+        public static List<string> GetSellingForms()
+        {
+            var forms = new List<string>();
+            forms.Add("PCS");
+            var dt = ExecuteQuery(
+                "SELECT DISTINCT ContainerType FROM PP_Products" +
+                " WHERE ContainerType IS NOT NULL AND ContainerType != ''" +
+                " ORDER BY ContainerType;");
+            foreach (DataRow r in dt.Rows)
+            {
+                string ct = r["ContainerType"].ToString().Trim().ToUpper();
+                if (!string.IsNullOrEmpty(ct) && !forms.Contains(ct))
+                    forms.Add(ct);
+            }
+            if (!forms.Contains("CASE")) forms.Add("CASE");
+            return forms;
         }
 
         public static DataTable GetAllScrapMaterials()

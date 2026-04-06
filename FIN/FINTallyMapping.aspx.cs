@@ -303,12 +303,13 @@ namespace FINApp
         protected string RenderFormDropdown(object tallyNameObj)
         {
             string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
-            return "<select name='form_" + safeName + "' class='form-select'>" +
-                "<option value='PCS'>PCS</option>" +
-                "<option value='JAR'>JAR</option>" +
-                "<option value='CASE'>CASE</option>" +
-                "<option value='TRAY'>TRAY</option>" +
-                "</select>";
+            var forms = FINDatabaseHelper.GetSellingForms();
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<select name='form_" + safeName + "' class='form-select'>");
+            foreach (string f in forms)
+                sb.Append("<option value='" + f + "'>" + f + "</option>");
+            sb.Append("</select>");
+            return sb.ToString();
         }
 
         protected string RenderPPUInput(object tallyNameObj)
