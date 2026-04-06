@@ -99,6 +99,9 @@ namespace FINApp
                 Session["TallyScrap"] = tallyScrap;
                 Session["TallyCustomers"] = tallyCustomers;
 
+                // Auto-match customers against ERP customer master
+                int autoMatched = FINDatabaseHelper.AutoMatchCustomers(tallyCustomers, null);
+
                 // Bind all tabs
                 BindUnmappedProducts();
                 BindUnmappedScrap();
@@ -107,7 +110,8 @@ namespace FINApp
 
                 ShowAlert("Loaded " + tallyProducts.Count + " products, " +
                     tallyScrap.Count + " scrap items, and " +
-                    tallyCustomers.Count + " customers from the template.", true);
+                    tallyCustomers.Count + " customers. " +
+                    "Auto-matched " + autoMatched + " customers to ERP.", true);
             }
             catch (Exception ex)
             {

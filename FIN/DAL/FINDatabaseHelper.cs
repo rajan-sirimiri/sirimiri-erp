@@ -252,8 +252,109 @@ namespace FINApp.DAL
         public static DataTable GetAllCustomers()
         {
             return ExecuteQuery(
-                "SELECT CustomerID, CustomerCode, CustomerName, CustomerType FROM PK_Customers" +
+                "SELECT CustomerID, CustomerCode, CustomerName, CustomerType, City, PinCode FROM PK_Customers" +
                 " WHERE IsActive=1 ORDER BY CustomerName;");
+        }
+
+        /// <summary>
+        /// Auto-match Tally customer names to ERP customers.
+        /// Step 1: Exact name match (case-insensitive, trimmed)
+        /// Step 2: Normalized match (strip special chars, lowercase)
+        /// Step 3: If multiple matches, disambiguate by pincode
+        /// Returns count of auto-matched customers.
+        /// </summary>
+        public static int AutoMatchCustomers(List<string> tallyNames, Dictionary<string, string> tallyPincodes)
+        {
+            var erpCustomers = GetAllCustomers();
+            int matched = 0;
+
+            // Build ERP lookup: normalized name → list of (CustomerID, PinCode)
+            var exactMap = new Dictionary<string, List<int[]>>(StringComparer.OrdinalIgnoreCase);
+            var normMap = new Dictionary<string, List<int[]>>();
+
+            foreach (DataRow r in erpCustomers.Rows)
+            {
+                int cid = Convert.ToInt32(r["CustomerID"]);
+                string name = r["CustomerName"].ToString().Trim();
+                string pin = r["PinCode"] != DBNull.Value ? r["PinCode"].ToString().Trim() : "";
+                string norm = NormalizeName(name);
+
+                // Exact (case-insensitive)
+                if (!exactMap.ContainsKey(name)) exactMap[name] = new List<int[]>();
+                exactMap[name].Add(new int[] { cid, pin.Length == 6 ? int.Parse(pin) : 0 });
+
+                // Normalized
+                if (!normMap.ContainsKey(norm)) normMap[norm] = new List<int[]>();
+                normMap[norm].Add(new int[] { cid, pin.Length == 6 ? int.Parse(pin) : 0 });
+            }
+
+            foreach (string tallyName in tallyNames)
+            {
+                // Skip if already mapped
+                if (CustomerMappingExists(tallyName)) continue;
+
+                string tallyPin = tallyPincodes != null && tallyPincodes.ContainsKey(tallyName)
+                    ? tallyPincodes[tallyName] : "";
+
+                int matchedId = 0;
+
+                // Step 1: Exact name match
+                if (exactMap.ContainsKey(tallyName.Trim()))
+                {
+                    var candidates = exactMap[tallyName.Trim()];
+                    if (candidates.Count == 1)
+                        matchedId = candidates[0][0];
+                    else if (candidates.Count > 1 && tallyPin.Length == 6)
+                    {
+                        // Multiple matches — try pincode
+                        int pin = int.Parse(tallyPin);
+                        foreach (var c in candidates)
+                            if (c[1] == pin) { matchedId = c[0]; break; }
+                        // If still no pin match, take first
+                        if (matchedId == 0) matchedId = candidates[0][0];
+                    }
+                    else
+                        matchedId = candidates[0][0];
+                }
+
+                // Step 2: Normalized match
+                if (matchedId == 0)
+                {
+                    string norm = NormalizeName(tallyName);
+                    if (normMap.ContainsKey(norm))
+                    {
+                        var candidates = normMap[norm];
+                        if (candidates.Count == 1)
+                            matchedId = candidates[0][0];
+                        else if (candidates.Count > 1 && tallyPin.Length == 6)
+                        {
+                            int pin = int.Parse(tallyPin);
+                            foreach (var c in candidates)
+                                if (c[1] == pin) { matchedId = c[0]; break; }
+                            if (matchedId == 0) matchedId = candidates[0][0];
+                        }
+                        else
+                            matchedId = candidates[0][0];
+                    }
+                }
+
+                if (matchedId > 0)
+                {
+                    SaveCustomerMapping(tallyName, matchedId);
+                    matched++;
+                }
+            }
+
+            return matched;
+        }
+
+        private static string NormalizeName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in name.ToLower())
+                if (char.IsLetterOrDigit(c)) sb.Append(c);
+            return sb.ToString();
         }
 
         // ══════════════════════════════════════════════════════════
