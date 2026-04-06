@@ -93,7 +93,7 @@ th.recon-col.show{display:table-cell;}
 <form id="form1" runat="server">
 
 <nav>
-    <span class="nav-brand">SIRIMIRI</span>
+    <a href="MMHome.aspx" style="display:flex;align-items:center;margin-right:16px;flex-shrink:0;background:#fff;border-radius:6px;padding:3px 8px;"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" style="height:28px;width:auto;object-fit:contain;" onerror="this.style.display='none'" /></a>
     <a href="MMHome.aspx" class="nav-item">&#x2190; MM Home</a>
     <span class="nav-item active">Stock Reconciliation</span>
     <div class="nav-right">
