@@ -92,8 +92,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 <!-- UPLOAD -->
 <div class="card">
-    <div class="card-title">&#x1F4C2; Upload Tally Excel</div>
-    <div class="card-sub">Upload a Tally sales/purchase export file. The system will extract product and customer names for mapping.</div>
+    <div class="card-title">&#x1F4C2; Upload Tally Mapping Template</div>
+    <div class="card-sub">Upload the mapping template file (3 sheets: Products, Scrap Items, Customers). The system will show unmapped items for you to map to ERP master data.</div>
     <div class="upload-row">
         <asp:FileUpload ID="fileUpload" runat="server"/>
         <asp:Button ID="btnUpload" runat="server" Text="&#x1F50D; Scan File" CssClass="btn btn-primary" OnClick="btnUpload_Click"/>

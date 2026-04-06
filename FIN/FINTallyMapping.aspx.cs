@@ -46,45 +46,58 @@ namespace FINApp
         {
             pnlAlert.Visible = false;
             if (fileUpload == null || !fileUpload.HasFile)
-            { ShowAlert("Please select a Tally Excel file.", false); return; }
+            { ShowAlert("Please select the Tally Mapping Template file.", false); return; }
 
             try
             {
-                // Parse Excel
-                var tallyProducts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var tallyCustomers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var tallyProducts = new List<string>();
+                var tallyScrap = new List<string>();
+                var tallyCustomers = new List<string>();
 
                 using (var stream = new MemoryStream(fileUpload.FileBytes))
                 using (var wb = new XLWorkbook(stream))
                 {
-                    var ws = wb.Worksheet(1);
-                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
-
-                    // Find columns by header
-                    int colProduct = 0, colCustomer = 0;
-                    int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
-                    for (int c = 1; c <= lastCol; c++)
+                    // Sheet 1: Products — read column B (Tally Product Name)
+                    if (wb.Worksheets.Count >= 1)
                     {
-                        string h = ws.Cell(1, c).GetString().Trim().ToLower();
-                        if (h.Contains("product")) colProduct = c;
-                        if (h.Contains("customer")) colCustomer = c;
+                        var ws = wb.Worksheet(1);
+                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                        for (int r = 2; r <= lastRow; r++)
+                        {
+                            string name = ws.Cell(r, 2).GetString().Trim();
+                            if (!string.IsNullOrEmpty(name)) tallyProducts.Add(name);
+                        }
                     }
 
-                    if (colProduct == 0 || colCustomer == 0)
-                    { ShowAlert("Could not find 'Product Name' and 'Customer Name' columns in the Excel header.", false); return; }
-
-                    for (int r = 2; r <= lastRow; r++)
+                    // Sheet 2: Scrap Items — read column B (Tally Scrap Name)
+                    if (wb.Worksheets.Count >= 2)
                     {
-                        string prod = ws.Cell(r, colProduct).GetString().Trim();
-                        string cust = ws.Cell(r, colCustomer).GetString().Trim();
-                        if (!string.IsNullOrEmpty(prod)) tallyProducts.Add(prod);
-                        if (!string.IsNullOrEmpty(cust)) tallyCustomers.Add(cust);
+                        var ws = wb.Worksheet(2);
+                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                        for (int r = 2; r <= lastRow; r++)
+                        {
+                            string name = ws.Cell(r, 2).GetString().Trim();
+                            if (!string.IsNullOrEmpty(name)) tallyScrap.Add(name);
+                        }
+                    }
+
+                    // Sheet 3: Customers — read column B (Tally Customer Name)
+                    if (wb.Worksheets.Count >= 3)
+                    {
+                        var ws = wb.Worksheet(3);
+                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                        for (int r = 2; r <= lastRow; r++)
+                        {
+                            string name = ws.Cell(r, 2).GetString().Trim();
+                            if (!string.IsNullOrEmpty(name)) tallyCustomers.Add(name);
+                        }
                     }
                 }
 
                 // Store in session for mapping
-                Session["TallyProducts"] = new List<string>(tallyProducts);
-                Session["TallyCustomers"] = new List<string>(tallyCustomers);
+                Session["TallyProducts"] = tallyProducts;
+                Session["TallyScrap"] = tallyScrap;
+                Session["TallyCustomers"] = tallyCustomers;
 
                 // Bind all tabs
                 BindUnmappedProducts();
@@ -92,9 +105,9 @@ namespace FINApp
                 BindUnmappedCustomers();
                 pnlResults.Visible = true;
 
-                int totalNames = tallyProducts.Count + tallyCustomers.Count;
-                ShowAlert("Parsed " + tallyProducts.Count + " product names and " +
-                    tallyCustomers.Count + " customer names from the file.", true);
+                ShowAlert("Loaded " + tallyProducts.Count + " products, " +
+                    tallyScrap.Count + " scrap items, and " +
+                    tallyCustomers.Count + " customers from the template.", true);
             }
             catch (Exception ex)
             {
@@ -141,8 +154,7 @@ namespace FINApp
 
             foreach (string name in tallyNames)
             {
-                // Check if already mapped as product OR scrap
-                if (FINDatabaseHelper.ProductMappingExists(name) || FINDatabaseHelper.ScrapMappingExists(name))
+                if (FINDatabaseHelper.ProductMappingExists(name))
                     mapped++;
                 else
                     unmapped.Rows.Add(name);
@@ -184,42 +196,24 @@ namespace FINApp
         // ── SCRAP MAPPING ──
         private void BindUnmappedScrap()
         {
-            var tallyNames = Session["TallyProducts"] as List<string>;
+            var tallyNames = Session["TallyScrap"] as List<string>;
             if (tallyNames == null) return;
 
             var unmapped = new DataTable();
             unmapped.Columns.Add("TallyName", typeof(string));
             int mapped = 0;
 
-            // Only show items that are not mapped as product either
             foreach (string name in tallyNames)
             {
                 if (FINDatabaseHelper.ScrapMappingExists(name))
                     mapped++;
-                // Don't show items already mapped as products
-                else if (!FINDatabaseHelper.ProductMappingExists(name))
-                {
-                    // This could be scrap — show in scrap tab too for user to decide
-                }
-            }
-
-            // Actually, scrap tab shows ALL unmapped items — user picks which are scrap
-            // But to keep it clean, let's show the same unmapped list as products tab
-            // The user will map from either tab
-            var allUnmapped = new DataTable();
-            allUnmapped.Columns.Add("TallyName", typeof(string));
-            mapped = 0;
-            foreach (string name in tallyNames)
-            {
-                if (FINDatabaseHelper.ProductMappingExists(name) || FINDatabaseHelper.ScrapMappingExists(name))
-                    mapped++;
                 else
-                    allUnmapped.Rows.Add(name);
+                    unmapped.Rows.Add(name);
             }
 
-            rptUnmappedScrap.DataSource = allUnmapped;
+            rptUnmappedScrap.DataSource = unmapped;
             rptUnmappedScrap.DataBind();
-            if (lblScrapCount != null) lblScrapCount.Text = allUnmapped.Rows.Count.ToString();
+            if (lblScrapCount != null) lblScrapCount.Text = unmapped.Rows.Count.ToString();
             if (lblScrapMapped != null) lblScrapMapped.Text = mapped.ToString();
         }
 
@@ -239,7 +233,6 @@ namespace FINApp
             }
 
             BindUnmappedScrap();
-            BindUnmappedProducts(); // refresh product count too
             ShowAlert("Saved " + saved + " scrap mapping(s).", saved > 0);
         }
 
