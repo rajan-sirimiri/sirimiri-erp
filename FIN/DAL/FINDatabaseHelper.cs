@@ -242,6 +242,19 @@ namespace FINApp.DAL
                 " WHERE IsActive=1 ORDER BY ProductName;");
         }
 
+        /// Get all products with their FG packing options as a combined list
+        public static DataTable GetProductsWithFGOptions()
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductID, p.ProductCode, p.ProductName," +
+                " f.PackForm, f.UnitsPerPack, f.Description," +
+                " CONCAT(p.ProductName, ' (', p.ProductCode, ') — ', f.PackForm, ' of ', f.UnitsPerPack) AS DisplayLabel" +
+                " FROM PP_Products p" +
+                " JOIN PP_FGPackingOptions f ON f.ProductID=p.ProductID AND f.IsActive=1" +
+                " WHERE p.IsActive=1" +
+                " ORDER BY p.ProductName, f.PackForm, f.UnitsPerPack;");
+        }
+
         /// Get distinct selling forms: PCS + container types from PP_Products + CASE
         public static List<string> GetSellingForms()
         {
