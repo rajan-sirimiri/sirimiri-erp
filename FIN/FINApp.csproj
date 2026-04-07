@@ -85,6 +85,11 @@
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />
     <Content Include="FINTallyMapping.aspx" />
+    <Content Include="FINSalesImport.aspx" />
+    <Compile Include="FINSalesImport.aspx.cs">
+      <DependentUpon>FINSalesImport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="progress_wheel.png" />
     <Content Include="Web.config" />
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />
