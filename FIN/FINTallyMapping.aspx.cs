@@ -334,18 +334,31 @@ namespace FINApp
 
         protected string RenderCustomerDropdown(object tallyNameObj)
         {
-            string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
+            string tallyName = tallyNameObj.ToString();
+            string safeTally = System.Web.HttpUtility.HtmlAttributeEncode(tallyName);
+            // Render a text input for search + hidden select for value
+            return "<div class='cust-search-wrap' data-tally='" + safeTally + "'>" +
+                "<input type='text' class='cust-search-input map-select' placeholder='Type to search...' autocomplete='off'/>" +
+                "<input type='hidden' class='cust-search-val' value='0'/>" +
+                "<div class='cust-search-list'></div>" +
+                "</div>";
+        }
+
+        // Called once from ASPX to build the JS customer array
+        protected string GetCustomerJsonArray()
+        {
             var customers = FINDatabaseHelper.GetAllCustomers();
-            var sb = new System.Text.StringBuilder();
-            sb.Append("<select class='map-select'>");
-            sb.Append("<option value='0'>-- Select Customer --</option>");
+            var sb = new System.Text.StringBuilder("[");
+            bool first = true;
             foreach (DataRow r in customers.Rows)
             {
-                string type = r["CustomerType"] != DBNull.Value ? " [" + r["CustomerType"] + "]" : "";
-                sb.Append("<option value='" + r["CustomerID"] + "'>" +
-                    System.Web.HttpUtility.HtmlEncode(r["CustomerName"] + type) + "</option>");
+                if (!first) sb.Append(",");
+                string name = r["CustomerName"].ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                string type = r["CustomerType"] != DBNull.Value ? r["CustomerType"].ToString() : "";
+                sb.Append("{\"id\":" + r["CustomerID"] + ",\"n\":\"" + name + "\",\"t\":\"" + type + "\"}");
+                first = false;
             }
-            sb.Append("</select>");
+            sb.Append("]");
             return sb.ToString();
         }
 

@@ -67,6 +67,13 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .save-bar{margin-top:16px;display:flex;gap:12px;align-items:center;}
 .btn-save-row{background:var(--teal);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
 .btn-save-row:hover{background:#148a5b;}
+
+.cust-search-wrap{position:relative;}
+.cust-search-input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;}
+.cust-search-input:focus{border-color:var(--accent);outline:none;}
+.cust-search-list{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:250px;overflow-y:auto;z-index:50;margin-top:2px;}
+.cust-opt{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f5f5f5;}
+.cust-opt:hover{background:var(--accent-light);}
 </style>
 </head>
 <body>
@@ -233,6 +240,80 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 </div>
 </form>
 <script>
+var _allCustomers = <%= GetCustomerJsonArray() %>;
+
+function normalize(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function similarity(a, b) {
+    a = normalize(a); b = normalize(b);
+    if (a === b) return 100;
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return 80;
+    // Count common words
+    var wa = a.replace(/[^a-z0-9 ]/g,'').split(/\s+/);
+    var wb = b.replace(/[^a-z0-9 ]/g,'').split(/\s+/);
+    // Use original for word splitting
+    var origA = arguments.length > 2 ? arguments[2] : a;
+    var origB = arguments.length > 3 ? arguments[3] : b;
+    var common = 0;
+    for (var i=0; i<wa.length; i++)
+        for (var j=0; j<wb.length; j++)
+            if (wa[i].length > 2 && wa[i] === wb[j]) common++;
+    return common * 20;
+}
+
+function initCustomerSearch() {
+    document.querySelectorAll('.cust-search-wrap').forEach(function(wrap) {
+        var input = wrap.querySelector('.cust-search-input');
+        var hiddenVal = wrap.querySelector('.cust-search-val');
+        var listDiv = wrap.querySelector('.cust-search-list');
+        var tallyName = wrap.getAttribute('data-tally');
+
+        // Pre-fill search with tally name
+        input.value = '';
+        input.setAttribute('placeholder', tallyName);
+
+        function showResults(query) {
+            var q = query || tallyName;
+            var scored = _allCustomers.map(function(c) {
+                return { id: c.id, name: c.n, type: c.t, score: similarity(q, c.n) };
+            });
+            scored.sort(function(a, b) { return b.score - a.score; });
+            // If query typed, also filter
+            if (query && query.length > 1) {
+                var ql = query.toLowerCase();
+                scored = scored.filter(function(c) {
+                    return c.name.toLowerCase().indexOf(ql) >= 0 || normalize(c.name).indexOf(normalize(query)) >= 0;
+                });
+            }
+            var html = '';
+            var max = Math.min(scored.length, 15);
+            for (var i = 0; i < max; i++) {
+                var c = scored[i];
+                var typeTag = c.type ? ' <span style="color:#999;font-size:10px;">['+c.type+']</span>' : '';
+                html += '<div class="cust-opt" data-id="'+c.id+'" data-name="'+c.name+'">' +
+                    c.name + typeTag + '</div>';
+            }
+            if (scored.length === 0) html = '<div style="padding:8px;color:#999;font-size:11px;">No matches</div>';
+            listDiv.innerHTML = html;
+            listDiv.style.display = 'block';
+
+            listDiv.querySelectorAll('.cust-opt').forEach(function(opt) {
+                opt.addEventListener('click', function() {
+                    hiddenVal.value = this.getAttribute('data-id');
+                    input.value = this.getAttribute('data-name');
+                    listDiv.style.display = 'none';
+                });
+            });
+        }
+
+        input.addEventListener('focus', function() { showResults(this.value || ''); });
+        input.addEventListener('input', function() { showResults(this.value); });
+        document.addEventListener('click', function(e) {
+            if (!wrap.contains(e.target)) listDiv.style.display = 'none';
+        });
+    });
+}
+
 function saveProductRow(btn) {
     var row = btn.closest('tr');
     var tally = row.getAttribute('data-tally');
@@ -254,11 +335,13 @@ function saveScrapRow(btn) {
 function saveCustomerRow(btn) {
     var row = btn.closest('tr');
     var tally = row.getAttribute('data-tally');
-    var sel = row.querySelector('select');
-    if (!sel || !sel.value || sel.value === '0') { alert('Please select a customer.'); return; }
-    document.getElementById('<%= hfSaveCustomerData.ClientID %>').value = tally + '||' + sel.value;
+    var hiddenVal = row.querySelector('.cust-search-val');
+    if (!hiddenVal || !hiddenVal.value || hiddenVal.value === '0') { alert('Please select a customer from the search results.'); return; }
+    document.getElementById('<%= hfSaveCustomerData.ClientID %>').value = tally + '||' + hiddenVal.value;
     document.getElementById('<%= btnSaveOneCustomer.ClientID %>').click();
 }
+
+window.addEventListener('load', function() { initCustomerSearch(); });
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
