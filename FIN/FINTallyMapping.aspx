@@ -151,10 +151,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
     </asp:Repeater>
-
-    <div class="save-bar">
-        <asp:Button ID="btnSaveProducts" runat="server" Text="&#x1F4BE; Save Product Mappings" CssClass="btn btn-teal" OnClick="btnSaveProducts_Click"/>
-    </div>
 </div>
 </asp:Panel>
 
