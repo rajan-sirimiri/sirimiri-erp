@@ -80,8 +80,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <form id="form1" runat="server">
 
 <asp:HiddenField ID="hfTab" runat="server" Value="PRODUCTS"/>
-<asp:HiddenField ID="hfLoadFileName" runat="server" Value=""/>
-<asp:Button ID="btnLoadSaved" runat="server" OnClick="btnLoadSaved_Click" style="display:none;"/>
 
 <nav>
     <a class="nav-logo" href="FINHome.aspx">
@@ -115,12 +113,14 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         <asp:Panel ID="pnlNoSavedFiles" runat="server">
             <div style="font-size:12px;color:#999;">No files uploaded yet.</div>
         </asp:Panel>
-        <asp:Repeater ID="rptSavedFiles" runat="server">
+        <asp:Repeater ID="rptSavedFiles" runat="server" OnItemCommand="rptSavedFiles_ItemCommand">
             <ItemTemplate>
                 <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;">
                     <span style="font-size:12px;color:var(--text);flex:1;">&#x1F4C4; <%# Eval("Name") %></span>
                     <span style="font-size:10px;color:var(--text-dim);"><%# ((DateTime)Eval("CreationTime")).ToString("dd-MMM-yyyy HH:mm") %></span>
-                    <button type="button" class="btn-save-row" onclick="loadSavedFile('<%# Eval("Name") %>');">Load</button>
+                    <asp:LinkButton ID="btnLoad" runat="server" CommandName="LoadFile"
+                        CommandArgument='<%# Eval("Name") %>' CssClass="btn-save-row"
+                        CausesValidation="false">Load</asp:LinkButton>
                 </div>
             </ItemTemplate>
         </asp:Repeater>
@@ -357,12 +357,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 </div>
 <script>
-var _allCustomers = <%= GetCustomerJsonArray() %>;
-
-function loadSavedFile(fileName) {
-    document.getElementById('<%= hfLoadFileName.ClientID %>').value = fileName;
-    document.getElementById('<%= btnLoadSaved.ClientID %>').click();
-}
+var _allCustomers = [];
+try { _allCustomers = <%= GetCustomerJsonArray() %>; } catch(e) { }
 
 function normalize(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 

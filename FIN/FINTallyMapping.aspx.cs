@@ -33,8 +33,6 @@ namespace FINApp
         // Saved files
         protected System.Web.UI.WebControls.Repeater     rptSavedFiles;
         protected System.Web.UI.WebControls.Panel        pnlNoSavedFiles;
-        protected System.Web.UI.WebControls.HiddenField  hfLoadFileName;
-        protected System.Web.UI.WebControls.Button       btnLoadSaved;
 
         protected int UserID => Session["FIN_UserID"] != null ? Convert.ToInt32(Session["FIN_UserID"]) : 0;
 
@@ -116,13 +114,12 @@ namespace FINApp
             }
         }
 
-        protected void btnLoadSaved_Click(object sender, EventArgs e)
+        protected void rptSavedFiles_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
         {
-            string fileName = hfLoadFileName.Value;
+            if (e.CommandName != "LoadFile") return;
+            string fileName = Path.GetFileName(e.CommandArgument.ToString());
             if (string.IsNullOrEmpty(fileName)) return;
 
-            // Sanitize — only allow filename, no path traversal
-            fileName = Path.GetFileName(fileName);
             string folder = GetUploadFolder();
             string filePath = Path.Combine(folder, fileName);
             if (!File.Exists(filePath))
@@ -131,6 +128,7 @@ namespace FINApp
             try
             {
                 LoadMappingFile(filePath);
+                BindSavedFiles();
             }
             catch (Exception ex)
             {
