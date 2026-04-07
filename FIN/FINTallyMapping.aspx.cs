@@ -377,11 +377,9 @@ namespace FINApp
 
         protected string RenderProductFGDropdown(object tallyNameObj)
         {
-            string tallyName = tallyNameObj.ToString();
-            string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyName);
             var options = FINDatabaseHelper.GetProductsWithFGOptions();
             var sb = new System.Text.StringBuilder();
-            sb.Append("<select name='prodfg_" + safeName + "' class='map-select'>");
+            sb.Append("<select class='map-select'>");
             sb.Append("<option value=''>-- Select Product + Packing --</option>");
             foreach (DataRow r in options.Rows)
             {
@@ -395,8 +393,7 @@ namespace FINApp
 
         protected string RenderMRPInput(object tallyNameObj)
         {
-            string safeName = System.Web.HttpUtility.HtmlAttributeEncode(tallyNameObj.ToString());
-            return "<input type='number' name='mrp_" + safeName + "' step='0.01' min='0' placeholder='MRP' class='mrp-input'/>";
+            return "<input type='number' step='0.01' min='0' placeholder='MRP' class='mrp-input'/>";
         }
 
         protected string RenderScrapDropdown(object tallyNameObj)

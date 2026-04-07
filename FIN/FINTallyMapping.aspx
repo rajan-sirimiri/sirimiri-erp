@@ -425,12 +425,16 @@ function initCustomerSearch() {
 
 function saveProductRow(btn) {
     var row = btn.closest('tr');
+    if (!row) { alert('Error: could not find row'); return; }
     var tally = row.getAttribute('data-tally');
+    if (!tally) { alert('Error: no tally name found'); return; }
     var sel = row.querySelector('select');
-    var mrpInput = row.querySelector('input[name^="mrp_"]');
-    if (!sel || !sel.value) { alert('Please select a product + packing option.'); return; }
+    if (!sel) { alert('Error: no dropdown found in row'); return; }
+    if (!sel.value || sel.value === '') { alert('Please select a product + packing option.'); return; }
+    var mrpInput = row.querySelector('input[type="number"]');
     var mrp = mrpInput ? mrpInput.value : '';
-    document.getElementById('<%= hfSaveProductData.ClientID %>').value = tally + '||' + sel.value + '||' + mrp;
+    var payload = tally + '||' + sel.value + '||' + mrp;
+    document.getElementById('<%= hfSaveProductData.ClientID %>').value = payload;
     document.getElementById('<%= btnSaveOneProduct.ClientID %>').click();
 }
 function saveScrapRow(btn) {
