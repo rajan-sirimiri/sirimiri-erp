@@ -16,10 +16,8 @@ namespace FINApp
         protected System.Web.UI.WebControls.Panel        pnlAlert, pnlResults;
         protected System.Web.UI.WebControls.FileUpload   fileUpload;
         protected System.Web.UI.WebControls.Button       btnUpload;
-        protected System.Web.UI.WebControls.Button       btnSaveOneProduct, btnSaveOneScrap, btnSaveOneCustomer;
         protected System.Web.UI.WebControls.Button       btnTabProducts, btnTabScrap, btnTabCustomers, btnTabMapped;
         protected System.Web.UI.WebControls.HiddenField  hfTab;
-        protected System.Web.UI.WebControls.HiddenField  hfSaveProductData, hfSaveScrapData, hfSaveCustomerData;
 
         // Unmapped lists
         protected System.Web.UI.WebControls.Repeater     rptUnmappedProducts, rptUnmappedScrap, rptUnmappedCustomers;

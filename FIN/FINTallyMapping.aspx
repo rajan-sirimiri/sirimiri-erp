@@ -80,13 +80,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <form id="form1" runat="server">
 
 <asp:HiddenField ID="hfTab" runat="server" Value="PRODUCTS"/>
-<asp:HiddenField ID="hfSaveProductData" runat="server" Value=""/>
-<asp:HiddenField ID="hfSaveScrapData" runat="server" Value=""/>
-<asp:HiddenField ID="hfSaveCustomerData" runat="server" Value=""/>
 <asp:HiddenField ID="hfLoadFileName" runat="server" Value=""/>
-<asp:Button ID="btnSaveOneProduct" runat="server" OnClick="btnSaveOneProduct_Click" style="display:none;"/>
-<asp:Button ID="btnSaveOneScrap" runat="server" OnClick="btnSaveOneScrap_Click" style="display:none;"/>
-<asp:Button ID="btnSaveOneCustomer" runat="server" OnClick="btnSaveOneCustomer_Click" style="display:none;"/>
 <asp:Button ID="btnLoadSaved" runat="server" OnClick="btnLoadSaved_Click" style="display:none;"/>
 
 <nav>
@@ -440,37 +434,6 @@ function initCustomerSearch() {
             if (!wrap.contains(e.target)) listDiv.style.display = 'none';
         });
     });
-}
-
-function saveProductRow(btn) {
-    var row = btn.closest('tr');
-    if (!row) { alert('Error: could not find row'); return; }
-    var tally = row.getAttribute('data-tally');
-    if (!tally) { alert('Error: no tally name found'); return; }
-    var sel = row.querySelector('select');
-    if (!sel) { alert('Error: no dropdown found in row'); return; }
-    if (!sel.value || sel.value === '') { alert('Please select a product + packing option.'); return; }
-    var mrpInput = row.querySelector('input[type="number"]');
-    var mrp = mrpInput ? mrpInput.value : '';
-    var payload = tally + '||' + sel.value + '||' + mrp;
-    document.getElementById('<%= hfSaveProductData.ClientID %>').value = payload;
-    document.getElementById('<%= btnSaveOneProduct.ClientID %>').click();
-}
-function saveScrapRow(btn) {
-    var row = btn.closest('tr');
-    var tally = row.getAttribute('data-tally');
-    var sel = row.querySelector('select');
-    if (!sel || !sel.value || sel.value === '0') { alert('Please select a scrap material.'); return; }
-    document.getElementById('<%= hfSaveScrapData.ClientID %>').value = tally + '||' + sel.value;
-    document.getElementById('<%= btnSaveOneScrap.ClientID %>').click();
-}
-function saveCustomerRow(btn) {
-    var row = btn.closest('tr');
-    var tally = row.getAttribute('data-tally');
-    var hiddenVal = row.querySelector('.cust-search-val');
-    if (!hiddenVal || !hiddenVal.value || hiddenVal.value === '0') { alert('Please select a customer from the search results.'); return; }
-    document.getElementById('<%= hfSaveCustomerData.ClientID %>').value = tally + '||' + hiddenVal.value;
-    document.getElementById('<%= btnSaveOneCustomer.ClientID %>').click();
 }
 
 window.addEventListener('load', function() { initCustomerSearch(); });
