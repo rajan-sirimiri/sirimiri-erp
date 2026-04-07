@@ -342,7 +342,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 </asp:Panel>
 
 </div>
-</form>
 <script>
 var _allCustomers = <%= GetCustomerJsonArray() %>;
 
@@ -457,5 +456,6 @@ function saveCustomerRow(btn) {
 window.addEventListener('load', function() { initCustomerSearch(); });
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>
+</form>
 </body>
 </html>
