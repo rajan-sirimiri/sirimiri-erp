@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using FINApp.DAL;
@@ -31,6 +32,12 @@ namespace FINApp
         protected System.Web.UI.WebControls.Repeater     rptMappedProducts, rptMappedScrap, rptMappedCustomers;
         protected System.Web.UI.WebControls.Label        lblMappedProductCount, lblMappedScrapCount, lblMappedCustomerCount;
 
+        // Saved files
+        protected System.Web.UI.WebControls.Repeater     rptSavedFiles;
+        protected System.Web.UI.WebControls.Panel        pnlNoSavedFiles;
+        protected System.Web.UI.WebControls.HiddenField  hfLoadFileName;
+        protected System.Web.UI.WebControls.Button       btnLoadSaved;
+
         protected int UserID => Session["FIN_UserID"] != null ? Convert.ToInt32(Session["FIN_UserID"]) : 0;
 
         protected void Page_Load(object sender, EventArgs e)
@@ -42,11 +49,47 @@ namespace FINApp
             {
                 hfTab.Value = "PRODUCTS";
                 SetActiveTab();
+                BindSavedFiles();
+
+                // If session already has data, show results
+                if (Session["TallyProducts"] != null)
+                {
+                    BindUnmappedProducts();
+                    BindUnmappedScrap();
+                    BindUnmappedCustomers();
+                    pnlResults.Visible = true;
+                }
             }
             else
             {
                 SetActiveTab();
             }
+        }
+
+        private string GetUploadFolder()
+        {
+            string folder = Server.MapPath("~/App_Data/TallyUploads");
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+            return folder;
+        }
+
+        private void BindSavedFiles()
+        {
+            string folder = GetUploadFolder();
+            var files = new DirectoryInfo(folder)
+                .GetFiles("*.xlsx")
+                .OrderByDescending(f => f.CreationTime)
+                .Take(10)
+                .ToList();
+
+            if (rptSavedFiles != null)
+            {
+                rptSavedFiles.DataSource = files;
+                rptSavedFiles.DataBind();
+            }
+            if (pnlNoSavedFiles != null)
+                pnlNoSavedFiles.Visible = files.Count == 0;
         }
 
         protected void btnUpload_Click(object sender, EventArgs e)
@@ -57,73 +100,103 @@ namespace FINApp
 
             try
             {
-                var tallyProducts = new List<string>();
-                var tallyScrap = new List<string>();
-                var tallyCustomers = new List<string>();
+                // Save file to server
+                string folder = GetUploadFolder();
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string safeFileName = Path.GetFileNameWithoutExtension(fileUpload.FileName).Replace(" ", "_");
+                string savedName = timestamp + "_" + safeFileName + ".xlsx";
+                string savedPath = Path.Combine(folder, savedName);
+                fileUpload.SaveAs(savedPath);
 
-                using (var stream = new MemoryStream(fileUpload.FileBytes))
-                using (var wb = new XLWorkbook(stream))
-                {
-                    // Sheet 1: Products — read column B (Tally Product Name)
-                    if (wb.Worksheets.Count >= 1)
-                    {
-                        var ws = wb.Worksheet(1);
-                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
-                        for (int r = 2; r <= lastRow; r++)
-                        {
-                            string name = ws.Cell(r, 2).GetString().Trim();
-                            if (!string.IsNullOrEmpty(name)) tallyProducts.Add(name);
-                        }
-                    }
-
-                    // Sheet 2: Scrap Items — read column B (Tally Scrap Name)
-                    if (wb.Worksheets.Count >= 2)
-                    {
-                        var ws = wb.Worksheet(2);
-                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
-                        for (int r = 2; r <= lastRow; r++)
-                        {
-                            string name = ws.Cell(r, 2).GetString().Trim();
-                            if (!string.IsNullOrEmpty(name)) tallyScrap.Add(name);
-                        }
-                    }
-
-                    // Sheet 3: Customers — read column B (Tally Customer Name)
-                    if (wb.Worksheets.Count >= 3)
-                    {
-                        var ws = wb.Worksheet(3);
-                        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
-                        for (int r = 2; r <= lastRow; r++)
-                        {
-                            string name = ws.Cell(r, 2).GetString().Trim();
-                            if (!string.IsNullOrEmpty(name)) tallyCustomers.Add(name);
-                        }
-                    }
-                }
-
-                // Store in session for mapping
-                Session["TallyProducts"] = tallyProducts;
-                Session["TallyScrap"] = tallyScrap;
-                Session["TallyCustomers"] = tallyCustomers;
-
-                // Auto-match customers against ERP customer master
-                int autoMatched = FINDatabaseHelper.AutoMatchCustomers(tallyCustomers, null);
-
-                // Bind all tabs
-                BindUnmappedProducts();
-                BindUnmappedScrap();
-                BindUnmappedCustomers();
-                pnlResults.Visible = true;
-
-                ShowAlert("Loaded " + tallyProducts.Count + " products, " +
-                    tallyScrap.Count + " scrap items, and " +
-                    tallyCustomers.Count + " customers. " +
-                    "Auto-matched " + autoMatched + " customers to ERP.", true);
+                // Load from saved file
+                LoadMappingFile(savedPath);
+                BindSavedFiles();
             }
             catch (Exception ex)
             {
-                ShowAlert("Error reading file: " + ex.Message, false);
+                ShowAlert("Error: " + ex.Message, false);
             }
+        }
+
+        protected void btnLoadSaved_Click(object sender, EventArgs e)
+        {
+            string fileName = hfLoadFileName.Value;
+            if (string.IsNullOrEmpty(fileName)) return;
+
+            // Sanitize — only allow filename, no path traversal
+            fileName = Path.GetFileName(fileName);
+            string folder = GetUploadFolder();
+            string filePath = Path.Combine(folder, fileName);
+            if (!File.Exists(filePath))
+            { ShowAlert("File not found: " + fileName, false); return; }
+
+            try
+            {
+                LoadMappingFile(filePath);
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Error loading file: " + ex.Message, false);
+            }
+        }
+
+        private void LoadMappingFile(string filePath)
+        {
+            var tallyProducts = new List<string>();
+            var tallyScrap = new List<string>();
+            var tallyCustomers = new List<string>();
+
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (var wb = new XLWorkbook(stream))
+            {
+                if (wb.Worksheets.Count >= 1)
+                {
+                    var ws = wb.Worksheet(1);
+                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                    for (int r = 2; r <= lastRow; r++)
+                    {
+                        string name = ws.Cell(r, 2).GetString().Trim();
+                        if (!string.IsNullOrEmpty(name)) tallyProducts.Add(name);
+                    }
+                }
+                if (wb.Worksheets.Count >= 2)
+                {
+                    var ws = wb.Worksheet(2);
+                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                    for (int r = 2; r <= lastRow; r++)
+                    {
+                        string name = ws.Cell(r, 2).GetString().Trim();
+                        if (!string.IsNullOrEmpty(name)) tallyScrap.Add(name);
+                    }
+                }
+                if (wb.Worksheets.Count >= 3)
+                {
+                    var ws = wb.Worksheet(3);
+                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                    for (int r = 2; r <= lastRow; r++)
+                    {
+                        string name = ws.Cell(r, 2).GetString().Trim();
+                        if (!string.IsNullOrEmpty(name)) tallyCustomers.Add(name);
+                    }
+                }
+            }
+
+            Session["TallyProducts"] = tallyProducts;
+            Session["TallyScrap"] = tallyScrap;
+            Session["TallyCustomers"] = tallyCustomers;
+
+            int autoMatched = FINDatabaseHelper.AutoMatchCustomers(tallyCustomers, null);
+
+            BindUnmappedProducts();
+            BindUnmappedScrap();
+            BindUnmappedCustomers();
+            pnlResults.Visible = true;
+
+            string fileName = Path.GetFileName(filePath);
+            ShowAlert("Loaded " + tallyProducts.Count + " products, " +
+                tallyScrap.Count + " scrap items, " +
+                tallyCustomers.Count + " customers from " + fileName + ". " +
+                "Auto-matched " + autoMatched + " customers.", true);
         }
 
         // ── TAB SWITCHING ──

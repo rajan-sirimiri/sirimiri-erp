@@ -101,11 +101,29 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 <!-- UPLOAD -->
 <div class="card">
-    <div class="card-title">&#x1F4C2; Upload Tally Mapping Template</div>
-    <div class="card-sub">Upload the mapping template file (3 sheets: Products, Scrap Items, Customers). The system will show unmapped items for you to map to ERP master data.</div>
+    <div class="card-title">&#x1F4C2; Tally Mapping Template</div>
+    <div class="card-sub">Upload a new template or load a previously saved file.</div>
     <div class="upload-row">
         <asp:FileUpload ID="fileUpload" runat="server"/>
-        <asp:Button ID="btnUpload" runat="server" Text="&#x1F50D; Scan File" CssClass="btn btn-primary" OnClick="btnUpload_Click"/>
+        <asp:Button ID="btnUpload" runat="server" Text="&#x1F4E4; Upload &amp; Save" CssClass="btn btn-primary" OnClick="btnUpload_Click"/>
+    </div>
+
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Previously Uploaded Files</div>
+        <asp:Panel ID="pnlNoSavedFiles" runat="server">
+            <div style="font-size:12px;color:#999;">No files uploaded yet.</div>
+        </asp:Panel>
+        <asp:HiddenField ID="hfLoadFileName" runat="server" Value=""/>
+        <asp:Button ID="btnLoadSaved" runat="server" OnClick="btnLoadSaved_Click" style="display:none;"/>
+        <asp:Repeater ID="rptSavedFiles" runat="server">
+            <ItemTemplate>
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+                    <span style="font-size:12px;color:var(--text);flex:1;">&#x1F4C4; <%# Eval("Name") %></span>
+                    <span style="font-size:10px;color:var(--text-dim);"><%# ((DateTime)Eval("CreationTime")).ToString("dd-MMM-yyyy HH:mm") %></span>
+                    <button type="button" class="btn-save-row" onclick="loadSavedFile('<%# Eval("Name") %>');">Load</button>
+                </div>
+            </ItemTemplate>
+        </asp:Repeater>
     </div>
 </div>
 
@@ -327,6 +345,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 </form>
 <script>
 var _allCustomers = <%= GetCustomerJsonArray() %>;
+
+function loadSavedFile(fileName) {
+    document.getElementById('<%= hfLoadFileName.ClientID %>').value = fileName;
+    document.getElementById('<%= btnLoadSaved.ClientID %>').click();
+}
 
 function normalize(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
