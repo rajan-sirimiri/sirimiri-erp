@@ -16,7 +16,7 @@ namespace FINApp
         protected System.Web.UI.WebControls.FileUpload   fileUpload;
         protected System.Web.UI.WebControls.Button       btnUpload;
         protected System.Web.UI.WebControls.Button       btnSaveOneProduct, btnSaveOneScrap, btnSaveOneCustomer;
-        protected System.Web.UI.WebControls.Button       btnTabProducts, btnTabScrap, btnTabCustomers;
+        protected System.Web.UI.WebControls.Button       btnTabProducts, btnTabScrap, btnTabCustomers, btnTabMapped;
         protected System.Web.UI.WebControls.HiddenField  hfTab;
         protected System.Web.UI.WebControls.HiddenField  hfSaveProductData, hfSaveScrapData, hfSaveCustomerData;
 
@@ -25,6 +25,11 @@ namespace FINApp
         protected System.Web.UI.WebControls.Panel        pnlProducts, pnlScrap, pnlCustomers;
         protected System.Web.UI.WebControls.Label        lblProductCount, lblScrapCount, lblCustomerCount;
         protected System.Web.UI.WebControls.Label        lblProductMapped, lblScrapMapped, lblCustomerMapped;
+
+        // Mapped items
+        protected System.Web.UI.WebControls.Panel        pnlMapped;
+        protected System.Web.UI.WebControls.Repeater     rptMappedProducts, rptMappedScrap, rptMappedCustomers;
+        protected System.Web.UI.WebControls.Label        lblMappedProductCount, lblMappedScrapCount, lblMappedCustomerCount;
 
         protected int UserID => Session["FIN_UserID"] != null ? Convert.ToInt32(Session["FIN_UserID"]) : 0;
 
@@ -135,9 +140,11 @@ namespace FINApp
             if (btnTabProducts != null) btnTabProducts.CssClass = tab == "PRODUCTS" ? "tab-btn active" : "tab-btn";
             if (btnTabScrap != null) btnTabScrap.CssClass = tab == "SCRAP" ? "tab-btn active" : "tab-btn";
             if (btnTabCustomers != null) btnTabCustomers.CssClass = tab == "CUSTOMERS" ? "tab-btn active" : "tab-btn";
+            if (btnTabMapped != null) btnTabMapped.CssClass = tab == "MAPPED" ? "tab-btn active" : "tab-btn";
             if (pnlProducts != null) pnlProducts.Visible = tab == "PRODUCTS";
             if (pnlScrap != null) pnlScrap.Visible = tab == "SCRAP";
             if (pnlCustomers != null) pnlCustomers.Visible = tab == "CUSTOMERS";
+            if (pnlMapped != null) pnlMapped.Visible = tab == "MAPPED";
         }
 
         private void BindCurrentTab()
@@ -146,6 +153,7 @@ namespace FINApp
             if (tab == "PRODUCTS") BindUnmappedProducts();
             else if (tab == "SCRAP") BindUnmappedScrap();
             else if (tab == "CUSTOMERS") BindUnmappedCustomers();
+            else if (tab == "MAPPED") BindMappedItems();
         }
 
         // ── PRODUCT MAPPING ──
@@ -360,6 +368,24 @@ namespace FINApp
             }
             sb.Append("]");
             return sb.ToString();
+        }
+
+        private void BindMappedItems()
+        {
+            // Products
+            var prodMap = FINDatabaseHelper.GetAllProductMappings();
+            if (rptMappedProducts != null) { rptMappedProducts.DataSource = prodMap; rptMappedProducts.DataBind(); }
+            if (lblMappedProductCount != null) lblMappedProductCount.Text = prodMap.Rows.Count + " products mapped";
+
+            // Scrap
+            var scrapMap = FINDatabaseHelper.GetAllScrapMappings();
+            if (rptMappedScrap != null) { rptMappedScrap.DataSource = scrapMap; rptMappedScrap.DataBind(); }
+            if (lblMappedScrapCount != null) lblMappedScrapCount.Text = scrapMap.Rows.Count + " scrap items mapped";
+
+            // Customers
+            var custMap = FINDatabaseHelper.GetAllCustomerMappings();
+            if (rptMappedCustomers != null) { rptMappedCustomers.DataSource = custMap; rptMappedCustomers.DataBind(); }
+            if (lblMappedCustomerCount != null) lblMappedCustomerCount.Text = custMap.Rows.Count + " customers mapped";
         }
 
         private void ShowAlert(string msg, bool success)

@@ -120,6 +120,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         Text="Scrap / Misc" OnClick="btnTab_Click" CommandArgument="SCRAP"/>
     <asp:Button ID="btnTabCustomers" runat="server" CssClass="tab-btn"
         Text="Customers" OnClick="btnTab_Click" CommandArgument="CUSTOMERS"/>
+    <asp:Button ID="btnTabMapped" runat="server" CssClass="tab-btn"
+        Text="&#x2705; Mapped Items" OnClick="btnTab_Click" CommandArgument="MAPPED"/>
 </div>
 
 <!-- ═══ PRODUCTS TAB ═══ -->
@@ -228,6 +230,90 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                 <td class="tally-name"><%# Eval("TallyName") %></td>
                 <td><%# RenderCustomerDropdown(Eval("TallyName")) %></td>
                 <td><button type="button" class="btn-save-row" onclick="saveCustomerRow(this);">Save</button></td>
+            </tr>
+        </ItemTemplate>
+        <FooterTemplate></tbody></table></div></FooterTemplate>
+    </asp:Repeater>
+</div>
+</asp:Panel>
+
+<!-- ═══ MAPPED ITEMS TAB ═══ -->
+<asp:Panel ID="pnlMapped" runat="server" Visible="false">
+<div class="card">
+    <div class="card-title">&#x2705; Mapped Products</div>
+    <div class="card-sub">Products mapped from Tally to ERP</div>
+    <asp:Label ID="lblMappedProductCount" runat="server" style="font-size:12px;color:var(--teal);font-weight:700;"/>
+    <asp:Repeater ID="rptMappedProducts" runat="server">
+        <HeaderTemplate>
+            <div style="max-height:400px;overflow-y:auto;margin-top:10px;">
+            <table class="map-table">
+            <thead><tr>
+                <th style="width:30px;">#</th>
+                <th>Tally Product Name</th>
+                <th>ERP Product</th>
+                <th>Form</th>
+                <th>Pcs/Unit</th>
+                <th>MRP</th>
+            </tr></thead><tbody>
+        </HeaderTemplate>
+        <ItemTemplate>
+            <tr>
+                <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
+                <td class="tally-name"><%# Eval("TallyName") %></td>
+                <td style="font-weight:600;"><%# Eval("ProductName") %> <span style="color:var(--text-dim);font-weight:400;">(<%# Eval("ProductCode") %>)</span></td>
+                <td><%# Eval("SellingForm") %></td>
+                <td><%# Eval("PiecesPerUnit") %></td>
+                <td><%# Eval("MRP") != DBNull.Value ? string.Format("{0:N0}", Eval("MRP")) : "—" %></td>
+            </tr>
+        </ItemTemplate>
+        <FooterTemplate></tbody></table></div></FooterTemplate>
+    </asp:Repeater>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="card-title">&#x2705; Mapped Scrap Items</div>
+    <asp:Label ID="lblMappedScrapCount" runat="server" style="font-size:12px;color:var(--teal);font-weight:700;"/>
+    <asp:Repeater ID="rptMappedScrap" runat="server">
+        <HeaderTemplate>
+            <div style="max-height:300px;overflow-y:auto;margin-top:10px;">
+            <table class="map-table">
+            <thead><tr>
+                <th style="width:30px;">#</th>
+                <th>Tally Scrap Name</th>
+                <th>ERP Scrap Material</th>
+            </tr></thead><tbody>
+        </HeaderTemplate>
+        <ItemTemplate>
+            <tr>
+                <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
+                <td class="tally-name"><%# Eval("TallyName") %></td>
+                <td style="font-weight:600;"><%# Eval("ScrapName") %> <span style="color:var(--text-dim);font-weight:400;">(<%# Eval("ScrapCode") %>)</span></td>
+            </tr>
+        </ItemTemplate>
+        <FooterTemplate></tbody></table></div></FooterTemplate>
+    </asp:Repeater>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="card-title">&#x2705; Mapped Customers</div>
+    <asp:Label ID="lblMappedCustomerCount" runat="server" style="font-size:12px;color:var(--teal);font-weight:700;"/>
+    <asp:Repeater ID="rptMappedCustomers" runat="server">
+        <HeaderTemplate>
+            <div style="max-height:500px;overflow-y:auto;margin-top:10px;">
+            <table class="map-table">
+            <thead><tr>
+                <th style="width:30px;">#</th>
+                <th>Tally Customer Name</th>
+                <th>ERP Customer</th>
+                <th>Type</th>
+            </tr></thead><tbody>
+        </HeaderTemplate>
+        <ItemTemplate>
+            <tr>
+                <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
+                <td class="tally-name"><%# Eval("TallyName") %></td>
+                <td style="font-weight:600;"><%# Eval("CustomerName") %> <span style="color:var(--text-dim);font-weight:400;">(<%# Eval("CustomerCode") %>)</span></td>
+                <td style="font-size:11px;"><%# Eval("CustomerType") %></td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
