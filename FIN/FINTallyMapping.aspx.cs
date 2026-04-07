@@ -249,37 +249,49 @@ namespace FINApp
 
             rptUnmappedProducts.DataSource = unmapped;
             rptUnmappedProducts.DataBind();
+
+            // Populate dropdowns after DataBind
+            var options = FINDatabaseHelper.GetProductsWithFGOptions();
+            foreach (System.Web.UI.WebControls.RepeaterItem item in rptUnmappedProducts.Items)
+            {
+                var ddl = item.FindControl("ddlProductFG") as System.Web.UI.WebControls.DropDownList;
+                if (ddl != null)
+                {
+                    ddl.Items.Clear();
+                    ddl.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Product + Packing --", ""));
+                    foreach (DataRow r in options.Rows)
+                    {
+                        string val = r["ProductID"] + "|" + r["PackForm"] + "|" + r["UnitsPerPack"];
+                        ddl.Items.Add(new System.Web.UI.WebControls.ListItem(r["DisplayLabel"].ToString(), val));
+                    }
+                }
+            }
+
             if (lblProductCount != null) lblProductCount.Text = unmapped.Rows.Count.ToString();
             if (lblProductMapped != null) lblProductMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveOneProduct_Click(object sender, EventArgs e)
+        protected void rptUnmappedProducts_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
         {
-            string data = hfSaveProductData.Value ?? "";
-            hfSaveProductData.Value = "";
-            if (string.IsNullOrEmpty(data)) return;
+            if (e.CommandName != "SaveProduct") return;
+            string tallyName = e.CommandArgument.ToString();
 
-            // Format: tallyName||ProductID|PackForm|UnitsPerPack||MRP
-            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
-            if (parts.Length < 2) return;
+            var ddl = e.Item.FindControl("ddlProductFG") as System.Web.UI.WebControls.DropDownList;
+            var txtMrp = e.Item.FindControl("txtMRP") as System.Web.UI.WebControls.TextBox;
 
-            string tallyName = parts[0];
-            string combo = parts[1];
-            string mrpStr = parts.Length > 2 ? parts[2] : "";
+            if (ddl == null || string.IsNullOrEmpty(ddl.SelectedValue))
+            { ShowAlert("Please select a product + packing option.", false); return; }
 
-            string[] comboParts = combo.Split('|');
-            if (comboParts.Length < 3) return;
+            string[] parts = ddl.SelectedValue.Split('|');
+            if (parts.Length < 3) return;
 
-            int productId;
-            if (!int.TryParse(comboParts[0], out productId) || productId <= 0) return;
-            string form = comboParts[1];
-            int ppu = 1;
-            int.TryParse(comboParts[2], out ppu);
-            if (ppu < 1) ppu = 1;
+            int productId = Convert.ToInt32(parts[0]);
+            string form = parts[1];
+            int ppu = Convert.ToInt32(parts[2]);
 
             decimal? mrp = null;
             decimal m;
-            if (decimal.TryParse(mrpStr, out m) && m > 0) mrp = m;
+            if (txtMrp != null && decimal.TryParse(txtMrp.Text, out m) && m > 0) mrp = m;
 
             FINDatabaseHelper.SaveProductMapping(tallyName, productId, form, ppu, mrp);
             BindUnmappedProducts();
@@ -307,23 +319,35 @@ namespace FINApp
 
             rptUnmappedScrap.DataSource = unmapped;
             rptUnmappedScrap.DataBind();
+
+            var scraps = FINDatabaseHelper.GetAllScrapMaterials();
+            foreach (System.Web.UI.WebControls.RepeaterItem item in rptUnmappedScrap.Items)
+            {
+                var ddl = item.FindControl("ddlScrap") as System.Web.UI.WebControls.DropDownList;
+                if (ddl != null)
+                {
+                    ddl.Items.Clear();
+                    ddl.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Scrap --", "0"));
+                    foreach (DataRow r in scraps.Rows)
+                        ddl.Items.Add(new System.Web.UI.WebControls.ListItem(
+                            r["ScrapName"] + " (" + r["ScrapCode"] + ")", r["ScrapID"].ToString()));
+                }
+            }
+
             if (lblScrapCount != null) lblScrapCount.Text = unmapped.Rows.Count.ToString();
             if (lblScrapMapped != null) lblScrapMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveOneScrap_Click(object sender, EventArgs e)
+        protected void rptUnmappedScrap_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
         {
-            string data = hfSaveScrapData.Value ?? "";
-            hfSaveScrapData.Value = "";
-            if (string.IsNullOrEmpty(data)) return;
+            if (e.CommandName != "SaveScrap") return;
+            string tallyName = e.CommandArgument.ToString();
 
-            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
-            if (parts.Length < 2) return;
+            var ddl = e.Item.FindControl("ddlScrap") as System.Web.UI.WebControls.DropDownList;
+            if (ddl == null || ddl.SelectedValue == "0")
+            { ShowAlert("Please select a scrap material.", false); return; }
 
-            string tallyName = parts[0];
-            int scrapId;
-            if (!int.TryParse(parts[1], out scrapId) || scrapId <= 0) return;
-
+            int scrapId = Convert.ToInt32(ddl.SelectedValue);
             FINDatabaseHelper.SaveScrapMapping(tallyName, scrapId);
             BindUnmappedScrap();
             pnlResults.Visible = true;
@@ -350,23 +374,38 @@ namespace FINApp
 
             rptUnmappedCustomers.DataSource = unmapped;
             rptUnmappedCustomers.DataBind();
+
+            var customers = FINDatabaseHelper.GetAllCustomers();
+            foreach (System.Web.UI.WebControls.RepeaterItem item in rptUnmappedCustomers.Items)
+            {
+                var ddl = item.FindControl("ddlCustomer") as System.Web.UI.WebControls.DropDownList;
+                if (ddl != null)
+                {
+                    ddl.Items.Clear();
+                    ddl.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select Customer --", "0"));
+                    foreach (DataRow r in customers.Rows)
+                    {
+                        string type = r["CustomerType"] != DBNull.Value ? " [" + r["CustomerType"] + "]" : "";
+                        ddl.Items.Add(new System.Web.UI.WebControls.ListItem(
+                            r["CustomerName"].ToString() + type, r["CustomerID"].ToString()));
+                    }
+                }
+            }
+
             if (lblCustomerCount != null) lblCustomerCount.Text = unmapped.Rows.Count.ToString();
             if (lblCustomerMapped != null) lblCustomerMapped.Text = mapped.ToString();
         }
 
-        protected void btnSaveOneCustomer_Click(object sender, EventArgs e)
+        protected void rptUnmappedCustomers_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
         {
-            string data = hfSaveCustomerData.Value ?? "";
-            hfSaveCustomerData.Value = "";
-            if (string.IsNullOrEmpty(data)) return;
+            if (e.CommandName != "SaveCustomer") return;
+            string tallyName = e.CommandArgument.ToString();
 
-            string[] parts = data.Split(new string[] { "||" }, StringSplitOptions.None);
-            if (parts.Length < 2) return;
+            var ddl = e.Item.FindControl("ddlCustomer") as System.Web.UI.WebControls.DropDownList;
+            if (ddl == null || ddl.SelectedValue == "0")
+            { ShowAlert("Please select a customer.", false); return; }
 
-            string tallyName = parts[0];
-            int customerId;
-            if (!int.TryParse(parts[1], out customerId) || customerId <= 0) return;
-
+            int customerId = Convert.ToInt32(ddl.SelectedValue);
             FINDatabaseHelper.SaveCustomerMapping(tallyName, customerId);
             BindUnmappedCustomers();
             pnlResults.Visible = true;

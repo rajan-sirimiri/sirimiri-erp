@@ -80,6 +80,14 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 <form id="form1" runat="server">
 
 <asp:HiddenField ID="hfTab" runat="server" Value="PRODUCTS"/>
+<asp:HiddenField ID="hfSaveProductData" runat="server" Value=""/>
+<asp:HiddenField ID="hfSaveScrapData" runat="server" Value=""/>
+<asp:HiddenField ID="hfSaveCustomerData" runat="server" Value=""/>
+<asp:HiddenField ID="hfLoadFileName" runat="server" Value=""/>
+<asp:Button ID="btnSaveOneProduct" runat="server" OnClick="btnSaveOneProduct_Click" style="display:none;"/>
+<asp:Button ID="btnSaveOneScrap" runat="server" OnClick="btnSaveOneScrap_Click" style="display:none;"/>
+<asp:Button ID="btnSaveOneCustomer" runat="server" OnClick="btnSaveOneCustomer_Click" style="display:none;"/>
+<asp:Button ID="btnLoadSaved" runat="server" OnClick="btnLoadSaved_Click" style="display:none;"/>
 
 <nav>
     <a class="nav-logo" href="FINHome.aspx">
@@ -113,8 +121,6 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         <asp:Panel ID="pnlNoSavedFiles" runat="server">
             <div style="font-size:12px;color:#999;">No files uploaded yet.</div>
         </asp:Panel>
-        <asp:HiddenField ID="hfLoadFileName" runat="server" Value=""/>
-        <asp:Button ID="btnLoadSaved" runat="server" OnClick="btnLoadSaved_Click" style="display:none;"/>
         <asp:Repeater ID="rptSavedFiles" runat="server">
             <ItemTemplate>
                 <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;">
@@ -152,10 +158,8 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblProductMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
-    <asp:HiddenField ID="hfSaveProductData" runat="server" Value=""/>
-    <asp:Button ID="btnSaveOneProduct" runat="server" OnClick="btnSaveOneProduct_Click" style="display:none;"/>
 
-    <asp:Repeater ID="rptUnmappedProducts" runat="server">
+    <asp:Repeater ID="rptUnmappedProducts" runat="server" OnItemCommand="rptUnmappedProducts_ItemCommand">
         <HeaderTemplate>
             <div style="max-height:600px;overflow-y:auto;">
             <table class="map-table" id="tblProducts">
@@ -168,12 +172,20 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
+            <tr>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
-                <td><%# RenderProductFGDropdown(Eval("TallyName")) %></td>
-                <td><%# RenderMRPInput(Eval("TallyName")) %></td>
-                <td><button type="button" class="btn-save-row" onclick="saveProductRow(this);">Save</button></td>
+                <td>
+                    <asp:DropDownList ID="ddlProductFG" runat="server" CssClass="map-select"/>
+                </td>
+                <td>
+                    <asp:TextBox ID="txtMRP" runat="server" CssClass="mrp-input" placeholder="MRP" TextMode="Number"/>
+                </td>
+                <td>
+                    <asp:LinkButton ID="btnSaveProduct" runat="server" CommandName="SaveProduct"
+                        CommandArgument='<%# Eval("TallyName") %>' CssClass="btn-save-row"
+                        CausesValidation="false">Save</asp:LinkButton>
+                </td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
@@ -191,13 +203,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblScrapMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
-    <asp:HiddenField ID="hfSaveScrapData" runat="server" Value=""/>
-    <asp:Button ID="btnSaveOneScrap" runat="server" OnClick="btnSaveOneScrap_Click" style="display:none;"/>
 
-    <asp:Repeater ID="rptUnmappedScrap" runat="server">
+    <asp:Repeater ID="rptUnmappedScrap" runat="server" OnItemCommand="rptUnmappedScrap_ItemCommand">
         <HeaderTemplate>
             <div style="max-height:500px;overflow-y:auto;">
-            <table class="map-table" id="tblScrap">
+            <table class="map-table">
             <thead><tr>
                 <th style="width:30px;">#</th>
                 <th>Tally Item Name</th>
@@ -206,11 +216,17 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
+            <tr>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
-                <td><%# RenderScrapDropdown(Eval("TallyName")) %></td>
-                <td><button type="button" class="btn-save-row" onclick="saveScrapRow(this);">Save</button></td>
+                <td>
+                    <asp:DropDownList ID="ddlScrap" runat="server" CssClass="map-select"/>
+                </td>
+                <td>
+                    <asp:LinkButton ID="btnSaveScrap" runat="server" CommandName="SaveScrap"
+                        CommandArgument='<%# Eval("TallyName") %>' CssClass="btn-save-row"
+                        CausesValidation="false">Save</asp:LinkButton>
+                </td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
@@ -228,13 +244,11 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
         <div class="summary-stat"><div class="val" style="color:var(--teal);"><asp:Label ID="lblCustomerMapped" runat="server" Text="0"/></div><div class="lbl">Mapped</div></div>
     </div>
 
-    <asp:HiddenField ID="hfSaveCustomerData" runat="server" Value=""/>
-    <asp:Button ID="btnSaveOneCustomer" runat="server" OnClick="btnSaveOneCustomer_Click" style="display:none;"/>
 
-    <asp:Repeater ID="rptUnmappedCustomers" runat="server">
+    <asp:Repeater ID="rptUnmappedCustomers" runat="server" OnItemCommand="rptUnmappedCustomers_ItemCommand">
         <HeaderTemplate>
             <div style="max-height:600px;overflow-y:auto;">
-            <table class="map-table" id="tblCustomers">
+            <table class="map-table">
             <thead><tr>
                 <th style="width:30px;">#</th>
                 <th>Tally Customer Name</th>
@@ -243,11 +257,17 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
             </tr></thead><tbody>
         </HeaderTemplate>
         <ItemTemplate>
-            <tr data-tally='<%# System.Web.HttpUtility.HtmlAttributeEncode(Eval("TallyName").ToString()) %>'>
+            <tr>
                 <td style="color:var(--text-dim);"><%# Container.ItemIndex + 1 %></td>
                 <td class="tally-name"><%# Eval("TallyName") %></td>
-                <td><%# RenderCustomerDropdown(Eval("TallyName")) %></td>
-                <td><button type="button" class="btn-save-row" onclick="saveCustomerRow(this);">Save</button></td>
+                <td>
+                    <asp:DropDownList ID="ddlCustomer" runat="server" CssClass="map-select"/>
+                </td>
+                <td>
+                    <asp:LinkButton ID="btnSaveCustomer" runat="server" CommandName="SaveCustomer"
+                        CommandArgument='<%# Eval("TallyName") %>' CssClass="btn-save-row"
+                        CausesValidation="false">Save</asp:LinkButton>
+                </td>
             </tr>
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
