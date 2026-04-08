@@ -75,10 +75,24 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             </div>
         </a>
         <a id="lnkPurchaseMapping" runat="server" href="FINPurchaseMapping.aspx" class="menu-card">
-            <div class="menu-icon">&#x1F6D2;</div>
+            <div class="menu-icon">&#x1F517;</div>
             <div>
                 <div class="menu-title">Purchase Data<br/>Mapping</div>
                 <div class="menu-desc">Map Tally purchase items and suppliers to ERP materials and supplier master</div>
+            </div>
+        </a>
+        <a id="lnkPurchaseImport" runat="server" href="FINPurchaseImport.aspx" class="menu-card">
+            <div class="menu-icon">&#x1F6D2;</div>
+            <div>
+                <div class="menu-title">Purchase Invoice<br/>Import</div>
+                <div class="menu-desc">Import Tally purchase invoices — auto-matches mapped items and suppliers</div>
+            </div>
+        </a>
+        <a id="lnkReceiptImport" runat="server" href="FINReceiptImport.aspx" class="menu-card">
+            <div class="menu-icon">&#x1F4B0;</div>
+            <div>
+                <div class="menu-title">Receipt Register<br/>Import</div>
+                <div class="menu-desc">Import customer receipts — auto-classified as Customer, Bank, Internal, or Other</div>
             </div>
         </a>
     </div>

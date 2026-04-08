@@ -681,5 +681,61 @@ namespace FINApp.DAL
                 new MySqlParameter("?qty", qty),
                 new MySqlParameter("?val", value));
         }
+
+        // ══════════════════════════════════════════════════════════
+        // RECEIPT IMPORT
+        // ══════════════════════════════════════════════════════════
+
+        public static bool ReceiptExists(string voucherNo)
+        {
+            object val = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_Receipt WHERE VoucherNo=?vn;",
+                new MySqlParameter("?vn", voucherNo));
+            return Convert.ToInt32(val) > 0;
+        }
+
+        public static void CreateReceipt(string voucherNo, DateTime receiptDate,
+            string tallyName, string receiptType, int? customerId, decimal amount, int batchId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO FIN_Receipt (VoucherNo, ReceiptDate, TallyName, ReceiptType, CustomerID, Amount, ImportBatchID)" +
+                " VALUES (?vn,?dt,?tn,?rt,?cid,?amt,?bid);",
+                new MySqlParameter("?vn", voucherNo),
+                new MySqlParameter("?dt", receiptDate.Date),
+                new MySqlParameter("?tn", tallyName ?? (object)DBNull.Value),
+                new MySqlParameter("?rt", receiptType),
+                new MySqlParameter("?cid", customerId.HasValue ? (object)customerId.Value : DBNull.Value),
+                new MySqlParameter("?amt", amount),
+                new MySqlParameter("?bid", batchId));
+        }
+
+        /// Classify a Tally name as CUSTOMER, BANK, INTERNAL, or OTHER
+        public static string ClassifyReceiptType(string tallyName)
+        {
+            if (string.IsNullOrEmpty(tallyName)) return "OTHER";
+            string lower = tallyName.ToLower();
+
+            // Bank entries
+            if (lower.Contains("bank") || lower.Contains("a/c") || lower.Contains("current account") ||
+                lower.Contains("uco ") || lower.Contains("axis ") || lower.Contains("yes bank") ||
+                lower.Contains("hdfc") || lower.Contains("icici") || lower.Contains("sbi ") ||
+                lower.Contains("canara") || lower.Contains("indian bank") || lower.Contains("interest on od"))
+                return "BANK";
+
+            // Internal entries
+            if (lower.Contains("director loan") || lower.Contains("capital account") ||
+                lower == "cash" || lower.Contains("petty cash") ||
+                lower.Contains("travelling expense") || lower.Contains("travelling payable") ||
+                lower.Contains("staffwelfare") || lower.Contains("salary") ||
+                lower.Contains("income tax") || lower.Contains("tds"))
+                return "INTERNAL";
+
+            // Other income entries
+            if (lower.Contains("scrap sales") || lower.Contains("other income") ||
+                lower.Contains("razorpay") || lower.Contains("discount"))
+                return "OTHER";
+
+            return "CUSTOMER";
+        }
     }
 }
