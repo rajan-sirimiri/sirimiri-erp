@@ -259,10 +259,10 @@
 
     <!-- NAVBAR -->
     <nav class="navbar">
-            <a href="ERPHome.aspx" class="nav-item" style="text-decoration:none;" title="Back to ERP Home">&#x2302; Home</a>
+            <a href="ERPHome.aspx" class="nav-item" style="text-decoration:none;" title="Back to ERP Home">&#x2302; ERP</a>
 
         <div class="nav-group">
-            <span class="nav-item">Home <span class="chevron">&#9660;</span></span>
+            <span class="nav-item">Sales &amp; Distribution <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
                 <a href="StockEntry.aspx">Distributor Stock Position Entry</a>
                 <a href="DailySales.aspx">Daily Sales Entry</a>

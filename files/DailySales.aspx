@@ -77,7 +77,7 @@
 
     <!-- NAV -->
     <nav>
-        <a href="ERPHome.aspx" style="text-decoration:none;color:#fff;font-size:13px;font-weight:600;padding:14px 18px;letter-spacing:.04em;text-transform:uppercase;">&#x2302; Home</a>
+        <a href="ERPHome.aspx" style="text-decoration:none;color:#fff;font-size:13px;font-weight:600;padding:14px 18px;letter-spacing:.04em;text-transform:uppercase;">&#x2302; ERP</a>
         <div class="nav-group">
             <span class="nav-item">&#9776; Home</span>
             <div class="nav-dropdown">

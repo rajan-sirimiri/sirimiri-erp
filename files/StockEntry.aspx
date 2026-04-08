@@ -885,13 +885,13 @@
 
             <!-- ERP Home -->
             <a href="ERPHome.aspx" class="nav-item" style="text-decoration:none;" title="Back to ERP Home">
-                &#x2302; Home
+                &#x2302; ERP
             </a>
 
-            <!-- Home dropdown -->
+            <!-- S&D dropdown -->
             <div class="nav-group">
                 <span class="nav-item active">
-                    Home <span class="chevron">&#9660;</span>
+                    Sales &amp; Distribution <span class="chevron">&#9660;</span>
                 </span>
                 <div class="nav-dropdown">
                     <a href="StockEntry.aspx" class="active">Distributor Stock Position Entry</a>
