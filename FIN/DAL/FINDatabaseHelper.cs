@@ -672,7 +672,7 @@ namespace FINApp.DAL
         {
             ExecuteNonQuery(
                 "INSERT INTO FIN_PurchaseInvoiceLine (InvoiceID, MaterialType, MaterialID," +
-                " TallyItemName, Quantity, Value)" +
+                " TallyProductName, Quantity, Value)" +
                 " VALUES (?iid,?mt,?mid,?tin,?qty,?val);",
                 new MySqlParameter("?iid", invoiceId),
                 new MySqlParameter("?mt", materialType ?? (object)DBNull.Value),
@@ -737,6 +737,184 @@ namespace FINApp.DAL
                 return "OTHER";
 
             return "CUSTOMER";
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // SALES ANALYTICS DASHBOARD
+        // ══════════════════════════════════════════════════════════
+
+        /// Monthly sales by state (all months available)
+        public static DataTable GetMonthlySalesByState()
+        {
+            return ExecuteQuery(
+                "SELECT c.State," +
+                " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
+                " SUM(si.TotalValue) AS SalesValue," +
+                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount" +
+                " FROM FIN_SalesInvoice si" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State IS NOT NULL AND c.State != ''" +
+                " GROUP BY c.State, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY c.State, Month;");
+        }
+
+        /// Monthly sales by city/district within a state
+        public static DataTable GetMonthlySalesByCity(string state)
+        {
+            return ExecuteQuery(
+                "SELECT c.City," +
+                " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
+                " SUM(si.TotalValue) AS SalesValue," +
+                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount" +
+                " FROM FIN_SalesInvoice si" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State=?state AND c.City IS NOT NULL AND c.City != ''" +
+                " GROUP BY c.City, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY c.City, Month;",
+                new MySqlParameter("?state", state));
+        }
+
+        /// State-level summary totals
+        public static DataTable GetStateSalesSummary()
+        {
+            return ExecuteQuery(
+                "SELECT c.State," +
+                " SUM(si.TotalValue) AS TotalSales," +
+                " COUNT(DISTINCT si.InvoiceID) AS TotalInvoices," +
+                " COUNT(DISTINCT si.CustomerID) AS TotalCustomers," +
+                " MIN(si.InvoiceDate) AS FirstInvoice," +
+                " MAX(si.InvoiceDate) AS LastInvoice" +
+                " FROM FIN_SalesInvoice si" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State IS NOT NULL AND c.State != ''" +
+                " GROUP BY c.State ORDER BY TotalSales DESC;");
+        }
+
+        /// Monthly product sales by state
+        public static DataTable GetMonthlyProductSalesByState(string state)
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductName, p.ProductCode," +
+                " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
+                " SUM(sl.Value) AS SalesValue," +
+                " SUM(sl.Quantity) AS SalesQty" +
+                " FROM FIN_SalesInvoiceLine sl" +
+                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE c.State=?state AND sl.ProductID IS NOT NULL" +
+                " GROUP BY p.ProductName, p.ProductCode, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY p.ProductName, Month;",
+                new MySqlParameter("?state", state));
+        }
+
+        /// Monthly product sales by city within a state
+        public static DataTable GetMonthlyProductSalesByCity(string state, string city)
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductName, p.ProductCode," +
+                " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
+                " SUM(sl.Value) AS SalesValue," +
+                " SUM(sl.Quantity) AS SalesQty" +
+                " FROM FIN_SalesInvoiceLine sl" +
+                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE c.State=?state AND c.City=?city AND sl.ProductID IS NOT NULL" +
+                " GROUP BY p.ProductName, p.ProductCode, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY p.ProductName, Month;",
+                new MySqlParameter("?state", state),
+                new MySqlParameter("?city", city));
+        }
+
+        /// Product sales summary for a state (top products)
+        public static DataTable GetProductSalesSummary(string state)
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductName, p.ProductCode," +
+                " SUM(sl.Value) AS TotalSales," +
+                " SUM(sl.Quantity) AS TotalQty," +
+                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount" +
+                " FROM FIN_SalesInvoiceLine sl" +
+                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE c.State=?state AND sl.ProductID IS NOT NULL" +
+                " GROUP BY p.ProductName, p.ProductCode" +
+                " ORDER BY TotalSales DESC;",
+                new MySqlParameter("?state", state));
+        }
+
+        /// Distributors in a state with performance metrics
+        public static DataTable GetDistributorPerformance(string state)
+        {
+            return ExecuteQuery(
+                "SELECT c.CustomerID, c.CustomerName, c.CustomerType, c.City, c.PinCode," +
+                " IFNULL(SUM(si.TotalValue), 0) AS TotalSales," +
+                " COUNT(DISTINCT si.InvoiceID) AS TotalOrders," +
+                " MIN(si.InvoiceDate) AS FirstOrder," +
+                " MAX(si.InvoiceDate) AS LastOrder," +
+                " COUNT(DISTINCT DATE_FORMAT(si.InvoiceDate, '%Y-%m')) AS ActiveMonths" +
+                " FROM PK_Customers c" +
+                " LEFT JOIN FIN_SalesInvoice si ON si.CustomerID=c.CustomerID" +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.State=?state AND c.IsActive=1" +
+                " GROUP BY c.CustomerID, c.CustomerName, c.CustomerType, c.City, c.PinCode" +
+                " ORDER BY TotalSales DESC;",
+                new MySqlParameter("?state", state));
+        }
+
+        /// Products sold by a specific distributor
+        public static DataTable GetDistributorProducts(int customerId)
+        {
+            return ExecuteQuery(
+                "SELECT IFNULL(p.ProductName, sl.TallyProductName) AS ProductName," +
+                " SUM(sl.Value) AS TotalSales," +
+                " SUM(sl.Quantity) AS TotalQty," +
+                " COUNT(DISTINCT si.InvoiceID) AS OrderCount" +
+                " FROM FIN_SalesInvoiceLine sl" +
+                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE si.CustomerID=?cid" +
+                " GROUP BY IFNULL(p.ProductName, sl.TallyProductName)" +
+                " ORDER BY TotalSales DESC;",
+                new MySqlParameter("?cid", customerId));
+        }
+
+        /// Monthly sales for a specific distributor
+        public static DataTable GetDistributorMonthlySales(int customerId)
+        {
+            return ExecuteQuery(
+                "SELECT DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
+                " SUM(si.TotalValue) AS SalesValue," +
+                " COUNT(DISTINCT si.InvoiceID) AS OrderCount" +
+                " FROM FIN_SalesInvoice si" +
+                " WHERE si.CustomerID=?cid" +
+                " GROUP BY DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY Month;",
+                new MySqlParameter("?cid", customerId));
+        }
+
+        /// Get distinct states that have sales data
+        public static DataTable GetSalesStates()
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT c.State" +
+                " FROM FIN_SalesInvoice si" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State IS NOT NULL AND c.State != ''" +
+                " ORDER BY c.State;");
+        }
+
+        /// Get distinct cities within a state that have sales data
+        public static DataTable GetSalesCities(string state)
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT c.City" +
+                " FROM FIN_SalesInvoice si" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State=?state AND c.City IS NOT NULL AND c.City != ''" +
+                " ORDER BY c.City;",
+                new MySqlParameter("?state", state));
         }
     }
 }

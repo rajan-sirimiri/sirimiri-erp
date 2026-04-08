@@ -95,6 +95,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">Import customer receipts — auto-classified as Customer, Bank, Internal, or Other</div>
             </div>
         </a>
+        <a id="lnkSalesAnalytics" runat="server" href="FINSalesAnalytics.aspx" class="menu-card">
+            <div class="menu-icon">&#x1F4CA;</div>
+            <div>
+                <div class="menu-title">Sales Analytics<br/>Dashboard</div>
+                <div class="menu-desc">State &amp; district growth, product performance, distributor analysis with charts</div>
+            </div>
+        </a>
     </div>
 
 </div>
