@@ -90,6 +90,11 @@
       <DependentUpon>FINSalesImport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="FINPurchaseMapping.aspx" />
+    <Compile Include="FINPurchaseMapping.aspx.cs">
+      <DependentUpon>FINPurchaseMapping.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="progress_wheel.png" />
     <Content Include="Web.config" />
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />

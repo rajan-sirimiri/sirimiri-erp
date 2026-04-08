@@ -74,6 +74,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">Import Tally sales invoices into ERP — auto-matches mapped products and customers</div>
             </div>
         </a>
+        <a id="lnkPurchaseMapping" runat="server" href="FINPurchaseMapping.aspx" class="menu-card">
+            <div class="menu-icon">&#x1F6D2;</div>
+            <div>
+                <div class="menu-title">Purchase Data<br/>Mapping</div>
+                <div class="menu-desc">Map Tally purchase items and suppliers to ERP materials and supplier master</div>
+            </div>
+        </a>
     </div>
 
 </div>

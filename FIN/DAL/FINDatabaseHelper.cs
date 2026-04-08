@@ -494,5 +494,196 @@ namespace FINApp.DAL
                 " WHERE m.TallyName=?tn AND m.IsActive=1 LIMIT 1;",
                 new MySqlParameter("?tn", tallyName));
         }
+
+        // ══════════════════════════════════════════════════════════
+        // PURCHASE ITEM MAPPING
+        // ══════════════════════════════════════════════════════════
+
+        public static DataTable GetAllItemMappings()
+        {
+            return ExecuteQuery(
+                "SELECT m.MapID, m.TallyName, m.MaterialType, m.MaterialID," +
+                " CASE m.MaterialType" +
+                "   WHEN 'RM' THEN (SELECT CONCAT(r.RawMaterialName,' (',r.RawMaterialCode,')') FROM MM_RawMaterials r WHERE r.RawMaterialID=m.MaterialID)" +
+                "   WHEN 'PM' THEN (SELECT CONCAT(p.PMName,' (',p.PMCode,')') FROM MM_PackingMaterials p WHERE p.PMID=m.MaterialID)" +
+                "   WHEN 'CN' THEN (SELECT CONCAT(c.ConsumableName,' (',c.ConsumableCode,')') FROM MM_Consumables c WHERE c.ConsumableID=m.MaterialID)" +
+                "   WHEN 'ST' THEN (SELECT CONCAT(s.StationaryName,' (',s.StationaryCode,')') FROM MM_Stationaries s WHERE s.StationaryID=m.MaterialID)" +
+                "   WHEN 'SCRAP' THEN (SELECT CONCAT(sc.ScrapName,' (',sc.ScrapCode,')') FROM MM_ScrapMaterials sc WHERE sc.ScrapID=m.MaterialID)" +
+                "   ELSE CONCAT(m.MaterialType, ' (unmapped)') END AS MaterialLabel" +
+                " FROM FIN_TallyItemMap m WHERE m.IsActive=1 ORDER BY m.TallyName;");
+        }
+
+        public static bool ItemMappingExists(string tallyName)
+        {
+            object val = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_TallyItemMap WHERE TallyName=?tn AND IsActive=1;",
+                new MySqlParameter("?tn", tallyName));
+            return Convert.ToInt32(val) > 0;
+        }
+
+        public static void SaveItemMapping(string tallyName, string materialType, int? materialId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO FIN_TallyItemMap (TallyName, MaterialType, MaterialID) " +
+                "VALUES (?tn, ?mt, ?mid) " +
+                "ON DUPLICATE KEY UPDATE MaterialType=VALUES(MaterialType), MaterialID=VALUES(MaterialID), IsActive=1;",
+                new MySqlParameter("?tn", tallyName),
+                new MySqlParameter("?mt", materialType),
+                new MySqlParameter("?mid", materialId.HasValue ? (object)materialId.Value : DBNull.Value));
+        }
+
+        public static DataRow GetItemMapping(string tallyName)
+        {
+            return ExecuteQueryRow(
+                "SELECT m.MaterialType, m.MaterialID FROM FIN_TallyItemMap m" +
+                " WHERE m.TallyName=?tn AND m.IsActive=1 LIMIT 1;",
+                new MySqlParameter("?tn", tallyName));
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // PURCHASE SUPPLIER MAPPING
+        // ══════════════════════════════════════════════════════════
+
+        public static DataTable GetAllSupplierMappings()
+        {
+            return ExecuteQuery(
+                "SELECT m.MapID, m.TallyName, m.SupplierID," +
+                " s.SupplierName, s.SupplierCode" +
+                " FROM FIN_TallySupplierMap m" +
+                " LEFT JOIN MM_Suppliers s ON s.SupplierID=m.SupplierID" +
+                " WHERE m.IsActive=1 ORDER BY m.TallyName;");
+        }
+
+        public static bool SupplierMappingExists(string tallyName)
+        {
+            object val = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_TallySupplierMap WHERE TallyName=?tn AND IsActive=1;",
+                new MySqlParameter("?tn", tallyName));
+            return Convert.ToInt32(val) > 0;
+        }
+
+        public static void SaveSupplierMapping(string tallyName, int supplierId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO FIN_TallySupplierMap (TallyName, SupplierID) " +
+                "VALUES (?tn, ?sid) " +
+                "ON DUPLICATE KEY UPDATE SupplierID=VALUES(SupplierID), IsActive=1;",
+                new MySqlParameter("?tn", tallyName),
+                new MySqlParameter("?sid", supplierId));
+        }
+
+        public static DataRow GetSupplierMapping(string tallyName)
+        {
+            return ExecuteQueryRow(
+                "SELECT m.SupplierID FROM FIN_TallySupplierMap m" +
+                " WHERE m.TallyName=?tn AND m.IsActive=1 LIMIT 1;",
+                new MySqlParameter("?tn", tallyName));
+        }
+
+        public static int AutoMatchSuppliers(List<string> tallyNames)
+        {
+            int matched = 0;
+            var erpSuppliers = ExecuteQuery("SELECT SupplierID, SupplierName FROM MM_Suppliers WHERE IsActive=1;");
+            foreach (string tally in tallyNames)
+            {
+                if (SupplierMappingExists(tally)) continue;
+                string tNorm = NormalizeName(tally);
+                foreach (System.Data.DataRow r in erpSuppliers.Rows)
+                {
+                    string sNorm = NormalizeName(r["SupplierName"].ToString());
+                    if (tNorm == sNorm)
+                    {
+                        SaveSupplierMapping(tally, Convert.ToInt32(r["SupplierID"]));
+                        matched++;
+                        break;
+                    }
+                }
+            }
+            return matched;
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // PURCHASE MATERIAL LOOKUPS
+        // ══════════════════════════════════════════════════════════
+
+        public static DataTable GetAllRawMaterials()
+        {
+            return ExecuteQuery(
+                "SELECT RawMaterialID AS ID, RawMaterialCode AS Code, RawMaterialName AS Name" +
+                " FROM MM_RawMaterials WHERE IsActive=1 ORDER BY RawMaterialName;");
+        }
+
+        public static DataTable GetAllPackingMaterials()
+        {
+            return ExecuteQuery(
+                "SELECT PMID AS ID, PMCode AS Code, PMName AS Name" +
+                " FROM MM_PackingMaterials WHERE IsActive=1 ORDER BY PMName;");
+        }
+
+        public static DataTable GetAllConsumables()
+        {
+            return ExecuteQuery(
+                "SELECT ConsumableID AS ID, ConsumableCode AS Code, ConsumableName AS Name" +
+                " FROM MM_Consumables WHERE IsActive=1 ORDER BY ConsumableName;");
+        }
+
+        public static DataTable GetAllStationaries()
+        {
+            return ExecuteQuery(
+                "SELECT StationaryID AS ID, StationaryCode AS Code, StationaryName AS Name" +
+                " FROM MM_Stationaries WHERE IsActive=1 ORDER BY StationaryName;");
+        }
+
+        public static DataTable GetAllSuppliers()
+        {
+            return ExecuteQuery(
+                "SELECT SupplierID, SupplierCode, SupplierName" +
+                " FROM MM_Suppliers WHERE IsActive=1 ORDER BY SupplierName;");
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // PURCHASE IMPORT
+        // ══════════════════════════════════════════════════════════
+
+        public static bool PurchaseInvoiceExists(string supplierInvNo)
+        {
+            object val = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_PurchaseInvoice WHERE SupplierInvNo=?inv;",
+                new MySqlParameter("?inv", supplierInvNo));
+            return Convert.ToInt32(val) > 0;
+        }
+
+        public static int CreatePurchaseInvoice(string supplierInvNo, DateTime invoiceDate,
+            int? supplierId, string tallySupplierName,
+            decimal totalQty, decimal totalValue, int batchId)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO FIN_PurchaseInvoice (SupplierInvNo, InvoiceDate, SupplierID," +
+                " TallySupplierName, TotalQty, TotalValue, ImportBatchID)" +
+                " VALUES (?inv,?dt,?sid,?tsn,?qty,?val,?bid);",
+                new MySqlParameter("?inv", supplierInvNo),
+                new MySqlParameter("?dt", invoiceDate.Date),
+                new MySqlParameter("?sid", supplierId.HasValue ? (object)supplierId.Value : DBNull.Value),
+                new MySqlParameter("?tsn", tallySupplierName ?? (object)DBNull.Value),
+                new MySqlParameter("?qty", totalQty),
+                new MySqlParameter("?val", totalValue),
+                new MySqlParameter("?bid", batchId));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static void AddPurchaseInvoiceLine(int invoiceId, string materialType, int? materialId,
+            string tallyItemName, decimal qty, decimal value)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO FIN_PurchaseInvoiceLine (InvoiceID, MaterialType, MaterialID," +
+                " TallyItemName, Quantity, Value)" +
+                " VALUES (?iid,?mt,?mid,?tin,?qty,?val);",
+                new MySqlParameter("?iid", invoiceId),
+                new MySqlParameter("?mt", materialType ?? (object)DBNull.Value),
+                new MySqlParameter("?mid", materialId.HasValue ? (object)materialId.Value : DBNull.Value),
+                new MySqlParameter("?tin", tallyItemName ?? (object)DBNull.Value),
+                new MySqlParameter("?qty", qty),
+                new MySqlParameter("?val", value));
+        }
     }
 }
