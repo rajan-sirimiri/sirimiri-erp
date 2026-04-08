@@ -35,16 +35,19 @@ namespace StockApp
         {
             ResetCities(); ResetDistributors(); ResetPanels();
             pnlSuccess.Visible = false; pnlError.Visible = false;
-            if (int.TryParse(ddlState.SelectedValue, out int stateId) && stateId > 0)
-            { BindCities(stateId); ddlCity.Enabled = true; }
+            string state = ddlState.SelectedValue;
+            if (!string.IsNullOrEmpty(state) && state != "0")
+            { BindCities(state); ddlCity.Enabled = true; }
         }
 
         protected void ddlCity_SelectedIndexChanged(object sender, EventArgs e)
         {
             ResetDistributors(); ResetPanels();
             pnlSuccess.Visible = false; pnlError.Visible = false;
-            if (int.TryParse(ddlCity.SelectedValue, out int cityId) && cityId > 0)
-            { BindDistributors(cityId); ddlDistributor.Enabled = true; }
+            string city = ddlCity.SelectedValue;
+            string state = ddlState.SelectedValue;
+            if (!string.IsNullOrEmpty(city) && city != "0")
+            { BindDistributors(city, state); ddlDistributor.Enabled = true; }
         }
 
         protected void ddlDistributor_SelectedIndexChanged(object sender, EventArgs e)
@@ -64,10 +67,10 @@ namespace StockApp
 
         protected void rblPeriod_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Reload state/city dropdowns with new period sales figures
             BindStates();
-            if (int.TryParse(ddlState.SelectedValue, out int stateId) && stateId > 0)
-                BindCities(stateId);
+            string state = ddlState.SelectedValue;
+            if (!string.IsNullOrEmpty(state) && state != "0")
+                BindCities(state);
 
             ResetPanels();
             pnlSuccess.Visible = false;
@@ -97,16 +100,16 @@ namespace StockApp
             pnlSuccess.Visible = false; pnlError.Visible = false;
             try
             {
-                if (!int.TryParse(ddlState.SelectedValue,       out int stateId)       || stateId == 0)
+                if (string.IsNullOrEmpty(ddlState.SelectedValue) || ddlState.SelectedValue == "0")
                     throw new InvalidOperationException("Please select a valid State.");
-                if (!int.TryParse(ddlCity.SelectedValue,        out int cityId)        || cityId == 0)
+                if (string.IsNullOrEmpty(ddlCity.SelectedValue) || ddlCity.SelectedValue == "0")
                     throw new InvalidOperationException("Please select a valid City.");
                 if (!int.TryParse(ddlDistributor.SelectedValue, out int distributorId) || distributorId == 0)
                     throw new InvalidOperationException("Please select a valid Distributor.");
                 if (!int.TryParse(txtCurrentStock.Text.Trim(),  out int currentStock)  || currentStock < 0)
                     throw new InvalidOperationException("Please enter a valid non-negative stock value.");
 
-                int newId = DatabaseHelper.SaveStockPosition(stateId, cityId, distributorId, currentStock);
+                int newId = DatabaseHelper.SaveStockPosition(distributorId, currentStock);
                 if (newId > 0)
                 {
                     lblSuccess.Text = string.Format(
@@ -140,9 +143,9 @@ namespace StockApp
             }
         }
 
-        private void BindCities(int stateId)
+        private void BindCities(string state)
         {
-            var dt = DatabaseHelper.GetCitiesByState(stateId, GetSelectedDays());
+            var dt = DatabaseHelper.GetCitiesByState(state, GetSelectedDays());
             ddlCity.Items.Clear();
             ddlCity.Items.Add(new ListItem("— Select City —", "0"));
             foreach (DataRow r in dt.Rows)
@@ -154,19 +157,21 @@ namespace StockApp
             }
         }
 
-        private void BindDistributors(int cityId)
+        private void BindDistributors(string city, string state)
         {
-            var dt = DatabaseHelper.GetDistributorsByCity(cityId);
+            var dt = DatabaseHelper.GetDistributorsByCity(city, state, GetSelectedDays());
             ddlDistributor.Items.Clear();
             ddlDistributor.Items.Add(new ListItem("— Select Distributor —", "0"));
             foreach (DataRow row in dt.Rows)
             {
                 string id   = row["DistributorID"].ToString();
                 string name = row["DistributorName"].ToString();
+                string type = row["CustomerType"] != DBNull.Value ? row["CustomerType"].ToString() : "";
                 decimal val = row["RecentValue"] != DBNull.Value ? Convert.ToDecimal(row["RecentValue"]) : 0;
+                string typeTag = !string.IsNullOrEmpty(type) ? " [" + type + "]" : "";
                 string display = val > 0
-                    ? string.Format("{0}  \u20b9{1}", name, val.ToString("N0"))
-                    : name;
+                    ? string.Format("{0}{1}  \u20b9{2}", name, typeTag, val.ToString("N0"))
+                    : name + typeTag;
                 ddlDistributor.Items.Add(new ListItem(display, id));
             }
             ddlDistributor.Enabled = true;

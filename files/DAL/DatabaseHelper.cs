@@ -191,120 +191,165 @@ namespace StockApp.DAL
         }
 
         // ── STATES / CITIES / DISTRIBUTORS ────────────────────────────
+        // ══════════════════════════════════════════════════════════
+        // STOCK ENTRY — Now sourced from FIN tables + PK_Customers
+        // Distributors = PK_Customers WHERE CustomerType IN ('DI','ST')
+        // Sales = FIN_SalesInvoice / FIN_SalesInvoiceLine
+        // Receipts = FIN_Receipt WHERE ReceiptType='CUSTOMER'
+        // ══════════════════════════════════════════════════════════
+
         public static DataTable GetStates(int days = 30)
-            => ExecuteStoredProcedure("usp_GetStates", new[] {
-                new MySqlParameter("p_Days", MySqlDbType.Int32) { Value = days }
-            });
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT c.State AS StateName, c.State AS StateID," +
+                " IFNULL((SELECT SUM(si.TotalValue) FROM FIN_SalesInvoice si" +
+                "   WHERE si.CustomerID IN (SELECT CustomerID FROM PK_Customers WHERE State=c.State AND CustomerType IN ('DI','ST'))" +
+                "   AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)), 0) AS TotalSales" +
+                " FROM PK_Customers c" +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.IsActive=1 AND c.State IS NOT NULL AND c.State != ''" +
+                " ORDER BY TotalSales DESC, c.State;",
+                new MySqlParameter("?days", days));
+        }
 
-        public static DataTable GetCitiesByState(int stateId, int days = 30)
-            => ExecuteStoredProcedure("usp_GetCitiesByState", new[] {
-                new MySqlParameter("p_StateID", MySqlDbType.Int32) { Value = stateId },
-                new MySqlParameter("p_Days",    MySqlDbType.Int32) { Value = days }
-            });
+        public static DataTable GetCitiesByState(string state, int days = 30)
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT c.City AS CityName, c.City AS CityID," +
+                " IFNULL((SELECT SUM(si.TotalValue) FROM FIN_SalesInvoice si" +
+                "   WHERE si.CustomerID IN (SELECT CustomerID FROM PK_Customers WHERE City=c.City AND State=?state AND CustomerType IN ('DI','ST'))" +
+                "   AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)), 0) AS TotalSales" +
+                " FROM PK_Customers c" +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.IsActive=1 AND c.State=?state AND c.City IS NOT NULL AND c.City != ''" +
+                " ORDER BY TotalSales DESC, c.City;",
+                new MySqlParameter("?state", state),
+                new MySqlParameter("?days", days));
+        }
 
-        public static DataTable GetDistributorsByCity(int cityId, int days = 30)
-            => ExecuteStoredProcedure("usp_GetDistributorsByCity", new[] {
-                new MySqlParameter("p_CityID", MySqlDbType.Int32) { Value = cityId },
-                new MySqlParameter("p_Days",   MySqlDbType.Int32) { Value = days }
-            });
+        public static DataTable GetDistributorsByCity(string city, string state, int days = 30)
+        {
+            return ExecuteQuery(
+                "SELECT c.CustomerID AS DistributorID, c.CustomerName AS DistributorName," +
+                " c.CustomerType, c.PinCode," +
+                " IFNULL((SELECT SUM(si.TotalValue) FROM FIN_SalesInvoice si" +
+                "   WHERE si.CustomerID=c.CustomerID" +
+                "   AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)), 0) AS RecentValue" +
+                " FROM PK_Customers c" +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.IsActive=1 AND c.City=?city AND c.State=?state" +
+                " ORDER BY RecentValue DESC, c.CustomerName;",
+                new MySqlParameter("?city", city),
+                new MySqlParameter("?state", state),
+                new MySqlParameter("?days", days));
+        }
 
-        public static DataRow GetDistributorAddress(int distributorId)
+        public static DataRow GetDistributorAddress(int customerId)
         {
             try
             {
-                var dt = ExecuteStoredProcedure("usp_GetDistributorAddress", new[] {
-                    new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId }
-                });
+                var dt = ExecuteQuery(
+                    "SELECT CustomerName AS DistributorName, Address AS FullAddress, PinCode, City, State" +
+                    " FROM PK_Customers WHERE CustomerID=?cid;",
+                    new MySqlParameter("?cid", customerId));
                 return dt.Rows.Count > 0 ? dt.Rows[0] : null;
             }
             catch { return null; }
         }
 
         // ── STOCK ENTRY ───────────────────────────────────────────────
-        public static int SaveStockPosition(int stateId, int cityId, int distributorId, int currentStock)
+        public static int SaveStockPosition(int customerId, int currentStock)
         {
-            using (var conn = new MySqlConnection(ConnectionString))
-            {
-                conn.Open();
-                using (var cmd = new MySqlCommand("usp_SaveStockPosition", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.Add(new MySqlParameter("p_StateID",       MySqlDbType.Int32) { Value = stateId });
-                    cmd.Parameters.Add(new MySqlParameter("p_CityID",        MySqlDbType.Int32) { Value = cityId });
-                    cmd.Parameters.Add(new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId });
-                    cmd.Parameters.Add(new MySqlParameter("p_CurrentStock",  MySqlDbType.Int32) { Value = currentStock });
-                    cmd.ExecuteNonQuery();
-                }
-                using (var idCmd = new MySqlCommand("SELECT LAST_INSERT_ID();", conn))
-                {
-                    object result = idCmd.ExecuteScalar();
-                    return result != null && result != DBNull.Value ? Convert.ToInt32(result) : -1;
-                }
-            }
+            ExecuteNonQuery(
+                "INSERT INTO StockPositions (DistributorID, CurrentStock, EntryDate)" +
+                " VALUES (?cid, ?stock, NOW());",
+                new MySqlParameter("?cid", customerId),
+                new MySqlParameter("?stock", currentStock));
+            object id = ExecuteScalar("SELECT LAST_INSERT_ID();");
+            return id != null && id != DBNull.Value ? Convert.ToInt32(Convert.ToString(id)) : -1;
         }
 
         // ── LAST STOCK ENTRY ─────────────────────────────────────────
-        public static DataRow GetLastStockEntry(int distributorId)
+        public static DataRow GetLastStockEntry(int customerId)
         {
             try
             {
                 var dt = ExecuteQuery(
-                    "SELECT CurrentStock, EntryDate FROM StockPositions " +
-                    "WHERE DistributorID=?did ORDER BY EntryDate DESC LIMIT 1;",
-                    new MySqlParameter("?did", distributorId));
+                    "SELECT CurrentStock, EntryDate FROM StockPositions" +
+                    " WHERE DistributorID=?cid ORDER BY EntryDate DESC LIMIT 1;",
+                    new MySqlParameter("?cid", customerId));
                 return dt.Rows.Count > 0 ? dt.Rows[0] : null;
             }
             catch { return null; }
         }
 
-        // ── DISTRIBUTOR SUMMARIES (return DataRow - single row) ───────
-        public static DataRow GetDistributorSalesSummary(int distributorId, int days = 60)
+        // ── DISTRIBUTOR SALES SUMMARY (from FIN_SalesInvoice) ────────
+        public static DataRow GetDistributorSalesSummary(int customerId, int days = 60)
         {
             try
             {
-                var dt = ExecuteStoredProcedure("usp_GetDistributorSalesSummary", new[] {
-                    new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId },
-                    new MySqlParameter("p_Days",          MySqlDbType.Int32) { Value = days }
-                });
+                var dt = ExecuteQuery(
+                    "SELECT COUNT(DISTINCT si.InvoiceID) AS TotalOrders," +
+                    " IFNULL(SUM(si.TotalQty), 0) AS TotalUnits," +
+                    " IFNULL(SUM(si.TotalValue), 0) AS TotalValue," +
+                    " MAX(si.InvoiceDate) AS LastOrderDate" +
+                    " FROM FIN_SalesInvoice si" +
+                    " WHERE si.CustomerID=?cid AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY);",
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?days", days));
                 return dt.Rows.Count > 0 ? dt.Rows[0] : null;
             }
             catch { return null; }
         }
 
-        public static DataRow GetDistributorCreditSummary(int distributorId, int days = 60)
+        // ── CREDIT / RECEIPT SUMMARY (from FIN_Receipt) ──────────────
+        public static DataRow GetDistributorCreditSummary(int customerId, int days = 60)
         {
             try
             {
-                var dt = ExecuteStoredProcedure("usp_GetDistributorCreditSummary", new[] {
-                    new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId },
-                    new MySqlParameter("p_Days",          MySqlDbType.Int32) { Value = days }
-                });
+                var dt = ExecuteQuery(
+                    "SELECT" +
+                    " IFNULL((SELECT SUM(r.Amount) FROM FIN_Receipt r WHERE r.CustomerID=?cid AND r.ReceiptType='CUSTOMER'), 0) AS CreditTotal," +
+                    " IFNULL((SELECT SUM(r.Amount) FROM FIN_Receipt r WHERE r.CustomerID=?cid AND r.ReceiptType='CUSTOMER'" +
+                    "   AND r.ReceiptDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)), 0) AS Credit60Days," +
+                    " IFNULL((SELECT SUM(si.TotalValue) FROM FIN_SalesInvoice si WHERE si.CustomerID=?cid), 0) AS SalesTotal," +
+                    " (SELECT r.ReceiptDate FROM FIN_Receipt r WHERE r.CustomerID=?cid AND r.ReceiptType='CUSTOMER'" +
+                    "   ORDER BY r.ReceiptDate DESC LIMIT 1) AS LastPaymentDate," +
+                    " IFNULL((SELECT r.Amount FROM FIN_Receipt r WHERE r.CustomerID=?cid AND r.ReceiptType='CUSTOMER'" +
+                    "   ORDER BY r.ReceiptDate DESC LIMIT 1), 0) AS LastPaymentAmt;",
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?days", days));
                 return dt.Rows.Count > 0 ? dt.Rows[0] : null;
             }
             catch { return null; }
         }
 
-        // ── DISTRIBUTOR HISTORY (return DataTable - multiple rows) ────
-        public static DataTable GetDistributorOrderHistory(int distributorId, int days = 60)
+        // ── ORDER HISTORY CHART (from FIN_SalesInvoice) ──────────────
+        public static DataTable GetDistributorOrderHistory(int customerId, int days = 60)
         {
             try
             {
-                return ExecuteStoredProcedure("usp_GetDistributorOrderHistory", new[] {
-                    new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId },
-                    new MySqlParameter("p_Days",          MySqlDbType.Int32) { Value = days }
-                });
+                return ExecuteQuery(
+                    "SELECT si.InvoiceDate AS OrderDate, SUM(si.TotalQty) AS NoOfUnits" +
+                    " FROM FIN_SalesInvoice si" +
+                    " WHERE si.CustomerID=?cid AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)" +
+                    " GROUP BY si.InvoiceDate ORDER BY si.InvoiceDate;",
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?days", days));
             }
             catch { return new DataTable(); }
         }
 
-        public static DataTable GetDistributorPaymentHistory(int distributorId, int days = 60)
+        // ── PAYMENT HISTORY CHART (from FIN_Receipt) ─────────────────
+        public static DataTable GetDistributorPaymentHistory(int customerId, int days = 60)
         {
             try
             {
-                return ExecuteStoredProcedure("usp_GetDistributorPaymentHistory", new[] {
-                    new MySqlParameter("p_DistributorID", MySqlDbType.Int32) { Value = distributorId },
-                    new MySqlParameter("p_Days",          MySqlDbType.Int32) { Value = days }
-                });
+                return ExecuteQuery(
+                    "SELECT r.ReceiptDate, r.Amount AS CreditAmount" +
+                    " FROM FIN_Receipt r" +
+                    " WHERE r.CustomerID=?cid AND r.ReceiptType='CUSTOMER'" +
+                    "   AND r.ReceiptDate >= DATE_SUB(CURDATE(), INTERVAL ?days DAY)" +
+                    " ORDER BY r.ReceiptDate;",
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?days", days));
             }
             catch { return new DataTable(); }
         }
