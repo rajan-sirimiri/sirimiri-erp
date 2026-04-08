@@ -122,7 +122,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
     <div style="display:flex;gap:12px;align-items:center;">
         <asp:Button ID="btnImport" runat="server" Text="&#x1F4E5; Import All Receipts" CssClass="btn btn-teal" OnClick="btnImport_Click"
-            OnClientClick="return confirm('Import all new receipts? Already imported vouchers will be skipped.');"/>
+            OnClientClick="return erpConfirmLink(this, 'Import all new receipts? Already imported vouchers will be skipped.', {title:'Import Receipts', okText:'Yes, Import', btnClass:'success'})"/>
         <span style="font-size:11px;color:var(--text-dim);">All types imported. Already imported vouchers skipped.</span>
     </div>
 </div>
@@ -151,6 +151,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 </div>
 
 </div>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </form>
 </body>

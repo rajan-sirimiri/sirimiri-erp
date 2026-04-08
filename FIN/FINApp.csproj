@@ -77,6 +77,10 @@
       <DependentUpon>FINLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="FINPurchaseImport.aspx.cs">
+      <DependentUpon>FINPurchaseImport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="FINTallyMapping.aspx.cs">
       <DependentUpon>FINTallyMapping.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -84,6 +88,7 @@
     <Content Include="FINHome.aspx" />
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />
+    <Content Include="FINPurchaseImport.aspx" />
     <Content Include="FINTallyMapping.aspx" />
     <Content Include="FINSalesImport.aspx" />
     <Compile Include="FINSalesImport.aspx.cs">
