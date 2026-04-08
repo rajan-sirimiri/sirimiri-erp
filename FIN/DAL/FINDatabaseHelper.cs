@@ -609,29 +609,25 @@ namespace FINApp.DAL
         public static DataTable GetAllRawMaterials()
         {
             return ExecuteQuery(
-                "SELECT RMID AS ID, RMCode AS Code, RMName AS Name" +
-                " FROM MM_RawMaterials WHERE IsActive=1 ORDER BY RMName;");
+                "SELECT RMID, RMCode, RMName FROM MM_RawMaterials WHERE IsActive=1 ORDER BY RMName;");
         }
 
         public static DataTable GetAllPackingMaterials()
         {
             return ExecuteQuery(
-                "SELECT PMID AS ID, PMCode AS Code, PMName AS Name" +
-                " FROM MM_PackingMaterials WHERE IsActive=1 ORDER BY PMName;");
+                "SELECT PMID, PMCode, PMName FROM MM_PackingMaterials WHERE IsActive=1 ORDER BY PMName;");
         }
 
         public static DataTable GetAllConsumables()
         {
             return ExecuteQuery(
-                "SELECT ConsumableID AS ID, ConsumableCode AS Code, ConsumableName AS Name" +
-                " FROM MM_Consumables WHERE IsActive=1 ORDER BY ConsumableName;");
+                "SELECT ConsumableID, ConsumableCode, ConsumableName FROM MM_Consumables WHERE IsActive=1 ORDER BY ConsumableName;");
         }
 
         public static DataTable GetAllStationaries()
         {
             return ExecuteQuery(
-                "SELECT StationaryID AS ID, StationaryCode AS Code, StationaryName AS Name" +
-                " FROM MM_Stationaries WHERE IsActive=1 ORDER BY StationaryName;");
+                "SELECT StationaryID, StationaryCode, StationaryName FROM MM_Stationaries WHERE IsActive=1 ORDER BY StationaryName;");
         }
 
         public static DataTable GetAllSuppliers()

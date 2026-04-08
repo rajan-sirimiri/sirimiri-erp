@@ -208,23 +208,23 @@ namespace FINApp
 
             var rm = FINDatabaseHelper.GetAllRawMaterials();
             foreach (DataRow r in rm.Rows)
-                dt.Rows.Add("RM", r["ID"], "[RM] " + r["Name"] + " (" + r["Code"] + ")");
+                dt.Rows.Add("RM", r["RMID"], "[RM] " + r["RMName"] + " (" + r["RMCode"] + ")");
 
             var pm = FINDatabaseHelper.GetAllPackingMaterials();
             foreach (DataRow r in pm.Rows)
-                dt.Rows.Add("PM", r["ID"], "[PM] " + r["Name"] + " (" + r["Code"] + ")");
+                dt.Rows.Add("PM", r["PMID"], "[PM] " + r["PMName"] + " (" + r["PMCode"] + ")");
 
             var cn = FINDatabaseHelper.GetAllConsumables();
             foreach (DataRow r in cn.Rows)
-                dt.Rows.Add("CN", r["ID"], "[CN] " + r["Name"] + " (" + r["Code"] + ")");
+                dt.Rows.Add("CN", r["ConsumableID"], "[CN] " + r["ConsumableName"] + " (" + r["ConsumableCode"] + ")");
 
             var st = FINDatabaseHelper.GetAllStationaries();
             foreach (DataRow r in st.Rows)
-                dt.Rows.Add("ST", r["ID"], "[ST] " + r["Name"] + " (" + r["Code"] + ")");
+                dt.Rows.Add("ST", r["StationaryID"], "[ST] " + r["StationaryName"] + " (" + r["StationaryCode"] + ")");
 
             var sc = FINDatabaseHelper.GetAllScrapMaterials();
             foreach (DataRow r in sc.Rows)
-                dt.Rows.Add("SCRAP", r["ID"], "[SCRAP] " + r["ScrapName"] + " (" + r["ScrapCode"] + ")");
+                dt.Rows.Add("SCRAP", r["ScrapID"], "[SCRAP] " + r["ScrapName"] + " (" + r["ScrapCode"] + ")");
 
             return dt;
         }
