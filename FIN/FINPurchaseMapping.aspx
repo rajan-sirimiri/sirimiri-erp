@@ -145,6 +145,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
     </asp:Repeater>
+    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+        <asp:Button ID="btnSaveAllItems" runat="server" Text="&#x1F4BE; Save All Items" CssClass="btn btn-teal" OnClick="btnSaveAllItems_Click" CausesValidation="false"/>
+        <span style="font-size:11px;color:var(--text-dim);">Saves all rows where a material is selected</span>
+    </div>
 </div>
 </asp:Panel>
 
@@ -178,6 +182,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         </ItemTemplate>
         <FooterTemplate></tbody></table></div></FooterTemplate>
     </asp:Repeater>
+    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+        <asp:Button ID="btnSaveAllSuppliers" runat="server" Text="&#x1F4BE; Save All Suppliers" CssClass="btn btn-teal" OnClick="btnSaveAllSuppliers_Click" CausesValidation="false"/>
+        <span style="font-size:11px;color:var(--text-dim);">Saves all rows where a supplier is selected</span>
+    </div>
 </div>
 </asp:Panel>
 

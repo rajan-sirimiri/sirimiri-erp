@@ -15,7 +15,7 @@ namespace FINApp
         protected Label        lblNavUser, lblAlert;
         protected Panel        pnlAlert, pnlResults, pnlNoSavedFiles;
         protected FileUpload   fileUpload;
-        protected Button       btnUpload;
+        protected Button       btnUpload, btnSaveAllItems, btnSaveAllSuppliers;
         protected Button       btnTabItems, btnTabSuppliers, btnTabMapped;
         protected HiddenField  hfTab;
 
@@ -326,6 +326,83 @@ namespace FINApp
             BindUnmappedSuppliers();
             pnlResults.Visible = true;
             ShowAlert("Saved: " + tallyName, true);
+        }
+
+        // ── SAVE ALL ──
+
+        protected void btnSaveAllItems_Click(object sender, EventArgs e)
+        {
+            int saved = 0;
+            foreach (RepeaterItem item in rptUnmappedItems.Items)
+            {
+                if (item.ItemType != ListItemType.Item && item.ItemType != ListItemType.AlternatingItem) continue;
+
+                var ddlType = item.FindControl("ddlMatType") as DropDownList;
+                var ddlMat = item.FindControl("ddlMaterial") as DropDownList;
+                var btnSave = item.FindControl("btnSaveItem") as LinkButton;
+
+                if (btnSave == null) continue;
+                string tallyName = btnSave.CommandArgument;
+
+                // Check if material dropdown has a value
+                if (ddlMat != null && !string.IsNullOrEmpty(ddlMat.SelectedValue))
+                {
+                    string[] parts = ddlMat.SelectedValue.Split('|');
+                    if (parts.Length == 2)
+                    {
+                        FINDatabaseHelper.SaveItemMapping(tallyName, parts[0], Convert.ToInt32(parts[1]));
+                        saved++;
+                        continue;
+                    }
+                }
+
+                // Check if type dropdown has CAPEX/OTHER
+                string matType = ddlType?.SelectedValue ?? "";
+                if (matType == "CAPEX" || matType == "OTHER")
+                {
+                    FINDatabaseHelper.SaveItemMapping(tallyName, matType, null);
+                    saved++;
+                }
+            }
+
+            if (saved > 0)
+            {
+                BindUnmappedItems();
+                ShowAlert("Saved " + saved + " item mapping(s).", true);
+            }
+            else
+            {
+                ShowAlert("No items to save. Please select a material for at least one row.", false);
+            }
+        }
+
+        protected void btnSaveAllSuppliers_Click(object sender, EventArgs e)
+        {
+            int saved = 0;
+            foreach (RepeaterItem item in rptUnmappedSuppliers.Items)
+            {
+                if (item.ItemType != ListItemType.Item && item.ItemType != ListItemType.AlternatingItem) continue;
+
+                var ddl = item.FindControl("ddlSupplier") as DropDownList;
+                var btnSave = item.FindControl("btnSaveSupplier") as LinkButton;
+
+                if (ddl == null || ddl.SelectedValue == "0" || btnSave == null) continue;
+
+                string tallyName = btnSave.CommandArgument;
+                int supplierId = Convert.ToInt32(ddl.SelectedValue);
+                FINDatabaseHelper.SaveSupplierMapping(tallyName, supplierId);
+                saved++;
+            }
+
+            if (saved > 0)
+            {
+                BindUnmappedSuppliers();
+                ShowAlert("Saved " + saved + " supplier mapping(s).", true);
+            }
+            else
+            {
+                ShowAlert("No suppliers to save. Please select a supplier for at least one row.", false);
+            }
         }
 
         // ── MAPPED ITEMS ──
