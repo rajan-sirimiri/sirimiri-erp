@@ -504,7 +504,7 @@ namespace FINApp.DAL
             return ExecuteQuery(
                 "SELECT m.MapID, m.TallyName, m.MaterialType, m.MaterialID," +
                 " CASE m.MaterialType" +
-                "   WHEN 'RM' THEN (SELECT CONCAT(r.RawMaterialName,' (',r.RawMaterialCode,')') FROM MM_RawMaterials r WHERE r.RawMaterialID=m.MaterialID)" +
+                "   WHEN 'RM' THEN (SELECT CONCAT(r.RMName,' (',r.RMCode,')') FROM MM_RawMaterials r WHERE r.RMID=m.MaterialID)" +
                 "   WHEN 'PM' THEN (SELECT CONCAT(p.PMName,' (',p.PMCode,')') FROM MM_PackingMaterials p WHERE p.PMID=m.MaterialID)" +
                 "   WHEN 'CN' THEN (SELECT CONCAT(c.ConsumableName,' (',c.ConsumableCode,')') FROM MM_Consumables c WHERE c.ConsumableID=m.MaterialID)" +
                 "   WHEN 'ST' THEN (SELECT CONCAT(s.StationaryName,' (',s.StationaryCode,')') FROM MM_Stationaries s WHERE s.StationaryID=m.MaterialID)" +
@@ -609,8 +609,8 @@ namespace FINApp.DAL
         public static DataTable GetAllRawMaterials()
         {
             return ExecuteQuery(
-                "SELECT RawMaterialID AS ID, RawMaterialCode AS Code, RawMaterialName AS Name" +
-                " FROM MM_RawMaterials WHERE IsActive=1 ORDER BY RawMaterialName;");
+                "SELECT RMID AS ID, RMCode AS Code, RMName AS Name" +
+                " FROM MM_RawMaterials WHERE IsActive=1 ORDER BY RMName;");
         }
 
         public static DataTable GetAllPackingMaterials()
