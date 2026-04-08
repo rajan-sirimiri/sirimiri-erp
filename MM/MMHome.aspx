@@ -241,6 +241,11 @@
                 <div><div class="menu-title">Stock<br/>Reconciliation</div><div class="menu-desc">Reconcile physical stock against system stock — record adjustments and variances</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
+            <a id="lnkMaterialList" runat="server" href="MMMaterialList.aspx" class="menu-card cat-master">
+                <div class="menu-icon">&#x1F4CB;</div>
+                <div><div class="menu-title">Material<br/>Master List</div><div class="menu-desc">View and print/download PDF of all Raw Materials, Packing Materials, Consumables and Stationaries</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
         </div>
         <div class="section-head">Data Import</div>
         <div class="menu-grid">

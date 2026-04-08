@@ -120,6 +120,7 @@
     <Content Include="MMStockReconciliation.aspx" />
     <Content Include="MMSTStockReport.aspx" />
     <Content Include="MMUOMMaster.aspx" />
+    <Content Include="MMMaterialList.aspx" />
     <Compile Include="MMOpeningStockUpload.aspx.cs">
       <DependentUpon>MMOpeningStockUpload.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -142,6 +143,10 @@
     </Compile>
     <Compile Include="MMStockReconciliation.aspx.cs">
       <DependentUpon>MMStockReconciliation.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="MMMaterialList.aspx.cs">
+      <DependentUpon>MMMaterialList.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMSTStockReport.aspx.cs">

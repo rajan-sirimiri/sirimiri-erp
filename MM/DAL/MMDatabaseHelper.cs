@@ -63,6 +63,11 @@ namespace MMApp.DAL
             return ExecuteQuerySingleRow(sql, parms);
         }
 
+        public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] parms)
+        {
+            return ExecuteQuery(sql, parms);
+        }
+
         private static DataTable ExecuteStoredProcedure(string procedureName, MySqlParameter[] parameters)
         {
             var dt = new DataTable();
