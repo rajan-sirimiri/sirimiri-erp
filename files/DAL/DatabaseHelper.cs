@@ -225,6 +225,16 @@ namespace StockApp.DAL
                 new MySqlParameter("?days", days));
         }
 
+        // Backward-compatible overload for DailySales/Reports (old int stateId)
+        public static DataTable GetCitiesByState(int stateId, int days = 30)
+        {
+            var stateRow = ExecuteQuery(
+                "SELECT StateName FROM states WHERE StateID=?sid;",
+                new MySqlParameter("?sid", stateId));
+            string stateName = stateRow.Rows.Count > 0 ? stateRow.Rows[0]["StateName"].ToString() : "";
+            return GetCitiesByState(stateName, days);
+        }
+
         public static DataTable GetDistributorsByCity(string city, string state, int days = 30)
         {
             return ExecuteQuery(
@@ -239,6 +249,16 @@ namespace StockApp.DAL
                 new MySqlParameter("?city", city),
                 new MySqlParameter("?state", state),
                 new MySqlParameter("?days", days));
+        }
+
+        // Backward-compatible overload for DailySales/Reports (old int cityId)
+        public static DataTable GetDistributorsByCity(int cityId, int days = 30)
+        {
+            var cityRow = ExecuteQuery(
+                "SELECT c.CityName, s.StateName FROM cities c JOIN states s ON s.StateID=c.StateID WHERE c.CityID=?cid;",
+                new MySqlParameter("?cid", cityId));
+            if (cityRow.Rows.Count == 0) return new DataTable();
+            return GetDistributorsByCity(cityRow.Rows[0]["CityName"].ToString(), cityRow.Rows[0]["StateName"].ToString(), days);
         }
 
         public static DataRow GetDistributorAddress(int customerId)
