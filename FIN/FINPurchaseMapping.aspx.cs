@@ -35,19 +35,19 @@ namespace FINApp
             if (!IsPostBack)
             {
                 hfTab.Value = "ITEMS";
-                SetActiveTab();
                 BindSavedFiles();
+            }
 
-                if (Session["TallyPurchaseItems"] != null)
+            // Always set tab visibility and re-bind data if session has it
+            SetActiveTab();
+            if (Session["TallyPurchaseItems"] != null)
+            {
+                pnlResults.Visible = true;
+                if (!IsPostBack)
                 {
                     BindUnmappedItems();
                     BindUnmappedSuppliers();
-                    pnlResults.Visible = true;
                 }
-            }
-            else
-            {
-                SetActiveTab();
             }
         }
 

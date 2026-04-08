@@ -44,21 +44,20 @@ namespace FINApp
             if (!IsPostBack)
             {
                 hfTab.Value = "PRODUCTS";
-                SetActiveTab();
                 BindSavedFiles();
+            }
 
-                // If session already has data, show results
-                if (Session["TallyProducts"] != null)
+            // Always set tab visibility and show results if session has data
+            SetActiveTab();
+            if (Session["TallyProducts"] != null)
+            {
+                pnlResults.Visible = true;
+                if (!IsPostBack)
                 {
                     BindUnmappedProducts();
                     BindUnmappedScrap();
                     BindUnmappedCustomers();
-                    pnlResults.Visible = true;
                 }
-            }
-            else
-            {
-                SetActiveTab();
             }
         }
 
