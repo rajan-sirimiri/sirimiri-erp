@@ -33,7 +33,7 @@ CREATE TABLE `auditlog` (
   PRIMARY KEY (`AuditID`),
   KEY `FK_Audit_Users` (`UserID`),
   CONSTRAINT `FK_Audit_Users` FOREIGN KEY (`UserID`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -232,7 +232,7 @@ CREATE TABLE `fin_importbatch` (
   `RowsError` int NOT NULL DEFAULT '0',
   `Status` varchar(20) NOT NULL DEFAULT 'COMPLETED',
   PRIMARY KEY (`BatchID`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -301,7 +301,7 @@ CREATE TABLE `fin_receipt` (
   `ImportBatchID` int DEFAULT NULL,
   `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`ReceiptID`),
-  UNIQUE KEY `uk_voucherno` (`VoucherNo`),
+  UNIQUE KEY `uk_date_voucherno` (`ReceiptDate`,`VoucherNo`),
   KEY `idx_date` (`ReceiptDate`),
   KEY `idx_customer` (`CustomerID`),
   KEY `idx_type` (`ReceiptType`),
@@ -2077,4 +2077,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-08  7:02:11
+-- Dump completed on 2026-04-08  8:07:22

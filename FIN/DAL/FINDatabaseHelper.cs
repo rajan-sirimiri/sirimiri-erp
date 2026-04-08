@@ -686,11 +686,12 @@ namespace FINApp.DAL
         // RECEIPT IMPORT
         // ══════════════════════════════════════════════════════════
 
-        public static bool ReceiptExists(string voucherNo)
+        public static bool ReceiptExists(string voucherNo, DateTime receiptDate)
         {
             object val = ExecuteScalar(
-                "SELECT COUNT(*) FROM FIN_Receipt WHERE VoucherNo=?vn;",
-                new MySqlParameter("?vn", voucherNo));
+                "SELECT COUNT(*) FROM FIN_Receipt WHERE VoucherNo=?vn AND ReceiptDate=?dt;",
+                new MySqlParameter("?vn", voucherNo),
+                new MySqlParameter("?dt", receiptDate.Date));
             return Convert.ToInt32(val) > 0;
         }
 

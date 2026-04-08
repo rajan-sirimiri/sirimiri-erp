@@ -99,7 +99,7 @@ namespace FINApp
 
             foreach (var r in rows)
             {
-                if (FINDatabaseHelper.ReceiptExists(r.VoucherNo))
+                if (FINDatabaseHelper.ReceiptExists(r.VoucherNo, r.ReceiptDate))
                 { skipped++; continue; }
 
                 string rtype = FINDatabaseHelper.ClassifyReceiptType(r.TallyName);
@@ -168,7 +168,7 @@ namespace FINApp
 
                 foreach (var r in rows)
                 {
-                    if (FINDatabaseHelper.ReceiptExists(r.VoucherNo))
+                    if (FINDatabaseHelper.ReceiptExists(r.VoucherNo, r.ReceiptDate))
                     { skipped++; continue; }
 
                     try
