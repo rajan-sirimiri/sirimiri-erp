@@ -33,7 +33,7 @@ CREATE TABLE `auditlog` (
   PRIMARY KEY (`AuditID`),
   KEY `FK_Audit_Users` (`UserID`),
   CONSTRAINT `FK_Audit_Users` FOREIGN KEY (`UserID`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=89 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -232,6 +232,54 @@ CREATE TABLE `fin_importbatch` (
   `RowsError` int NOT NULL DEFAULT '0',
   `Status` varchar(20) NOT NULL DEFAULT 'COMPLETED',
   PRIMARY KEY (`BatchID`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `fin_purchaseinvoice`
+--
+
+DROP TABLE IF EXISTS `fin_purchaseinvoice`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fin_purchaseinvoice` (
+  `InvoiceID` int NOT NULL AUTO_INCREMENT,
+  `SupplierInvNo` varchar(100) NOT NULL,
+  `InvoiceDate` date NOT NULL,
+  `SupplierID` int DEFAULT NULL COMMENT 'FK to MM_Suppliers',
+  `TallySupplierName` varchar(300) DEFAULT NULL,
+  `TotalQty` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `TotalValue` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `ImportBatchID` int DEFAULT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`InvoiceID`),
+  UNIQUE KEY `uk_supplierinvno` (`SupplierInvNo`),
+  KEY `idx_date` (`InvoiceDate`),
+  KEY `idx_supplier` (`SupplierID`),
+  KEY `idx_batch` (`ImportBatchID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `fin_purchaseinvoiceline`
+--
+
+DROP TABLE IF EXISTS `fin_purchaseinvoiceline`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fin_purchaseinvoiceline` (
+  `LineID` int NOT NULL AUTO_INCREMENT,
+  `InvoiceID` int NOT NULL,
+  `MaterialType` varchar(10) DEFAULT NULL COMMENT 'RM, PM, CN, ST, SCRAP, CAPEX, OTHER',
+  `MaterialID` int DEFAULT NULL,
+  `TallyItemName` varchar(300) DEFAULT NULL,
+  `Quantity` decimal(12,3) NOT NULL DEFAULT '0.000',
+  `Value` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`LineID`),
+  KEY `idx_invoice` (`InvoiceID`),
+  KEY `idx_material` (`MaterialType`,`MaterialID`),
+  CONSTRAINT `FK_PurchLine_Invoice` FOREIGN KEY (`InvoiceID`) REFERENCES `fin_purchaseinvoice` (`InvoiceID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -258,7 +306,7 @@ CREATE TABLE `fin_salesinvoice` (
   KEY `idx_date` (`InvoiceDate`),
   KEY `idx_customer` (`CustomerID`),
   KEY `idx_batch` (`ImportBatchID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6914 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -283,7 +331,7 @@ CREATE TABLE `fin_salesinvoiceline` (
   KEY `idx_invoice` (`InvoiceID`),
   KEY `idx_product` (`ProductID`),
   CONSTRAINT `FK_SILine_Invoice` FOREIGN KEY (`InvoiceID`) REFERENCES `fin_salesinvoice` (`InvoiceID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28932 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -306,6 +354,25 @@ CREATE TABLE `fin_tallycustomermap` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `fin_tallyitemmap`
+--
+
+DROP TABLE IF EXISTS `fin_tallyitemmap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fin_tallyitemmap` (
+  `MapID` int NOT NULL AUTO_INCREMENT,
+  `TallyName` varchar(300) NOT NULL,
+  `MaterialType` varchar(10) NOT NULL COMMENT 'RM, PM, CN, ST, SCRAP, CAPEX, OTHER',
+  `MaterialID` int DEFAULT NULL COMMENT 'FK to RM/PM/CN/ST/Scrap table based on MaterialType',
+  `IsActive` tinyint(1) NOT NULL DEFAULT '1',
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`MapID`),
+  UNIQUE KEY `uk_tallyname` (`TallyName`(250))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `fin_tallyproductmap`
 --
 
@@ -324,7 +391,7 @@ CREATE TABLE `fin_tallyproductmap` (
   PRIMARY KEY (`MapID`),
   UNIQUE KEY `uk_tallyname` (`TallyName`(250)),
   KEY `idx_productid` (`ProductID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -343,6 +410,25 @@ CREATE TABLE `fin_tallyscrapmap` (
   PRIMARY KEY (`MapID`),
   UNIQUE KEY `uk_tallyname` (`TallyName`(250)),
   KEY `idx_scrapid` (`ScrapID`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `fin_tallysuppliermap`
+--
+
+DROP TABLE IF EXISTS `fin_tallysuppliermap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fin_tallysuppliermap` (
+  `MapID` int NOT NULL AUTO_INCREMENT,
+  `TallyName` varchar(300) NOT NULL,
+  `SupplierID` int DEFAULT NULL COMMENT 'FK to MM_Suppliers',
+  `IsActive` tinyint(1) NOT NULL DEFAULT '1',
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`MapID`),
+  UNIQUE KEY `uk_tallyname` (`TallyName`(250)),
+  KEY `idx_supplierid` (`SupplierID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -391,7 +477,7 @@ CREATE TABLE `mm_consumableinward` (
   CONSTRAINT `FK_ConsInward_Consumable` FOREIGN KEY (`ConsumableID`) REFERENCES `mm_consumables` (`ConsumableID`),
   CONSTRAINT `FK_ConsInward_Supplier` FOREIGN KEY (`SupplierID`) REFERENCES `mm_suppliers` (`SupplierID`),
   CONSTRAINT `FK_ConsInward_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -470,7 +556,7 @@ CREATE TABLE `mm_openingstock` (
   UNIQUE KEY `uq_opening_stock` (`MaterialType`,`MaterialID`),
   KEY `FK_OS_User` (`CreatedBy`),
   CONSTRAINT `FK_OS_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=522 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=532 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -518,7 +604,7 @@ CREATE TABLE `mm_packinginward` (
   CONSTRAINT `FK_PackingInward_PM` FOREIGN KEY (`PMID`) REFERENCES `mm_packingmaterials` (`PMID`),
   CONSTRAINT `FK_PackingInward_Supplier` FOREIGN KEY (`SupplierID`) REFERENCES `mm_suppliers` (`SupplierID`),
   CONSTRAINT `FK_PackingInward_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -566,7 +652,7 @@ CREATE TABLE `mm_physicalstock` (
   PRIMARY KEY (`PhysicalID`),
   UNIQUE KEY `uk_session` (`SessionDate`,`MaterialType`,`MaterialID`),
   KEY `idx_phys_date` (`SessionDate`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -631,7 +717,7 @@ CREATE TABLE `mm_rawinward` (
   CONSTRAINT `FK_RawInward_RM` FOREIGN KEY (`RMID`) REFERENCES `mm_rawmaterials` (`RMID`),
   CONSTRAINT `FK_RawInward_Supplier` FOREIGN KEY (`SupplierID`) REFERENCES `mm_suppliers` (`SupplierID`),
   CONSTRAINT `FK_RawInward_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -814,7 +900,7 @@ CREATE TABLE `mm_stationaryinward` (
   CONSTRAINT `FK_StatInward_Stationary` FOREIGN KEY (`StationaryID`) REFERENCES `mm_stationaries` (`StationaryID`),
   CONSTRAINT `FK_StatInward_Supplier` FOREIGN KEY (`SupplierID`) REFERENCES `mm_suppliers` (`SupplierID`),
   CONSTRAINT `FK_StatInward_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -862,7 +948,7 @@ CREATE TABLE `mm_stockreconciliation` (
   PRIMARY KEY (`ReconID`),
   KEY `idx_recon_date` (`ReconDate`),
   KEY `idx_recon_material` (`MaterialType`,`MaterialID`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1324,7 +1410,7 @@ CREATE TABLE `pp_bom` (
   KEY `FK_BOM_UOM` (`UOMID`),
   CONSTRAINT `FK_BOM_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`),
   CONSTRAINT `FK_BOM_UOM` FOREIGN KEY (`UOMID`) REFERENCES `mm_uom` (`UOMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=142 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=166 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1345,7 +1431,7 @@ CREATE TABLE `pp_dailyplan` (
   UNIQUE KEY `PlanDate` (`PlanDate`),
   KEY `FK_DPlan_User` (`CreatedBy`),
   CONSTRAINT `FK_DPlan_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1368,7 +1454,7 @@ CREATE TABLE `pp_dailyplanrow` (
   KEY `FK_DPlanRow_Product` (`ProductID`),
   CONSTRAINT `FK_DPlanRow_Plan` FOREIGN KEY (`PlanID`) REFERENCES `pp_dailyplan` (`PlanID`),
   CONSTRAINT `FK_DPlanRow_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1390,7 +1476,7 @@ CREATE TABLE `pp_fgpackingoptions` (
   UNIQUE KEY `uk_product_form_units` (`ProductID`,`PackForm`,`UnitsPerPack`),
   KEY `idx_productid` (`ProductID`),
   CONSTRAINT `FK_FGPack_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1485,7 +1571,7 @@ CREATE TABLE `pp_productionorder` (
   CONSTRAINT `FK_PO_PlanRow` FOREIGN KEY (`PlanRowID`) REFERENCES `pp_dailyplanrow` (`RowID`) ON DELETE CASCADE,
   CONSTRAINT `FK_PO_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`),
   CONSTRAINT `FK_PO_User` FOREIGN KEY (`CreatedBy`) REFERENCES `users` (`UserID`)
-) ENGINE=InnoDB AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=107 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1533,7 +1619,7 @@ CREATE TABLE `pp_productparams` (
   PRIMARY KEY (`ParamID`),
   KEY `FK_PPParam_Product` (`ProductID`),
   CONSTRAINT `FK_PPParam_Product` FOREIGN KEY (`ProductID`) REFERENCES `pp_products` (`ProductID`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1570,7 +1656,7 @@ CREATE TABLE `pp_products` (
   KEY `FK_PP_Product_OutputUOM` (`OutputUOMID`),
   CONSTRAINT `FK_PP_Product_OutputUOM` FOREIGN KEY (`OutputUOMID`) REFERENCES `mm_uom` (`UOMID`),
   CONSTRAINT `FK_PP_Product_ProdUOM` FOREIGN KEY (`ProdUOMID`) REFERENCES `mm_uom` (`UOMID`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1965,4 +2051,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-06  8:52:59
+-- Dump completed on 2026-04-07 22:01:28
