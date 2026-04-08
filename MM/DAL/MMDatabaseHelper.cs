@@ -814,7 +814,7 @@ namespace MMApp.DAL
             var result = ExecuteScalar(
                 "SELECT IFNULL(MAX(CAST(SUBSTRING(SupplierCode, 3) AS UNSIGNED)), 0) + 1 " +
                 "FROM MM_Suppliers WHERE SupplierCode REGEXP '^S-[0-9]+$';");
-            int next = Convert.ToInt32(result);
+            int next = Convert.ToInt32(Convert.ToString(result));
             return string.Format("S-{0:D4}", next);
         }
 
@@ -823,7 +823,7 @@ namespace MMApp.DAL
             var result = ExecuteScalar(
                 "SELECT IFNULL(MAX(CAST(SUBSTRING(RMCode, 3) AS UNSIGNED)), 0) + 1 " +
                 "FROM MM_RawMaterials WHERE RMCode REGEXP '^R-[0-9]+$';");
-            int next = Convert.ToInt32(result);
+            int next = Convert.ToInt32(Convert.ToString(result));
             return string.Format("R-{0:D4}", next);
         }
 
@@ -832,7 +832,7 @@ namespace MMApp.DAL
             var result = ExecuteScalar(
                 "SELECT IFNULL(MAX(CAST(SUBSTRING(PMCode, 3) AS UNSIGNED)), 0) + 1 " +
                 "FROM MM_PackingMaterials WHERE PMCode REGEXP '^P-[0-9]+$';");
-            int next = Convert.ToInt32(result);
+            int next = Convert.ToInt32(Convert.ToString(result));
             return string.Format("P-{0:D4}", next);
         }
 
@@ -1112,8 +1112,8 @@ namespace MMApp.DAL
 
         public static string GenerateConsumableCode()
         {
-            object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(ConsumableCode,3) AS UNSIGNED)) FROM MM_Consumables WHERE ConsumableCode LIKE 'C-%';");
-            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
+            object val = ExecuteScalar("SELECT IFNULL(MAX(CAST(SUBSTRING(ConsumableCode,3) AS UNSIGNED)), 0) FROM MM_Consumables WHERE ConsumableCode LIKE 'C-%';");
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToString(val)) + 1;
             return "C-" + next.ToString("D4");
         }
 
@@ -1184,8 +1184,8 @@ namespace MMApp.DAL
 
         public static string GenerateStationaryCode()
         {
-            object val = ExecuteScalar("SELECT MAX(CAST(SUBSTRING(StationaryCode,3) AS UNSIGNED)) FROM MM_Stationaries WHERE StationaryCode LIKE 'ST-%';");
-            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToInt64(val)) + 1;
+            object val = ExecuteScalar("SELECT IFNULL(MAX(CAST(SUBSTRING(StationaryCode,4) AS UNSIGNED)), 0) FROM MM_Stationaries WHERE StationaryCode LIKE 'ST-%';");
+            int next = (val == null || val == DBNull.Value) ? 1 : Convert.ToInt32(Convert.ToString(val)) + 1;
             return "ST-" + next.ToString("D4");
         }
 
