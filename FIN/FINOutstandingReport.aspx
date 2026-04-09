@@ -124,6 +124,11 @@ function renderPage(){
     h+='<div class="filter-bar">';
     h+='<label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);">Search</label>';
     h+='<input type="text" id="searchBox" placeholder="Customer name, invoice no..." oninput="window._applyFilters()"/>';
+    h+='<label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ruby);">Exclude Customers</label>';
+    h+='<select id="excludeList" multiple style="min-width:260px;height:80px;font-size:11px;font-family:var(--sans);border:1.5px solid var(--smoke);border-radius:8px;padding:4px;" onchange="window._applyFilters()">';
+    if(allData.customers){allData.customers.forEach(function(c){h+='<option value="'+c+'">'+c+'</option>';});}
+    h+='</select>';
+    h+='<span style="font-size:10px;color:var(--dim);">Ctrl+click to select multiple</span>';
     h+='</div>';
     h+='</div>';
 
@@ -148,7 +153,14 @@ window._applyFilters=function(){
     var search=(document.getElementById('searchBox')||{}).value||'';
     search=search.toLowerCase();
 
+    // Get excluded customer names
+    var excludeSel=document.getElementById('excludeList');
+    var excluded=[];
+    if(excludeSel){for(var i=0;i<excludeSel.options.length;i++){if(excludeSel.options[i].selected)excluded.push(excludeSel.options[i].value);}}
+
     var filtered=allData.invoices.filter(function(inv){
+        // Exclude selected customers
+        if(excluded.length>0&&excluded.indexOf(inv.custName)>=0)return false;
         // Filter
         if(filter==='outstanding'&&inv.balance<=0.01)return false;
         if(filter==='30'&&(inv.balance<=0.01||inv.days<30))return false;

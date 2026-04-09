@@ -95,9 +95,26 @@ namespace FINApp
                 }
 
                 sb.AppendFormat("],\"summary\":{{\"totalInvoices\":{0},\"outstandingCount\":{1}," +
-                    "\"totalInvoiced\":{2},\"totalReceived\":{3},\"totalOutstanding\":{4}}}}}",
+                    "\"totalInvoiced\":{2},\"totalReceived\":{3},\"totalOutstanding\":{4}}}",
                     totalInvoices, outstandingCount,
                     D(grandTotalInvoiced), D(grandTotalReceived), D(grandTotalOutstanding));
+
+                // Distinct customer names for exclude dropdown
+                var custNames = new SortedSet<string>();
+                foreach (DataRow inv in invoices.Rows)
+                {
+                    string name = inv["CustomerName"] != DBNull.Value ? inv["CustomerName"].ToString() : "";
+                    if (!string.IsNullOrEmpty(name)) custNames.Add(name);
+                }
+                sb.Append(",\"customers\":[");
+                bool cfirst = true;
+                foreach (var name in custNames)
+                {
+                    if (!cfirst) sb.Append(",");
+                    sb.AppendFormat("\"{0}\"", Esc(name));
+                    cfirst = false;
+                }
+                sb.Append("]}");
 
                 context.Response.Write(sb.ToString());
             }
