@@ -29,7 +29,8 @@ namespace FINApp
                     " si.CustomerID, IFNULL(c.CustomerName, si.TallyCustomerName) AS CustomerName," +
                     " c.CustomerType, c.City, c.State" +
                     " FROM FIN_SalesInvoice si" +
-                    " LEFT JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                    " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                    " WHERE c.CustomerType IN ('DI','ST')" +
                     " ORDER BY si.CustomerID, si.InvoiceDate, si.InvoiceID;");
 
                 // Get total receipts per customer
