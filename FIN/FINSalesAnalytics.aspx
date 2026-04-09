@@ -58,10 +58,23 @@ table.dt .bar-cell{position:relative;} table.dt .bar-bg{position:absolute;left:0
 <body>
 <form id="form1" runat="server">
 <div class="top-bar">
-    <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
-    <h1>Sales Analytics</h1>
-    <a href="FINHome.aspx">&#8592; FIN Home</a>
-    <a href="FINLogout.aspx">Sign Out</a>
+    <a class="nav-logo" href="/StockApp/ERPHome.aspx">
+        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+    </a>
+    <span class="nav-title">FINANCE</span>
+    <div class="nav-right">
+        <span class="nav-user"><asp:Label ID="lblNavUser" runat="server"/></span>
+        <a href="FINHome.aspx" class="nav-link">&#8592; FIN Home</a>
+        <a href="/StockApp/ERPHome.aspx" class="nav-link">&#8592; ERP Home</a>
+        <a href="FINLogout.aspx" class="nav-link">Sign Out</a>
+    </div>
+</div>
+<div class="page-header">
+    <div class="page-icon">&#x1F4CA;</div>
+    <div>
+        <div class="page-title">SALES <span>ANALYTICS</span></div>
+        <div class="page-sub">Revenue trends, product performance, distributor intelligence</div>
+    </div>
 </div>
 <div class="page">
     <div class="main-tabs">

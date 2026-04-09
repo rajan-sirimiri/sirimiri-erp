@@ -15,7 +15,8 @@ namespace FINApp
                 Response.Redirect("FINLogin.aspx");
                 return;
             }
-            lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
+            if (lblNavUser != null)
+                lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
         }
     }
 }
