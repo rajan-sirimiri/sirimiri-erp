@@ -87,13 +87,33 @@ namespace FINApp
             foreach (DataRow r in summary.Rows) { totalSales += Convert.ToDecimal(r["TS"]); totalInv += Convert.ToInt32(r["TI"]); totalCust += Convert.ToInt32(r["TC"]); }
             var trend = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS M, SUM(si.TotalValue) AS S FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL" + dfilt + " GROUP BY M ORDER BY M;", dp);
             int mc = trend.Rows.Count; decimal tm = mc >= 1 ? Convert.ToDecimal(trend.Rows[mc - 1]["S"]) : 0, lm = mc >= 2 ? Convert.ToDecimal(trend.Rows[mc - 2]["S"]) : 0, g = lm > 0 ? ((tm - lm) / lm * 100) : 0;
-            return string.Format(CultureInfo.InvariantCulture, "{{\"totalSales\":{0},\"totalInvoices\":{1},\"totalCustomers\":{2},\"totalStates\":{3},\"thisMonth\":{4},\"lastMonth\":{5},\"growthPct\":{6},\"monthCount\":{7}}}", D(totalSales), totalInv, totalCust, summary.Rows.Count, D(tm), D(lm), D(g), mc);
+            // Total receipts
+            string rdfilt = ""; if (!string.IsNullOrEmpty(df)) rdfilt += " AND r.ReceiptDate>=?dateFrom"; if (!string.IsNullOrEmpty(dt)) rdfilt += " AND r.ReceiptDate<=?dateTo";
+            var rTotal = Q("SELECT IFNULL(SUM(r.Amount),0) AS TR FROM FIN_Receipt r WHERE r.ReceiptType='CUSTOMER'" + rdfilt + ";", DP(df, dt).ToArray());
+            decimal totalReceipts = rTotal.Rows.Count > 0 ? Convert.ToDecimal(rTotal.Rows[0]["TR"]) : 0;
+            return string.Format(CultureInfo.InvariantCulture, "{{\"totalSales\":{0},\"totalInvoices\":{1},\"totalCustomers\":{2},\"totalStates\":{3},\"thisMonth\":{4},\"lastMonth\":{5},\"growthPct\":{6},\"monthCount\":{7},\"totalReceipts\":{8}}}", D(totalSales), totalInv, totalCust, summary.Rows.Count, D(tm), D(lm), D(g), mc, D(totalReceipts));
         }
 
         private string GetMonthlyTrend(string df, string dt)
         {
-            var data = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS Sales, COUNT(DISTINCT si.InvoiceID) AS Invoices FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL" + DF("si", df, dt) + " GROUP BY Month ORDER BY Month;", DP(df, dt).ToArray());
-            return JArr(data, r => string.Format("{{\"month\":\"{0}\",\"sales\":{1},\"invoices\":{2}}}", r["Month"], D(Convert.ToDecimal(r["Sales"])), r["Invoices"]));
+            string dfilt = DF("si", df, dt);
+            var data = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS Sales, COUNT(DISTINCT si.InvoiceID) AS Invoices FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL" + dfilt + " GROUP BY Month ORDER BY Month;", DP(df, dt).ToArray());
+
+            // Receipt data by month
+            string rdfilt = "";
+            if (!string.IsNullOrEmpty(df)) rdfilt += " AND r.ReceiptDate>=?dateFrom";
+            if (!string.IsNullOrEmpty(dt)) rdfilt += " AND r.ReceiptDate<=?dateTo";
+            var rData = Q("SELECT DATE_FORMAT(r.ReceiptDate,'%Y-%m') AS Month, SUM(r.Amount) AS Receipts FROM FIN_Receipt r WHERE r.ReceiptType='CUSTOMER'" + rdfilt + " GROUP BY Month ORDER BY Month;", DP(df, dt).ToArray());
+
+            // Merge into lookup
+            var receiptMap = new Dictionary<string, decimal>();
+            foreach (DataRow r in rData.Rows) receiptMap[r["Month"].ToString()] = Convert.ToDecimal(r["Receipts"]);
+
+            return JArr(data, r => {
+                string month = r["Month"].ToString();
+                decimal receipts = receiptMap.ContainsKey(month) ? receiptMap[month] : 0;
+                return string.Format("{{\"month\":\"{0}\",\"sales\":{1},\"invoices\":{2},\"receipts\":{3}}}", month, D(Convert.ToDecimal(r["Sales"])), r["Invoices"], D(receipts));
+            });
         }
 
         private string GetStateBreakdown(string df, string dt)
