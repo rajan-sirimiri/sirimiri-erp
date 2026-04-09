@@ -794,7 +794,8 @@ namespace FINApp.DAL
         public static DataTable GetMonthlyProductSalesByState(string state)
         {
             return ExecuteQuery(
-                "SELECT p.ProductName, p.ProductCode," +
+                "SELECT IFNULL(p.ProductName, sl.TallyProductName) AS ProductName," +
+                " IFNULL(p.ProductCode, '') AS ProductCode," +
                 " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
                 " SUM(sl.Value) AS SalesValue," +
                 " SUM(sl.Quantity) AS SalesQty" +
@@ -802,9 +803,9 @@ namespace FINApp.DAL
                 " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
                 " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
                 " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
-                " WHERE c.State=?state AND sl.ProductID IS NOT NULL" +
-                " GROUP BY p.ProductName, p.ProductCode, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
-                " ORDER BY p.ProductName, Month;",
+                " WHERE c.State=?state AND sl.LineType='PRODUCT'" +
+                " GROUP BY IFNULL(p.ProductName, sl.TallyProductName), IFNULL(p.ProductCode, ''), DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY IFNULL(p.ProductName, sl.TallyProductName), Month;",
                 new MySqlParameter("?state", state));
         }
 
@@ -812,7 +813,8 @@ namespace FINApp.DAL
         public static DataTable GetMonthlyProductSalesByCity(string state, string city)
         {
             return ExecuteQuery(
-                "SELECT p.ProductName, p.ProductCode," +
+                "SELECT IFNULL(p.ProductName, sl.TallyProductName) AS ProductName," +
+                " IFNULL(p.ProductCode, '') AS ProductCode," +
                 " DATE_FORMAT(si.InvoiceDate, '%Y-%m') AS Month," +
                 " SUM(sl.Value) AS SalesValue," +
                 " SUM(sl.Quantity) AS SalesQty" +
@@ -820,9 +822,9 @@ namespace FINApp.DAL
                 " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
                 " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
                 " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
-                " WHERE c.State=?state AND c.City=?city AND sl.ProductID IS NOT NULL" +
-                " GROUP BY p.ProductName, p.ProductCode, DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
-                " ORDER BY p.ProductName, Month;",
+                " WHERE c.State=?state AND c.City=?city AND sl.LineType='PRODUCT'" +
+                " GROUP BY IFNULL(p.ProductName, sl.TallyProductName), IFNULL(p.ProductCode, ''), DATE_FORMAT(si.InvoiceDate, '%Y-%m')" +
+                " ORDER BY IFNULL(p.ProductName, sl.TallyProductName), Month;",
                 new MySqlParameter("?state", state),
                 new MySqlParameter("?city", city));
         }
@@ -831,7 +833,8 @@ namespace FINApp.DAL
         public static DataTable GetProductSalesSummary(string state)
         {
             return ExecuteQuery(
-                "SELECT p.ProductName, p.ProductCode," +
+                "SELECT IFNULL(p.ProductName, sl.TallyProductName) AS ProductName," +
+                " IFNULL(p.ProductCode, '') AS ProductCode," +
                 " SUM(sl.Value) AS TotalSales," +
                 " SUM(sl.Quantity) AS TotalQty," +
                 " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount" +
@@ -839,8 +842,8 @@ namespace FINApp.DAL
                 " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
                 " JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
                 " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
-                " WHERE c.State=?state AND sl.ProductID IS NOT NULL" +
-                " GROUP BY p.ProductName, p.ProductCode" +
+                " WHERE c.State=?state AND sl.LineType='PRODUCT'" +
+                " GROUP BY IFNULL(p.ProductName, sl.TallyProductName), IFNULL(p.ProductCode, '')" +
                 " ORDER BY TotalSales DESC;",
                 new MySqlParameter("?state", state));
         }
