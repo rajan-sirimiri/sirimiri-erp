@@ -102,6 +102,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">State &amp; district growth, product performance, distributor analysis with charts</div>
             </div>
         </a>
+        <a id="lnkOutstanding" runat="server" href="FINOutstandingReport.aspx" class="menu-card">
+            <div class="menu-icon">&#x1F4B3;</div>
+            <div>
+                <div class="menu-title">Invoice<br/>Outstanding</div>
+                <div class="menu-desc">Invoice-level payment tracking — FIFO receipt allocation, aging analysis</div>
+            </div>
+        </a>
     </div>
 
 </div>

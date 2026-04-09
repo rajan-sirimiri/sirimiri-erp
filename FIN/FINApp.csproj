@@ -110,6 +110,15 @@
       <DependentUpon>FINSalesAnalytics.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="FINOutstandingReport.aspx" />
+    <Compile Include="FINOutstandingReport.aspx.cs">
+      <DependentUpon>FINOutstandingReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="FINOutstandingAPI.ashx" />
+    <Compile Include="FINOutstandingAPI.ashx.cs">
+      <DependentUpon>FINOutstandingAPI.ashx</DependentUpon>
+    </Compile>
     <Content Include="FINAnalyticsAPI.ashx" />
     <Compile Include="FINAnalyticsAPI.ashx.cs">
       <DependentUpon>FINAnalyticsAPI.ashx</DependentUpon>

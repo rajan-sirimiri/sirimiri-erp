@@ -1,0 +1,19 @@
+using System;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace FINApp
+{
+    public partial class FINOutstandingReport : Page
+    {
+        protected Label lblNavUser;
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (Session["FIN_UserID"] == null)
+            { Response.Redirect("FINLogin.aspx"); return; }
+            if (lblNavUser != null)
+                lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
+        }
+    }
+}
