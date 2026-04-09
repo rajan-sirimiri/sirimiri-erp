@@ -7,6 +7,7 @@ using System.Text;
 using System.Web;
 using System.Web.SessionState;
 using FINApp.DAL;
+using MySql.Data.MySqlClient;
 
 namespace FINApp
 {
@@ -18,17 +19,14 @@ namespace FINApp
         {
             context.Response.ContentType = "application/json";
             context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
-
             if (context.Session["FIN_UserID"] == null)
-            {
-                context.Response.Write("{\"error\":\"Not authenticated\"}");
-                context.Response.StatusCode = 401;
-                return;
-            }
+            { context.Response.Write("{\"error\":\"Not authenticated\"}"); context.Response.StatusCode = 401; return; }
 
             string action = context.Request["action"] ?? "";
             string state = context.Request["state"] ?? "";
             string city = context.Request["city"] ?? "";
+            string dateFrom = context.Request["dateFrom"] ?? "";
+            string dateTo = context.Request["dateTo"] ?? "";
             string custIdStr = context.Request["customerId"] ?? "0";
             int.TryParse(custIdStr, out int customerId);
 
@@ -37,339 +35,267 @@ namespace FINApp
                 string json;
                 switch (action)
                 {
-                    case "overview":       json = GetOverview(); break;
-                    case "monthlyTrend":   json = GetMonthlyTrend(); break;
-                    case "stateBreakdown": json = GetStateBreakdown(); break;
-                    case "cityBreakdown":  json = GetCityBreakdown(state); break;
-                    case "productMix":     json = GetProductMix(state, city); break;
-                    case "distributors":   json = GetDistributors(state); break;
-                    case "distDetail":     json = GetDistributorDetail(customerId); break;
-                    case "topProducts":    json = GetTopProducts(); break;
+                    case "overview":       json = GetOverview(dateFrom, dateTo); break;
+                    case "monthlyTrend":   json = GetMonthlyTrend(dateFrom, dateTo); break;
+                    case "stateBreakdown": json = GetStateBreakdown(dateFrom, dateTo); break;
+                    case "cityBreakdown":  json = GetCityBreakdown(state, dateFrom, dateTo); break;
+                    case "productMix":     json = GetProductMix(state, city, dateFrom, dateTo); break;
+                    case "distributors":   json = GetDistributors(state, dateFrom, dateTo); break;
+                    case "distDetail":     json = GetDistributorDetail(customerId, dateFrom, dateTo); break;
+                    case "topProducts":    json = GetTopProducts(dateFrom, dateTo); break;
                     case "alerts":         json = GetAlerts(); break;
+                    case "productView":    json = GetProductView(state, dateFrom, dateTo); break;
+                    case "productList":    json = GetProductList(); break;
                     default:               json = "{\"error\":\"Unknown action\"}"; break;
                 }
                 context.Response.Write(json);
             }
-            catch (Exception ex)
-            {
-                context.Response.Write("{\"error\":\"" + EscJson(ex.Message) + "\"}");
-            }
+            catch (Exception ex) { context.Response.Write("{\"error\":\"" + EscJson(ex.Message) + "\"}"); }
         }
 
-        private string GetOverview()
+        // ── Date helpers ──
+        private string DF(string alias, string dateFrom, string dateTo)
         {
-            var summary = FINDatabaseHelper.GetStateSalesSummary();
-            decimal totalSales = 0, thisMonth = 0, lastMonth = 0;
-            int totalInv = 0, totalCust = 0;
+            string f = "";
+            if (!string.IsNullOrEmpty(dateFrom)) f += " AND " + alias + ".InvoiceDate >= ?dateFrom";
+            if (!string.IsNullOrEmpty(dateTo))   f += " AND " + alias + ".InvoiceDate <= ?dateTo";
+            return f;
+        }
+        private List<MySqlParameter> DP(string dateFrom, string dateTo)
+        {
+            var list = new List<MySqlParameter>();
+            if (!string.IsNullOrEmpty(dateFrom)) list.Add(new MySqlParameter("?dateFrom", dateFrom));
+            if (!string.IsNullOrEmpty(dateTo))   list.Add(new MySqlParameter("?dateTo", dateTo));
+            return list;
+        }
 
-            foreach (DataRow r in summary.Rows)
-            {
-                totalSales += Convert.ToDecimal(r["TotalSales"]);
-                totalInv += Convert.ToInt32(r["TotalInvoices"]);
-                totalCust += Convert.ToInt32(r["TotalCustomers"]);
-            }
+        // ── OVERVIEW ──
+        private string GetOverview(string df, string dt)
+        {
+            string dfilt = DF("si", df, dt); var dp = DP(df, dt).ToArray();
+            var summary = Q("SELECT c.State, SUM(si.TotalValue) AS TS, COUNT(DISTINCT si.InvoiceID) AS TI, COUNT(DISTINCT si.CustomerID) AS TC" +
+                " FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL AND c.State!=''" + dfilt +
+                " GROUP BY c.State ORDER BY TS DESC;", dp);
+            decimal totalSales = 0; int totalInv = 0, totalCust = 0;
+            foreach (DataRow r in summary.Rows) { totalSales += Convert.ToDecimal(r["TS"]); totalInv += Convert.ToInt32(r["TI"]); totalCust += Convert.ToInt32(r["TC"]); }
 
-            var trend = FINDatabaseHelper.GetMonthlySalesByState();
-            var monthTotals = new Dictionary<string, decimal>();
-            foreach (DataRow r in trend.Rows)
-            {
-                string m = r["Month"].ToString();
-                decimal v = Convert.ToDecimal(r["SalesValue"]);
-                if (!monthTotals.ContainsKey(m)) monthTotals[m] = 0;
-                monthTotals[m] += v;
-            }
-            var months = monthTotals.Keys.OrderBy(x => x).ToList();
-            if (months.Count >= 1) thisMonth = monthTotals[months.Last()];
-            if (months.Count >= 2) lastMonth = monthTotals[months[months.Count - 2]];
+            var trend = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS M, SUM(si.TotalValue) AS S" +
+                " FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL" + dfilt +
+                " GROUP BY M ORDER BY M;", dp);
+            int mc = trend.Rows.Count;
+            decimal tm = mc >= 1 ? Convert.ToDecimal(trend.Rows[mc - 1]["S"]) : 0;
+            decimal lm = mc >= 2 ? Convert.ToDecimal(trend.Rows[mc - 2]["S"]) : 0;
+            decimal g = lm > 0 ? ((tm - lm) / lm * 100) : 0;
 
-            decimal growth = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth * 100) : 0;
+            return string.Format(CultureInfo.InvariantCulture,
+                "{{\"totalSales\":{0},\"totalInvoices\":{1},\"totalCustomers\":{2},\"totalStates\":{3},\"thisMonth\":{4},\"lastMonth\":{5},\"growthPct\":{6},\"monthCount\":{7}}}",
+                D(totalSales), totalInv, totalCust, summary.Rows.Count, D(tm), D(lm), D(g), mc);
+        }
 
-            var sb = new StringBuilder();
-            sb.Append("{");
-            sb.AppendFormat("\"totalSales\":{0},", D(totalSales));
-            sb.AppendFormat("\"totalInvoices\":{0},", totalInv);
-            sb.AppendFormat("\"totalCustomers\":{0},", totalCust);
-            sb.AppendFormat("\"totalStates\":{0},", summary.Rows.Count);
-            sb.AppendFormat("\"thisMonth\":{0},", D(thisMonth));
-            sb.AppendFormat("\"lastMonth\":{0},", D(lastMonth));
-            sb.AppendFormat("\"growthPct\":{0},", D(growth));
-            sb.AppendFormat("\"currentMonthLabel\":\"{0}\",", months.Count > 0 ? months.Last() : "");
-            sb.AppendFormat("\"monthCount\":{0}", months.Count);
+        // ── MONTHLY TREND ──
+        private string GetMonthlyTrend(string df, string dt)
+        {
+            var data = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS Sales, COUNT(DISTINCT si.InvoiceID) AS Invoices" +
+                " FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL" + DF("si",df,dt) +
+                " GROUP BY Month ORDER BY Month;", DP(df,dt).ToArray());
+            return JArr(data, r => string.Format("{{\"month\":\"{0}\",\"sales\":{1},\"invoices\":{2}}}", r["Month"], D(Convert.ToDecimal(r["Sales"])), r["Invoices"]));
+        }
+
+        // ── STATE BREAKDOWN ──
+        private string GetStateBreakdown(string df, string dt)
+        {
+            var data = Q("SELECT c.State, DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS SalesValue" +
+                " FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID WHERE c.State IS NOT NULL AND c.State!=''" + DF("si",df,dt) +
+                " GROUP BY c.State, Month ORDER BY c.State, Month;", DP(df,dt).ToArray());
+            return GroupedJson(data, "State", "Month", "SalesValue", "states");
+        }
+
+        // ── CITY BREAKDOWN ──
+        private string GetCityBreakdown(string state, string df, string dt)
+        {
+            if (string.IsNullOrEmpty(state)) return "{\"months\":[],\"cities\":[]}";
+            var p = new List<MySqlParameter> { new MySqlParameter("?state", state) }; p.AddRange(DP(df,dt));
+            var data = Q("SELECT c.City, DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS SalesValue" +
+                " FROM FIN_SalesInvoice si JOIN PK_Customers c ON c.CustomerID=si.CustomerID" +
+                " WHERE c.State=?state AND c.City IS NOT NULL AND c.City!=''" + DF("si",df,dt) +
+                " GROUP BY c.City, Month ORDER BY c.City, Month;", p.ToArray());
+            return GroupedJson(data, "City", "Month", "SalesValue", "cities");
+        }
+
+        // ── PRODUCT MIX ──
+        private string GetProductMix(string state, string city, string df, string dt)
+        {
+            if (string.IsNullOrEmpty(state)) return "{\"months\":[],\"products\":[]}";
+            string cf = !string.IsNullOrEmpty(city) ? " AND c.City=?city" : "";
+            var p = new List<MySqlParameter> { new MySqlParameter("?state", state) };
+            if (!string.IsNullOrEmpty(city)) p.Add(new MySqlParameter("?city", city));
+            p.AddRange(DP(df,dt));
+            var data = Q("SELECT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName, DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(sl.Value) AS SalesValue" +
+                " FROM FIN_SalesInvoiceLine sl JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE c.State=?state" + cf + " AND sl.LineType='PRODUCT'" + DF("si",df,dt) +
+                " GROUP BY IFNULL(p.ProductName,sl.TallyProductName), Month ORDER BY IFNULL(p.ProductName,sl.TallyProductName), Month;", p.ToArray());
+            return GroupedJson(data, "ProductName", "Month", "SalesValue", "products");
+        }
+
+        // ── TOP PRODUCTS ──
+        private string GetTopProducts(string df, string dt)
+        {
+            var data = Q("SELECT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName, SUM(sl.Value) AS TotalSales, SUM(sl.Quantity) AS TotalQty," +
+                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount, COUNT(DISTINCT si.CustomerID) AS CustomerCount" +
+                " FROM FIN_SalesInvoiceLine sl JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID WHERE sl.LineType='PRODUCT'" + DF("si",df,dt) +
+                " GROUP BY IFNULL(p.ProductName,sl.TallyProductName) ORDER BY TotalSales DESC LIMIT 20;", DP(df,dt).ToArray());
+            return JArr(data, r => string.Format("{{\"name\":\"{0}\",\"sales\":{1},\"qty\":{2},\"invoices\":{3},\"customers\":{4}}}",
+                EscJson(r["ProductName"].ToString()), D(Convert.ToDecimal(r["TotalSales"])), D(Convert.ToDecimal(r["TotalQty"])), r["InvoiceCount"], r["CustomerCount"]));
+        }
+
+        // ── PRODUCT LIST (for selector) ──
+        private string GetProductList()
+        {
+            var data = Q("SELECT DISTINCT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName" +
+                " FROM FIN_SalesInvoiceLine sl LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE sl.LineType='PRODUCT' ORDER BY ProductName;");
+            return JArr(data, r => "\"" + EscJson(r["ProductName"].ToString()) + "\"");
+        }
+
+        // ── DISTRIBUTORS ──
+        private string GetDistributors(string state, string df, string dt)
+        {
+            if (string.IsNullOrEmpty(state)) return "[]";
+            string dfilt = DF("si",df,dt);
+            var p = new List<MySqlParameter> { new MySqlParameter("?state", state) }; p.AddRange(DP(df,dt));
+            var data = Q("SELECT c.CustomerID,c.CustomerName,c.CustomerType,c.City,c.PinCode," +
+                " IFNULL(SUM(si.TotalValue),0) AS TotalSales, COUNT(DISTINCT si.InvoiceID) AS TotalOrders," +
+                " MIN(si.InvoiceDate) AS FirstOrder, MAX(si.InvoiceDate) AS LastOrder," +
+                " COUNT(DISTINCT DATE_FORMAT(si.InvoiceDate,'%Y-%m')) AS ActiveMonths" +
+                " FROM PK_Customers c LEFT JOIN FIN_SalesInvoice si ON si.CustomerID=c.CustomerID" +
+                (string.IsNullOrEmpty(dfilt) ? "" : " AND 1=1" + dfilt) +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.State=?state AND c.IsActive=1" +
+                " GROUP BY c.CustomerID,c.CustomerName,c.CustomerType,c.City,c.PinCode ORDER BY TotalSales DESC;", p.ToArray());
+            return JArr(data, r => {
+                int dsl = r["LastOrder"] != DBNull.Value ? (int)(DateTime.Today - Convert.ToDateTime(r["LastOrder"])).TotalDays : 999;
+                return string.Format("{{\"id\":{0},\"name\":\"{1}\",\"type\":\"{2}\",\"city\":\"{3}\",\"pin\":\"{4}\"," +
+                    "\"sales\":{5},\"orders\":{6},\"activeMonths\":{7},\"firstOrder\":\"{8}\",\"lastOrder\":\"{9}\",\"daysSinceLast\":{10}}}",
+                    r["CustomerID"], EscJson(r["CustomerName"].ToString()), r["CustomerType"],
+                    EscJson(r["City"]!=DBNull.Value?r["City"].ToString():""), r["PinCode"]!=DBNull.Value?r["PinCode"].ToString():"",
+                    D(Convert.ToDecimal(r["TotalSales"])), r["TotalOrders"], r["ActiveMonths"],
+                    r["FirstOrder"]!=DBNull.Value?Convert.ToDateTime(r["FirstOrder"]).ToString("yyyy-MM-dd"):"",
+                    r["LastOrder"]!=DBNull.Value?Convert.ToDateTime(r["LastOrder"]).ToString("yyyy-MM-dd"):"", dsl);
+            });
+        }
+
+        // ── DISTRIBUTOR DETAIL ──
+        private string GetDistributorDetail(int cid, string df, string dt)
+        {
+            if (cid <= 0) return "{\"monthly\":[],\"products\":[]}";
+            string dfilt = DF("si",df,dt);
+            var mp = new List<MySqlParameter>{new MySqlParameter("?cid",cid)}; mp.AddRange(DP(df,dt));
+            var monthly = Q("SELECT DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month, SUM(si.TotalValue) AS SalesValue, COUNT(DISTINCT si.InvoiceID) AS OrderCount" +
+                " FROM FIN_SalesInvoice si WHERE si.CustomerID=?cid" + dfilt + " GROUP BY Month ORDER BY Month;", mp.ToArray());
+            var pp = new List<MySqlParameter>{new MySqlParameter("?cid",cid)}; pp.AddRange(DP(df,dt));
+            var products = Q("SELECT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName, SUM(sl.Value) AS TotalSales, SUM(sl.Quantity) AS TotalQty," +
+                " COUNT(DISTINCT si.InvoiceID) AS OrderCount FROM FIN_SalesInvoiceLine sl" +
+                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE si.CustomerID=?cid AND sl.LineType='PRODUCT'" + dfilt +
+                " GROUP BY IFNULL(p.ProductName,sl.TallyProductName) ORDER BY TotalSales DESC;", pp.ToArray());
+
+            var sb = new StringBuilder("{\"monthly\":");
+            sb.Append(JArr(monthly, r => string.Format("{{\"month\":\"{0}\",\"sales\":{1},\"orders\":{2}}}", r["Month"], D(Convert.ToDecimal(r["SalesValue"])), r["OrderCount"])));
+            sb.Append(",\"products\":");
+            sb.Append(JArr(products, r => string.Format("{{\"name\":\"{0}\",\"sales\":{1},\"qty\":{2},\"orders\":{3}}}",
+                EscJson(r["ProductName"].ToString()), D(Convert.ToDecimal(r["TotalSales"])), D(Convert.ToDecimal(r["TotalQty"])), r["OrderCount"])));
             sb.Append("}");
             return sb.ToString();
         }
 
-        private string GetMonthlyTrend()
-        {
-            var data = FINDatabaseHelper.GetMonthlySalesByState();
-            var monthTotals = new SortedDictionary<string, decimal>();
-            var monthInvoices = new SortedDictionary<string, int>();
-
-            foreach (DataRow r in data.Rows)
-            {
-                string m = r["Month"].ToString();
-                decimal v = Convert.ToDecimal(r["SalesValue"]);
-                int ic = Convert.ToInt32(r["InvoiceCount"]);
-                if (!monthTotals.ContainsKey(m)) { monthTotals[m] = 0; monthInvoices[m] = 0; }
-                monthTotals[m] += v;
-                monthInvoices[m] += ic;
-            }
-
-            var sb = new StringBuilder("[");
-            bool first = true;
-            foreach (var kv in monthTotals)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"month\":\"{0}\",\"sales\":{1},\"invoices\":{2}}}",
-                    kv.Key, D(kv.Value), monthInvoices[kv.Key]);
-                first = false;
-            }
-            sb.Append("]");
-            return sb.ToString();
-        }
-
-        private string GetStateBreakdown()
-        {
-            var data = FINDatabaseHelper.GetMonthlySalesByState();
-            var states = new Dictionary<string, SortedDictionary<string, decimal>>();
-            var stateTotals = new Dictionary<string, decimal>();
-
-            foreach (DataRow r in data.Rows)
-            {
-                string st = r["State"].ToString();
-                string m = r["Month"].ToString();
-                decimal v = Convert.ToDecimal(r["SalesValue"]);
-                if (!states.ContainsKey(st)) { states[st] = new SortedDictionary<string, decimal>(); stateTotals[st] = 0; }
-                states[st][m] = v;
-                stateTotals[st] += v;
-            }
-
-            var ordered = stateTotals.OrderByDescending(x => x.Value).ToList();
-            var allMonths = states.Values.SelectMany(d => d.Keys).Distinct().OrderBy(x => x).ToList();
-
-            var sb = new StringBuilder("{\"months\":[");
-            sb.Append(string.Join(",", allMonths.Select(m => "\"" + m + "\"")));
-            sb.Append("],\"states\":[");
-
-            bool first = true;
-            foreach (var kv in ordered)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"total\":{1},\"monthly\":[", EscJson(kv.Key), D(kv.Value));
-                sb.Append(string.Join(",", allMonths.Select(m =>
-                    states[kv.Key].ContainsKey(m) ? D(states[kv.Key][m]) : "0")));
-                sb.Append("]}");
-                first = false;
-            }
-            sb.Append("]}");
-            return sb.ToString();
-        }
-
-        private string GetCityBreakdown(string state)
-        {
-            if (string.IsNullOrEmpty(state)) return "{\"months\":[],\"cities\":[]}";
-            var data = FINDatabaseHelper.GetMonthlySalesByCity(state);
-            var cities = new Dictionary<string, SortedDictionary<string, decimal>>();
-            var cityTotals = new Dictionary<string, decimal>();
-
-            foreach (DataRow r in data.Rows)
-            {
-                string c = r["City"].ToString();
-                string m = r["Month"].ToString();
-                decimal v = Convert.ToDecimal(r["SalesValue"]);
-                if (!cities.ContainsKey(c)) { cities[c] = new SortedDictionary<string, decimal>(); cityTotals[c] = 0; }
-                cities[c][m] = v;
-                cityTotals[c] += v;
-            }
-
-            var ordered = cityTotals.OrderByDescending(x => x.Value).ToList();
-            var allMonths = cities.Values.SelectMany(d => d.Keys).Distinct().OrderBy(x => x).ToList();
-
-            var sb = new StringBuilder("{\"months\":[");
-            sb.Append(string.Join(",", allMonths.Select(m => "\"" + m + "\"")));
-            sb.Append("],\"cities\":[");
-
-            bool first = true;
-            foreach (var kv in ordered)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"total\":{1},\"monthly\":[", EscJson(kv.Key), D(kv.Value));
-                sb.Append(string.Join(",", allMonths.Select(m =>
-                    cities[kv.Key].ContainsKey(m) ? D(cities[kv.Key][m]) : "0")));
-                sb.Append("]}");
-                first = false;
-            }
-            sb.Append("]}");
-            return sb.ToString();
-        }
-
-        private string GetProductMix(string state, string city)
-        {
-            DataTable data;
-            if (!string.IsNullOrEmpty(city))
-                data = FINDatabaseHelper.GetMonthlyProductSalesByCity(state, city);
-            else if (!string.IsNullOrEmpty(state))
-                data = FINDatabaseHelper.GetMonthlyProductSalesByState(state);
-            else
-                return "{\"months\":[],\"products\":[]}";
-
-            var prods = new Dictionary<string, SortedDictionary<string, decimal>>();
-            var prodTotals = new Dictionary<string, decimal>();
-
-            foreach (DataRow r in data.Rows)
-            {
-                string p = r["ProductName"] != DBNull.Value ? r["ProductName"].ToString() : "Unknown";
-                string m = r["Month"].ToString();
-                decimal v = Convert.ToDecimal(r["SalesValue"]);
-                if (!prods.ContainsKey(p)) { prods[p] = new SortedDictionary<string, decimal>(); prodTotals[p] = 0; }
-                prods[p][m] = v;
-                prodTotals[p] += v;
-            }
-
-            var ordered = prodTotals.OrderByDescending(x => x.Value).ToList();
-            var allMonths = prods.Values.SelectMany(d => d.Keys).Distinct().OrderBy(x => x).ToList();
-
-            var sb = new StringBuilder("{\"months\":[");
-            sb.Append(string.Join(",", allMonths.Select(m => "\"" + m + "\"")));
-            sb.Append("],\"products\":[");
-
-            bool first = true;
-            foreach (var kv in ordered)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"total\":{1},\"monthly\":[", EscJson(kv.Key), D(kv.Value));
-                sb.Append(string.Join(",", allMonths.Select(m =>
-                    prods[kv.Key].ContainsKey(m) ? D(prods[kv.Key][m]) : "0")));
-                sb.Append("]}");
-                first = false;
-            }
-            sb.Append("]}");
-            return sb.ToString();
-        }
-
-        private string GetTopProducts()
-        {
-            var data = FINDatabaseHelper.ExecuteQueryPublic(
-                "SELECT IFNULL(p.ProductName, sl.TallyProductName) AS ProductName," +
-                " SUM(sl.Value) AS TotalSales, SUM(sl.Quantity) AS TotalQty," +
-                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount," +
-                " COUNT(DISTINCT si.CustomerID) AS CustomerCount" +
-                " FROM FIN_SalesInvoiceLine sl" +
-                " JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
-                " LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
-                " WHERE sl.LineType='PRODUCT'" +
-                " GROUP BY IFNULL(p.ProductName, sl.TallyProductName)" +
-                " ORDER BY TotalSales DESC LIMIT 15;");
-
-            var sb = new StringBuilder("[");
-            bool first = true;
-            foreach (DataRow r in data.Rows)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"sales\":{1},\"qty\":{2},\"invoices\":{3},\"customers\":{4}}}",
-                    EscJson(r["ProductName"].ToString()),
-                    D(Convert.ToDecimal(r["TotalSales"])),
-                    D(Convert.ToDecimal(r["TotalQty"])),
-                    r["InvoiceCount"], r["CustomerCount"]);
-                first = false;
-            }
-            sb.Append("]");
-            return sb.ToString();
-        }
-
-        private string GetDistributors(string state)
-        {
-            if (string.IsNullOrEmpty(state)) return "[]";
-            var data = FINDatabaseHelper.GetDistributorPerformance(state);
-
-            var sb = new StringBuilder("[");
-            bool first = true;
-            foreach (DataRow r in data.Rows)
-            {
-                if (!first) sb.Append(",");
-                decimal sales = Convert.ToDecimal(r["TotalSales"]);
-                int orders = Convert.ToInt32(r["TotalOrders"]);
-                int activeMonths = Convert.ToInt32(r["ActiveMonths"]);
-                string fo = r["FirstOrder"] != DBNull.Value ? Convert.ToDateTime(r["FirstOrder"]).ToString("yyyy-MM-dd") : "";
-                string lo = r["LastOrder"] != DBNull.Value ? Convert.ToDateTime(r["LastOrder"]).ToString("yyyy-MM-dd") : "";
-                int daysSinceLast = 0;
-                if (r["LastOrder"] != DBNull.Value)
-                    daysSinceLast = (int)(DateTime.Today - Convert.ToDateTime(r["LastOrder"])).TotalDays;
-
-                sb.AppendFormat("{{\"id\":{0},\"name\":\"{1}\",\"type\":\"{2}\",\"city\":\"{3}\",\"pin\":\"{4}\",",
-                    r["CustomerID"], EscJson(r["CustomerName"].ToString()), r["CustomerType"],
-                    EscJson(r["City"] != DBNull.Value ? r["City"].ToString() : ""),
-                    r["PinCode"] != DBNull.Value ? r["PinCode"].ToString() : "");
-                sb.AppendFormat("\"sales\":{0},\"orders\":{1},\"activeMonths\":{2},",
-                    D(sales), orders, activeMonths);
-                sb.AppendFormat("\"firstOrder\":\"{0}\",\"lastOrder\":\"{1}\",\"daysSinceLast\":{2}}}",
-                    fo, lo, daysSinceLast);
-                first = false;
-            }
-            sb.Append("]");
-            return sb.ToString();
-        }
-
-        private string GetDistributorDetail(int customerId)
-        {
-            if (customerId <= 0) return "{\"monthly\":[],\"products\":[]}";
-            var monthly = FINDatabaseHelper.GetDistributorMonthlySales(customerId);
-            var products = FINDatabaseHelper.GetDistributorProducts(customerId);
-
-            var sb = new StringBuilder("{\"monthly\":[");
-            bool first = true;
-            foreach (DataRow r in monthly.Rows)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"month\":\"{0}\",\"sales\":{1},\"orders\":{2}}}",
-                    r["Month"], D(Convert.ToDecimal(r["SalesValue"])), r["OrderCount"]);
-                first = false;
-            }
-            sb.Append("],\"products\":[");
-            first = true;
-            foreach (DataRow r in products.Rows)
-            {
-                if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"sales\":{1},\"qty\":{2},\"orders\":{3}}}",
-                    EscJson(r["ProductName"].ToString()),
-                    D(Convert.ToDecimal(r["TotalSales"])),
-                    D(Convert.ToDecimal(r["TotalQty"])),
-                    r["OrderCount"]);
-                first = false;
-            }
-            sb.Append("]}");
-            return sb.ToString();
-        }
-
+        // ── ALERTS ──
         private string GetAlerts()
         {
-            var silent = FINDatabaseHelper.ExecuteQueryPublic(
-                "SELECT c.CustomerName, c.City, c.State, MAX(si.InvoiceDate) AS LastOrder," +
-                " DATEDIFF(CURDATE(), MAX(si.InvoiceDate)) AS DaysSilent," +
-                " SUM(si.TotalValue) AS TotalSales" +
-                " FROM PK_Customers c" +
-                " JOIN FIN_SalesInvoice si ON si.CustomerID=c.CustomerID" +
-                " WHERE c.CustomerType IN ('DI','ST') AND c.IsActive=1" +
-                " GROUP BY c.CustomerID, c.CustomerName, c.City, c.State" +
-                " HAVING DaysSilent > 45" +
-                " ORDER BY TotalSales DESC LIMIT 20;");
+            var data = Q("SELECT c.CustomerName,c.City,c.State,MAX(si.InvoiceDate) AS LastOrder,DATEDIFF(CURDATE(),MAX(si.InvoiceDate)) AS DaysSilent,SUM(si.TotalValue) AS TotalSales" +
+                " FROM PK_Customers c JOIN FIN_SalesInvoice si ON si.CustomerID=c.CustomerID" +
+                " WHERE c.CustomerType IN ('DI','ST') AND c.IsActive=1 GROUP BY c.CustomerID,c.CustomerName,c.City,c.State HAVING DaysSilent>45 ORDER BY TotalSales DESC LIMIT 20;");
+            var sb = new StringBuilder("{\"silentDistributors\":");
+            sb.Append(JArr(data, r => string.Format("{{\"name\":\"{0}\",\"city\":\"{1}\",\"state\":\"{2}\",\"lastOrder\":\"{3:yyyy-MM-dd}\",\"daysSilent\":{4},\"totalSales\":{5}}}",
+                EscJson(r["CustomerName"].ToString()), EscJson(r["City"]!=DBNull.Value?r["City"].ToString():""),
+                EscJson(r["State"]!=DBNull.Value?r["State"].ToString():""), r["LastOrder"], r["DaysSilent"], D(Convert.ToDecimal(r["TotalSales"])))));
+            sb.Append("}");
+            return sb.ToString();
+        }
 
-            var sb = new StringBuilder("{\"silentDistributors\":[");
+        // ── PRODUCT VIEW (Tab 3) ──
+        private string GetProductView(string state, string df, string dt)
+        {
+            string dfilt = DF("si",df,dt);
+            string sf = !string.IsNullOrEmpty(state) && state != "ALL" ? " AND c.State=?state" : "";
+            var p = new List<MySqlParameter>();
+            if (!string.IsNullOrEmpty(state) && state != "ALL") p.Add(new MySqlParameter("?state", state));
+            p.AddRange(DP(df,dt));
+
+            var data = Q("SELECT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName, DATE_FORMAT(si.InvoiceDate,'%Y-%m') AS Month," +
+                " SUM(sl.Value) AS SalesValue, SUM(sl.Quantity) AS SalesQty" +
+                " FROM FIN_SalesInvoiceLine sl JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE sl.LineType='PRODUCT'" + sf + dfilt +
+                " GROUP BY IFNULL(p.ProductName,sl.TallyProductName), Month ORDER BY IFNULL(p.ProductName,sl.TallyProductName), Month;", p.ToArray());
+
+            var p2 = new List<MySqlParameter>();
+            if (!string.IsNullOrEmpty(state) && state != "ALL") p2.Add(new MySqlParameter("?state", state));
+            p2.AddRange(DP(df,dt));
+
+            var summ = Q("SELECT IFNULL(p.ProductName,sl.TallyProductName) AS ProductName, SUM(sl.Value) AS TotalSales, SUM(sl.Quantity) AS TotalQty," +
+                " COUNT(DISTINCT si.InvoiceID) AS InvoiceCount, COUNT(DISTINCT si.CustomerID) AS CustomerCount" +
+                " FROM FIN_SalesInvoiceLine sl JOIN FIN_SalesInvoice si ON si.InvoiceID=sl.InvoiceID" +
+                " JOIN PK_Customers c ON c.CustomerID=si.CustomerID LEFT JOIN PP_Products p ON p.ProductID=sl.ProductID" +
+                " WHERE sl.LineType='PRODUCT'" + sf + dfilt +
+                " GROUP BY IFNULL(p.ProductName,sl.TallyProductName) ORDER BY TotalSales DESC;", p2.ToArray());
+
+            var grouped = GroupedJson(data, "ProductName", "Month", "SalesValue", "products");
+            var sb = new StringBuilder(grouped.TrimEnd('}'));
+            sb.Append(",\"summary\":");
+            sb.Append(JArr(summ, r => string.Format("{{\"name\":\"{0}\",\"sales\":{1},\"qty\":{2},\"invoices\":{3},\"customers\":{4}}}",
+                EscJson(r["ProductName"].ToString()), D(Convert.ToDecimal(r["TotalSales"])), D(Convert.ToDecimal(r["TotalQty"])), r["InvoiceCount"], r["CustomerCount"])));
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        // ── Helpers ──
+        private DataTable Q(string sql, params MySqlParameter[] p) => FINDatabaseHelper.ExecuteQueryPublic(sql, p);
+
+        private string JArr(DataTable dt, Func<DataRow, string> fmt)
+        {
+            var sb = new StringBuilder("[");
             bool first = true;
-            foreach (DataRow r in silent.Rows)
+            foreach (DataRow r in dt.Rows) { if (!first) sb.Append(","); sb.Append(fmt(r)); first = false; }
+            sb.Append("]");
+            return sb.ToString();
+        }
+
+        private string GroupedJson(DataTable data, string gf, string cf, string vf, string an)
+        {
+            var groups = new Dictionary<string, SortedDictionary<string, decimal>>();
+            var totals = new Dictionary<string, decimal>();
+            foreach (DataRow r in data.Rows)
+            {
+                string g = r[gf].ToString(), m = r[cf].ToString(); decimal v = Convert.ToDecimal(r[vf]);
+                if (!groups.ContainsKey(g)) { groups[g] = new SortedDictionary<string, decimal>(); totals[g] = 0; }
+                if (groups[g].ContainsKey(m)) groups[g][m] += v; else groups[g][m] = v;
+                totals[g] += v;
+            }
+            var ordered = totals.OrderByDescending(x => x.Value).ToList();
+            var months = groups.Values.SelectMany(d => d.Keys).Distinct().OrderBy(x => x).ToList();
+            var sb = new StringBuilder("{\"months\":[");
+            sb.Append(string.Join(",", months.Select(m => "\"" + m + "\"")));
+            sb.Append("],\"" + an + "\":[");
+            bool first = true;
+            foreach (var kv in ordered)
             {
                 if (!first) sb.Append(",");
-                sb.AppendFormat("{{\"name\":\"{0}\",\"city\":\"{1}\",\"state\":\"{2}\"," +
-                    "\"lastOrder\":\"{3:yyyy-MM-dd}\",\"daysSilent\":{4},\"totalSales\":{5}}}",
-                    EscJson(r["CustomerName"].ToString()),
-                    EscJson(r["City"] != DBNull.Value ? r["City"].ToString() : ""),
-                    EscJson(r["State"] != DBNull.Value ? r["State"].ToString() : ""),
-                    r["LastOrder"], r["DaysSilent"],
-                    D(Convert.ToDecimal(r["TotalSales"])));
-                first = false;
+                sb.AppendFormat("{{\"name\":\"{0}\",\"total\":{1},\"monthly\":[", EscJson(kv.Key), D(kv.Value));
+                sb.Append(string.Join(",", months.Select(m => groups[kv.Key].ContainsKey(m) ? D(groups[kv.Key][m]) : "0")));
+                sb.Append("]}"); first = false;
             }
-            sb.Append("]}");
-            return sb.ToString();
+            sb.Append("]}"); return sb.ToString();
         }
 
         private string D(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
