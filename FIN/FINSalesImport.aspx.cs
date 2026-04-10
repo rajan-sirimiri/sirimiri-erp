@@ -137,6 +137,7 @@ namespace FINApp
                 }
             }
             int autoMatched = FINDatabaseHelper.AutoMatchCustomers(allCustomerNames, tallyPincodes);
+            if (autoMatched > 0) FINDatabaseHelper.RepairNullCustomerLinks();
 
             foreach (var inv in invoices)
             {

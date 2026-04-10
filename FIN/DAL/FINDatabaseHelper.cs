@@ -710,6 +710,25 @@ namespace FINApp.DAL
                 new MySqlParameter("?bid", batchId));
         }
 
+        /// Retroactively link receipts and invoices that have NULL CustomerID
+        /// using existing TallyCustomerMap mappings
+        public static int RepairNullCustomerLinks()
+        {
+            int fixed1 = ExecuteNonQuery(
+                "UPDATE FIN_Receipt r" +
+                " JOIN FIN_TallyCustomerMap m ON m.TallyName=r.TallyName AND m.IsActive=1" +
+                " SET r.CustomerID=m.CustomerID" +
+                " WHERE r.CustomerID IS NULL AND r.ReceiptType='CUSTOMER' AND r.TallyName IS NOT NULL;");
+
+            int fixed2 = ExecuteNonQuery(
+                "UPDATE FIN_SalesInvoice si" +
+                " JOIN FIN_TallyCustomerMap m ON m.TallyName=si.TallyCustomerName AND m.IsActive=1" +
+                " SET si.CustomerID=m.CustomerID" +
+                " WHERE si.CustomerID IS NULL AND si.TallyCustomerName IS NOT NULL;");
+
+            return fixed1 + fixed2;
+        }
+
         /// Classify a Tally name as CUSTOMER, BANK, INTERNAL, or OTHER
         public static string ClassifyReceiptType(string tallyName)
         {

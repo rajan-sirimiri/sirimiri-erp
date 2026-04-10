@@ -97,6 +97,17 @@ namespace FINApp
             int custCount = 0, bankCount = 0, intCount = 0, otherCount = 0;
             var unmappedCustomers = new List<string>();
 
+            // Auto-match: collect CUSTOMER-type names and try to match against PK_Customers
+            var customerNames = new List<string>();
+            foreach (var r in rows)
+            {
+                string rtype = FINDatabaseHelper.ClassifyReceiptType(r.TallyName);
+                if (rtype == "CUSTOMER" && !string.IsNullOrEmpty(r.TallyName) && !customerNames.Contains(r.TallyName))
+                    customerNames.Add(r.TallyName);
+            }
+            int autoMatched = FINDatabaseHelper.AutoMatchCustomers(customerNames, null);
+            if (autoMatched > 0) FINDatabaseHelper.RepairNullCustomerLinks();
+
             foreach (var r in rows)
             {
                 if (FINDatabaseHelper.ReceiptExists(r.VoucherNo, r.ReceiptDate))
@@ -144,10 +155,11 @@ namespace FINApp
 
             pnlResults.Visible = true;
             string fileName = Path.GetFileName(filePath);
+            string autoMsg = autoMatched > 0 ? " Auto-matched " + autoMatched + " customer(s)." : "";
             ShowAlert("Preview: " + total + " receipts from " + fileName + " — " +
                 custCount + " customer, " + bankCount + " bank, " + intCount + " internal, " +
                 otherCount + " other. " + skipped + " already imported. " +
-                unmappedCustomers.Count + " unmapped customers.", unmappedCustomers.Count == 0);
+                unmappedCustomers.Count + " unmapped customers." + autoMsg, unmappedCustomers.Count == 0);
         }
 
         // ── IMPORT ──
