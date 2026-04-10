@@ -129,7 +129,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
     <div style="display:flex;gap:12px;align-items:center;">
         <asp:Button ID="btnImport" runat="server" Text="&#x1F4E5; Import Sales Data" CssClass="btn btn-teal" OnClick="btnImport_Click"
-            OnClientClick="return erpConfirmLink(this, 'Import all new invoices from this file? Already imported vouchers will be skipped.', {title:'Import Sales Data', okText:'Yes, Import', btnClass:'success'})"/>
+            OnClientClick="return confirm('Import all new invoices? Already imported vouchers will be skipped.');"/>
         <span style="font-size:11px;color:var(--text-dim);">Already imported invoices will be skipped automatically.</span>
     </div>
 </div>
