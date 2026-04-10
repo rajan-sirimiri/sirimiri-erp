@@ -120,6 +120,24 @@ namespace FINApp
             int alreadyImported = 0;
             var unmappedItems = new List<string>();
 
+            // Auto-match: collect all unique customer names and try to match against PK_Customers
+            var allCustomerNames = new List<string>();
+            var tallyPincodes = new Dictionary<string, string>();
+            foreach (var inv in invoices)
+            {
+                string custName = inv.Value[0].CustomerName;
+                if (!string.IsNullOrEmpty(custName) && !allCustomerNames.Contains(custName))
+                {
+                    allCustomerNames.Add(custName);
+                    // Extract pincode from BuyerAddress if available
+                    string addr = inv.Value[0].BuyerAddress ?? "";
+                    var pinMatch = System.Text.RegularExpressions.Regex.Match(addr, @"\b(\d{6})\b");
+                    if (pinMatch.Success && !tallyPincodes.ContainsKey(custName))
+                        tallyPincodes[custName] = pinMatch.Groups[1].Value;
+                }
+            }
+            int autoMatched = FINDatabaseHelper.AutoMatchCustomers(allCustomerNames, tallyPincodes);
+
             foreach (var inv in invoices)
             {
                 totalRows += inv.Value.Count;
@@ -176,9 +194,10 @@ namespace FINApp
             pnlResults.Visible = true;
 
             string fileName = Path.GetFileName(filePath);
+            string autoMsg = autoMatched > 0 ? " Auto-matched " + autoMatched + " customer(s)." : "";
             ShowAlert("Preview: " + totalRows + " rows, " + totalInvoices + " invoices (" +
                 newInvoices + " new, " + alreadyImported + " already imported). " +
-                unmappedItems.Count + " unmapped items.", unmappedItems.Count == 0);
+                unmappedItems.Count + " unmapped items." + autoMsg, unmappedItems.Count == 0);
         }
 
         // ── IMPORT ──
