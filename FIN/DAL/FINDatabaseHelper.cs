@@ -714,18 +714,30 @@ namespace FINApp.DAL
         /// using existing TallyCustomerMap mappings
         public static int RepairNullCustomerLinks()
         {
-            int fixed1 = ExecuteNonQuery(
+            // Count before repair
+            object cnt1 = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_Receipt r" +
+                " JOIN FIN_TallyCustomerMap m ON m.TallyName=r.TallyName AND m.IsActive=1" +
+                " WHERE r.CustomerID IS NULL AND r.ReceiptType='CUSTOMER' AND r.TallyName IS NOT NULL;");
+            object cnt2 = ExecuteScalar(
+                "SELECT COUNT(*) FROM FIN_SalesInvoice si" +
+                " JOIN FIN_TallyCustomerMap m ON m.TallyName=si.TallyCustomerName AND m.IsActive=1" +
+                " WHERE si.CustomerID IS NULL AND si.TallyCustomerName IS NOT NULL;");
+
+            ExecuteNonQuery(
                 "UPDATE FIN_Receipt r" +
                 " JOIN FIN_TallyCustomerMap m ON m.TallyName=r.TallyName AND m.IsActive=1" +
                 " SET r.CustomerID=m.CustomerID" +
                 " WHERE r.CustomerID IS NULL AND r.ReceiptType='CUSTOMER' AND r.TallyName IS NOT NULL;");
 
-            int fixed2 = ExecuteNonQuery(
+            ExecuteNonQuery(
                 "UPDATE FIN_SalesInvoice si" +
                 " JOIN FIN_TallyCustomerMap m ON m.TallyName=si.TallyCustomerName AND m.IsActive=1" +
                 " SET si.CustomerID=m.CustomerID" +
                 " WHERE si.CustomerID IS NULL AND si.TallyCustomerName IS NOT NULL;");
 
+            int fixed1 = cnt1 != null && cnt1 != DBNull.Value ? Convert.ToInt32(cnt1) : 0;
+            int fixed2 = cnt2 != null && cnt2 != DBNull.Value ? Convert.ToInt32(cnt2) : 0;
             return fixed1 + fixed2;
         }
 
