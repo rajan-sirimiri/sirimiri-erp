@@ -32,6 +32,10 @@ namespace FINApp
                 BindSavedFiles();
                 BindImportHistory();
             }
+
+            // Keep results panel visible on postback if a file is loaded
+            if (!string.IsNullOrEmpty(hfFilePath.Value))
+                pnlResults.Visible = true;
         }
 
         // ── FILE MANAGEMENT ──

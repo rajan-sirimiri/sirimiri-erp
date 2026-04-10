@@ -32,6 +32,9 @@ namespace FINApp
                 BindSavedFiles();
                 BindImportHistory();
             }
+
+            if (!string.IsNullOrEmpty(hfFilePath.Value))
+                pnlResults.Visible = true;
         }
 
         // ── FILE MANAGEMENT ──
