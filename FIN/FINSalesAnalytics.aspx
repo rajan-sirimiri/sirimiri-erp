@@ -101,6 +101,57 @@ const buildPivot = (items,months) => {
 
 const TABS = [{id:'all',l:'All Data'},{id:'fy',l:'FY 2025-26'},{id:'product',l:'Product View'},{id:'distributor',l:'Distributor View'}];
 
+// ── FY helpers ──
+const getFYList = () => {
+  const now = new Date();
+  const curFYStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const list = [];
+  for (let y = curFYStart; y >= 2023; y--) {
+    list.push({id:'fy-'+y, label:'FY '+(y%100)+'-'+((y+1)%100), dateFrom:y+'-04-01', dateTo:(y+1)+'-03-31'});
+  }
+  return list;
+};
+const FY_LIST = getFYList();
+const FY_DEFAULT = FY_LIST.length > 0 ? FY_LIST[0] : null;
+
+// ── DateRangeSelector ──
+function DateRangeSelector({value,onChange}) {
+  const mode = value.mode || 'fy';
+  const selFY = value.fyId || (FY_DEFAULT ? FY_DEFAULT.id : '');
+  const custFrom = value.custFrom || '';
+  const custTo = value.custTo || '';
+
+  const setMode = m => {
+    if(m==='fy') {
+      const fy = FY_LIST.find(f=>f.id===selFY) || FY_DEFAULT;
+      if(fy) onChange({mode:'fy', fyId:fy.id, dateFrom:fy.dateFrom, dateTo:fy.dateTo, custFrom, custTo});
+    } else if(m==='custom') {
+      onChange({mode:'custom', fyId:selFY, dateFrom:custFrom, dateTo:custTo, custFrom, custTo});
+    } else {
+      onChange({mode:'all', fyId:selFY, dateFrom:'', dateTo:'', custFrom, custTo});
+    }
+  };
+
+  const pillStyle = (active) => ({padding:'7px 16px',border:'1.5px solid '+(active?'#0f0f0f':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',background:active?'#0f0f0f':'#fff',color:active?'#fff':'#0f0f0f',transition:'all .15s',letterSpacing:'.03em'});
+
+  return (
+    <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:14}}>
+      <span style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590'}}>Period</span>
+      <button type="button" onClick={()=>setMode('all')} style={pillStyle(mode==='all')}>All Time</button>
+      {FY_LIST.map(fy=>(
+        <button key={fy.id} type="button" onClick={()=>{onChange({mode:'fy',fyId:fy.id,dateFrom:fy.dateFrom,dateTo:fy.dateTo,custFrom,custTo});}} style={pillStyle(mode==='fy'&&selFY===fy.id)}>{fy.label}</button>
+      ))}
+      <button type="button" onClick={()=>setMode('custom')} style={pillStyle(mode==='custom')}>Custom</button>
+      {mode==='custom'&&<>
+        <input type="date" value={custFrom} onChange={e=>{const v=e.target.value;onChange({mode:'custom',fyId:selFY,dateFrom:v,dateTo:custTo,custFrom:v,custTo});}} style={{padding:'6px 10px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:12,fontFamily:"'DM Sans'"}} />
+        <span style={{color:'#9a9590',fontSize:11}}>to</span>
+        <input type="date" value={custTo} onChange={e=>{const v=e.target.value;onChange({mode:'custom',fyId:selFY,dateFrom:custFrom,dateTo:v,custFrom,custTo:v});}} style={{padding:'6px 10px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:12,fontFamily:"'DM Sans'"}} />
+        <button type="button" onClick={()=>{if(custFrom&&custTo)onChange({mode:'custom',fyId:selFY,dateFrom:custFrom,dateTo:custTo,custFrom,custTo});}} style={{padding:'7px 16px',border:'none',borderRadius:8,background:'#cc1e1e',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:11}}>Apply</button>
+      </>}
+    </div>
+  );
+}
+
 function App() {
   const [tab,setTab] = useState('all');
   const [loading,setLoading] = useState(true);
@@ -123,7 +174,14 @@ function App() {
   const [dvPF,setDvPF] = useState([]);
   const [dvPD,setDvPD] = useState(null);
 
-  const dp = (tab==='fy'||tab==='distributor')?{dateFrom:'2025-04-01',dateTo:'2026-03-31'}:{};
+  // Date range state for Product View & Distributor View
+  const initDR = () => FY_DEFAULT ? {mode:'fy',fyId:FY_DEFAULT.id,dateFrom:FY_DEFAULT.dateFrom,dateTo:FY_DEFAULT.dateTo,custFrom:'',custTo:''} : {mode:'all',fyId:'',dateFrom:'',dateTo:'',custFrom:'',custTo:''};
+  const [pvDR,setPvDR] = useState(initDR);
+  const [dvDR,setDvDR] = useState(initDR);
+  const pvDateRef = useRef(pvDR);
+  const dvDateRef = useRef(dvDR);
+
+  const dp = (tab==='fy')?{dateFrom:'2025-04-01',dateTo:'2026-03-31'}:{};
 
   const loadMain = async () => {
     setLoading(true); setCityD(null); setDistL(null); setDD(null);
@@ -134,26 +192,30 @@ function App() {
     setLoading(false);
   };
 
-  const loadPV = async () => {
+  const loadPV = async (dr) => {
     setLoading(true);
-    const [n,s] = await Promise.all([allPN.length?Promise.resolve(allPN):q('productList'),sts?Promise.resolve(sts):q('stateBreakdown')]);
+    const dateP = dr || pvDateRef.current;
+    const pp = dateP.dateFrom ? {dateFrom:dateP.dateFrom,dateTo:dateP.dateTo} : {};
+    const [n,s] = await Promise.all([allPN.length?Promise.resolve(allPN):q('productList'),sts?Promise.resolve(sts):q('stateBreakdown',pp)]);
     if(Array.isArray(n)) setAllPN(n); if(!sts&&s) setSts(s);
-    const d = await q('productView',{state:'ALL',...dp}); setPvD(d);
+    const d = await q('productView',{state:pvSt,...pp}); setPvD(d);
     setLoading(false);
   };
 
-  const loadDV = async () => {
+  const loadDV = async (dr) => {
     setLoading(true);
     if(!sts){const s=await q('stateBreakdown');setSts(s);}
     if(!allPN.length){const n=await q('productList');if(Array.isArray(n))setAllPN(n);}
-    const d=await q('distView',{state:'ALL',dateFrom:'2025-04-01',dateTo:'2026-03-31'}); setDvD(d);
+    const dateP = dr || dvDateRef.current;
+    const pp = dateP.dateFrom ? {dateFrom:dateP.dateFrom,dateTo:dateP.dateTo} : {};
+    const d=await q('distView',{state:dvSt,...pp}); setDvD(d);
     setLoading(false);
   };
 
   useEffect(()=>{
     if(tab==='all'||tab==='fy') loadMain();
-    else if(tab==='product') loadPV();
-    else if(tab==='distributor') loadDV();
+    else if(tab==='product') loadPV(pvDR);
+    else if(tab==='distributor') loadDV(dvDR);
   },[tab]);
 
   if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#9a9590'}}><div style={{textAlign:'center'}}><div style={{fontSize:24,fontFamily:"'Bebas Neue'",letterSpacing:'.1em',marginBottom:8}}>Loading Analytics</div><div style={{fontSize:12}}>Fetching data...</div></div></div>;
@@ -177,7 +239,7 @@ function App() {
 
       <div style={{maxWidth:1300,margin:'0 auto',padding:'24px 24px 80px'}}>
         <div style={{display:'flex',borderRadius:10,overflow:'hidden',border:'2px solid #0f0f0f',marginBottom:24}}>
-          {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'13px 10px',border:'none',fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:'.08em',cursor:'pointer',background:tab===t.id?'#0f0f0f':'#fff',color:tab===t.id?'#fff':'#0f0f0f',transition:'all .15s'}}>{t.l}</button>)}
+          {TABS.map(t=><button type="button" key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'13px 10px',border:'none',fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:'.08em',cursor:'pointer',background:tab===t.id?'#0f0f0f':'#fff',color:tab===t.id?'#fff':'#0f0f0f',transition:'all .15s'}}>{t.l}</button>)}
         </div>
 
         {(tab==='all'||tab==='fy')&&ov&&<>
@@ -277,17 +339,19 @@ function App() {
         {tab==='product'&&<>
           <SH>Product Performance View</SH>
           <Card>
+            <DateRangeSelector value={pvDR} onChange={dr=>{setPvDR(dr);pvDateRef.current=dr;if(dr.mode!=='custom'){loadPV(dr);}}} />
             <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:14}}>
               <span style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590'}}>State</span>
-              <select value={pvSt} onChange={async e=>{setPvSt(e.target.value);setPvD(await q('productView',{state:e.target.value,...dp}));}} style={{padding:'8px 14px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:13,minWidth:180}}>
+              <select value={pvSt} onChange={async e=>{setPvSt(e.target.value);const pp=pvDR.dateFrom?{dateFrom:pvDR.dateFrom,dateTo:pvDR.dateTo}:{};setPvD(await q('productView',{state:e.target.value,...pp}));}} style={{padding:'8px 14px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:13,minWidth:180}}>
                 <option value="ALL">All States</option>
                 {sts?.states?.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
               </select>
+              <button type="button" onClick={()=>{pvDateRef.current=pvDR;loadPV(pvDR);}} style={{padding:'7px 16px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:11,letterSpacing:'.03em'}}>Refresh</button>
             </div>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590',marginBottom:8}}>Select Products</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
-              <button onClick={()=>setPvSel(['ALL'])} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes('ALL')?'#cc1e1e':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes('ALL')?'#cc1e1e':'#fff',color:pvSel.includes('ALL')?'#fff':'#cc1e1e'}}>All Products</button>
-              {allPN.map(p=><button key={p} onClick={()=>{if(pvSel.includes('ALL'))setPvSel([p]);else if(pvSel.includes(p)){const n=pvSel.filter(x=>x!==p);setPvSel(n.length?n:['ALL']);}else setPvSel([...pvSel,p]);}} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes(p)?'#0f0f0f':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes(p)?'#0f0f0f':'#fff',color:pvSel.includes(p)?'#fff':'#0f0f0f'}}>{p}</button>)}
+              <button type="button" onClick={()=>setPvSel(['ALL'])} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes('ALL')?'#cc1e1e':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes('ALL')?'#cc1e1e':'#fff',color:pvSel.includes('ALL')?'#fff':'#cc1e1e'}}>All Products</button>
+              {allPN.map(p=><button type="button" key={p} onClick={()=>{if(pvSel.includes('ALL'))setPvSel([p]);else if(pvSel.includes(p)){const n=pvSel.filter(x=>x!==p);setPvSel(n.length?n:['ALL']);}else setPvSel([...pvSel,p]);}} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes(p)?'#0f0f0f':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes(p)?'#0f0f0f':'#fff',color:pvSel.includes(p)?'#fff':'#0f0f0f'}}>{p}</button>)}
             </div>
           </Card>
           {pvD?.products&&(()=>{
@@ -304,12 +368,14 @@ function App() {
         {tab==='distributor'&&dvD&&<>
           <SH>Distributor View</SH>
           <Card>
+            <DateRangeSelector value={dvDR} onChange={dr=>{setDvDR(dr);dvDateRef.current=dr;if(dr.mode!=='custom'){loadDV(dr);}}} />
             <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14}}>
               <span style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590'}}>State</span>
-              <select value={dvSt} onChange={async e=>{setDvSt(e.target.value);setDvD(await q('distView',{state:e.target.value,dateFrom:'2025-04-01',dateTo:'2026-03-31'}));setDvPD(null);}} style={{padding:'8px 14px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:13,minWidth:180}}>
+              <select value={dvSt} onChange={async e=>{setDvSt(e.target.value);const pp=dvDR.dateFrom?{dateFrom:dvDR.dateFrom,dateTo:dvDR.dateTo}:{};setDvD(await q('distView',{state:e.target.value,...pp}));setDvPD(null);}} style={{padding:'8px 14px',border:'1.5px solid #e8e5e0',borderRadius:8,fontSize:13,minWidth:180}}>
                 <option value="ALL">All States</option>
                 {sts?.states?.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
               </select>
+              <button type="button" onClick={()=>{dvDateRef.current=dvDR;loadDV(dvDR);}} style={{padding:'7px 16px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:11,letterSpacing:'.03em'}}>Refresh</button>
             </div>
           </Card>
 
@@ -334,7 +400,7 @@ function App() {
               <select multiple value={dvPF} onChange={e=>setDvPF(Array.from(e.target.selectedOptions,o=>o.value))} style={{minWidth:260,height:100,fontSize:11,border:'1.5px solid #e8e5e0',borderRadius:8,padding:4}}>
                 {allPN.map(p=><option key={p} value={p}>{p}</option>)}
               </select>
-              <button onClick={async()=>{if(!dvPF.length)return;setDvPD(await q('distOrdersByProduct',{state:dvSt,products:dvPF.join('|'),dateFrom:'2025-04-01',dateTo:'2026-03-31'}));}} style={{padding:'8px 18px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:12}}>Apply</button>
+              <button type="button" onClick={async()=>{if(!dvPF.length)return;const pp=dvDR.dateFrom?{dateFrom:dvDR.dateFrom,dateTo:dvDR.dateTo}:{};setDvPD(await q('distOrdersByProduct',{state:dvSt,products:dvPF.join('|'),...pp}));}} style={{padding:'8px 18px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:12}}>Apply</button>
             </div>
             {dvPD?.distributors?.length>0&&<>
               <CChart type="bar" height={340} data={buildPivot(dvPD.distributors,dvPD.months)} options={{scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>fmt(v)}}}}} />
