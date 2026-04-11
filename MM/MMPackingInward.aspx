@@ -157,18 +157,16 @@
                 <div class="form-grid">
                     <div class="form-group" style="position:relative;">
                         <label>Packing Material <span class="req">*</span></label>
-                        <input type="text" id="txtPMSearch" placeholder="Type to search packing material..."
-                            oninput="filterDropdown(this.value, '<%= ddlPM.ClientID %>', 'txtPMSearch');"
-                            onfocus="filterDropdown(this.value, '<%= ddlPM.ClientID %>', 'txtPMSearch');"
-                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5;outline:none;width:100%;" autocomplete="off"/>
+                        <input type="text" id="txtPMSearch" placeholder="&#128269; Tap to search packing material..." readonly
+                            onfocus="openSearchModal(this, '<%= ddlPM.ClientID %>', 'txtPMSearch', 'Packing Material');"
+                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5 !important;color:#0f0f0f !important;outline:none;width:100%;cursor:pointer !important;" autocomplete="off"/>
                         <asp:DropDownList ID="ddlPM" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlPM_Changed" onchange="onPMChange(this)" />
                     </div>
                     <div class="form-group" style="position:relative;">
                         <label>Supplier <span class="req">*</span></label>
-                        <input type="text" id="txtSupplierSearch" placeholder="Type to search supplier..."
-                            oninput="filterDropdown(this.value, '<%= ddlSupplier.ClientID %>', 'txtSupplierSearch');"
-                            onfocus="filterDropdown(this.value, '<%= ddlSupplier.ClientID %>', 'txtSupplierSearch');"
-                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5;outline:none;width:100%;" autocomplete="off"/>
+                        <input type="text" id="txtSupplierSearch" placeholder="&#128269; Tap to search supplier..." readonly
+                            onfocus="openSearchModal(this, '<%= ddlSupplier.ClientID %>', 'txtSupplierSearch', 'Supplier');"
+                            style="margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5 !important;color:#0f0f0f !important;outline:none;width:100%;cursor:pointer !important;" autocomplete="off"/>
                         <asp:DropDownList ID="ddlSupplier" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSupplier_Changed" />
                     </div>
                     <div class="form-group">
@@ -399,25 +397,91 @@
     var pmData = <%= PMDataJson %>;
 
     // Generic searchable dropdown filter
-    function filterDropdown(q, ddlId, searchId) {
+    // ── Modal Search Overlay (touch-friendly) ──
+    var _modalOverlay = null;
+    function openSearchModal(searchInput, ddlId, searchId, title) {
+        searchInput.blur();
         var ddl = document.getElementById(ddlId);
         if (!ddl) return;
-        q = q.toLowerCase().trim();
-        var opts = ddl.options;
-        var firstMatch = -1;
-        for (var i = 0; i < opts.length; i++) {
-            var txt = opts[i].text.toLowerCase();
-            if (q === '' || txt.indexOf(q) >= 0 || opts[i].value === '0') {
-                opts[i].style.display = ''; opts[i].disabled = false;
-                if (firstMatch < 0 && i > 0 && txt.indexOf(q) >= 0) firstMatch = i;
-            } else {
-                opts[i].style.display = 'none'; opts[i].disabled = true;
+        var items = [];
+        for (var i = 0; i < ddl.options.length; i++) {
+            if (ddl.options[i].value === '0') continue;
+            items.push({ value: ddl.options[i].value, text: ddl.options[i].text, idx: i });
+        }
+        if (_modalOverlay) _modalOverlay.remove();
+        var ov = document.createElement('div');
+        ov.id = 'searchOverlay';
+        ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px 0;';
+        var box = document.createElement('div');
+        box.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;';
+        var hdr = document.createElement('div');
+        hdr.style.cssText = 'padding:16px 20px 12px;border-bottom:2px solid #f0ede8;display:flex;align-items:center;justify-content:space-between;';
+        hdr.innerHTML = '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:.06em;">Select ' + title + '</span>';
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.innerHTML = '✕';
+        closeBtn.style.cssText = 'border:none;background:none;font-size:20px;cursor:pointer;color:#999;padding:4px 8px;';
+        closeBtn.onclick = function() { ov.remove(); _modalOverlay = null; };
+        hdr.appendChild(closeBtn);
+        box.appendChild(hdr);
+        var sWrap = document.createElement('div');
+        sWrap.style.cssText = 'padding:12px 20px;';
+        var sInput = document.createElement('input');
+        sInput.type = 'text';
+        sInput.placeholder = 'Search ' + title.toLowerCase() + '...';
+        sInput.style.cssText = 'width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;font-family:\'DM Sans\',sans-serif;outline:none;background:#fafafa;';
+        sInput.setAttribute('autocomplete', 'off');
+        sInput.setAttribute('autocorrect', 'off');
+        sInput.setAttribute('autocapitalize', 'off');
+        sWrap.appendChild(sInput);
+        box.appendChild(sWrap);
+        var list = document.createElement('div');
+        list.style.cssText = 'flex:1;overflow-y:auto;padding:0 8px 12px;-webkit-overflow-scrolling:touch;';
+        function renderList(query) {
+            list.innerHTML = '';
+            var q = (query || '').toLowerCase().trim();
+            var count = 0;
+            items.forEach(function(it) {
+                if (q && it.text.toLowerCase().indexOf(q) < 0) return;
+                count++;
+                var row = document.createElement('div');
+                row.style.cssText = 'padding:12px 14px;border-radius:8px;cursor:pointer;font-size:14px;margin:2px 0;transition:background .1s;';
+                row.onmouseenter = function() { row.style.background = '#f5f5f0'; };
+                row.onmouseleave = function() { row.style.background = 'transparent'; };
+                if (q) {
+                    var idx = it.text.toLowerCase().indexOf(q);
+                    row.innerHTML = it.text.substring(0, idx) + '<strong style="color:var(--accent,#cc1e1e);">' + it.text.substring(idx, idx + q.length) + '</strong>' + it.text.substring(idx + q.length);
+                } else { row.textContent = it.text; }
+                row.onclick = function() {
+                    ddl.selectedIndex = it.idx;
+                    var sb = document.getElementById(searchId);
+                    if (sb) sb.value = it.text;
+                    ov.remove();
+                    _modalOverlay = null;
+                    var evt = document.createEvent('HTMLEvents');
+                    evt.initEvent('change', true, false);
+                    ddl.dispatchEvent(evt);
+                    if (ddl.onchange) ddl.onchange.call(ddl, evt);
+                };
+                list.appendChild(row);
+            });
+            if (count === 0) {
+                var empty = document.createElement('div');
+                empty.style.cssText = 'padding:20px;text-align:center;color:#999;font-size:13px;';
+                empty.textContent = 'No results found';
+                list.appendChild(empty);
             }
         }
-        if (firstMatch >= 0 && q.length >= 2) ddl.selectedIndex = firstMatch;
-        if (q.length >= 1) { ddl.size = Math.min(8, opts.length); ddl.style.position = 'absolute'; ddl.style.zIndex = '999'; ddl.style.width = '100%'; }
-        else { ddl.size = 0; ddl.style.position = ''; ddl.style.zIndex = ''; }
+        box.appendChild(list);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+        _modalOverlay = ov;
+        ov.onclick = function(e) { if (e.target === ov) { ov.remove(); _modalOverlay = null; } };
+        renderList('');
+        setTimeout(function() { sInput.focus(); }, 150);
+        sInput.oninput = function() { renderList(sInput.value); };
     }
+
     document.addEventListener('change', function(e) {
         var pairs = [['<%= ddlPM.ClientID %>', 'txtPMSearch'], ['<%= ddlSupplier.ClientID %>', 'txtSupplierSearch']];
         pairs.forEach(function(p) {
@@ -427,6 +491,7 @@
                 if (sb) sb.value = e.target.options[e.target.selectedIndex].text;
             }
         });
+    });
     });
 
     function syncAllUOMs(src) {
