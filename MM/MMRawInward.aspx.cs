@@ -150,11 +150,16 @@ namespace MMApp
             ddlStdInvoiceUOM.DataValueField = "UOMID";
             ddlStdInvoiceUOM.DataBind();
             ddlStdInvoiceUOM.Items.Insert(0, new ListItem("UOM", "0"));
-            // Pre-select kg
+            // Pre-select kg on all 3 standard UOM dropdowns
             foreach (ListItem li in ddlStdInvoiceUOM.Items)
             {
                 if (li.Text.ToLower() == "kg" || li.Text.ToLower() == "kgs")
-                { ddlStdInvoiceUOM.SelectedValue = li.Value; break; }
+                {
+                    ddlStdInvoiceUOM.SelectedValue = li.Value;
+                    ddlReceivedUOM.SelectedValue = li.Value;
+                    ddlStdUOM.SelectedValue = li.Value;
+                    break;
+                }
             }
 
             BuildRMJson();
