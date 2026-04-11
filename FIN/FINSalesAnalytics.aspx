@@ -91,6 +91,32 @@ const DT = ({cols,data,maxH=450}) => (
   </div>
 );
 
+// ── Product Categorization ──
+const categorize = (names) => {
+  const rules = [
+    {prefix:'Ganji Box', match: n => n.startsWith('Ganji Box')},
+    {prefix:'MRP5', match: n => n.startsWith('MRP5 ') || n==='Peanut Barfi 14g' || n==='Nice Peanut Barfi 14g'},
+    {prefix:'MRP10', match: n => n.startsWith('MRP10 ')},
+    {prefix:'MRP40', match: n => n.startsWith('MRP40 ')},
+    {prefix:'MRP50', match: n => n.startsWith('MRP50 ')},
+    {prefix:'MRP70', match: n => n.startsWith('MRP70 ')},
+    {prefix:'Protein Bars', match: n => n.includes('Sports Protein Bar')},
+    {prefix:'ZOHO Bite Size', match: n => n.startsWith('ZOHO Bite Size')},
+    {prefix:'Sirimiri Specials', match: n => n.startsWith('Sirimiri ') && !n.includes('Sports Protein')},
+    {prefix:'Premium', match: n => n.startsWith('Premium ')},
+  ];
+  const cats = {};
+  (names||[]).forEach(n => {
+    let cat = 'Others';
+    for(const r of rules){if(r.match(n)){cat=r.prefix;break;}}
+    if(!cats[cat]) cats[cat]=[];
+    cats[cat].push(n);
+  });
+  const order = rules.map(r=>r.prefix).filter(c=>cats[c]);
+  if(cats['Others']) order.push('Others');
+  return order.map(c=>({category:c, products:cats[c].sort()}));
+};
+
 const buildPivot = (items,months) => {
   if(!items||!months) return {labels:[],datasets:[]};
   return {
@@ -348,11 +374,44 @@ function App() {
               </select>
               <button type="button" onClick={()=>{pvDateRef.current=pvDR;loadPV(pvDR);}} style={{padding:'7px 16px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:11,letterSpacing:'.03em'}}>Refresh</button>
             </div>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590',marginBottom:8}}>Select Products</div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
-              <button type="button" onClick={()=>setPvSel(['ALL'])} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes('ALL')?'#cc1e1e':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes('ALL')?'#cc1e1e':'#fff',color:pvSel.includes('ALL')?'#fff':'#cc1e1e'}}>All Products</button>
-              {allPN.map(p=><button type="button" key={p} onClick={()=>{if(pvSel.includes('ALL'))setPvSel([p]);else if(pvSel.includes(p)){const n=pvSel.filter(x=>x!==p);setPvSel(n.length?n:['ALL']);}else setPvSel([...pvSel,p]);}} style={{padding:'6px 14px',border:'1.5px solid '+(pvSel.includes(p)?'#0f0f0f':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',background:pvSel.includes(p)?'#0f0f0f':'#fff',color:pvSel.includes(p)?'#fff':'#0f0f0f'}}>{p}</button>)}
-            </div>
+            {(()=>{
+              const cats = categorize(allPN);
+              const toggleCat = cat => {
+                const c = cats.find(x=>x.category===cat);
+                if(!c) return;
+                const allIn = c.products.every(p=>pvSel.includes(p));
+                if(allIn) {
+                  const n = pvSel.filter(p=>!c.products.includes(p));
+                  setPvSel(n.length?n:['ALL']);
+                } else {
+                  const base = pvSel.includes('ALL') ? [] : [...pvSel];
+                  const merged = [...new Set([...base,...c.products])];
+                  setPvSel(merged);
+                }
+              };
+              const toggleProd = p => {
+                if(pvSel.includes('ALL')) setPvSel([p]);
+                else if(pvSel.includes(p)){const n=pvSel.filter(x=>x!==p);setPvSel(n.length?n:['ALL']);}
+                else setPvSel([...pvSel,p]);
+              };
+              const selCount = pvSel.includes('ALL') ? allPN.length : pvSel.length;
+              return <>
+                <div style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'#9a9590',marginBottom:8}}>Product Categories <span style={{fontWeight:400,fontStyle:'italic',textTransform:'none',letterSpacing:0}}>({selCount} selected)</span></div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+                  <button type="button" onClick={()=>setPvSel(['ALL'])} style={{padding:'7px 16px',border:'1.5px solid '+(pvSel.includes('ALL')?'#cc1e1e':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',background:pvSel.includes('ALL')?'#cc1e1e':'#fff',color:pvSel.includes('ALL')?'#fff':'#cc1e1e'}}>All Products</button>
+                  {cats.map(c=>{
+                    const allIn = !pvSel.includes('ALL') && c.products.every(p=>pvSel.includes(p));
+                    const someIn = !pvSel.includes('ALL') && c.products.some(p=>pvSel.includes(p));
+                    return <button type="button" key={c.category} onClick={()=>toggleCat(c.category)} style={{padding:'7px 16px',border:'1.5px solid '+(allIn?'#0f0f0f':someIn?'#d68b00':'#e8e5e0'),borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',background:allIn?'#0f0f0f':someIn?'#fff8f0':'#fff',color:allIn?'#fff':someIn?'#d68b00':'#0f0f0f',transition:'all .15s'}}>{c.category} <span style={{fontSize:9,opacity:.6}}>({c.products.length})</span></button>;
+                  })}
+                </div>
+                {!pvSel.includes('ALL')&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10,paddingLeft:4}}>
+                  {cats.filter(c=>c.products.some(p=>pvSel.includes(p))).map(c=>c.products.map(p=>(
+                    <button type="button" key={p} onClick={()=>toggleProd(p)} style={{padding:'4px 12px',border:'1px solid '+(pvSel.includes(p)?'#0f0f0f':'#e8e5e0'),borderRadius:16,fontSize:10,fontWeight:500,cursor:'pointer',background:pvSel.includes(p)?'#0f0f0f':'#fff',color:pvSel.includes(p)?'#fff':'#666',transition:'all .12s'}}>{p}</button>
+                  )))}
+                </div>}
+              </>;
+            })()}
           </Card>
           {pvD?.products&&(()=>{
             const fp=pvSel.includes('ALL')?pvD.products:pvD.products.filter(p=>pvSel.includes(p.name));
@@ -396,12 +455,40 @@ function App() {
           </Card>}
 
           <Card><CH>4. Distributor Orders by Product</CH>
-            <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:14}}>
-              <select multiple value={dvPF} onChange={e=>setDvPF(Array.from(e.target.selectedOptions,o=>o.value))} style={{minWidth:260,height:100,fontSize:11,border:'1.5px solid #e8e5e0',borderRadius:8,padding:4}}>
-                {allPN.map(p=><option key={p} value={p}>{p}</option>)}
-              </select>
-              <button type="button" onClick={async()=>{if(!dvPF.length)return;const pp=dvDR.dateFrom?{dateFrom:dvDR.dateFrom,dateTo:dvDR.dateTo}:{};setDvPD(await q('distOrdersByProduct',{state:dvSt,products:dvPF.join('|'),...pp}));}} style={{padding:'8px 18px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:12}}>Apply</button>
-            </div>
+            {(()=>{
+              const cats = categorize(allPN);
+              const toggleDvCat = cat => {
+                const c = cats.find(x=>x.category===cat);
+                if(!c) return;
+                const allIn = c.products.every(p=>dvPF.includes(p));
+                if(allIn) setDvPF(dvPF.filter(p=>!c.products.includes(p)));
+                else setDvPF([...new Set([...dvPF,...c.products])]);
+              };
+              const toggleDvProd = p => {
+                if(dvPF.includes(p)) setDvPF(dvPF.filter(x=>x!==p));
+                else setDvPF([...dvPF,p]);
+              };
+              return <>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+                  <button type="button" onClick={()=>{setDvPF(allPN);}} style={{padding:'6px 14px',border:'1.5px solid '+(dvPF.length===allPN.length?'#cc1e1e':'#e8e5e0'),borderRadius:20,fontSize:10,fontWeight:700,cursor:'pointer',background:dvPF.length===allPN.length?'#cc1e1e':'#fff',color:dvPF.length===allPN.length?'#fff':'#cc1e1e'}}>All</button>
+                  <button type="button" onClick={()=>setDvPF([])} style={{padding:'6px 14px',border:'1.5px solid #e8e5e0',borderRadius:20,fontSize:10,fontWeight:700,cursor:'pointer',background:'#fff',color:'#9a9590'}}>Clear</button>
+                  {cats.map(c=>{
+                    const allIn = c.products.every(p=>dvPF.includes(p));
+                    const someIn = c.products.some(p=>dvPF.includes(p));
+                    return <button type="button" key={c.category} onClick={()=>toggleDvCat(c.category)} style={{padding:'6px 14px',border:'1.5px solid '+(allIn?'#0f0f0f':someIn?'#d68b00':'#e8e5e0'),borderRadius:20,fontSize:10,fontWeight:700,cursor:'pointer',background:allIn?'#0f0f0f':someIn?'#fff8f0':'#fff',color:allIn?'#fff':someIn?'#d68b00':'#0f0f0f',transition:'all .15s'}}>{c.category} <span style={{fontSize:8,opacity:.6}}>({c.products.length})</span></button>;
+                  })}
+                </div>
+                {dvPF.length>0&&dvPF.length<allPN.length&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>
+                  {cats.filter(c=>c.products.some(p=>dvPF.includes(p))).map(c=>c.products.map(p=>(
+                    <button type="button" key={p} onClick={()=>toggleDvProd(p)} style={{padding:'3px 10px',border:'1px solid '+(dvPF.includes(p)?'#0f0f0f':'#e8e5e0'),borderRadius:14,fontSize:9,fontWeight:500,cursor:'pointer',background:dvPF.includes(p)?'#0f0f0f':'#fff',color:dvPF.includes(p)?'#fff':'#666',transition:'all .12s'}}>{p}</button>
+                  )))}
+                </div>}
+                <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14}}>
+                  <span style={{fontSize:11,color:'#9a9590'}}>{dvPF.length} product{dvPF.length!==1?'s':''} selected</span>
+                  <button type="button" onClick={async()=>{if(!dvPF.length)return;const pp=dvDR.dateFrom?{dateFrom:dvDR.dateFrom,dateTo:dvDR.dateTo}:{};setDvPD(await q('distOrdersByProduct',{state:dvSt,products:dvPF.join('|'),...pp}));}} style={{padding:'8px 18px',border:'none',borderRadius:8,background:'#0f0f0f',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:12}}>Apply</button>
+                </div>
+              </>;
+            })()}
             {dvPD?.distributors?.length>0&&<>
               <CChart type="bar" height={340} data={buildPivot(dvPD.distributors,dvPD.months)} options={{scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>fmt(v)}}}}} />
               <div style={{marginTop:14}}><DT cols={[{l:'#',r:(_,i)=>i+1},{l:'Distributor',k:'name',b:1},{l:'Total',n:1,m:1,b:1,r:r=>fmt(r.total)},...dvPD.months.map((m,mi)=>({l:fM(m),n:1,m:1,r:r=>{const v=r.monthly[mi];return v>0?fmt(v):'—';}}))]} data={dvPD.distributors} /></div>
