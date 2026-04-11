@@ -228,7 +228,7 @@
                                 <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:4px;">Standard Qty (in KG)</div>
                                 <div style="display:flex;gap:6px;align-items:center;">
                                     <asp:TextBox ID="txtQtyInvoice" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;" />
-                                    <asp:DropDownList ID="ddlStdInvoiceUOM" runat="server" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
+                                    <asp:DropDownList ID="ddlStdInvoiceUOM" runat="server" onchange="syncStdUOMs(this)" style="width:90px;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;" />
                                 </div>
                                 <span class="field-hint" style="color:var(--teal);">Converted to standard unit</span>
                             </div>
@@ -514,20 +514,34 @@
         });
     });
 
+    function syncStdUOMs(src) {
+        // Keep Standard Qty, Qty Actually Received, and Qty Billed UOMs in sync
+        var val = src.value;
+        var ids = ['<%= ddlStdInvoiceUOM.ClientID %>', '<%= ddlReceivedUOM.ClientID %>', '<%= ddlStdUOM.ClientID %>'];
+        ids.forEach(function(id) {
+            var ddl = document.getElementById(id);
+            if (ddl && ddl !== src) ddl.value = val;
+        });
+    }
+
     function onRMChange(sel) {
         var d = rmData[sel.value];
         if (d) {
             document.getElementById('<%= txtHSN.ClientID %>').value      = d.hsn || '';
             document.getElementById('<%= txtGSTRate.ClientID %>').value  = d.gst || '';
             document.getElementById('uomHint').innerText = 'Stock UOM: ' + d.uom;
-            // Auto-select Standard UOM dropdown to match RM master UOM
-            var stdDdl = document.getElementById('<%= ddlStdUOM.ClientID %>');
-            for (var i = 0; i < stdDdl.options.length; i++) {
-                if (stdDdl.options[i].text === d.uom) {
-                    stdDdl.selectedIndex = i;
-                    break;
+            // Auto-select all 3 standard UOM dropdowns to match RM master UOM
+            var stdIds = ['<%= ddlStdInvoiceUOM.ClientID %>', '<%= ddlReceivedUOM.ClientID %>', '<%= ddlStdUOM.ClientID %>'];
+            stdIds.forEach(function(id) {
+                var ddl = document.getElementById(id);
+                if (!ddl) return;
+                for (var i = 0; i < ddl.options.length; i++) {
+                    if (ddl.options[i].text === d.uom) {
+                        ddl.selectedIndex = i;
+                        break;
+                    }
                 }
-            }
+            });
         } else {
             document.getElementById('uomHint').innerText = 'Select material to auto-fill';
         }

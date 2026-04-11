@@ -429,16 +429,29 @@
         });
     });
 
+    function syncAllUOMs(src) {
+        var val = src.value;
+        var ids = ['<%= ddlInvoiceUOM.ClientID %>', '<%= ddlReceivedUOM.ClientID %>', '<%= ddlStdUOM.ClientID %>'];
+        ids.forEach(function(id) {
+            var ddl = document.getElementById(id);
+            if (ddl && ddl !== src) ddl.value = val;
+        });
+    }
+
     function onPMChange(sel) {
         var d = pmData[sel.value];
         if (d) {
             document.getElementById('<%= txtHSN.ClientID %>').value     = d.hsn || '';
             document.getElementById('<%= txtGSTRate.ClientID %>').value = d.gst || '';
             document.getElementById('uomHint').innerText = 'Stock UOM: ' + d.uom;
-            var stdDdl = document.getElementById('<%= ddlStdUOM.ClientID %>');
-            for (var i = 0; i < stdDdl.options.length; i++) {
-                if (stdDdl.options[i].text === d.uom) { stdDdl.selectedIndex = i; break; }
-            }
+            var stdIds = ['<%= ddlInvoiceUOM.ClientID %>', '<%= ddlReceivedUOM.ClientID %>', '<%= ddlStdUOM.ClientID %>'];
+            stdIds.forEach(function(id) {
+                var ddl = document.getElementById(id);
+                if (!ddl) return;
+                for (var i = 0; i < ddl.options.length; i++) {
+                    if (ddl.options[i].text === d.uom) { ddl.selectedIndex = i; break; }
+                }
+            });
         } else {
             document.getElementById('uomHint').innerText = 'Select material to auto-fill';
         }
@@ -446,7 +459,7 @@
     }
 
     function syncReceivedUOM(sel) {
-        document.getElementById('<%= ddlReceivedUOM.ClientID %>').value = sel.value;
+        syncAllUOMs(sel);
     }
 
     function onSupplierChange(supId) {
