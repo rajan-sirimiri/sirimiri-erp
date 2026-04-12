@@ -21,7 +21,7 @@ namespace PKApp
 
             // Only Super Admin can manage machines
             string role = Session["PK_Role"]?.ToString() ?? "";
-            if (role != "Super Admin")
+            if (role != "Super" && role != "Admin")
             { Response.Redirect("PKHome.aspx"); return; }
 
             lblNavUser.Text = Session["PK_FullName"]?.ToString() ?? "";

@@ -13,7 +13,7 @@ namespace PKApp {
             string role = Session["PK_Role"]?.ToString() ?? "";
             if (lnkCustomer != null) lnkCustomer.Visible = PKDatabaseHelper.RoleHasModuleAccess(role, "PK", "PK_CUSTOMER");
             if (lnkPMMapping != null) lnkPMMapping.Visible = PKDatabaseHelper.RoleHasModuleAccess(role, "PK", "PK_PM_MAPPING");
-            if (lnkMachine != null) lnkMachine.Visible = role == "Super Admin";
+            if (lnkMachine != null) lnkMachine.Visible = role == "Super";
             if (lnkPrimary != null) lnkPrimary.Visible = PKDatabaseHelper.RoleHasModuleAccess(role, "PK", "PK_PRIMARY");
             if (lnkSecondary != null) lnkSecondary.Visible = PKDatabaseHelper.RoleHasModuleAccess(role, "PK", "PK_SECONDARY");
             if (lnkShipment != null) lnkShipment.Visible = PKDatabaseHelper.RoleHasModuleAccess(role, "PK", "PK_SHIPMENT");
