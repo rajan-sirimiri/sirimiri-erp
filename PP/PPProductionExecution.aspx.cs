@@ -437,6 +437,7 @@ namespace PPApp
                 ShowAlert("Batch " + batchNo + " of " + total + " saved successfully.", true);
 
             if (ddlRemarks != null) ddlRemarks.SelectedIndex = 0;
+            if (txtDoughWeight != null) txtDoughWeight.Text = "";
             RenderOrder(orderId);
         }
 

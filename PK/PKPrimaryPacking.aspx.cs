@@ -378,28 +378,32 @@ namespace PKApp
                 hfPackingId.Value = packingId.ToString();
                 SetState("running", batchNo, total);
             }
-            else if (packed >= effectiveBatches || orderStatus == "Stopped")
+            else
             {
-                // This machine is done — but check if ANY other machine still has active batches
-                var anyActive = PKDatabaseHelper.GetActivePacking(orderId);
-                if (anyActive != null)
+                // This machine has no active batch — check if ALL batches across ALL machines are done
+                bool allDone = PKDatabaseHelper.AreAllBatchesPacked(orderId) || orderStatus == "Stopped";
+
+                if (allDone)
                 {
-                    // Another machine is still running — show waiting state, not completion
-                    SetState("waiting", packed, total);
-                    ShowAlert("All batches assigned to this machine are complete. Waiting for other machine(s) to finish before batch completion.", true);
-                }
-                else
-                {
-                    // ALL machines done — show batch completion
+                    // Every batch is Completed — safe to show batch completion
                     int productId = Convert.ToInt32(hfProductId.Value);
                     PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
                     ShowBatchCompletionPanel(orderId, productId);
                     pnlExecution.Visible = false;
                     pnlOutput.Style["display"] = "none";
                 }
+                else if (packed >= effectiveBatches)
+                {
+                    // This machine sees all batches done but AreAllBatchesPacked says no —
+                    // another machine still has batches pending or in progress
+                    SetState("waiting", packed, total);
+                    ShowAlert("This machine has finished all its batches. Waiting for other machine(s) to complete before final verification.", true);
+                }
+                else
+                {
+                    SetState("ready", packed + 1, total);
+                }
             }
-            else
-                SetState("ready", packed + 1, total);
 
             BindHistory(orderId);
         }
