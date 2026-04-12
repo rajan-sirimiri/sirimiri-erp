@@ -262,12 +262,13 @@ namespace PKApp
             pnlRunConfig.Visible = true;
             pnlHistory.Visible   = true;
 
-            // Check if this order has a pending batch completion
-            if (PKDatabaseHelper.HasPendingBatchCompletion(orderId))
+            // Check if all batches are done — show PM consumption panel
+            bool allBatchesDone = PKDatabaseHelper.AreAllBatchesPacked(orderId);
+            if (allBatchesDone || PKDatabaseHelper.HasPendingBatchCompletion(orderId))
             {
-                ShowBatchCompletionPanel(orderId, productId);
-                pnlExecution.Visible = false;
-                pnlOutput.Style["display"] = "none";
+                pnlExecution.Visible = true;
+                SetState("alldone", packed, total);
+                BindHistory(orderId);
             }
             else
             {
@@ -378,32 +379,25 @@ namespace PKApp
                 hfPackingId.Value = packingId.ToString();
                 SetState("running", batchNo, total);
             }
-            else
+            else if (packed >= effectiveBatches || orderStatus == "Stopped")
             {
-                // This machine has no active batch — check if ALL batches across ALL machines are done
+                // All batches show as packed — verify with AreAllBatchesPacked (counts Completed across ALL machines)
                 bool allDone = PKDatabaseHelper.AreAllBatchesPacked(orderId) || orderStatus == "Stopped";
 
                 if (allDone)
                 {
-                    // Every batch is Completed — safe to show batch completion
-                    int productId = Convert.ToInt32(hfProductId.Value);
-                    PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
-                    ShowBatchCompletionPanel(orderId, productId);
-                    pnlExecution.Visible = false;
-                    pnlOutput.Style["display"] = "none";
-                }
-                else if (packed >= effectiveBatches)
-                {
-                    // This machine sees all batches done but AreAllBatchesPacked says no —
-                    // another machine still has batches pending or in progress
-                    SetState("waiting", packed, total);
-                    ShowAlert("This machine has finished all its batches. Waiting for other machine(s) to complete before final verification.", true);
+                    // Every batch across ALL machines is Completed — show the output panel (jars + PM consumption)
+                    SetState("alldone", packed, total);
                 }
                 else
                 {
-                    SetState("ready", packed + 1, total);
+                    // This machine sees all done but other machine(s) still have pending batches
+                    SetState("waiting", packed, total);
+                    ShowAlert("This machine has finished all its batches. Waiting for other machine(s) to complete before PM consumption.", true);
                 }
             }
+            else
+                SetState("ready", packed + 1, total);
 
             BindHistory(orderId);
         }
