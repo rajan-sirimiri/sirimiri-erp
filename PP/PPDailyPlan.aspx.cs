@@ -102,7 +102,7 @@ namespace PPApp
             if (lnkPDF != null)
             {
                 lnkPDF.NavigateUrl = "PPDailyPlanPrint.aspx?date=" + planDate.ToString("yyyy-MM-dd");
-                lnkPDF.Visible = UserRole == "SuperAdmin";
+                lnkPDF.Visible = UserRole == "Super Admin";
             }
         }
 
