@@ -248,6 +248,13 @@ namespace PPApp
         protected void btnConfirm_Click(object sender, EventArgs e)
         {
             int planId = GetPlanId();
+            // Block confirm if no products scheduled
+            DataTable rows = PPDatabaseHelper.GetDailyPlanRows(planId);
+            if (rows == null || rows.Rows.Count == 0)
+            {
+                ShowAlert("Cannot confirm an empty plan. Please add at least one product.", false);
+                return;
+            }
             PPDatabaseHelper.SetDailyPlanStatus(planId, "Confirmed");
             ShowAlert("Plan confirmed successfully.", true);
             DateTime planDate;
@@ -306,6 +313,19 @@ namespace PPApp
 
         private void RefreshAll(int planId, bool clearAlert = true)
         {
+            // Any change to the plan reverts it to Draft
+            DataRow plan = PPDatabaseHelper.GetDailyPlan(DateTime.Parse(hfPlanDate.Value));
+            string status = plan != null ? plan["Status"].ToString() : "Draft";
+            if (status == "Confirmed")
+            {
+                PPDatabaseHelper.SetDailyPlanStatus(planId, "Draft");
+                status = "Draft";
+            }
+            lblPlanStatus.Text = status;
+            lblPlanStatus.CssClass = "status-badge draft";
+            btnConfirm.Visible = true;
+            btnDraft.Visible = false;
+
             LoadProductDropdowns();
             BindShiftRepeaters(planId);
             BindRMStatus(planId);

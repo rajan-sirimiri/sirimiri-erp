@@ -86,14 +86,14 @@ nav{background:var(--accent-dark);height:var(--nav-h);display:flex;align-items:c
 
 /* ADD ROW FORM */
 .add-row-form{display:flex;gap:8px;align-items:flex-end;margin-top:14px;padding-top:12px;
-    border-top:1px dashed var(--border);}
+    border-top:1px dashed var(--border);flex-wrap:wrap;}
 .add-row-form select, .add-row-form input{border:1.5px solid var(--border);border-radius:8px;
     padding:7px 10px;font-size:13px;background:#fff;font-family:inherit;}
-.add-row-form select{flex:1;}
+.add-row-form select{flex:1;min-width:160px;}
 .add-row-form input{width:80px;text-align:center;}
 .add-row-form select:focus, .add-row-form input:focus{outline:none;border-color:var(--accent);}
 .btn-add-row{background:var(--accent);color:#fff;border:none;border-radius:8px;
-    padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;min-height:38px;}
 .btn-add-row:hover{background:var(--accent-dark);}
 .empty-shift{text-align:center;padding:24px;color:var(--text-dim);font-size:13px;}
 
