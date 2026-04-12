@@ -187,9 +187,11 @@ namespace PPApp
             lblInfoDate.Text       = PPDatabaseHelper.TodayIST().ToString("dd MMM yyyy");
             // lblOutputUnit removed — Actual Output field removed from UI
 
-            // Dough weight calculation — show for products with UnitWeightGrams
+            // Dough weight calculation — show ONLY for Laddu line products
             decimal uwg = order["UnitWeightGrams"] != DBNull.Value ? Convert.ToDecimal(order["UnitWeightGrams"]) : 0;
-            if (pnlDoughWeight != null) pnlDoughWeight.Visible = uwg > 0;
+            string lineCode = order["LineCode"] != DBNull.Value ? order["LineCode"].ToString() : "";
+            bool isLadduLine = lineCode.Equals("LADDU", StringComparison.OrdinalIgnoreCase);
+            if (pnlDoughWeight != null) pnlDoughWeight.Visible = uwg > 0 && isLadduLine;
             if (hfUnitWeightGrams != null) hfUnitWeightGrams.Value = uwg.ToString("0.##");
             if (lblUnitWeight != null) lblUnitWeight.Text = uwg.ToString("0.##");
 

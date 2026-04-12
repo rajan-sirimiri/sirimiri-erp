@@ -33,8 +33,10 @@ namespace PKApp
         protected Panel    pnlPMConsumption;
         protected Repeater rptPMConsumption;
 
-        // Machine selection
+        // Machine selection — inline edit/display panels
         protected Panel    pnlMachineSelect;
+        protected Panel    pnlMachineEdit;
+        protected Panel    pnlMachineDisplay;
         protected DropDownList ddlMachine;
         protected Button   btnSetMachine;
         protected Label    lblMachineName;
@@ -68,6 +70,7 @@ namespace PKApp
                 if (MachineID == 0)
                 {
                     ShowMachineSelector();
+                    BindProductDropdown();
                     return;
                 }
                 SetMachineLabel();
@@ -82,7 +85,6 @@ namespace PKApp
                 if (hfOrderId.Value != "0")
                 {
                     pnlMainContent.Visible = true;
-                    if (pnlMachineSelect != null) pnlMachineSelect.Visible = false;
                     pnlOrderSelect.Visible = false;
                     pnlInfo.Visible      = true;
                     pnlRunConfig.Visible = true;
@@ -95,8 +97,7 @@ namespace PKApp
 
         void ShowMachineSelector()
         {
-            pnlMachineSelect.Visible = true;
-            pnlMainContent.Visible   = false;
+            // Load machine dropdown
             var machines = PKDatabaseHelper.GetActiveMachines();
             ddlMachine.Items.Clear();
             ddlMachine.Items.Add(new ListItem("-- Select Machine --", "0"));
@@ -105,6 +106,9 @@ namespace PKApp
                     r["MachineName"] + " (" + r["MachineCode"] + ")" +
                     (r["Location"] != DBNull.Value ? " — " + r["Location"] : ""),
                     r["MachineID"].ToString()));
+            // Show edit panel, hide display panel
+            pnlMachineEdit.Visible   = true;
+            pnlMachineDisplay.Visible = false;
         }
 
         protected void btnSetMachine_Click(object s, EventArgs e)
@@ -113,17 +117,17 @@ namespace PKApp
             if (mid == 0) return;
             Session["PK_MachineID"] = mid;
             hfMachineId.Value = mid.ToString();
-            pnlMachineSelect.Visible = false;
-            pnlMainContent.Visible   = true;
             SetMachineLabel();
             BindProductDropdown();
         }
 
         protected void lnkChangeMachine_Click(object s, EventArgs e)
         {
-            Session["PK_MachineID"] = null;
-            hfMachineId.Value = "0";
+            // Switch back to edit mode (keep session — don't clear until a new one is SET)
             ShowMachineSelector();
+            // Pre-select the current machine in dropdown
+            if (MachineID > 0 && ddlMachine.Items.FindByValue(MachineID.ToString()) != null)
+                ddlMachine.SelectedValue = MachineID.ToString();
         }
 
         void SetMachineLabel()
@@ -138,6 +142,9 @@ namespace PKApp
                     break;
                 }
             }
+            // Show display panel, hide edit panel
+            pnlMachineEdit.Visible   = false;
+            pnlMachineDisplay.Visible = true;
         }
 
         void BindProductDropdown()
@@ -373,12 +380,23 @@ namespace PKApp
             }
             else if (packed >= effectiveBatches || orderStatus == "Stopped")
             {
-                // All batches packed — create pending batch completion and show completion panel
-                int productId = Convert.ToInt32(hfProductId.Value);
-                PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
-                ShowBatchCompletionPanel(orderId, productId);
-                pnlExecution.Visible = false;
-                pnlOutput.Style["display"] = "none";
+                // This machine is done — but check if ANY other machine still has active batches
+                var anyActive = PKDatabaseHelper.GetActivePacking(orderId);
+                if (anyActive != null)
+                {
+                    // Another machine is still running — show waiting state, not completion
+                    SetState("waiting", packed, total);
+                    ShowAlert("All batches assigned to this machine are complete. Waiting for other machine(s) to finish before batch completion.", true);
+                }
+                else
+                {
+                    // ALL machines done — show batch completion
+                    int productId = Convert.ToInt32(hfProductId.Value);
+                    PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
+                    ShowBatchCompletionPanel(orderId, productId);
+                    pnlExecution.Visible = false;
+                    pnlOutput.Style["display"] = "none";
+                }
             }
             else
                 SetState("ready", packed + 1, total);
@@ -397,6 +415,14 @@ namespace PKApp
 
             pnlOutput.Style["display"] = state == "alldone" ? "block" : "none";
 
+            // In waiting state, disable start/end — this machine has no more batches
+            if (state == "waiting")
+            {
+                btnStart.Enabled = false;
+                btnEnd.Enabled   = false;
+                hfState.Value    = "ready";
+            }
+
             // Populate PM consumption grid when output panel shows
             if (state == "alldone")
                 BindPMConsumptionGrid();
@@ -410,8 +436,8 @@ namespace PKApp
             int productId = Convert.ToInt32(hfProductId.Value);
             if (orderId == 0 || productId == 0) return;
 
-            // Get raw PM mappings for this product (all languages included)
-            var pmData = PKDatabaseHelper.GetProductPMMappings(productId);
+            // Get raw PM mappings for this product — exclude CASE level (secondary packing only)
+            var pmData = PKDatabaseHelper.GetProductPMMappings(productId, "CASE");
 
             if (pmData.Rows.Count > 0)
             {
@@ -630,8 +656,8 @@ namespace PKApp
                 pnlMachineSummary.Visible = true;
             }
 
-            // Bind PM consumption grid for completion
-            var pmData = PKDatabaseHelper.GetProductPMMappings(productId);
+            // Bind PM consumption grid for completion — exclude CASE level (secondary packing only)
+            var pmData = PKDatabaseHelper.GetProductPMMappings(productId, "CASE");
             if (pmData.Rows.Count > 0)
             {
                 if (!pmData.Columns.Contains("CalculatedQty"))

@@ -539,11 +539,13 @@ namespace PPApp.DAL
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, p.ProductType, " +
                 "p.ProductionLineID, p.UnitWeightGrams, " +
-                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr " +
+                "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
+                "IFNULL(pl.LineCode,'') AS LineCode " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
+                "LEFT JOIN PP_ProductionLines pl ON pl.LineID = p.ProductionLineID " +
                 "WHERE o.OrderID = ?oid;",
                 new MySqlParameter("?oid", orderId));
         }

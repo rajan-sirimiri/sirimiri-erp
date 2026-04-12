@@ -156,19 +156,8 @@ input.out-inp:focus{border-color:var(--accent);}
     </div>
 </nav>
 
-<!-- MACHINE SELECT PANEL (shown if no machine selected) -->
-<asp:Panel ID="pnlMachineSelect" runat="server" Visible="false">
-<div style="max-width:500px;margin:60px auto;background:#fff;border-radius:14px;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;">
-    <div style="font-size:40px;margin-bottom:12px;">&#x2699;&#xFE0F;</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.07em;margin-bottom:6px;">Select Machine</div>
-    <div style="font-size:13px;color:#999;margin-bottom:24px;">Identify this tablet's packing machine before proceeding</div>
-    <asp:DropDownList ID="ddlMachine" runat="server"
-        style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;font-family:inherit;margin-bottom:16px;"/>
-    <asp:Button ID="btnSetMachine" runat="server" Text="Confirm Machine"
-        style="width:100%;padding:14px;background:#2ecc71;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;"
-        OnClick="btnSetMachine_Click" CausesValidation="false"/>
-</div>
-</asp:Panel>
+<!-- MACHINE SELECT — inline in product select bar -->
+<asp:Panel ID="pnlMachineSelect" runat="server" Visible="false"/>
 
 <asp:Panel ID="pnlMainContent" runat="server" Visible="true">
 
@@ -179,12 +168,6 @@ input.out-inp:focus{border-color:var(--accent);}
         <div class="date-str"><asp:Label ID="lblDate" runat="server"/></div>
     </div>
     <div class="date-bar-right">
-        <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.6);">Machine</span>
-            <asp:Label ID="lblMachineName" runat="server" style="background:rgba(255,255,255,.15);padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;color:#fff;letter-spacing:.04em;"/>
-            <asp:LinkButton ID="lnkChangeMachine" runat="server" Text="change" OnClick="lnkChangeMachine_Click" CausesValidation="false"
-                style="font-size:11px;color:rgba(255,255,255,.5);text-decoration:underline;cursor:pointer;"/>
-        </div>
         <span class="shift-label">Shift</span>
         <asp:DropDownList ID="ddlShift" runat="server" CssClass="shift-sel">
             <asp:ListItem Value="1">Shift 1 — Morning</asp:ListItem>
@@ -193,14 +176,40 @@ input.out-inp:focus{border-color:var(--accent);}
     </div>
 </div>
 
-<!-- PRODUCT SELECT BAR -->
-<div class="select-bar">
-    <div>
-        <label>Product</label>
-        <asp:DropDownList ID="ddlProduct" runat="server"/>
+<!-- MACHINE + PRODUCT SELECT BAR -->
+<div class="select-bar" style="flex-wrap:wrap;gap:14px;">
+    <div style="display:flex;align-items:flex-end;gap:10px;">
+        <div>
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#999;">Machine</label>
+            <!-- EDIT mode: dropdown + SET button -->
+            <asp:Panel ID="pnlMachineEdit" runat="server">
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <asp:DropDownList ID="ddlMachine" runat="server"
+                        style="padding:9px 14px;border:2px solid #e67e22;border-radius:8px;font-size:14px;font-family:inherit;min-width:200px;background:#fff8f0;"/>
+                    <asp:Button ID="btnSetMachine" runat="server" Text="SET"
+                        style="padding:9px 18px;background:#e67e22;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.04em;"
+                        OnClick="btnSetMachine_Click" CausesValidation="false"/>
+                </div>
+            </asp:Panel>
+            <!-- DISPLAY mode: bold machine name + EDIT button -->
+            <asp:Panel ID="pnlMachineDisplay" runat="server" Visible="false">
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <asp:Label ID="lblMachineName" runat="server"
+                        style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.06em;color:#e67e22;line-height:1;"/>
+                    <asp:LinkButton ID="lnkChangeMachine" runat="server" Text="EDIT" OnClick="lnkChangeMachine_Click" CausesValidation="false"
+                        style="padding:5px 14px;border:1.5px solid #e67e22;border-radius:6px;font-size:11px;font-weight:700;color:#e67e22;text-decoration:none;cursor:pointer;letter-spacing:.04em;"/>
+                </div>
+            </asp:Panel>
+        </div>
     </div>
-    <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
-        OnClick="btnLoad_Click" CausesValidation="false"/>
+    <div style="display:flex;align-items:flex-end;gap:10px;flex:1;min-width:200px;">
+        <div style="flex:1;">
+            <label>Product</label>
+            <asp:DropDownList ID="ddlProduct" runat="server"/>
+        </div>
+        <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
+            OnClick="btnLoad_Click" CausesValidation="false"/>
+    </div>
 </div>
 
 <div class="alert-wrap">
