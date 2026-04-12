@@ -1678,5 +1678,149 @@ namespace PKApp.DAL
                 " WHERE pl.ProjectionID=?pid ORDER BY pr.ProductName;",
                 new MySqlParameter("?pid", projectionId));
         }
+        // ══════════════════════════════════════════════════════════════
+        // MACHINE TRACKING & BATCH COMPLETION
+        // ══════════════════════════════════════════════════════════════
+
+        public static DataTable GetActiveMachines()
+        {
+            return ExecuteQuery("SELECT MachineID, MachineName, MachineCode, Location FROM PK_Machines WHERE IsActive=1 ORDER BY MachineCode;");
+        }
+
+        // Start a packing batch with machine ID
+        public static int StartPackingBatchWithMachine(int orderId, int batchNo, int userId, int machineId, string labelLanguage = null)
+        {
+            // Check if THIS machine already has an active batch for this order
+            var active = ExecuteQueryRow(
+                "SELECT PackingID FROM PK_PackingExecution WHERE OrderID=?oid AND MachineID=?mid AND Status='InProgress';",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?mid", machineId));
+            if (active != null) return Convert.ToInt32(active["PackingID"]);
+
+            ExecuteNonQuery(
+                "INSERT INTO PK_PackingExecution (OrderID,BatchNo,StartTime,Status,CreatedBy,MachineID,LabelLanguage)" +
+                " VALUES(?oid,?bno,?now,'InProgress',?by,?mid,?lang);",
+                new MySqlParameter("?oid",  orderId),
+                new MySqlParameter("?bno",  batchNo),
+                new MySqlParameter("?now",  NowIST()),
+                new MySqlParameter("?by",   userId),
+                new MySqlParameter("?mid",  machineId),
+                new MySqlParameter("?lang", string.IsNullOrEmpty(labelLanguage) ? (object)DBNull.Value : labelLanguage));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        // Get active packing for a specific machine on an order
+        public static DataRow GetActivePackingForMachine(int orderId, int machineId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND MachineID=?mid AND Status='InProgress'" +
+                " ORDER BY PackingID DESC LIMIT 1;",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?mid", machineId));
+        }
+
+        // Check if all production batches are packed across all machines
+        public static bool AreAllBatchesPacked(int orderId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT " +
+                " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed' AND pe.BatchNo > 0) AS PackedBatches" +
+                " FROM PP_ProductionOrder po WHERE po.OrderID=?oid;",
+                new MySqlParameter("?oid", orderId));
+            if (row == null) return false;
+            int total  = Convert.ToInt32(row["TotalBatches"]);
+            int packed = Convert.ToInt32(row["PackedBatches"]);
+            return packed >= total;
+        }
+
+        // Get batch completion record for an order
+        public static DataRow GetBatchCompletion(int orderId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_Batch_Completion WHERE OrderID=?oid;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Create pending batch completion record when all batches are packed
+        public static void CreatePendingBatchCompletion(int orderId)
+        {
+            var existing = GetBatchCompletion(orderId);
+            if (existing != null) return; // already exists
+            ExecuteNonQuery(
+                "INSERT INTO PK_Batch_Completion (OrderID, Status) VALUES(?oid, 'Pending');",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Complete batch completion with JAR/BOX count and PM verification
+        public static void CompleteBatchCompletion(int orderId, int totalJars, int totalLoosePcs,
+            int jarSize, int totalUnits, int userId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Batch_Completion SET TotalJars=?jars, TotalLoosePcs=?loose," +
+                " JarSize=?js, TotalUnits=?total, PMVerified=1, Status='Completed'," +
+                " CompletedBy=?by, CompletedAt=?now WHERE OrderID=?oid;",
+                new MySqlParameter("?jars",  totalJars),
+                new MySqlParameter("?loose", totalLoosePcs),
+                new MySqlParameter("?js",    jarSize),
+                new MySqlParameter("?total", totalUnits),
+                new MySqlParameter("?by",    userId),
+                new MySqlParameter("?now",   NowIST()),
+                new MySqlParameter("?oid",   orderId));
+        }
+
+        // Check if an order has a pending batch completion (needs completion before new packing)
+        public static bool HasPendingBatchCompletion(int orderId)
+        {
+            var row = GetBatchCompletion(orderId);
+            return row != null && row["Status"].ToString() == "Pending";
+        }
+
+        // Get packing summary by machine for an order
+        public static DataTable GetPackingSummaryByMachine(int orderId)
+        {
+            return ExecuteQuery(
+                "SELECT pe.MachineID, IFNULL(m.MachineName, CONCAT('Machine ', pe.MachineID)) AS MachineName," +
+                " m.MachineCode, COUNT(*) AS BatchesPacked," +
+                " MIN(pe.StartTime) AS FirstStart, MAX(pe.EndTime) AS LastEnd" +
+                " FROM PK_PackingExecution pe" +
+                " LEFT JOIN PK_Machines m ON m.MachineID=pe.MachineID" +
+                " WHERE pe.OrderID=?oid AND pe.Status='Completed' AND pe.BatchNo > 0" +
+                " GROUP BY pe.MachineID, m.MachineName, m.MachineCode" +
+                " ORDER BY m.MachineCode;",
+                new MySqlParameter("?oid", orderId));
+        }
+
+        // Get pending packing orders INCLUDING those with pending batch completion
+        public static DataTable GetPendingPackingOrdersWithCompletion(int productId)
+        {
+            return ExecuteQuery(
+                "SELECT po.OrderID, po.OrderDate, po.Shift," +
+                " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
+                " po.Status," +
+                " (SELECT COUNT(*) FROM PP_BatchExecution be" +
+                "  WHERE be.OrderID=po.OrderID AND be.Status='Completed') AS ProductionDone," +
+                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed' AND pe.BatchNo > 0) AS PackedBatches," +
+                " (SELECT bc.Status FROM PK_Batch_Completion bc WHERE bc.OrderID=po.OrderID) AS CompletionStatus" +
+                " FROM PP_ProductionOrder po" +
+                " WHERE po.ProductID=?pid" +
+                " AND po.Status IN ('Initiated','InProgress','Completed')" +
+                " AND (SELECT COUNT(*) FROM PP_BatchExecution be2" +
+                "      WHERE be2.OrderID=po.OrderID AND be2.Status='Completed') > 0" +
+                " AND (" +
+                // Either: not all packed yet (normal packing)
+                "   (SELECT COUNT(*) FROM PK_PackingExecution pe2" +
+                "    WHERE pe2.OrderID=po.OrderID AND pe2.Status='Completed' AND pe2.BatchNo > 0)" +
+                "   < (SELECT COUNT(*) FROM PP_BatchExecution be3" +
+                "      WHERE be3.OrderID=po.OrderID AND be3.Status='Completed')" +
+                // OR: has pending batch completion (needs finishing)
+                "   OR EXISTS (SELECT 1 FROM PK_Batch_Completion bc2 WHERE bc2.OrderID=po.OrderID AND bc2.Status='Pending')" +
+                " )" +
+                " ORDER BY po.OrderDate DESC;",
+                new MySqlParameter("?pid", productId));
+        }
     }
 }

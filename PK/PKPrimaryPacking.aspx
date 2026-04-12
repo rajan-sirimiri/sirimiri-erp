@@ -143,6 +143,8 @@ input.out-inp:focus{border-color:var(--accent);}
 <asp:HiddenField ID="hfHasLanguageLabels" runat="server" Value="0"/>
 <asp:HiddenField ID="hfLangSplit" runat="server" Value=""/>
 
+<asp:HiddenField ID="hfMachineId" runat="server" Value="0"/>
+
 <nav>
     <a class="nav-logo" href="PKHome.aspx"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="" onerror="this.style.display='none'"/></a>
     <span class="nav-title">Primary Packing</span>
@@ -154,6 +156,22 @@ input.out-inp:focus{border-color:var(--accent);}
     </div>
 </nav>
 
+<!-- MACHINE SELECT PANEL (shown if no machine selected) -->
+<asp:Panel ID="pnlMachineSelect" runat="server" Visible="false">
+<div style="max-width:500px;margin:60px auto;background:#fff;border-radius:14px;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">&#x2699;&#xFE0F;</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.07em;margin-bottom:6px;">Select Machine</div>
+    <div style="font-size:13px;color:#999;margin-bottom:24px;">Identify this tablet's packing machine before proceeding</div>
+    <asp:DropDownList ID="ddlMachine" runat="server"
+        style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;font-family:inherit;margin-bottom:16px;"/>
+    <asp:Button ID="btnSetMachine" runat="server" Text="Confirm Machine"
+        style="width:100%;padding:14px;background:#2ecc71;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;"
+        OnClick="btnSetMachine_Click" CausesValidation="false"/>
+</div>
+</asp:Panel>
+
+<asp:Panel ID="pnlMainContent" runat="server" Visible="true">
+
 <!-- DATE BAR -->
 <div class="date-bar">
     <div class="date-bar-left">
@@ -161,6 +179,12 @@ input.out-inp:focus{border-color:var(--accent);}
         <div class="date-str"><asp:Label ID="lblDate" runat="server"/></div>
     </div>
     <div class="date-bar-right">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.6);">Machine</span>
+            <asp:Label ID="lblMachineName" runat="server" style="background:rgba(255,255,255,.15);padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;color:#fff;letter-spacing:.04em;"/>
+            <asp:LinkButton ID="lnkChangeMachine" runat="server" Text="change" OnClick="lnkChangeMachine_Click" CausesValidation="false"
+                style="font-size:11px;color:rgba(255,255,255,.5);text-decoration:underline;cursor:pointer;"/>
+        </div>
         <span class="shift-label">Shift</span>
         <asp:DropDownList ID="ddlShift" runat="server" CssClass="shift-sel">
             <asp:ListItem Value="1">Shift 1 — Morning</asp:ListItem>
@@ -410,7 +434,102 @@ input.out-inp:focus{border-color:var(--accent);}
     </div>
     </asp:Panel>
 
+    <!-- BATCH COMPLETION PANEL (shown when all batches packed but completion not done) -->
+    <asp:Panel ID="pnlBatchCompletion" runat="server" Visible="false">
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-top:20px;border:2px solid var(--orange);">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.07em;color:var(--orange);margin-bottom:6px;">&#x2705; All Batches Complete — Final Verification</div>
+        <div style="font-size:12px;color:#999;margin-bottom:20px;">All production batches have been packed. Please enter the final JAR/BOX count and verify packing material consumption to complete this order.</div>
+
+        <!-- Machine Summary -->
+        <asp:Panel ID="pnlMachineSummary" runat="server" Visible="false">
+        <div style="margin-bottom:18px;padding:14px;background:#fef5ec;border-radius:10px;border:1px solid #ffd6a0;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:8px;">Packing Summary by Machine</div>
+            <asp:Literal ID="litMachineSummary" runat="server"/>
+        </div>
+        </asp:Panel>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+                <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#666;display:block;margin-bottom:4px;">Total <asp:Label ID="lblCompJarName" runat="server" Text="Jars"/>*</label>
+                <input type="number" id="txtCompJars" runat="server" min="0" step="1" value="0"
+                    style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;font-weight:700;font-family:inherit;"
+                    oninput="validateCompletion();"/>
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#666;display:block;margin-bottom:4px;">Loose Pieces</label>
+                <input type="number" id="txtCompLoose" runat="server" min="0" step="1" value="0"
+                    style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;font-weight:700;font-family:inherit;"
+                    oninput="validateCompletion();"/>
+            </div>
+        </div>
+
+        <!-- PM Consumption for Completion -->
+        <asp:Panel ID="pnlCompPM" runat="server" Visible="false">
+        <div style="margin-top:16px;border-top:1px solid #ffd6a0;padding-top:16px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.07em;color:var(--orange);margin-bottom:10px;">Packing Material Consumption</div>
+            <div style="font-size:11px;color:#999;margin-bottom:12px;">Auto-calculated from final output. Edit actual qty if needed.</div>
+            <table class="hist-table" style="font-size:13px;">
+                <thead><tr>
+                    <th>Packing Material</th>
+                    <th>Level</th>
+                    <th>Language</th>
+                    <th style="text-align:right;">Calculated</th>
+                    <th style="text-align:right;width:120px;">Actual Qty</th>
+                    <th>Unit</th>
+                </tr></thead>
+                <tbody id="compPmGridBody">
+                    <asp:Repeater ID="rptCompPM" runat="server">
+                        <ItemTemplate>
+                            <tr class="comp-pm-row"
+                                data-pmid="<%# Eval("PMID") %>"
+                                data-qtyper="<%# Eval("QtyPerUnit") %>"
+                                data-level="<%# Eval("ApplyLevel") %>"
+                                data-lang="<%# Eval("Language") == DBNull.Value ? "" : Eval("Language") %>">
+                                <td><strong><%# Eval("PMName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("PMCode") %></div></td>
+                                <td><span class='level-badge level-<%# Eval("ApplyLevel") %>'><%# Eval("ApplyLevel") %></span></td>
+                                <td style="font-size:12px;"><%# Eval("Language") == DBNull.Value ? "All" : Eval("Language").ToString() %></td>
+                                <td class="num comp-pm-calc" style="color:var(--text-muted);font-weight:600;">0</td>
+                                <td style="text-align:right;">
+                                    <input type="number" name="compPmQty_<%# Eval("PMID") %>" class="comp-pm-actual" value="0"
+                                        min="0" step="0.0001" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600;"/>
+                                </td>
+                                <td style="font-size:12px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>
+                            </tr>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                </tbody>
+            </table>
+        </div>
+        </asp:Panel>
+
+        <asp:Button ID="btnCompleteBatch" runat="server" Text="&#x2713; Save Packing Output &amp; PM Consumption"
+            CssClass="btn-save" OnClick="btnCompleteBatch_Click" CausesValidation="false"
+            Enabled="false" style="opacity:0.5;margin-top:16px;"/>
+        <div id="compValidationMsg" style="font-size:12px;color:var(--red);margin-top:6px;display:none;">Please enter JAR/BOX count before saving.</div>
+    </div>
+    </asp:Panel>
+
 </div>
+
+</asp:Panel><!-- /pnlMainContent -->
+
+<script>
+// ── Batch Completion Validation ──
+function validateCompletion() {
+    var jars  = parseInt(document.getElementById('<%= txtCompJars.ClientID %>').value)  || 0;
+    var loose = parseInt(document.getElementById('<%= txtCompLoose.ClientID %>').value) || 0;
+    var btn   = document.getElementById('<%= btnCompleteBatch.ClientID %>');
+    var msg   = document.getElementById('compValidationMsg');
+    if (jars > 0 || loose > 0) {
+        btn.disabled = false; btn.style.opacity = '1';
+        if (msg) msg.style.display = 'none';
+    } else {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        if (msg) msg.style.display = 'block';
+    }
+}
+
+</script>
 
 <script>
 // ── WHEEL ──────────────────────────────────────────────────────────────────

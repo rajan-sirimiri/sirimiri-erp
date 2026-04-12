@@ -13,13 +13,13 @@ namespace PKApp
         protected Label    lblProduct, lblContainerType, lblTotalBatches, lblPackedBatches, lblRemaining;
         protected Label    lblContainerName, lblCaseQtyLbl, lblJarOutName, lblOutputSummary;
         protected Panel    pnlAlert, pnlInfo, pnlRunConfig, pnlExecution, pnlOutput, pnlHistory;
-        protected Panel    pnlOrderSelect;
+        protected Panel    pnlOrderSelect, pnlMainContent;
         protected Repeater rptOrders;
         protected HiddenField hfProductId2;
         protected Panel    pnlHistEmpty, pnlHistTable;
         protected System.Web.UI.HtmlControls.HtmlGenericControl rowCaseQty;
         protected DropDownList ddlProduct, ddlUnitSize, ddlCaseQty;
-        protected HiddenField  hfOrderId, hfProductId, hfPackingId;
+        protected HiddenField  hfOrderId, hfProductId, hfPackingId, hfMachineId;
         protected HiddenField  hfState, hfBatchNo, hfTotalBat;
         protected HiddenField  hfContainerType, hfUnitSizes, hfContainersPerCase;
         protected HiddenField  hfSelectedUnitSize, hfSelectedCaseQty;
@@ -32,7 +32,24 @@ namespace PKApp
         protected DropDownList ddlLabelLanguage;
         protected Panel    pnlPMConsumption;
         protected Repeater rptPMConsumption;
+
+        // Machine selection
+        protected Panel    pnlMachineSelect;
+        protected DropDownList ddlMachine;
+        protected Button   btnSetMachine;
+        protected Label    lblMachineName;
+        protected LinkButton lnkChangeMachine;
+
+        // Batch completion
+        protected Panel    pnlBatchCompletion, pnlMachineSummary, pnlCompPM;
+        protected Literal  litMachineSummary;
+        protected Label    lblCompJarName;
+        protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtCompJars, txtCompLoose;
+        protected Button   btnCompleteBatch;
+        protected Repeater rptCompPM;
+
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
+        protected int MachineID => Session["PK_MachineID"] != null ? Convert.ToInt32(Session["PK_MachineID"]) : 0;
 
         protected void Page_Load(object s, EventArgs e)
         {
@@ -44,21 +61,81 @@ namespace PKApp
             { Response.Redirect("PKHome.aspx"); return; }
             lblUser.Text = Session["PK_FullName"] as string ?? "";
             lblDate.Text = PKDatabaseHelper.TodayIST().ToString("dddd, dd MMM yyyy").ToUpper() + " — PRIMARY PACKING";
+
             if (!IsPostBack)
             {
+                // Check if machine is set in session
+                if (MachineID == 0)
+                {
+                    ShowMachineSelector();
+                    return;
+                }
+                SetMachineLabel();
                 BindProductDropdown();
             }
             else
             {
+                // On postback, restore machine from hidden field if session lost
+                if (MachineID == 0 && hfMachineId.Value != "0" && !string.IsNullOrEmpty(hfMachineId.Value))
+                    Session["PK_MachineID"] = Convert.ToInt32(hfMachineId.Value);
+
                 if (hfOrderId.Value != "0")
                 {
+                    pnlMainContent.Visible = true;
+                    if (pnlMachineSelect != null) pnlMachineSelect.Visible = false;
                     pnlOrderSelect.Visible = false;
-                    if (pnlOrderSelect != null) pnlOrderSelect.Visible = false;
                     pnlInfo.Visible      = true;
                     pnlRunConfig.Visible = true;
                     pnlExecution.Visible = true;
                     pnlHistory.Visible   = true;
                     RestoreConfigDropdowns();
+                }
+            }
+        }
+
+        void ShowMachineSelector()
+        {
+            pnlMachineSelect.Visible = true;
+            pnlMainContent.Visible   = false;
+            var machines = PKDatabaseHelper.GetActiveMachines();
+            ddlMachine.Items.Clear();
+            ddlMachine.Items.Add(new ListItem("-- Select Machine --", "0"));
+            foreach (DataRow r in machines.Rows)
+                ddlMachine.Items.Add(new ListItem(
+                    r["MachineName"] + " (" + r["MachineCode"] + ")" +
+                    (r["Location"] != DBNull.Value ? " — " + r["Location"] : ""),
+                    r["MachineID"].ToString()));
+        }
+
+        protected void btnSetMachine_Click(object s, EventArgs e)
+        {
+            int mid = Convert.ToInt32(ddlMachine.SelectedValue);
+            if (mid == 0) return;
+            Session["PK_MachineID"] = mid;
+            hfMachineId.Value = mid.ToString();
+            pnlMachineSelect.Visible = false;
+            pnlMainContent.Visible   = true;
+            SetMachineLabel();
+            BindProductDropdown();
+        }
+
+        protected void lnkChangeMachine_Click(object s, EventArgs e)
+        {
+            Session["PK_MachineID"] = null;
+            hfMachineId.Value = "0";
+            ShowMachineSelector();
+        }
+
+        void SetMachineLabel()
+        {
+            var machines = PKDatabaseHelper.GetActiveMachines();
+            foreach (DataRow r in machines.Rows)
+            {
+                if (Convert.ToInt32(r["MachineID"]) == MachineID)
+                {
+                    lblMachineName.Text = r["MachineCode"] + " — " + r["MachineName"];
+                    hfMachineId.Value = MachineID.ToString();
+                    break;
                 }
             }
         }
@@ -95,7 +172,7 @@ namespace PKApp
             pnlAlert.Visible = false;
             ClearPanels();
 
-            var orders = PKDatabaseHelper.GetPendingPackingOrders(productId);
+            var orders = PKDatabaseHelper.GetPendingPackingOrdersWithCompletion(productId);
             if (orders.Rows.Count == 0)
             { ShowAlert("No orders with produced batches ready to pack.", false); return; }
 
@@ -158,7 +235,6 @@ namespace PKApp
 
             lblProduct.Text       = order["ProductName"].ToString();
             lblContainerType.Text = containerType;
-            // Show: X produced / Y effective (target to pack)
             string effectiveLabel = totalOrdered + " ordered";
             lblTotalBatches.Text  = productionDone + " produced / " + effectiveLabel;
             lblPackedBatches.Text = packed.ToString();
@@ -168,6 +244,7 @@ namespace PKApp
             lblContainerName.Text = ctLabel;
             lblJarOutName.Text    = ctLabel + "s";
             lblCaseQtyLbl.Text    = ctLabel + "s";
+            if (lblCompJarName != null) lblCompJarName.Text = ctLabel + "s";
             lblOutputSummary.Text = string.IsNullOrEmpty(unitSizes) ? "" :
                 "Unit sizes available: " + unitSizes + " units per " + ctLabel;
 
@@ -176,10 +253,20 @@ namespace PKApp
 
             pnlInfo.Visible      = true;
             pnlRunConfig.Visible = true;
-            pnlExecution.Visible = true;
             pnlHistory.Visible   = true;
 
-            RenderState(orderId, total, packed);
+            // Check if this order has a pending batch completion
+            if (PKDatabaseHelper.HasPendingBatchCompletion(orderId))
+            {
+                ShowBatchCompletionPanel(orderId, productId);
+                pnlExecution.Visible = false;
+                pnlOutput.Style["display"] = "none";
+            }
+            else
+            {
+                pnlExecution.Visible = true;
+                RenderState(orderId, total, packed);
+            }
         }
 
         void BindUnitSizes(string unitSizes, string ctLabel)
@@ -263,18 +350,19 @@ namespace PKApp
 
         void RenderState(int orderId, int total, int packed)
         {
-            // total = productionDone (packing ceiling per session)
-            // effectiveBatches = Revised or Ordered (threshold to unlock output panel)
             var orderRow = PKDatabaseHelper.GetPackingOrderById(orderId);
-            int effectiveBatches = total; // fallback
+            int effectiveBatches = total;
             string orderStatus   = "";
             if (orderRow != null)
             {
-                effectiveBatches = Convert.ToInt32(orderRow["TotalBatches"]); // RevisedBatches ?? OrderedBatches
+                effectiveBatches = Convert.ToInt32(orderRow["TotalBatches"]);
                 orderStatus      = orderRow["Status"].ToString();
             }
 
-            var active = PKDatabaseHelper.GetActivePacking(orderId);
+            // Check for active packing on THIS machine
+            var active = MachineID > 0
+                ? PKDatabaseHelper.GetActivePackingForMachine(orderId, MachineID)
+                : PKDatabaseHelper.GetActivePacking(orderId);
 
             if (active != null)
             {
@@ -285,8 +373,12 @@ namespace PKApp
             }
             else if (packed >= effectiveBatches || orderStatus == "Stopped")
             {
-                // All effective batches packed, or order stopped — unlock output panel
-                SetState("alldone", packed, total);
+                // All batches packed — create pending batch completion and show completion panel
+                int productId = Convert.ToInt32(hfProductId.Value);
+                PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
+                ShowBatchCompletionPanel(orderId, productId);
+                pnlExecution.Visible = false;
+                pnlOutput.Style["display"] = "none";
             }
             else
                 SetState("ready", packed + 1, total);
@@ -353,6 +445,7 @@ namespace PKApp
             int orderId   = Convert.ToInt32(hfOrderId.Value);
             int productId = Convert.ToInt32(hfProductId.Value);
             if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
+            if (MachineID == 0) { ShowAlert("No machine selected. Please select a machine first.", false); return; }
 
             var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
             int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
@@ -367,7 +460,7 @@ namespace PKApp
             if (hfHasLanguageLabels.Value == "1" && ddlLabelLanguage != null)
                 labelLang = ddlLabelLanguage.SelectedValue;
 
-            int packingId = PKDatabaseHelper.StartPackingBatch(orderId, next, UserID, labelLang);
+            int packingId = PKDatabaseHelper.StartPackingBatchWithMachine(orderId, next, UserID, MachineID, labelLang);
             hfPackingId.Value = packingId.ToString();
             SetState("running", next, total);
             UpdateInfoLabels(packed, total);
@@ -504,6 +597,150 @@ namespace PKApp
             lblAlert.Text     = m;
             pnlAlert.CssClass = "alert " + (ok ? "alert-success" : "alert-danger");
             pnlAlert.Visible  = true;
+        }
+
+        // ── BATCH COMPLETION ─────────────────────────────────────────────────
+        void ShowBatchCompletionPanel(int orderId, int productId)
+        {
+            pnlBatchCompletion.Visible = true;
+            pnlExecution.Visible = false;
+            pnlOutput.Style["display"] = "none";
+
+            // Show machine summary
+            var machineSummary = PKDatabaseHelper.GetPackingSummaryByMachine(orderId);
+            if (machineSummary.Rows.Count > 0)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("<table style='width:100%;font-size:12px;border-collapse:collapse;'>");
+                sb.Append("<tr style='font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.06em;'>");
+                sb.Append("<td style='padding:4px 8px;'>Machine</td><td style='padding:4px 8px;'>Batches</td>");
+                sb.Append("<td style='padding:4px 8px;'>First Start</td><td style='padding:4px 8px;'>Last End</td></tr>");
+                foreach (DataRow r in machineSummary.Rows)
+                {
+                    sb.AppendFormat("<tr><td style='padding:4px 8px;font-weight:600;'>{0} ({1})</td>",
+                        r["MachineName"], r["MachineCode"]);
+                    sb.AppendFormat("<td style='padding:4px 8px;'>{0}</td>", r["BatchesPacked"]);
+                    sb.AppendFormat("<td style='padding:4px 8px;font-size:11px;color:#666;'>{0}</td>",
+                        r["FirstStart"] != DBNull.Value ? Convert.ToDateTime(r["FirstStart"]).ToString("hh:mm tt") : "—");
+                    sb.AppendFormat("<td style='padding:4px 8px;font-size:11px;color:#666;'>{0}</td></tr>",
+                        r["LastEnd"] != DBNull.Value ? Convert.ToDateTime(r["LastEnd"]).ToString("hh:mm tt") : "—");
+                }
+                sb.Append("</table>");
+                litMachineSummary.Text = sb.ToString();
+                pnlMachineSummary.Visible = true;
+            }
+
+            // Bind PM consumption grid for completion
+            var pmData = PKDatabaseHelper.GetProductPMMappings(productId);
+            if (pmData.Rows.Count > 0)
+            {
+                if (!pmData.Columns.Contains("CalculatedQty"))
+                    pmData.Columns.Add("CalculatedQty", typeof(decimal), "0");
+                pnlCompPM.Visible = true;
+                rptCompPM.DataSource = pmData;
+                rptCompPM.DataBind();
+            }
+            else
+            {
+                pnlCompPM.Visible = false;
+            }
+
+            BindHistory(orderId);
+        }
+
+        protected void btnCompleteBatch_Click(object s, EventArgs e)
+        {
+            int orderId   = Convert.ToInt32(hfOrderId.Value);
+            int productId = Convert.ToInt32(hfProductId.Value);
+            if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
+
+            int unitSize, caseQty;
+            int.TryParse(hfSelectedUnitSize.Value, out unitSize);
+            int.TryParse(hfSelectedCaseQty.Value,  out caseQty);
+            if (unitSize == 0) { ShowAlert("Please select unit size before saving.", false); return; }
+
+            int jars, loose;
+            int.TryParse(txtCompJars.Value,  out jars);
+            int.TryParse(txtCompLoose.Value, out loose);
+            if (jars == 0 && loose == 0)
+            { ShowAlert("Please enter JAR/BOX count before saving.", false); return; }
+
+            try
+            {
+                string ct = hfContainerType.Value;
+                int totalPcs;
+                if (ct == "DIRECT")
+                    totalPcs = (jars * unitSize) + loose;
+                else
+                    totalPcs = (jars * unitSize) + loose;
+
+                // Validate PM stock
+                var pmData = PKDatabaseHelper.CalculatePMConsumptionWithLanguage(
+                    productId, orderId, jars, loose, unitSize, caseQty, ct);
+
+                if (!pmData.Columns.Contains("ActualQty"))
+                    pmData.Columns.Add("ActualQty", typeof(decimal));
+
+                foreach (DataRow row in pmData.Rows)
+                {
+                    int pmId = Convert.ToInt32(row["PMID"]);
+                    string formKey = "compPmQty_" + pmId;
+                    string formVal = Request.Form[formKey];
+                    decimal actualQty;
+                    if (!string.IsNullOrEmpty(formVal) && decimal.TryParse(formVal, out actualQty))
+                        row["ActualQty"] = actualQty;
+                    else
+                        row["ActualQty"] = row["CalculatedQty"];
+                }
+
+                // Check PM stock
+                var shortages = new System.Collections.Generic.List<string>();
+                foreach (DataRow row in pmData.Rows)
+                {
+                    decimal needed = Convert.ToDecimal(row["ActualQty"]);
+                    if (needed <= 0) continue;
+                    int pmId = Convert.ToInt32(row["PMID"]);
+                    decimal available = PKDatabaseHelper.GetPMCurrentStock(pmId);
+                    if (needed > available)
+                        shortages.Add(row["PMName"] + " (need " + needed.ToString("0.##") + ", have " + available.ToString("0.##") + ")");
+                }
+                if (shortages.Count > 0)
+                {
+                    ShowAlert("Cannot save — insufficient PM stock: " + string.Join("; ", shortages), false);
+                    return;
+                }
+
+                // Save packing output (summary row with BatchNo=0)
+                PKDatabaseHelper.SaveOrderPackingOutput(orderId, productId,
+                    0, jars, loose, unitSize, caseQty, ct, UserID);
+
+                // Record PM consumption
+                PKDatabaseHelper.RecordPMConsumptionBatch(orderId, productId, pmData, UserID);
+
+                // Complete the batch completion record
+                PKDatabaseHelper.CompleteBatchCompletion(orderId, jars, loose, unitSize, totalPcs, UserID);
+
+                int pmCount = 0;
+                foreach (DataRow row in pmData.Rows)
+                    if (Convert.ToDecimal(row["ActualQty"]) > 0) pmCount++;
+
+                string msg = "Batch completion saved — " + totalPcs.ToString("N0") + " individual pieces added to SFG stock.";
+                if (pmCount > 0)
+                    msg += " " + pmCount + " packing material(s) consumption recorded.";
+                ShowAlert(msg, true);
+
+                pnlBatchCompletion.Visible = false;
+                pnlExecution.Visible = false;
+                pnlOutput.Style["display"] = "none";
+
+                // Refresh info
+                var order = PKDatabaseHelper.GetPackingOrderById(orderId);
+                int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
+                int total  = order != null ? Convert.ToInt32(order["ProductionDone"]) : 0;
+                UpdateInfoLabels(packed, total);
+                BindHistory(orderId);
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
     }
 }
