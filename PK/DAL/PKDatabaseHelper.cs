@@ -1766,20 +1766,47 @@ namespace PKApp.DAL
                 new MySqlParameter("?mid", machineId));
         }
 
+        /// <summary>Count how many batches THIS machine has completed for an order.</summary>
+        public static int GetMachinePackedCount(int orderId, int machineId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT COUNT(*) AS Cnt FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND MachineID=?mid AND Status='Completed' AND BatchNo > 0;",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?mid", machineId));
+            return row != null ? Convert.ToInt32(Convert.ToInt64(row["Cnt"])) : 0;
+        }
+
         // Check if all production batches are packed across all machines
         public static bool AreAllBatchesPacked(int orderId)
         {
+            // Check that no machine still has InProgress batches for this order
+            var anyActive = ExecuteQueryRow(
+                "SELECT PackingID FROM PK_PackingExecution WHERE OrderID=?oid AND Status='InProgress' LIMIT 1;",
+                new MySqlParameter("?oid", orderId));
+            if (anyActive != null) return false;
+
+            // Check each machine that has participated has completed all batches
+            // A machine is "done" when its Completed count >= TotalBatches
             var row = ExecuteQueryRow(
                 "SELECT " +
                 " IFNULL(po.RevisedBatches, po.OrderedBatches) AS TotalBatches," +
-                " (SELECT COUNT(*) FROM PK_PackingExecution pe" +
-                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed' AND pe.BatchNo > 0) AS PackedBatches" +
+                " (SELECT COUNT(DISTINCT pe.MachineID) FROM PK_PackingExecution pe" +
+                "  WHERE pe.OrderID=po.OrderID AND pe.Status='Completed') AS MachinesUsed," +
+                " (SELECT MIN(mc.cnt) FROM " +
+                "   (SELECT MachineID, COUNT(*) AS cnt FROM PK_PackingExecution" +
+                "    WHERE OrderID=po.OrderID AND Status='Completed' AND BatchNo > 0" +
+                "    GROUP BY MachineID) mc) AS MinCompletedPerMachine" +
                 " FROM PP_ProductionOrder po WHERE po.OrderID=?oid;",
                 new MySqlParameter("?oid", orderId));
             if (row == null) return false;
-            int total  = Convert.ToInt32(row["TotalBatches"]);
-            int packed = Convert.ToInt32(row["PackedBatches"]);
-            return packed >= total;
+            int total = Convert.ToInt32(row["TotalBatches"]);
+            int machinesUsed = Convert.ToInt32(row["MachinesUsed"]);
+            if (machinesUsed == 0) return false;
+            int minCompleted = row["MinCompletedPerMachine"] != DBNull.Value
+                ? Convert.ToInt32(row["MinCompletedPerMachine"]) : 0;
+            // All done only when EVERY participating machine has completed all batches
+            return minCompleted >= total;
         }
 
         // Get batch completion record for an order

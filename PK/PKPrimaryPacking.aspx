@@ -324,6 +324,16 @@ input.out-inp:focus{border-color:var(--accent);}
     <!-- EXECUTION PANEL -->
     <asp:Panel ID="pnlExecution" runat="server" Visible="false">
     <div class="exec-panel">
+
+        <!-- BATCH SELECTOR — operator picks which batch to pack -->
+        <asp:Panel ID="pnlBatchSelector" runat="server" Visible="false">
+        <div style="text-align:center;margin-bottom:16px;padding:12px 20px;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;">
+            <label style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f57f17;display:block;margin-bottom:6px;">Select Batch to Pack</label>
+            <asp:DropDownList ID="ddlBatchNo" runat="server"
+                style="padding:10px 16px;border:2px solid #ffe082;border-radius:8px;font-size:16px;font-weight:700;font-family:inherit;min-width:200px;background:#fff;text-align:center;"/>
+        </div>
+        </asp:Panel>
+
         <div class="exec-panel-inner">
 
             <!-- LEFT: Batch Number -->

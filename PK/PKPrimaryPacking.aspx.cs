@@ -13,12 +13,13 @@ namespace PKApp
         protected Label    lblProduct, lblContainerType, lblTotalBatches, lblPackedBatches, lblRemaining;
         protected Label    lblContainerName, lblCaseQtyLbl, lblJarOutName, lblOutputSummary;
         protected Panel    pnlAlert, pnlInfo, pnlRunConfig, pnlExecution, pnlOutput, pnlHistory;
+        protected Panel    pnlBatchSelector;
         protected Panel    pnlOrderSelect, pnlMainContent;
         protected Repeater rptOrders;
         protected HiddenField hfProductId2;
         protected Panel    pnlHistEmpty, pnlHistTable;
         protected System.Web.UI.HtmlControls.HtmlGenericControl rowCaseQty;
-        protected DropDownList ddlProduct, ddlUnitSize, ddlCaseQty;
+        protected DropDownList ddlProduct, ddlUnitSize, ddlCaseQty, ddlBatchNo;
         protected HiddenField  hfOrderId, hfProductId, hfPackingId, hfMachineId;
         protected HiddenField  hfState, hfBatchNo, hfTotalBat;
         protected HiddenField  hfContainerType, hfUnitSizes, hfContainersPerCase;
@@ -374,30 +375,28 @@ namespace PKApp
 
             if (active != null)
             {
+                // This machine has a batch in progress
                 int packingId = Convert.ToInt32(active["PackingID"]);
                 int batchNo   = Convert.ToInt32(active["BatchNo"]);
                 hfPackingId.Value = packingId.ToString();
                 SetState("running", batchNo, total);
             }
-            else if (packed >= effectiveBatches || orderStatus == "Stopped")
+            else
             {
-                // All batches show as packed — verify with AreAllBatchesPacked (counts Completed across ALL machines)
+                // No active batch — check if ALL machines are done across all batches
                 bool allDone = PKDatabaseHelper.AreAllBatchesPacked(orderId) || orderStatus == "Stopped";
 
                 if (allDone)
                 {
-                    // Every batch across ALL machines is Completed — show the output panel (jars + PM consumption)
+                    // Every machine has completed all batches — show PM consumption
                     SetState("alldone", packed, total);
                 }
                 else
                 {
-                    // This machine sees all done but other machine(s) still have pending batches
-                    SetState("waiting", packed, total);
-                    ShowAlert("This machine has finished all its batches. Waiting for other machine(s) to complete before PM consumption.", true);
+                    // Not all done — operator can pick a batch and start
+                    SetState("ready", 0, total);
                 }
             }
-            else
-                SetState("ready", packed + 1, total);
 
             BindHistory(orderId);
         }
@@ -413,12 +412,27 @@ namespace PKApp
 
             pnlOutput.Style["display"] = state == "alldone" ? "block" : "none";
 
+            // Batch selector — show when ready (operator picks batch), hide when running
+            if (pnlBatchSelector != null)
+            {
+                if (state == "ready")
+                {
+                    pnlBatchSelector.Visible = true;
+                    PopulateBatchDropdown(total);
+                }
+                else
+                {
+                    pnlBatchSelector.Visible = false;
+                }
+            }
+
             // In waiting state, disable start/end — this machine has no more batches
             if (state == "waiting")
             {
                 btnStart.Enabled = false;
                 btnEnd.Enabled   = false;
                 hfState.Value    = "ready";
+                if (pnlBatchSelector != null) pnlBatchSelector.Visible = false;
             }
 
             // Populate PM consumption grid when output panel shows
@@ -426,6 +440,17 @@ namespace PKApp
                 BindPMConsumptionGrid();
             else if (pnlPMConsumption != null)
                 pnlPMConsumption.Visible = false;
+        }
+
+        void PopulateBatchDropdown(int total)
+        {
+            if (ddlBatchNo == null) return;
+            ddlBatchNo.Items.Clear();
+            for (int i = 1; i <= total; i++)
+                ddlBatchNo.Items.Add(new ListItem("Batch " + i, i.ToString()));
+            // Default to first item
+            if (ddlBatchNo.Items.Count > 0)
+                ddlBatchNo.SelectedIndex = 0;
         }
 
         void BindPMConsumptionGrid()
@@ -472,12 +497,15 @@ namespace PKApp
             if (MachineID == 0) { ShowAlert("No machine selected. Please select a machine first.", false); return; }
 
             var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
-            int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
             int productionDone2 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 0;
             int total  = productionDone2;
-            int next   = packed + 1;
             if (total == 0) { ShowAlert("No production batches completed yet.", false); return; }
-            if (next > total) { ShowAlert("All produced batches have been packed.", false); return; }
+
+            // Operator selects which batch to pack
+            int next = 0;
+            if (ddlBatchNo != null && ddlBatchNo.Items.Count > 0)
+                int.TryParse(ddlBatchNo.SelectedValue, out next);
+            if (next == 0) { ShowAlert("Please select a batch number.", false); return; }
 
             // Pass label language if product has language labels
             string labelLang = null;
@@ -486,6 +514,7 @@ namespace PKApp
 
             int packingId = PKDatabaseHelper.StartPackingBatchWithMachine(orderId, next, UserID, MachineID, labelLang);
             hfPackingId.Value = packingId.ToString();
+            int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
             SetState("running", next, total);
             UpdateInfoLabels(packed, total);
             BindHistory(orderId);
