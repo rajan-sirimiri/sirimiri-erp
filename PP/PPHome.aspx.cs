@@ -6,7 +6,7 @@ namespace PPApp
 {
     public partial class PPHome : Page
     {
-        protected System.Web.UI.HtmlControls.HtmlAnchor lnkProduct, lnkCatalog, lnkDailyPlan, lnkOrder, lnkExecution, lnkPrefilled, lnkPreprocess;
+        protected System.Web.UI.HtmlControls.HtmlAnchor lnkProduct, lnkCatalog, lnkDailyPlan, lnkOrder, lnkExecution, lnkPrefilled, lnkPreprocess, lnkBatchCost;
 
         protected void Page_Load(object sender, EventArgs e)
         {
