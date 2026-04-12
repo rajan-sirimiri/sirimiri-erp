@@ -116,6 +116,20 @@ input.out-inp:focus{border-color:var(--accent);}
 .badge-prog{background:#fff3e0;color:var(--orange);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
 .empty-note{text-align:center;padding:24px;color:var(--text-dim);font-size:13px;}
 
+.order-list{background:var(--surface);border-radius:var(--radius);padding:20px;margin:0 16px 20px;}
+.order-list-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;margin-bottom:14px;}
+.order-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--surface2);transition:border-color .2s;}
+.order-item:hover{border-color:var(--accent);}
+.order-item-left{flex:1;}
+.order-item-id{font-weight:700;font-size:14px;}
+.order-item-date{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.order-item-right{display:flex;align-items:center;gap:20px;}
+.order-item-stat{text-align:center;}
+.order-item-stat-val{font-weight:700;font-size:16px;color:var(--text);}
+.order-item-stat-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);}
+.btn-select-order{padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;}
+.btn-select-order:hover{background:var(--accent-dark);}
+
 @media(max-width:600px){
     .batch-num{font-size:72px;}
     .batch-of{font-size:28px;}
