@@ -1687,6 +1687,52 @@ namespace PKApp.DAL
             return ExecuteQuery("SELECT MachineID, MachineName, MachineCode, Location FROM PK_Machines WHERE IsActive=1 ORDER BY MachineCode;");
         }
 
+        public static DataTable GetAllMachines()
+        {
+            return ExecuteQuery("SELECT MachineID, MachineName, MachineCode, Location, IsActive FROM PK_Machines ORDER BY MachineCode;");
+        }
+
+        public static DataRow GetMachineById(int machineId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_Machines WHERE MachineID=?id;",
+                new MySqlParameter("?id", machineId));
+        }
+
+        public static void AddMachine(string code, string name, string location)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_Machines (MachineCode, MachineName, Location) VALUES(?code, ?name, ?loc);",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?name", name),
+                new MySqlParameter("?loc",  string.IsNullOrEmpty(location) ? (object)DBNull.Value : location));
+        }
+
+        public static void UpdateMachine(int machineId, string code, string name, string location)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Machines SET MachineCode=?code, MachineName=?name, Location=?loc WHERE MachineID=?id;",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?name", name),
+                new MySqlParameter("?loc",  string.IsNullOrEmpty(location) ? (object)DBNull.Value : location),
+                new MySqlParameter("?id",   machineId));
+        }
+
+        public static bool MachineCodeExists(string code)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT 1 FROM PK_Machines WHERE MachineCode=?code;",
+                new MySqlParameter("?code", code));
+            return row != null;
+        }
+
+        public static void ToggleMachineActive(int machineId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Machines SET IsActive = IF(IsActive=1, 0, 1) WHERE MachineID=?id;",
+                new MySqlParameter("?id", machineId));
+        }
+
         // Start a packing batch with machine ID
         public static int StartPackingBatchWithMachine(int orderId, int batchNo, int userId, int machineId, string labelLanguage = null)
         {

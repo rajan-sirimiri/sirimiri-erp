@@ -100,8 +100,13 @@
     </Compile>
     <!-- Customer Master -->
     <Content Include="PKCustomer.aspx" />
+    <Content Include="PKMachineMaster.aspx" />
     <Compile Include="PKCustomer.aspx.cs">
       <DependentUpon>PKCustomer.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PKMachineMaster.aspx.cs">
+      <DependentUpon>PKMachineMaster.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <!-- Primary Packing -->

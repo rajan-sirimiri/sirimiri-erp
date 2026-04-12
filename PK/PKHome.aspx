@@ -125,6 +125,7 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
         <div class="nav-dropdown">
             <a href="PKCustomer.aspx">Customer Master</a>
             <a href="PKProductPM.aspx">Product PM Mapping</a>
+            <a href="PKMachineMaster.aspx">Machine Master</a>
         </div>
     </div>
     <div class="nav-group">
@@ -170,6 +171,14 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             <div>
                 <div class="menu-title">Product PM Mapping</div>
                 <div class="menu-desc">Define packing materials consumed per product</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a id="lnkMachine" runat="server" href="PKMachineMaster.aspx" class="menu-card cat-master">
+            <div class="menu-icon">&#x2699;&#xFE0F;</div>
+            <div>
+                <div class="menu-title">Machine Master</div>
+                <div class="menu-desc">Register and manage packing machines for primary packing</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
