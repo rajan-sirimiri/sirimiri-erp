@@ -153,6 +153,7 @@
         <div class="nav-group">
             <span class="nav-item">Reports <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
+                <a href="PPBatchCostReport.aspx">Batch Cost Report</a>
             </div>
         </div>
         <span class="nav-user"><asp:Label ID="lblNavUser" runat="server" /></span>
@@ -228,6 +229,19 @@
                 <div>
                     <div class="menu-title">Pre processed<br/>RM Entry</div>
                     <div class="menu-desc">Track multi-stage raw material processing — dispensed, processed and sorted quantities</div>
+                </div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+        </div>
+
+        <!-- REPORTS -->
+        <div class="section-head">Reports</div>
+        <div class="menu-grid">
+            <a id="lnkBatchCost" runat="server" href="PPBatchCostReport.aspx" class="menu-card cat-report">
+                <div class="menu-icon">&#x1F4CA;</div>
+                <div>
+                    <div class="menu-title">Batch<br/>Cost Report</div>
+                    <div class="menu-desc">Production batch costs — BOM vs actual consumption with material pricing and variance</div>
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>

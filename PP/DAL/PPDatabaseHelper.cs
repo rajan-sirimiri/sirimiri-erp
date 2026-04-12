@@ -2124,5 +2124,96 @@ namespace PPApp.DAL
                 " UNION SELECT 'CASE'" +
                 " ORDER BY 1;");
         }
+        // ── BATCH COST REPORT ──────────────────────────────────────────────
+        public static DataTable GetBatchCostReport(DateTime dateFrom, DateTime dateTo, int productId)
+        {
+            string productFilter = productId > 0 ? " AND po.ProductID=?productId" : "";
+
+            string sql =
+                "SELECT be.ExecutionID, be.OrderID, be.BatchNo, " +
+                "  p.ProductName, p.ProductCode, po.OrderDate, " +
+                "  CASE bom.MaterialType " +
+                "    WHEN 'RM' THEN r.RMName " +
+                "    WHEN 'PM' THEN pm.PMName " +
+                "    WHEN 'CN' THEN cn.ConsumableName " +
+                "    ELSE 'Unknown' END AS MaterialName, " +
+                "  CASE bom.MaterialType " +
+                "    WHEN 'RM' THEN r.RMCode " +
+                "    WHEN 'PM' THEN pm.PMCode " +
+                "    WHEN 'CN' THEN cn.ConsumableCode " +
+                "    ELSE '?' END AS MaterialCode, " +
+                "  bom.MaterialType, " +
+                "  bom.Quantity AS BOMQtyPerBatch, " +
+                "  u_bom.Abbreviation AS BOMUom, " +
+                // Actual consumed from mm_stockconsumption
+                "  IFNULL(( " +
+                "    SELECT SUM(sc.QtyConsumed) FROM MM_StockConsumption sc " +
+                "    WHERE sc.ExecutionID=be.ExecutionID AND sc.RMID=bom.MaterialID " +
+                "  ), 0) AS ActualConsumed, " +
+                "  u_bom.Abbreviation AS ActualUom, " +
+                // Unit rate (weighted avg of last 3 GRNs, same logic as RM requirement)
+                "  CASE bom.MaterialType " +
+                "    WHEN 'RM' THEN " +
+                "      IFNULL(( " +
+                "        SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "        FROM (SELECT QtyActualReceived, Rate FROM MM_RawInward " +
+                "              WHERE RMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "              ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "      ), 0) " +
+                "    WHEN 'PM' THEN " +
+                "      IFNULL(( " +
+                "        SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "        FROM (SELECT QtyActualReceived, Rate FROM MM_PackingInward " +
+                "              WHERE PMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "              ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "      ), 0) " +
+                "    WHEN 'CN' THEN " +
+                "      IFNULL(( " +
+                "        SELECT SUM(g.QtyActualReceived * g.Rate) / NULLIF(SUM(g.QtyActualReceived), 0) " +
+                "        FROM (SELECT QtyActualReceived, Rate FROM MM_ConsumableInward " +
+                "              WHERE ConsumableID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 " +
+                "              ORDER BY InwardDate DESC, InwardID DESC LIMIT 3) g " +
+                "      ), 0) " +
+                "    ELSE 0 END AS UnitRate, " +
+                // BOM cost = BOM qty × unit rate
+                "  bom.Quantity * " +
+                "  CASE bom.MaterialType " +
+                "    WHEN 'RM' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_RawInward WHERE RMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    WHEN 'PM' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_PackingInward WHERE PMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    WHEN 'CN' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_ConsumableInward WHERE ConsumableID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    ELSE 0 END AS BOMCost, " +
+                // Actual cost = actual consumed × unit rate
+                "  IFNULL((SELECT SUM(sc.QtyConsumed) FROM MM_StockConsumption sc WHERE sc.ExecutionID=be.ExecutionID AND sc.RMID=bom.MaterialID), 0) * " +
+                "  CASE bom.MaterialType " +
+                "    WHEN 'RM' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_RawInward WHERE RMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    WHEN 'PM' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_PackingInward WHERE PMID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    WHEN 'CN' THEN IFNULL((SELECT SUM(g.QtyActualReceived*g.Rate)/NULLIF(SUM(g.QtyActualReceived),0) FROM (SELECT QtyActualReceived,Rate FROM MM_ConsumableInward WHERE ConsumableID=bom.MaterialID AND QtyActualReceived>0 AND Rate>0 ORDER BY InwardDate DESC,InwardID DESC LIMIT 3) g),0) " +
+                "    ELSE 0 END AS ActualCost " +
+                " FROM PP_BatchExecution be " +
+                " JOIN PP_ProductionOrder po ON po.OrderID=be.OrderID " +
+                " JOIN PP_Products p ON p.ProductID=po.ProductID " +
+                " JOIN PP_BOM bom ON bom.ProductID=po.ProductID " +
+                " LEFT JOIN MM_RawMaterials r ON bom.MaterialType='RM' AND r.RMID=bom.MaterialID " +
+                " LEFT JOIN MM_PackingMaterials pm ON bom.MaterialType='PM' AND pm.PMID=bom.MaterialID " +
+                " LEFT JOIN MM_Consumables cn ON bom.MaterialType='CN' AND cn.ConsumableID=bom.MaterialID " +
+                " LEFT JOIN MM_UOM u_bom ON u_bom.UOMID=bom.UOMID " +
+                " WHERE be.Status='Completed' " +
+                "   AND po.OrderDate BETWEEN ?dateFrom AND ?dateTo " +
+                productFilter +
+                " ORDER BY po.OrderDate, po.OrderID, be.BatchNo, bom.MaterialType, bom.BOMID;";
+
+            var conn = OpenConnection();
+            var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("?dateFrom", dateFrom.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("?dateTo", dateTo.ToString("yyyy-MM-dd"));
+            if (productId > 0) cmd.Parameters.AddWithValue("?productId", productId);
+
+            var da = new MySqlDataAdapter(cmd);
+            var dt = new DataTable();
+            try { da.Fill(dt); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("BatchCostReport: " + ex.Message); }
+            finally { conn.Close(); }
+            return dt;
+        }
     }
 }
