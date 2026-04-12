@@ -100,7 +100,10 @@ namespace PPApp
 
             // Update PDF download link with current date
             if (lnkPDF != null)
+            {
                 lnkPDF.NavigateUrl = "PPDailyPlanPrint.aspx?date=" + planDate.ToString("yyyy-MM-dd");
+                lnkPDF.Visible = UserRole == "SuperAdmin";
+            }
         }
 
         private void LoadProductDropdowns()
