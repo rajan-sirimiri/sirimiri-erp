@@ -1836,6 +1836,19 @@ namespace PKApp.DAL
                 new MySqlParameter("?mid", machineId));
         }
 
+        /// <summary>Mark ALL participating machines as done for this order.</summary>
+        public static void MarkAllMachinesDone(int orderId, int userId)
+        {
+            var machines = ExecuteQuery(
+                "SELECT DISTINCT MachineID FROM PK_PackingExecution WHERE OrderID=?oid AND Status='Completed' AND MachineID IS NOT NULL;",
+                new MySqlParameter("?oid", orderId));
+            foreach (DataRow r in machines.Rows)
+            {
+                int mid = Convert.ToInt32(r["MachineID"]);
+                MarkMachineDone(orderId, mid, userId);
+            }
+        }
+
         /// <summary>Check if this machine is marked done for this order.</summary>
         public static bool IsMachineDone(int orderId, int machineId)
         {

@@ -601,8 +601,8 @@ namespace PKApp
                 return;
             }
 
-            // Mark this machine as done
-            PKDatabaseHelper.MarkMachineDone(orderId, MachineID, UserID);
+            // Mark ALL participating machines as done
+            PKDatabaseHelper.MarkAllMachinesDone(orderId, UserID);
 
             var order = PKDatabaseHelper.GetPackingOrderById(orderId);
             int total  = order != null ? Convert.ToInt32(order["ProductionDone"]) : 0;

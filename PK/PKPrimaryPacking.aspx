@@ -372,7 +372,7 @@ input.out-inp:focus{border-color:var(--accent);}
             <asp:Button ID="btnAllDone" runat="server" Text="&#x2714; All Batches Done in All Machines"
                 style="padding:14px 32px;background:#e74c3c;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;"
                 OnClick="btnAllDone_Click" CausesValidation="false"
-                OnClientClick="return confirm('Confirm that all batches are done across all machines?');"/>
+                OnClientClick="return erpConfirmLink(this, 'Confirm that all batches are done across all machines?', {title:'All Batches Complete',type:'warn',okText:'Yes, All Done',btnClass:'danger'});"/>
         </div>
 
     </div>
@@ -800,5 +800,6 @@ window.addEventListener('load',function(){
 });
 </script>
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body></html>
