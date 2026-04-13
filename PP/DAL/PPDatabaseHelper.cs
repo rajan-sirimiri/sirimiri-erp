@@ -1250,8 +1250,8 @@ namespace PPApp.DAL
             }
             else if (stage == 4)
             {
-                // Stage 4: Deduct from Stage 3 RM, Add to Stage 4 RM
-                // stageLabel = Stage 4 RM name (e.g. "Sorted Roasted Peanuts")
+                // Stage 4: Add to Stage 4 RM — independent of Stage 3 stock
+                // stageLabel = Stage 4 RM name
 
                 // Look up Stage 4 RM
                 var rmRow4 = ExecuteQueryRow(
@@ -1261,25 +1261,6 @@ namespace PPApp.DAL
                 if (rmRow4 == null)
                     throw new Exception("Stage 4 RM '" + stageLabel + "' not found in Raw Materials.");
                 int rmId4 = Convert.ToInt32(rmRow4["RMID"]);
-
-                // Look up Stage 3 RM to deduct from
-                var stagesRow = ExecuteQueryRow(
-                    "SELECT Stage3Label, InputRMName FROM PP_PreprocessStages WHERE ProductID=?pid;",
-                    new MySqlParameter("?pid", productId));
-                string stage3Label = stagesRow != null ? stagesRow["Stage3Label"].ToString() : "";
-                var rmRow3 = ExecuteQueryRow(
-                    "SELECT RMID FROM MM_RawMaterials" +
-                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                    new MySqlParameter("?name", stage3Label));
-                if (rmRow3 == null)
-                    throw new Exception("Stage 3 RM '" + stage3Label + "' not found in Raw Materials.");
-                int s3RmId = Convert.ToInt32(rmRow3["RMID"]);
-
-                // Check Stage 3 RM available stock
-                decimal s3Available = GetAvailableStock(s3RmId);
-                if (qty > s3Available)
-                    throw new Exception("STOCK_SHORTFALL:" + stage3Label +
-                        ": available " + s3Available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
 
                 // ── PRICING CALCULATION for Pre Processed RM ──
                 decimal rate = 0;
@@ -1292,49 +1273,56 @@ namespace PPApp.DAL
                 bool isPriceCalc = prodRow != null && prodRow["IsPriceCalcProduct"] != DBNull.Value
                     && Convert.ToInt32(prodRow["IsPriceCalcProduct"]) == 1;
 
-                if (isPriceCalc && stagesRow != null)
+                if (isPriceCalc)
                 {
-                    // Get Stage 1 input RM name and its latest cost per unit
-                    string stage1RMName = stagesRow["InputRMName"].ToString();
-                    var inputRMRow = ExecuteQueryRow(
-                        "SELECT RMID FROM MM_RawMaterials" +
-                        " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
-                        new MySqlParameter("?name", stage1RMName));
+                    // Get Stage 1 input RM name for pricing
+                    var stagesRow4 = ExecuteQueryRow(
+                        "SELECT InputRMName FROM PP_PreprocessStages WHERE ProductID=?pid;",
+                        new MySqlParameter("?pid", productId));
 
-                    if (inputRMRow != null)
+                    if (stagesRow4 != null)
                     {
-                        int inputRmId = Convert.ToInt32(inputRMRow["RMID"]);
+                        string stage1RMName = stagesRow4["InputRMName"].ToString();
+                        var inputRMRow = ExecuteQueryRow(
+                            "SELECT RMID FROM MM_RawMaterials" +
+                            " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                            new MySqlParameter("?name", stage1RMName));
 
-                        // Get latest cost per unit of input RM (most recent GRN with Rate > 0)
-                        object latestCostObj = ExecuteScalar(
-                            "SELECT Rate FROM MM_RawInward" +
-                            " WHERE RMID=?rmid AND QtyActualReceived > 0 AND Rate > 0" +
-                            " ORDER BY InwardID DESC LIMIT 1;",
-                            new MySqlParameter("?rmid", inputRmId));
+                        if (inputRMRow != null)
+                        {
+                            int inputRmId = Convert.ToInt32(inputRMRow["RMID"]);
 
-                        // Fallback to opening stock rate
-                        if (latestCostObj == null || latestCostObj == DBNull.Value)
-                            latestCostObj = ExecuteScalar(
-                                "SELECT Rate FROM MM_OpeningStock WHERE MaterialType='RM' AND MaterialID=?rmid;",
+                            // Get latest cost per unit of input RM (most recent GRN with Rate > 0)
+                            object latestCostObj = ExecuteScalar(
+                                "SELECT Rate FROM MM_RawInward" +
+                                " WHERE RMID=?rmid AND QtyActualReceived > 0 AND Rate > 0" +
+                                " ORDER BY InwardID DESC LIMIT 1;",
                                 new MySqlParameter("?rmid", inputRmId));
 
-                        decimal inputRMPrice = (latestCostObj != null && latestCostObj != DBNull.Value)
-                            ? Convert.ToDecimal(latestCostObj) : 0;
+                            // Fallback to opening stock rate
+                            if (latestCostObj == null || latestCostObj == DBNull.Value)
+                                latestCostObj = ExecuteScalar(
+                                    "SELECT Rate FROM MM_OpeningStock WHERE MaterialType='RM' AND MaterialID=?rmid;",
+                                    new MySqlParameter("?rmid", inputRmId));
 
-                        // Get today's Stage 1 total quantity (most recent batch = today's entries)
-                        object s1QtyObj = ExecuteScalar(
-                            "SELECT IFNULL(SUM(Qty),0) FROM PP_PreprocessLog" +
-                            " WHERE ProductID=?pid AND Stage=1 AND DATE(CreatedAt)=?today;",
-                            new MySqlParameter("?pid", productId),
-                            new MySqlParameter("?today", TodayIST()));
-                        decimal stage1Qty = (s1QtyObj != null && s1QtyObj != DBNull.Value)
-                            ? Convert.ToDecimal(s1QtyObj) : 0;
+                            decimal inputRMPrice = (latestCostObj != null && latestCostObj != DBNull.Value)
+                                ? Convert.ToDecimal(latestCostObj) : 0;
 
-                        // Calculate: Rate = (Stage1 Qty × Input RM Price) / Stage4 Qty
-                        if (stage1Qty > 0 && qty > 0 && inputRMPrice > 0)
-                        {
-                            rate = Math.Round((stage1Qty * inputRMPrice) / qty, 2);
-                            amount = Math.Round(qty * rate, 2);
+                            // Get today's Stage 1 total quantity (most recent batch = today's entries)
+                            object s1QtyObj = ExecuteScalar(
+                                "SELECT IFNULL(SUM(Qty),0) FROM PP_PreprocessLog" +
+                                " WHERE ProductID=?pid AND Stage=1 AND DATE(CreatedAt)=?today;",
+                                new MySqlParameter("?pid", productId),
+                                new MySqlParameter("?today", TodayIST()));
+                            decimal stage1Qty = (s1QtyObj != null && s1QtyObj != DBNull.Value)
+                                ? Convert.ToDecimal(s1QtyObj) : 0;
+
+                            // Calculate: Rate = (Stage1 Qty × Input RM Price) / Stage4 Qty
+                            if (stage1Qty > 0 && qty > 0 && inputRMPrice > 0)
+                            {
+                                rate = Math.Round((stage1Qty * inputRMPrice) / qty, 2);
+                                amount = Math.Round(qty * rate, 2);
+                            }
                         }
                     }
                 }
@@ -1358,16 +1346,7 @@ namespace PPApp.DAL
                     new MySqlParameter("?rem",  remarks + (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "")),
                     new MySqlParameter("?by",   userId));
 
-                // Deduct from Stage 3 RM stock
-                ExecuteNonQuery(
-                    "INSERT INTO MM_StockConsumption" +
-                    " (ExecutionID, OrderID, BatchNo, RMID, SourceType, SourceID, QtyConsumed, ConsumedAt, CreatedBy)" +
-                    " VALUES (0, ?pid, 3, ?rmid, 'PREPROCESS', 0, ?qty, ?now, ?by);",
-                    new MySqlParameter("?pid",  productId),
-                    new MySqlParameter("?rmid", s3RmId),
-                    new MySqlParameter("?qty",  qty),
-                    new MySqlParameter("?now",  NowIST()),
-                    new MySqlParameter("?by",   userId));
+                // Stage 3 and Stage 4 are independent — no deduction from Stage 3 stock
 
                 // Log Stage 4 for tracking
                 ExecuteNonQuery(

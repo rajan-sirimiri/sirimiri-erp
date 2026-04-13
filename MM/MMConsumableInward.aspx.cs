@@ -128,15 +128,21 @@ namespace MMApp
             var sb = new StringBuilder("{");
             foreach (DataRow r in dt.Rows)
             {
-                string hsn = r["HSNCode"] == DBNull.Value ? "" : r["HSNCode"].ToString();
-                string gst = r["GSTRate"] == DBNull.Value ? "" : r["GSTRate"].ToString();
-                string uom = r["Abbreviation"].ToString();
+                string hsn = r["HSNCode"] == DBNull.Value ? "" : EscapeJson(r["HSNCode"].ToString());
+                string gst = r["GSTRate"] == DBNull.Value ? "" : EscapeJson(r["GSTRate"].ToString());
+                string uom = EscapeJson(r["Abbreviation"].ToString());
                 sb.AppendFormat("\"{0}\":{{\"hsn\":\"{1}\",\"gst\":\"{2}\",\"uom\":\"{3}\"}},",
                     r["ConsumableID"], hsn, gst, uom);
             }
             if (sb.Length > 1) sb.Length--;
             sb.Append("}");
             ItemDataJson = sb.ToString();
+        }
+
+        private static string EscapeJson(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
         }
 
         private void RebindSupplierDropdown()
