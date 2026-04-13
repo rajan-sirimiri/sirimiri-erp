@@ -1,4 +1,4 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="MMMultiGRN.aspx.cs" Inherits="MMApp.MMMultiGRNCN" EnableEventValidation="false" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="MMMultiGRNCN.aspx.cs" Inherits="MMApp.MMMultiGRNCN" EnableEventValidation="false" %>
 <!DOCTYPE html>
 <html lang="en">
 <head runat="server">
