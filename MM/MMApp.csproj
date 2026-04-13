@@ -172,6 +172,11 @@
       <DependentUpon>MMRawInward.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="MMMultiGRN.aspx" />
+    <Compile Include="MMMultiGRN.aspx.cs">
+      <DependentUpon>MMMultiGRN.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="MMPackingInward.aspx" />
     <Compile Include="MMPackingInward.aspx.cs">
       <DependentUpon>MMPackingInward.aspx</DependentUpon>

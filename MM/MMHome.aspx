@@ -130,6 +130,7 @@
             <span class="nav-item">Transactions <span class="chevron">&#9660;</span></span>
             <div class="nav-dropdown">
                 <a href="MMRawInward.aspx">Raw Material Inward (GRN)</a>
+                <a href="MMMultiGRN.aspx">Multi-Item GRN (RM)</a>
                 <a href="MMPackingInward.aspx">Packing Material Inward (GRN)</a>
                 <a href="MMConsumableInward.aspx">Consumable Inward (GRN)</a>
                 <a href="MMStationaryInward.aspx">Stationary &amp; Other Inward (GRN)</a>
