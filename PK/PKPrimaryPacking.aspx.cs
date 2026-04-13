@@ -704,8 +704,8 @@ namespace PKApp
 
                 txtJars.Value = ""; txtUnits.Value = "";
 
-                // All done — redirect to PK Home
-                Response.Redirect("PKHome.aspx");
+                // All done — redirect back to Primary Packing for next product
+                Response.Redirect("PKPrimaryPacking.aspx");
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
