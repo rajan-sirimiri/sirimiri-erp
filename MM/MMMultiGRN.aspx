@@ -158,9 +158,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
                 <thead><tr>
                     <th class="col-rm">Raw Material *</th>
                     <th class="col-num">Inv Qty *</th>
-                    <th class="col-num">Act Qty *</th>
-                    <th class="col-num">UOM Qty *</th>
                     <th class="col-sm">UOM</th>
+                    <th class="col-num">Act Qty *</th>
+                    <th class="col-num">Std Qty *</th>
+                    <th class="col-sm">Std UOM</th>
                     <th class="col-num">Rate *</th>
                     <th class="col-sm">HSN</th>
                     <th class="col-sm">GST%</th>
@@ -260,6 +261,9 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     // ── RM options for dropdown ──
     var rmOptions = <%= RMOptionsJson %>;
 
+    // ── UOM options for dropdown ──
+    var uomOptions = <%= UOMOptionsJson %>;
+
     // ── Modal Search (reused) ──
     var _modalOverlay = null;
     function openSearchModal(searchInput, ddlId, searchId, title) {
@@ -346,6 +350,14 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         return html;
     }
 
+    function buildUOMSelect(idx, prefix) {
+        var html = '<select id="'+prefix+'_'+idx+'" style="width:70px;">';
+        for (var i = 0; i < uomOptions.length; i++)
+            html += '<option value="'+uomOptions[i].id+'">'+uomOptions[i].name+'</option>';
+        html += '</select>';
+        return html;
+    }
+
     function addRow() {
         rowIdx++;
         var tbody = document.getElementById('tbodyItems');
@@ -353,9 +365,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         tr.innerHTML =
             '<td class="col-rm">'+buildRMSelect(rowIdx)+'</td>' +
             '<td class="col-num"><input type="number" id="qtyInv_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
-            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
+            '<td class="col-sm">'+buildUOMSelect(rowIdx, 'invUom')+'</td>' +
+            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
             '<td class="col-num"><input type="number" id="qtyUom_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
-            '<td class="col-sm"><span id="uom_'+rowIdx+'" style="font-size:11px;color:var(--text-dim);">—</span></td>' +
+            '<td class="col-sm">'+buildUOMSelect(rowIdx, 'stdUom')+'</td>' +
             '<td class="col-num"><input type="number" id="rate_'+rowIdx+'" step="0.01" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
             '<td class="col-sm"><input type="text" id="hsn_'+rowIdx+'" maxlength="10" style="width:60px;"/></td>' +
             '<td class="col-sm"><input type="number" id="gst_'+rowIdx+'" step="0.01" min="0" placeholder="0" oninput="calcRow('+rowIdx+');"/></td>' +
@@ -373,13 +386,23 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         updateCount();
     }
 
+    function selectUOMById(selectId, uomId) {
+        var ddl = document.getElementById(selectId);
+        if (!ddl || !uomId) return;
+        for (var i = 0; i < ddl.options.length; i++) {
+            if (ddl.options[i].value === uomId) { ddl.selectedIndex = i; break; }
+        }
+    }
+
     function onRMSelect(idx) {
         var sel = document.getElementById('rm_'+idx);
         var d = rmData[sel.value];
         if (d) {
             document.getElementById('hsn_'+idx).value = d.hsn || '';
             document.getElementById('gst_'+idx).value = d.gst || '';
-            document.getElementById('uom_'+idx).innerText = d.uom || '—';
+            // Auto-select UOM dropdowns to match RM master UOM
+            selectUOMById('invUom_'+idx, d.uomId);
+            selectUOMById('stdUom_'+idx, d.uomId);
         }
         calcRow(idx);
     }

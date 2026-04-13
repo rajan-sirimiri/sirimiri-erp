@@ -19,6 +19,7 @@ namespace MMApp
 
         public string RMDataJson  = "{}";
         public string RMOptionsJson = "[]";
+        public string UOMOptionsJson = "[]";
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -46,6 +47,7 @@ namespace MMApp
             }
             BuildRMJson();
             BuildRMOptionsJson();
+            BuildUOMOptionsJson();
         }
 
         void LoadSuppliers()
@@ -68,8 +70,9 @@ namespace MMApp
                 string hsn = r["HSNCode"] == DBNull.Value ? "" : EscapeJson(r["HSNCode"].ToString());
                 string gst = r["GSTRate"] == DBNull.Value ? "" : EscapeJson(r["GSTRate"].ToString());
                 string uom = EscapeJson(r["Abbreviation"].ToString());
-                sb.AppendFormat("\"{0}\":{{\"hsn\":\"{1}\",\"gst\":\"{2}\",\"uom\":\"{3}\"}},",
-                    r["RMID"], hsn, gst, uom);
+                string uomId = r["UOMID"].ToString();
+                sb.AppendFormat("\"{0}\":{{\"hsn\":\"{1}\",\"gst\":\"{2}\",\"uom\":\"{3}\",\"uomId\":\"{4}\"}},",
+                    r["RMID"], hsn, gst, uom, uomId);
             }
             if (sb.Length > 1) sb.Length--;
             sb.Append("}");
@@ -88,6 +91,20 @@ namespace MMApp
             if (sb.Length > 1) sb.Length--;
             sb.Append("]");
             RMOptionsJson = sb.ToString();
+        }
+
+        void BuildUOMOptionsJson()
+        {
+            DataTable dt = MMDatabaseHelper.GetActiveUOM();
+            var sb = new StringBuilder("[");
+            foreach (DataRow r in dt.Rows)
+            {
+                string abbr = EscapeJson(r["Abbreviation"].ToString());
+                sb.AppendFormat("{{\"id\":\"{0}\",\"name\":\"{1}\"}},", r["UOMID"], abbr);
+            }
+            if (sb.Length > 1) sb.Length--;
+            sb.Append("]");
+            UOMOptionsJson = sb.ToString();
         }
 
         static string EscapeJson(string s)
