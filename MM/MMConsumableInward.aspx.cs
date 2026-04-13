@@ -346,7 +346,7 @@ namespace MMApp
             hfTotal.Value                = "0";
             txtInvoiceNo.ReadOnly = false;
             lblGRNNo.Text = MMDatabaseHelper.GenerateGRNNumber("CN");
-            ScriptManager.RegisterStartupScript(this.GetType(), "resetManualInv",
+            ClientScript.RegisterStartupScript(this.GetType(), "resetManualInv",
                 "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
         }
     }

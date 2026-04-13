@@ -506,7 +506,7 @@ namespace MMApp
             txtInvoiceNo.ReadOnly = false;
             GenerateGRN();
             // Reset Manual Invoice checkbox via client script
-            ScriptManager.RegisterStartupScript(this.GetType(), "resetManualInv",
+            ClientScript.RegisterStartupScript(this.GetType(), "resetManualInv",
                 "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
         }
     }
