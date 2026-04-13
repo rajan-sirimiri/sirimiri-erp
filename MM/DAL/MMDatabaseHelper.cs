@@ -899,6 +899,63 @@ namespace MMApp.DAL
                 new MySqlParameter("id", inwardId));
         }
 
+        // ── PENDING INVOICE METHODS ──────────────────────────────────
+
+        public static DataTable GetPendingInvoiceRM()
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, i.Amount, s.SupplierName, r.RMName " +
+                "FROM MM_RawInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_RawMaterials r ON r.RMID=i.RMID " +
+                "WHERE UPPER(TRIM(i.InvoiceNo)) = 'PENDING' " +
+                "ORDER BY i.InwardDate DESC;");
+        }
+
+        public static DataTable GetPendingInvoicePM()
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, i.Amount, s.SupplierName, p.PMName AS MaterialName " +
+                "FROM MM_PackingInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_PackingMaterials p ON p.PMID=i.PMID " +
+                "WHERE UPPER(TRIM(i.InvoiceNo)) = 'PENDING' " +
+                "ORDER BY i.InwardDate DESC;");
+        }
+
+        public static DataTable GetPendingInvoiceCN()
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, i.Amount, s.SupplierName, c.ConsumableName AS MaterialName " +
+                "FROM MM_ConsumableInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_Consumables c ON c.ConsumableID=i.ConsumableID " +
+                "WHERE UPPER(TRIM(i.InvoiceNo)) = 'PENDING' " +
+                "ORDER BY i.InwardDate DESC;");
+        }
+
+        public static DataTable GetPendingInvoiceST()
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, i.Amount, s.SupplierName, st.StationaryName AS MaterialName " +
+                "FROM MM_StationaryInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_Stationaries st ON st.StationaryID=i.StationaryID " +
+                "WHERE UPPER(TRIM(i.InvoiceNo)) = 'PENDING' " +
+                "ORDER BY i.InwardDate DESC;");
+        }
+
+        public static void UpdateInvoiceNumber(string tableName, int inwardId, string invoiceNo, DateTime? invoiceDate)
+        {
+            string datePart = invoiceDate.HasValue ? ", InvoiceDate=?dt" : "";
+            string sql = "UPDATE " + tableName + " SET InvoiceNo=?inv" + datePart + " WHERE InwardID=?id;";
+            var parms = new System.Collections.Generic.List<MySqlParameter>();
+            parms.Add(new MySqlParameter("?inv", invoiceNo.Trim()));
+            if (invoiceDate.HasValue) parms.Add(new MySqlParameter("?dt", invoiceDate.Value));
+            parms.Add(new MySqlParameter("?id", inwardId));
+            ExecuteNonQuery(sql, parms.ToArray());
+        }
+
         public static int AddRawInward(string grnNo, DateTime inwardDate, DateTime? invoiceDate,
             string invoiceNo, int supplierId, int rmId,
             decimal qtyInvoice, decimal qtyActualReceived, decimal qtyInUOM, decimal rate,

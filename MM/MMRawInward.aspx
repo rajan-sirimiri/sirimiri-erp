@@ -432,8 +432,71 @@
             </div>
         </div>
 
-        <!-- RIGHT: RECOVERABLES PANEL -->
+        <!-- RIGHT: PENDING INVOICES + RECOVERABLES -->
         <div>
+            <!-- PENDING INVOICES -->
+            <div class="rec-panel" style="margin-bottom:16px;border-left:3px solid #e67e22;">
+                <div class="rec-header">
+                    <div class="rec-title" style="color:#e67e22;">&#x23F3; Pending Invoices</div>
+                    <div class="rec-sub">GRNs received without invoice — click to update</div>
+                </div>
+                <asp:Panel ID="pnlPendingEmpty" runat="server">
+                    <div class="rec-empty" style="padding:16px;">
+                        <div style="color:#2ecc71;font-size:13px;">&#10003; No pending invoices</div>
+                    </div>
+                </asp:Panel>
+                <asp:Panel ID="pnlPendingList" runat="server" Visible="false">
+                    <div class="rec-list" style="max-height:300px;overflow-y:auto;">
+                        <asp:Repeater ID="rptPending" runat="server" OnItemCommand="rptPending_ItemCommand">
+                            <ItemTemplate>
+                                <div class="rec-item" style="cursor:pointer;border-left:3px solid #e67e22;padding-left:12px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <div>
+                                            <div style="font-weight:600;font-size:12px;"><%# Eval("SupplierName") %></div>
+                                            <div style="font-size:11px;color:var(--text-dim);"><%# Eval("RMName") %> — <%# Eval("GRNNo") %></div>
+                                            <div style="font-size:10px;color:var(--text-dim);"><%# Convert.ToDateTime(Eval("InwardDate")).ToString("dd-MMM-yyyy") %></div>
+                                        </div>
+                                        <div style="text-align:right;">
+                                            <div style="font-weight:700;font-size:13px;">Rs. <%# Convert.ToDecimal(Eval("Amount")).ToString("N2") %></div>
+                                            <asp:LinkButton runat="server" CommandName="EditInvoice" CommandArgument='<%# Eval("InwardID") %>'
+                                                style="font-size:11px;color:#e67e22;font-weight:600;text-decoration:underline;cursor:pointer;">Update</asp:LinkButton>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                    <div class="rec-total" style="background:#fff8f0;border-top:2px solid #e67e22;">
+                        <span class="rec-total-label">Pending Count</span>
+                        <span class="rec-total-val" style="color:#e67e22;"><asp:Label ID="lblPendingCount" runat="server" Text="0" /></span>
+                    </div>
+                </asp:Panel>
+
+                <!-- Invoice Update Form (shown when editing) -->
+                <asp:Panel ID="pnlInvoiceUpdate" runat="server" Visible="false">
+                    <div style="padding:14px;background:#fff8f0;border-top:1px solid #ffe0b2;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#e67e22;margin-bottom:8px;">Update Invoice for GRN: <asp:Label ID="lblEditGRN" runat="server"/></div>
+                        <asp:HiddenField ID="hfEditInwardId" runat="server" Value="0"/>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                            <div class="form-group" style="flex:1;min-width:150px;">
+                                <label>Invoice Number *</label>
+                                <asp:TextBox ID="txtEditInvoiceNo" runat="server" MaxLength="50" placeholder="Enter invoice number"/>
+                            </div>
+                            <div class="form-group" style="min-width:140px;">
+                                <label>Invoice Date</label>
+                                <asp:TextBox ID="txtEditInvoiceDate" runat="server" TextMode="Date"/>
+                            </div>
+                            <asp:Button ID="btnUpdateInvoice" runat="server" Text="Save" CssClass="btn-filter"
+                                style="background:#e67e22;color:#fff;border:none;font-weight:700;padding:9px 18px;"
+                                OnClick="btnUpdateInvoice_Click" CausesValidation="false"/>
+                            <asp:Button ID="btnCancelInvoice" runat="server" Text="Cancel" CssClass="btn-filter"
+                                OnClick="btnCancelInvoice_Click" CausesValidation="false"/>
+                        </div>
+                    </div>
+                </asp:Panel>
+            </div>
+
+            <!-- SUPPLIER RECOVERABLES -->
             <div class="rec-panel">
                 <div class="rec-header">
                     <div class="rec-title">Supplier Recoverables</div>

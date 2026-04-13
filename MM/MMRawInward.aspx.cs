@@ -56,6 +56,12 @@ namespace MMApp
         protected Button btnFilter;
         protected Repeater rptGRN;
         protected Repeater rptRecoverables;
+        protected Repeater rptPending;
+        protected Panel pnlPendingEmpty, pnlPendingList, pnlInvoiceUpdate;
+        protected Label lblPendingCount, lblEditGRN;
+        protected HiddenField hfEditInwardId;
+        protected TextBox txtEditInvoiceNo, txtEditInvoiceDate;
+        protected Button btnUpdateInvoice, btnCancelInvoice;
 
         protected string RMDataJson = "{}"; // JSON for inline script
         protected void Page_Load(object sender, EventArgs e)
@@ -77,6 +83,7 @@ namespace MMApp
                 txtToDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
                 LoadGRNList();
                 LoadRecoverables(0); // blank state
+                LoadPendingInvoices();
             }
             else
             {
@@ -225,6 +232,75 @@ namespace MMApp
                 pnlRecList.Visible  = false;
                 pnlRecEmpty.Visible = true;
             }
+        }
+
+        private void LoadPendingInvoices()
+        {
+            DataTable dt = MMDatabaseHelper.GetPendingInvoiceRM();
+            if (dt.Rows.Count > 0)
+            {
+                rptPending.DataSource = dt;
+                rptPending.DataBind();
+                pnlPendingList.Visible  = true;
+                pnlPendingEmpty.Visible = false;
+                lblPendingCount.Text = dt.Rows.Count.ToString();
+            }
+            else
+            {
+                pnlPendingList.Visible  = false;
+                pnlPendingEmpty.Visible = true;
+            }
+        }
+
+        protected void rptPending_ItemCommand(object source, RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName == "EditInvoice")
+            {
+                int inwardId = Convert.ToInt32(e.CommandArgument);
+                var row = MMDatabaseHelper.GetRawInwardById(inwardId);
+                if (row != null)
+                {
+                    hfEditInwardId.Value = inwardId.ToString();
+                    lblEditGRN.Text = row["GRNNo"].ToString();
+                    txtEditInvoiceNo.Text = "";
+                    txtEditInvoiceDate.Text = "";
+                    pnlInvoiceUpdate.Visible = true;
+                }
+                LoadPendingInvoices();
+            }
+        }
+
+        protected void btnUpdateInvoice_Click(object sender, EventArgs e)
+        {
+            int inwardId = Convert.ToInt32(hfEditInwardId.Value);
+            string invoiceNo = txtEditInvoiceNo.Text.Trim();
+            if (inwardId == 0 || string.IsNullOrEmpty(invoiceNo))
+            {
+                ShowAlert("Please enter an invoice number.", false);
+                return;
+            }
+            if (invoiceNo.Equals("PENDING", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowAlert("Please enter an actual invoice number, not 'PENDING'.", false);
+                return;
+            }
+
+            DateTime? invoiceDate = null;
+            DateTime dt2;
+            if (DateTime.TryParse(txtEditInvoiceDate.Text, out dt2)) invoiceDate = dt2;
+
+            MMDatabaseHelper.UpdateInvoiceNumber("MM_RawInward", inwardId, invoiceNo, invoiceDate);
+            ShowAlert("Invoice number updated to: " + invoiceNo, true);
+            pnlInvoiceUpdate.Visible = false;
+            hfEditInwardId.Value = "0";
+            LoadPendingInvoices();
+            LoadGRNList();
+        }
+
+        protected void btnCancelInvoice_Click(object sender, EventArgs e)
+        {
+            pnlInvoiceUpdate.Visible = false;
+            hfEditInwardId.Value = "0";
         }
 
         private void LoadGRNList()
@@ -398,6 +474,7 @@ namespace MMApp
                 ClearForm();
                 LoadGRNList();
                 LoadRecoverables(0);
+                LoadPendingInvoices();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
