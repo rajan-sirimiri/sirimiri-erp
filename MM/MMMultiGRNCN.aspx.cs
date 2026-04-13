@@ -76,7 +76,7 @@ namespace MMApp
             }
             if (sb.Length > 1) sb.Length--;
             sb.Append("}");
-            RMDataJson = sb.ToString();
+            ItemDataJson = sb.ToString();
         }
 
         void BuildItemOptionsJson()
@@ -90,7 +90,7 @@ namespace MMApp
             }
             if (sb.Length > 1) sb.Length--;
             sb.Append("]");
-            RMOptionsJson = sb.ToString();
+            ItemOptionsJson = sb.ToString();
         }
 
         void BuildUOMOptionsJson()
