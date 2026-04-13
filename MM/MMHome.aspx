@@ -132,8 +132,11 @@
                 <a href="MMRawInward.aspx">Raw Material Inward (GRN)</a>
                 <a href="MMMultiGRN.aspx">Multi-Item GRN (RM)</a>
                 <a href="MMPackingInward.aspx">Packing Material Inward (GRN)</a>
+                <a href="MMMultiGRNPM.aspx">Multi-Item GRN (PM)</a>
                 <a href="MMConsumableInward.aspx">Consumable Inward (GRN)</a>
+                <a href="MMMultiGRNCN.aspx">Multi-Item GRN (CN)</a>
                 <a href="MMStationaryInward.aspx">Stationary &amp; Other Inward (GRN)</a>
+                <a href="MMMultiGRNST.aspx">Multi-Item GRN (ST)</a>
                 <a href="MMRMStockReport.aspx">Raw Material Stock Report</a>
                 <a href="MMPMStockReport.aspx">Packing Material Stock Report</a>
                 <a href="MMScrapStockReport.aspx">Scrap Material Stock Report</a>

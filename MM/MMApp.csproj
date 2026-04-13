@@ -177,6 +177,21 @@
       <DependentUpon>MMMultiGRN.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="MMMultiGRNPM.aspx" />
+    <Compile Include="MMMultiGRNPM.aspx.cs">
+      <DependentUpon>MMMultiGRNPM.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="MMMultiGRNCN.aspx" />
+    <Compile Include="MMMultiGRNCN.aspx.cs">
+      <DependentUpon>MMMultiGRNCN.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="MMMultiGRNST.aspx" />
+    <Compile Include="MMMultiGRNST.aspx.cs">
+      <DependentUpon>MMMultiGRNST.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="MMPackingInward.aspx" />
     <Compile Include="MMPackingInward.aspx.cs">
       <DependentUpon>MMPackingInward.aspx</DependentUpon>
