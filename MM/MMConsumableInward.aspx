@@ -487,7 +487,6 @@
             }
         });
     });
-    });
 
     function syncAllUOMs(src) {
         var val = src.value;
