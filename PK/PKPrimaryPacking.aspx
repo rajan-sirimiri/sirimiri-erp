@@ -386,11 +386,11 @@ input.out-inp:focus{border-color:var(--accent);}
         <div class="output-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group" id="rowJarsOut">
                 <label class="out-lbl">No. of <asp:Label ID="lblJarOutName" runat="server">Jars</asp:Label></label>
-                <input type="number" id="txtJars" runat="server" class="out-inp" min="0" step="1" placeholder="0" value="0"/>
+                <input type="number" id="txtJars" runat="server" class="out-inp" min="0" step="1" placeholder="Enter count"/>
             </div>
             <div class="form-group">
                 <label class="out-lbl">Individual Pieces (loose)</label>
-                <input type="number" id="txtUnits" runat="server" class="out-inp" min="0" step="1" placeholder="0" value="0"/>
+                <input type="number" id="txtUnits" runat="server" class="out-inp" min="0" step="1" placeholder="Enter count"/>
             </div>
         </div>
         <div class="total-bar">
@@ -431,7 +431,7 @@ input.out-inp:focus{border-color:var(--accent);}
                                 <td style="font-size:12px;"><%# Eval("Language") == DBNull.Value ? "All" : Eval("Language").ToString() %></td>
                                 <td class="num pm-calc-val" style="color:var(--text-muted);font-weight:600;">0</td>
                                 <td style="text-align:right;">
-                                    <input type="number" name="pmQty_<%# Eval("PMID") %>" class="pm-actual-qty" value="0"
+                                    <input type="number" name="pmQty_<%# Eval("PMID") %>" class="pm-actual-qty"
                                         min="0" step="0.0001" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:right;font-weight:600;"/>
                                 </td>
                                 <td style="font-size:12px;color:var(--text-muted);"><%# Eval("Abbreviation") %></td>

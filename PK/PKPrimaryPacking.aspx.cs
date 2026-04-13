@@ -430,8 +430,9 @@ namespace PKApp
             }
 
             // "All Batches Done" button — only show when:
-            // 1. This machine is in ready state (not running)
+            // 1. This machine is in ready state
             // 2. No machine has any InProgress batch
+            // 3. At least one machine has completed all batches (dropdown is empty for that machine)
             if (btnAllDone != null)
             {
                 btnAllDone.Visible = false;
@@ -442,7 +443,12 @@ namespace PKApp
                     if (orderId > 0)
                     {
                         var anyRunning = PKDatabaseHelper.GetActivePacking(orderId);
-                        btnAllDone.Visible = (anyRunning == null);
+                        if (anyRunning == null)
+                        {
+                            // Check if THIS machine has completed all batches (no pending in dropdown)
+                            var completed = PKDatabaseHelper.GetMachineCompletedBatches(orderId, MachineID);
+                            btnAllDone.Visible = (completed.Count >= total);
+                        }
                     }
                 }
             }
