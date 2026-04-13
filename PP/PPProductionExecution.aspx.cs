@@ -286,12 +286,20 @@ namespace PPApp
             {
                 try
                 {
-                    // Remarks dropdown
+                    // Remarks dropdown — filter by production line
                     if (ddlRemarks != null)
                     {
                         ddlRemarks.Items.Clear();
                         ddlRemarks.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select --",""));
-                        foreach (DataRow rr in PPDatabaseHelper.GetRemarkOptions().Rows)
+                        // Get production line for this order
+                        var orderForRemarks = PPDatabaseHelper.GetProductionOrderById(orderId);
+                        int lineId = 0;
+                        if (orderForRemarks != null && orderForRemarks["ProductionLineID"] != DBNull.Value)
+                            lineId = Convert.ToInt32(orderForRemarks["ProductionLineID"]);
+                        DataTable remarksDt = lineId > 0
+                            ? PPDatabaseHelper.GetRemarkOptionsByLine(lineId)
+                            : PPDatabaseHelper.GetRemarkOptions();
+                        foreach (DataRow rr in remarksDt.Rows)
                             ddlRemarks.Items.Add(new System.Web.UI.WebControls.ListItem(
                                 rr["OptionText"].ToString(), rr["OptionText"].ToString()));
                     }

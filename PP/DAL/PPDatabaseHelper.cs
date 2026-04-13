@@ -1427,9 +1427,76 @@ namespace PPApp.DAL
             try
             {
                 return ExecuteQuery(
-                    "SELECT OptionID, OptionText FROM PP_RemarkOptions ORDER BY SortOrder, OptionText;");
+                    "SELECT OptionID, OptionText FROM PP_RemarkOptions WHERE IsActive=1 ORDER BY SortOrder, OptionText;");
             }
             catch { return new DataTable(); }
+        }
+
+        /// <summary>Get remark options for a specific production line.</summary>
+        public static DataTable GetRemarkOptionsByLine(int lineId)
+        {
+            try
+            {
+                return ExecuteQuery(
+                    "SELECT OptionID, OptionText FROM PP_RemarkOptions WHERE LineID=?lid AND IsActive=1 ORDER BY SortOrder, OptionText;",
+                    new MySqlParameter("?lid", lineId));
+            }
+            catch { return new DataTable(); }
+        }
+
+        /// <summary>Get all remark options (including inactive) for admin page.</summary>
+        public static DataTable GetAllRemarkOptions()
+        {
+            return ExecuteQuery(
+                "SELECT ro.OptionID, ro.LineID, ro.OptionText, ro.SortOrder, ro.IsActive," +
+                " IFNULL(pl.LineName,'All Lines') AS LineName" +
+                " FROM PP_RemarkOptions ro" +
+                " LEFT JOIN PP_ProductionLines pl ON pl.LineID = ro.LineID" +
+                " ORDER BY ro.LineID, ro.SortOrder, ro.OptionText;");
+        }
+
+        /// <summary>Get remark options grouped by line for admin page.</summary>
+        public static DataTable GetRemarkOptionsByLineId(int? lineId)
+        {
+            if (lineId == null || lineId == 0)
+                return ExecuteQuery(
+                    "SELECT OptionID, LineID, OptionText, SortOrder, IsActive FROM PP_RemarkOptions ORDER BY SortOrder, OptionText;");
+            return ExecuteQuery(
+                "SELECT OptionID, LineID, OptionText, SortOrder, IsActive FROM PP_RemarkOptions WHERE LineID=?lid ORDER BY SortOrder, OptionText;",
+                new MySqlParameter("?lid", lineId));
+        }
+
+        public static void AddRemarkOption(int lineId, string text, int sortOrder)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PP_RemarkOptions (LineID, OptionText, SortOrder, IsActive) VALUES(?lid, ?txt, ?ord, 1);",
+                new MySqlParameter("?lid", lineId),
+                new MySqlParameter("?txt", text.Trim()),
+                new MySqlParameter("?ord", sortOrder));
+        }
+
+        public static void UpdateRemarkOption(int optionId, int lineId, string text, int sortOrder)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_RemarkOptions SET LineID=?lid, OptionText=?txt, SortOrder=?ord WHERE OptionID=?oid;",
+                new MySqlParameter("?lid", lineId),
+                new MySqlParameter("?txt", text.Trim()),
+                new MySqlParameter("?ord", sortOrder),
+                new MySqlParameter("?oid", optionId));
+        }
+
+        public static void ToggleRemarkOption(int optionId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_RemarkOptions SET IsActive = IF(IsActive=1,0,1) WHERE OptionID=?oid;",
+                new MySqlParameter("?oid", optionId));
+        }
+
+        public static DataRow GetRemarkOptionById(int optionId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PP_RemarkOptions WHERE OptionID=?oid;",
+                new MySqlParameter("?oid", optionId));
         }
 
         public static void SaveRemarkOptions(string[] options)

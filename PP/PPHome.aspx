@@ -138,6 +138,7 @@
             <div class="nav-dropdown">
                 <a href="PPProductModel.aspx">Product Modelling</a>
                 <a href="PPProductCatalog.aspx">Product Catalog</a>
+                <a href="PPRemarkOptions.aspx">Remark Options</a>
                 <a href="PPDailyPlan.aspx">Production Planning</a>
             </div>
         </div>
@@ -192,6 +193,14 @@
                 <div>
                     <div class="menu-title">Production<br/>Planning</div>
                     <div class="menu-desc">Create and manage production schedules, weekly and monthly plans</div>
+                </div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkRemarks" runat="server" href="PPRemarkOptions.aspx" class="menu-card cat-master">
+                <div class="menu-icon">&#x1F4DD;</div>
+                <div>
+                    <div class="menu-title">Remark<br/>Options</div>
+                    <div class="menu-desc">Configure remark options per production line for batch execution</div>
                 </div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
