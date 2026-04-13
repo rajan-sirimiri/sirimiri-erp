@@ -351,34 +351,57 @@ namespace PKApp
             var orderRow = PKDatabaseHelper.GetPackingOrderById(orderId);
             string orderStatus = orderRow != null ? orderRow["Status"].ToString() : "";
 
-            // Check for active packing on THIS machine
-            var active = MachineID > 0
-                ? PKDatabaseHelper.GetActivePackingForMachine(orderId, MachineID)
-                : PKDatabaseHelper.GetActivePacking(orderId);
-
-            if (active != null)
+            // ALWAYS check THIS machine only — never look at other machines' state
+            if (MachineID == 0)
             {
-                // This machine has a batch in progress
-                int packingId = Convert.ToInt32(active["PackingID"]);
-                int batchNo   = Convert.ToInt32(active["BatchNo"]);
-                hfPackingId.Value = packingId.ToString();
-                SetState("running", batchNo, total);
+                SetState("ready", 0, total);
+                ShowAlert("Please select a machine first.", false);
+                return;
             }
-            else if (MachineID > 0 && PKDatabaseHelper.IsMachineDone(orderId, MachineID))
+
+            // Check if THIS machine already clicked "All Batches Done"
+            if (PKDatabaseHelper.IsMachineDone(orderId, MachineID))
             {
-                // This machine already clicked "All Batches Done"
                 bool allDone = PKDatabaseHelper.AreAllBatchesPacked(orderId) || orderStatus == "Stopped";
                 if (allDone)
-                    SetState("alldone", packed, total);
+                {
+                    // All machines done — try to claim the completion for this machine
+                    PKDatabaseHelper.CreatePendingBatchCompletion(orderId);
+                    var completion = PKDatabaseHelper.GetBatchCompletion(orderId);
+                    if (completion != null && completion["Status"].ToString() == "Completed")
+                    {
+                        // Already completed by another machine
+                        SetState("waiting", packed, total);
+                        ShowAlert("Packing output has already been recorded for this order.", true);
+                    }
+                    else
+                    {
+                        // This machine gets to do the PM consumption
+                        SetState("alldone", packed, total);
+                    }
+                }
                 else
                 {
                     SetState("waiting", packed, total);
                     ShowAlert("This machine is done. Waiting for other machine(s) to finish.", true);
                 }
+                BindHistory(orderId);
+                return;
+            }
+
+            // Check for active packing on THIS machine ONLY
+            var active = PKDatabaseHelper.GetActivePackingForMachine(orderId, MachineID);
+
+            if (active != null)
+            {
+                int packingId = Convert.ToInt32(active["PackingID"]);
+                int batchNo   = Convert.ToInt32(active["BatchNo"]);
+                hfPackingId.Value = packingId.ToString();
+                SetState("running", batchNo, total);
             }
             else
             {
-                // Machine not done, no active batch — show batch selector, ready to start
+                // No active batch on this machine, not marked done — show batch selector
                 SetState("ready", 0, total);
             }
 
@@ -535,11 +558,19 @@ namespace PKApp
             if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
             if (MachineID == 0) { ShowAlert("No machine selected.", false); return; }
 
-            // Check no batch is currently in progress on this machine
+            // Check no batch is currently in progress on THIS machine
             var active = PKDatabaseHelper.GetActivePackingForMachine(orderId, MachineID);
             if (active != null)
             {
                 ShowAlert("Please END the current batch before marking all batches done.", false);
+                return;
+            }
+
+            // Check no batch is in progress on ANY machine
+            var anyActive = PKDatabaseHelper.GetActivePacking(orderId);
+            if (anyActive != null)
+            {
+                ShowAlert("Another machine still has a batch in progress. All machines must finish their current batch first.", false);
                 return;
             }
 

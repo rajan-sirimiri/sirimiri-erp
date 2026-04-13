@@ -289,7 +289,7 @@ namespace PKApp.DAL
             return ExecuteQuery(
                 "SELECT PackingID, BatchNo, StartTime, EndTime," +
                 " Cases, Jars, Units, JarSize, TotalUnits, Status, LabelLanguage" +
-                " FROM PK_PackingExecution WHERE OrderID=?oid ORDER BY BatchNo;",
+                " FROM PK_PackingExecution WHERE OrderID=?oid AND BatchNo > 0 ORDER BY BatchNo;",
                 new MySqlParameter("?oid", orderId));
         }
 
