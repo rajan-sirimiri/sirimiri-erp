@@ -702,19 +702,10 @@ namespace PKApp
                 foreach (DataRow row in pmData.Rows)
                     if (Convert.ToDecimal(row["ActualQty"]) > 0) pmCount++;
 
-                txtJars.Value = "0"; txtUnits.Value = "0";
-                string msg = "Packing saved — " + totalPcs.ToString("N0") + " individual pieces added to SFG stock.";
-                if (pmCount > 0)
-                    msg += " " + pmCount + " packing material(s) consumption recorded.";
-                ShowAlert(msg, true);
+                txtJars.Value = ""; txtUnits.Value = "";
 
-                var order  = PKDatabaseHelper.GetPackingOrderById(orderId);
-                int productionDone4 = order != null ? Convert.ToInt32(order["ProductionDone"]) : 1;
-                int total  = productionDone4;
-                int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
-                UpdateInfoLabels(packed, total);
-                SetState("ready", 0, total);
-                BindHistory(orderId);
+                // All done — redirect to PK Home
+                Response.Redirect("PKHome.aspx");
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
