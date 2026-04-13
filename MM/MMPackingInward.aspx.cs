@@ -393,7 +393,10 @@ namespace MMApp
             hfTaxable.Value               = "0";
             hfGSTAmount.Value             = "0";
             hfTotal.Value                 = "0";
+            txtInvoiceNo.ReadOnly = false;
             GenerateGRN();
+            ScriptManager.RegisterStartupScript(this.GetType(), "resetManualInv",
+                "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
         }
     }
 }

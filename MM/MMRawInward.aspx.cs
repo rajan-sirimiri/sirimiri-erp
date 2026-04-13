@@ -503,7 +503,11 @@ namespace MMApp
             chkQC.Checked = false;
             hfTaxable.Value = hfGSTAmount.Value = hfTotal.Value = "0";
             hfLoading.Value = hfUnloading.Value = hfQtyVerified.Value = "0";
+            txtInvoiceNo.ReadOnly = false;
             GenerateGRN();
+            // Reset Manual Invoice checkbox via client script
+            ScriptManager.RegisterStartupScript(this.GetType(), "resetManualInv",
+                "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
         }
     }
 }

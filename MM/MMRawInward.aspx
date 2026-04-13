@@ -181,6 +181,16 @@
             <!-- SECTION 1: Material & Supplier -->
             <div class="card">
                 <div class="card-title">Material &amp; Supplier</div>
+
+                <!-- Manual Invoice checkbox -->
+                <div style="margin-bottom:14px;padding:10px 14px;background:#fff8f0;border:1.5px solid #ffe0b2;border-radius:8px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#e67e22;">
+                        <input type="checkbox" id="chkManualInvoice" onclick="toggleManualInvoice(this.checked);"
+                            style="width:18px;height:18px;accent-color:#e67e22;cursor:pointer;"/>
+                        Manual Invoice — No Invoice Provided
+                    </label>
+                </div>
+
                 <div class="form-grid">
                     <div class="form-group" style="position:relative;">
                         <label>Raw Material <span class="req">*</span></label>
@@ -540,6 +550,27 @@
 </form>
 <script>
     var rmData = <%= RMDataJson %>;
+
+    function toggleManualInvoice(checked) {
+        var inv = document.getElementById('<%= txtInvoiceNo.ClientID %>');
+        var invDate = document.getElementById('<%= txtInvoiceDate.ClientID %>');
+        var gst = document.getElementById('<%= txtGSTRate.ClientID %>');
+        if (checked) {
+            inv.value = 'MANUAL INVOICE';
+            inv.readOnly = true;
+            inv.style.background = '#f0f0f0';
+            inv.style.color = '#999';
+            if (invDate) { invDate.value = ''; invDate.readOnly = true; invDate.style.background = '#f0f0f0'; }
+            if (gst) { gst.value = '0'; }
+        } else {
+            inv.value = '';
+            inv.readOnly = false;
+            inv.style.background = '';
+            inv.style.color = '';
+            if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
+        }
+        calcAll();
+    }
 
     // ── Modal Search Overlay (touch-friendly) ──
     var _modalOverlay = null;
