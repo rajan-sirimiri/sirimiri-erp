@@ -366,10 +366,17 @@ input.out-inp:focus{border-color:var(--accent);}
             </div>
 
         </div>
+
+        <!-- ALL BATCHES DONE button — operator clicks when this machine has finished all batches -->
+        <div style="text-align:center;margin-top:20px;">
+            <asp:Button ID="btnAllDone" runat="server" Text="&#x2714; All Batches Done on This Machine"
+                style="padding:14px 32px;background:#e74c3c;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;"
+                OnClick="btnAllDone_Click" CausesValidation="false"
+                OnClientClick="return confirm('Mark all batches as done on this machine? This cannot be undone.');"/>
+        </div>
+
     </div>
     </asp:Panel>
-
-    <!-- OUTPUT PANEL — shown after ALL batches done -->
     <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
     <div class="output-panel">
         <div class="output-title">&#x2713; All Batches Complete — Record Packed Output</div>

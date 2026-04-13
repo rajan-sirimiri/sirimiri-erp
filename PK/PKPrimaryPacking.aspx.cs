@@ -26,7 +26,7 @@ namespace PKApp
         protected HiddenField  hfSelectedUnitSize, hfSelectedCaseQty;
         protected HiddenField  hfHasLanguageLabels;
         protected HiddenField  hfLangSplit;
-        protected Button   btnLoad, btnStart, btnEnd, btnSave;
+        protected Button   btnLoad, btnStart, btnEnd, btnSave, btnAllDone;
         protected Repeater rptHistory;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtJars, txtUnits;
         protected System.Web.UI.HtmlControls.HtmlGenericControl rowLabelLanguage;
@@ -262,20 +262,9 @@ namespace PKApp
             pnlInfo.Visible      = true;
             pnlRunConfig.Visible = true;
             pnlHistory.Visible   = true;
+            pnlExecution.Visible = true;
 
-            // Check if all batches are done — show PM consumption panel
-            bool allBatchesDone = PKDatabaseHelper.AreAllBatchesPacked(orderId);
-            if (allBatchesDone || PKDatabaseHelper.HasPendingBatchCompletion(orderId))
-            {
-                pnlExecution.Visible = true;
-                SetState("alldone", packed, total);
-                BindHistory(orderId);
-            }
-            else
-            {
-                pnlExecution.Visible = true;
-                RenderState(orderId, total, packed);
-            }
+            RenderState(orderId, total, packed);
         }
 
         void BindUnitSizes(string unitSizes, string ctLabel)
@@ -360,13 +349,7 @@ namespace PKApp
         void RenderState(int orderId, int total, int packed)
         {
             var orderRow = PKDatabaseHelper.GetPackingOrderById(orderId);
-            int effectiveBatches = total;
-            string orderStatus   = "";
-            if (orderRow != null)
-            {
-                effectiveBatches = Convert.ToInt32(orderRow["TotalBatches"]);
-                orderStatus      = orderRow["Status"].ToString();
-            }
+            string orderStatus = orderRow != null ? orderRow["Status"].ToString() : "";
 
             // Check for active packing on THIS machine
             var active = MachineID > 0
@@ -381,21 +364,22 @@ namespace PKApp
                 hfPackingId.Value = packingId.ToString();
                 SetState("running", batchNo, total);
             }
-            else
+            else if (MachineID > 0 && PKDatabaseHelper.IsMachineDone(orderId, MachineID))
             {
-                // No active batch — check if ALL machines are done across all batches
+                // This machine already clicked "All Batches Done"
                 bool allDone = PKDatabaseHelper.AreAllBatchesPacked(orderId) || orderStatus == "Stopped";
-
                 if (allDone)
-                {
-                    // Every machine has completed all batches — show PM consumption
                     SetState("alldone", packed, total);
-                }
                 else
                 {
-                    // Not all done — operator can pick a batch and start
-                    SetState("ready", 0, total);
+                    SetState("waiting", packed, total);
+                    ShowAlert("This machine is done. Waiting for other machine(s) to finish.", true);
                 }
+            }
+            else
+            {
+                // Machine not done, no active batch — show batch selector, ready to start
+                SetState("ready", 0, total);
             }
 
             BindHistory(orderId);
@@ -412,27 +396,32 @@ namespace PKApp
 
             pnlOutput.Style["display"] = state == "alldone" ? "block" : "none";
 
-            // Batch selector — show when ready (operator picks batch), hide when running
+            // Batch selector — show when ready (operator picks batch), hide otherwise
             if (pnlBatchSelector != null)
-            {
-                if (state == "ready")
-                {
-                    pnlBatchSelector.Visible = true;
-                    PopulateBatchDropdown(total);
-                }
-                else
-                {
-                    pnlBatchSelector.Visible = false;
-                }
-            }
+                pnlBatchSelector.Visible = (state == "ready");
+            if (state == "ready")
+                PopulateBatchDropdown(total);
 
-            // In waiting state, disable start/end — this machine has no more batches
+            // "All Batches Done" button — show when ready (not running, not already done)
+            if (btnAllDone != null)
+                btnAllDone.Visible = (state == "ready");
+
+            // In waiting state, disable everything — this machine is done, waiting for others
             if (state == "waiting")
             {
                 btnStart.Enabled = false;
                 btnEnd.Enabled   = false;
                 hfState.Value    = "ready";
                 if (pnlBatchSelector != null) pnlBatchSelector.Visible = false;
+                if (btnAllDone != null) btnAllDone.Visible = false;
+            }
+
+            // In alldone state, hide execution controls
+            if (state == "alldone")
+            {
+                btnStart.Enabled = false;
+                btnEnd.Enabled   = false;
+                if (btnAllDone != null) btnAllDone.Visible = false;
             }
 
             // Populate PM consumption grid when output panel shows
@@ -538,6 +527,41 @@ namespace PKApp
 
             UpdateInfoLabels(packed, total);
             RenderState(orderId, total, packed);
+        }
+
+        protected void btnAllDone_Click(object s, EventArgs e)
+        {
+            int orderId = Convert.ToInt32(hfOrderId.Value);
+            if (orderId == 0) { ShowAlert("No order loaded.", false); return; }
+            if (MachineID == 0) { ShowAlert("No machine selected.", false); return; }
+
+            // Check no batch is currently in progress on this machine
+            var active = PKDatabaseHelper.GetActivePackingForMachine(orderId, MachineID);
+            if (active != null)
+            {
+                ShowAlert("Please END the current batch before marking all batches done.", false);
+                return;
+            }
+
+            // Mark this machine as done
+            PKDatabaseHelper.MarkMachineDone(orderId, MachineID, UserID);
+
+            var order = PKDatabaseHelper.GetPackingOrderById(orderId);
+            int total  = order != null ? Convert.ToInt32(order["ProductionDone"]) : 0;
+            int packed = order != null ? Convert.ToInt32(order["PackedBatches"]) : 0;
+
+            // Check if ALL machines are now done
+            if (PKDatabaseHelper.AreAllBatchesPacked(orderId))
+            {
+                SetState("alldone", packed, total);
+                ShowAlert("All machines have completed packing. Please record packed output and PM consumption.", true);
+            }
+            else
+            {
+                SetState("waiting", packed, total);
+                ShowAlert("This machine is marked as done. Waiting for other machine(s) to finish.", true);
+            }
+            BindHistory(orderId);
         }
 
         protected void btnSave_Click(object s, EventArgs e)
