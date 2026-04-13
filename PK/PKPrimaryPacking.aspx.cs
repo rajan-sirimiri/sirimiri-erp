@@ -423,11 +423,29 @@ namespace PKApp
             if (pnlBatchSelector != null)
                 pnlBatchSelector.Visible = (state == "ready");
             if (state == "ready")
-                PopulateBatchDropdown(total);
+            {
+                int orderId = 0;
+                int.TryParse(hfOrderId.Value, out orderId);
+                PopulateBatchDropdown(total, orderId);
+            }
 
-            // "All Batches Done" button — show when ready (not running, not already done)
+            // "All Batches Done" button — only show when:
+            // 1. This machine is in ready state (not running)
+            // 2. No machine has any InProgress batch
             if (btnAllDone != null)
-                btnAllDone.Visible = (state == "ready");
+            {
+                btnAllDone.Visible = false;
+                if (state == "ready")
+                {
+                    int orderId = 0;
+                    int.TryParse(hfOrderId.Value, out orderId);
+                    if (orderId > 0)
+                    {
+                        var anyRunning = PKDatabaseHelper.GetActivePacking(orderId);
+                        btnAllDone.Visible = (anyRunning == null);
+                    }
+                }
+            }
 
             // In waiting state, disable everything — this machine is done, waiting for others
             if (state == "waiting")
@@ -454,13 +472,22 @@ namespace PKApp
                 pnlPMConsumption.Visible = false;
         }
 
-        void PopulateBatchDropdown(int total)
+        void PopulateBatchDropdown(int total, int orderId)
         {
             if (ddlBatchNo == null) return;
             ddlBatchNo.Items.Clear();
+
+            // Get batches this machine has already completed — exclude them
+            var completedBatches = MachineID > 0 && orderId > 0
+                ? PKDatabaseHelper.GetMachineCompletedBatches(orderId, MachineID)
+                : new System.Collections.Generic.HashSet<int>();
+
             for (int i = 1; i <= total; i++)
-                ddlBatchNo.Items.Add(new ListItem("Batch " + i, i.ToString()));
-            // Default to first item
+            {
+                if (!completedBatches.Contains(i))
+                    ddlBatchNo.Items.Add(new ListItem("Batch " + i, i.ToString()));
+            }
+
             if (ddlBatchNo.Items.Count > 0)
                 ddlBatchNo.SelectedIndex = 0;
         }

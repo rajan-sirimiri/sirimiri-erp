@@ -1777,6 +1777,20 @@ namespace PKApp.DAL
             return row != null ? Convert.ToInt32(Convert.ToInt64(row["Cnt"])) : 0;
         }
 
+        /// <summary>Get set of batch numbers this machine has completed for an order.</summary>
+        public static System.Collections.Generic.HashSet<int> GetMachineCompletedBatches(int orderId, int machineId)
+        {
+            var set = new System.Collections.Generic.HashSet<int>();
+            var dt = ExecuteQuery(
+                "SELECT DISTINCT BatchNo FROM PK_PackingExecution" +
+                " WHERE OrderID=?oid AND MachineID=?mid AND Status='Completed' AND BatchNo > 0;",
+                new MySqlParameter("?oid", orderId),
+                new MySqlParameter("?mid", machineId));
+            foreach (DataRow r in dt.Rows)
+                set.Add(Convert.ToInt32(r["BatchNo"]));
+            return set;
+        }
+
         // Check if all machines have marked themselves done via "All Batches Done" button
         public static bool AreAllBatchesPacked(int orderId)
         {

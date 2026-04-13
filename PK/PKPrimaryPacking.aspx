@@ -369,10 +369,10 @@ input.out-inp:focus{border-color:var(--accent);}
 
         <!-- ALL BATCHES DONE button — operator clicks when this machine has finished all batches -->
         <div style="text-align:center;margin-top:20px;">
-            <asp:Button ID="btnAllDone" runat="server" Text="&#x2714; All Batches Done on This Machine"
+            <asp:Button ID="btnAllDone" runat="server" Text="&#x2714; All Batches Done in All Machines"
                 style="padding:14px 32px;background:#e74c3c;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.03em;"
                 OnClick="btnAllDone_Click" CausesValidation="false"
-                OnClientClick="return confirm('Mark all batches as done on this machine? This cannot be undone.');"/>
+                OnClientClick="return confirm('Confirm that all batches are done across all machines?');"/>
         </div>
 
     </div>
