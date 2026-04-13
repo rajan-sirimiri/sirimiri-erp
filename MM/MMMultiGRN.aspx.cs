@@ -224,10 +224,9 @@ namespace MMApp
                 foreach (var item in payload.Items)
                 {
                     int rmId = Convert.ToInt32(item.RmId);
-                    decimal qtyInv, qtyAct, qtyUom, rate;
+                    decimal qtyInv, qtyAct, rate;
                     decimal.TryParse(item.QtyInv, out qtyInv);
                     decimal.TryParse(item.QtyAct, out qtyAct);
-                    decimal.TryParse(item.QtyUom, out qtyUom);
                     decimal.TryParse(item.Rate, out rate);
 
                     decimal? gstRate = null;
@@ -249,14 +248,23 @@ namespace MMApp
                     string grnNo = MMDatabaseHelper.GenerateGRNNumber("RM");
                     bool qc = item.Qc == "1";
 
+                    // Build remarks with supplier invoice qty if provided
+                    string remarks = "Multi-GRN";
+                    if (!string.IsNullOrEmpty(item.SupQty) && item.SupQty != "0")
+                    {
+                        string supUom = !string.IsNullOrEmpty(item.SupUom) ? " " + item.SupUom : "";
+                        remarks = "[Supplier Invoice: " + item.SupQty + supUom + "] " + remarks;
+                    }
+
+                    // qtyInv = Standard Qty (stored as Quantity and QtyInUOM)
                     MMDatabaseHelper.AddRawInward(
                         grnNo, grnDate, invoiceDate,
                         payload.InvoiceNo, supplierId, rmId,
-                        qtyInv, qtyAct, qtyUom, rate,
+                        qtyInv, qtyAct, qtyInv, rate,
                         item.Hsn, gstRate, gstAmt,
                         lineTransport, transInInvoice, transGST,
                         0, 0, true,
-                        total, "", "Multi-GRN",
+                        total, "", remarks,
                         qc, "Approved", userId);
 
                     savedCount++;
@@ -321,7 +329,8 @@ namespace MMApp
                         RmId = ExtractString("{" + b + "}", "rmId"),
                         QtyInv = ExtractString("{" + b + "}", "qtyInv"),
                         QtyAct = ExtractString("{" + b + "}", "qtyAct"),
-                        QtyUom = ExtractString("{" + b + "}", "qtyUom"),
+                        SupQty = ExtractString("{" + b + "}", "supQty"),
+                        SupUom = ExtractString("{" + b + "}", "supUom"),
                         Rate = ExtractString("{" + b + "}", "rate"),
                         Hsn = ExtractString("{" + b + "}", "hsn"),
                         Gst = ExtractString("{" + b + "}", "gst"),
@@ -365,7 +374,7 @@ namespace MMApp
 
         class LineItemData
         {
-            public string RmId, QtyInv, QtyAct, QtyUom, Rate, Hsn, Gst, Qc;
+            public string RmId, QtyInv, QtyAct, SupQty, SupUom, Rate, Hsn, Gst, Qc;
         }
     }
 }

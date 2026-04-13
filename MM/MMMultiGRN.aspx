@@ -157,11 +157,11 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             <table class="items-table" id="tblItems">
                 <thead><tr>
                     <th class="col-rm">Raw Material *</th>
-                    <th class="col-num">Inv Qty *</th>
-                    <th class="col-sm">UOM</th>
-                    <th class="col-num">Act Qty *</th>
                     <th class="col-num">Std Qty *</th>
                     <th class="col-sm">Std UOM</th>
+                    <th class="col-num">Sup Qty</th>
+                    <th class="col-sm">Sup UOM</th>
+                    <th class="col-num">Act Qty *</th>
                     <th class="col-num">Rate *</th>
                     <th class="col-sm">HSN</th>
                     <th class="col-sm">GST%</th>
@@ -365,10 +365,10 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         tr.innerHTML =
             '<td class="col-rm">'+buildRMSelect(rowIdx)+'</td>' +
             '<td class="col-num"><input type="number" id="qtyInv_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
-            '<td class="col-sm">'+buildUOMSelect(rowIdx, 'invUom')+'</td>' +
-            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
-            '<td class="col-num"><input type="number" id="qtyUom_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
             '<td class="col-sm">'+buildUOMSelect(rowIdx, 'stdUom')+'</td>' +
+            '<td class="col-num"><input type="number" id="supQty_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
+            '<td class="col-sm">'+buildUOMSelect(rowIdx, 'supUom')+'</td>' +
+            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
             '<td class="col-num"><input type="number" id="rate_'+rowIdx+'" step="0.01" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
             '<td class="col-sm"><input type="text" id="hsn_'+rowIdx+'" maxlength="10" style="width:60px;"/></td>' +
             '<td class="col-sm"><input type="number" id="gst_'+rowIdx+'" step="0.01" min="0" placeholder="0" oninput="calcRow('+rowIdx+');"/></td>' +
@@ -400,9 +400,9 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         if (d) {
             document.getElementById('hsn_'+idx).value = d.hsn || '';
             document.getElementById('gst_'+idx).value = d.gst || '';
-            // Auto-select UOM dropdowns to match RM master UOM
-            selectUOMById('invUom_'+idx, d.uomId);
+            // Auto-select both UOM dropdowns to match RM master UOM
             selectUOMById('stdUom_'+idx, d.uomId);
+            selectUOMById('supUom_'+idx, d.uomId);
         }
         calcRow(idx);
     }
@@ -480,13 +480,18 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             if (rmId === '0') { hasError = true; return; }
             var qtyInv = document.getElementById('qtyInv_'+idx)?.value || '';
             var qtyAct = document.getElementById('qtyAct_'+idx)?.value || '';
-            var qtyUom = document.getElementById('qtyUom_'+idx)?.value || '';
+            var supQty = document.getElementById('supQty_'+idx)?.value || '';
             var rate = document.getElementById('rate_'+idx)?.value || '';
-            if (!qtyInv || !qtyAct || !qtyUom || !rate) { hasError = true; return; }
+            if (!qtyInv || !qtyAct || !rate) { hasError = true; return; }
+
+            // Get supplier UOM text for remarks
+            var supUomDdl = document.getElementById('supUom_'+idx);
+            var supUomText = supUomDdl && supUomDdl.selectedIndex >= 0 ? supUomDdl.options[supUomDdl.selectedIndex].text : '';
 
             items.push({
                 rmId: rmId,
-                qtyInv: qtyInv, qtyAct: qtyAct, qtyUom: qtyUom,
+                qtyInv: qtyInv, qtyAct: qtyAct,
+                supQty: supQty, supUom: supUomText,
                 rate: rate,
                 hsn: document.getElementById('hsn_'+idx)?.value || '',
                 gst: document.getElementById('gst_'+idx)?.value || '0',
@@ -494,7 +499,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             });
         });
 
-        if (hasError || items.length === 0) { alert('Please fill all required fields (Material, Qty, Rate) for each line item.'); return false; }
+        if (hasError || items.length === 0) { alert('Please fill all required fields (Material, Std Qty, Act Qty, Rate) for each line item.'); return false; }
 
         // Pack header + items into hidden field
         var payload = {
