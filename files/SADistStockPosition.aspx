@@ -9,44 +9,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
-    --bg: #0f1117;
-    --surface: #181a22;
-    --surface-alt: #1e2130;
-    --border: #2a2d3a;
-    --border-light: #353849;
-    --text: #e4e6ef;
-    --text-muted: #8b8fa5;
-    --text-dim: #5c6078;
-    --accent: #2980b9;
-    --accent-glow: rgba(41,128,185,0.15);
-
-    --stock-bg: #1a2744;
-    --stock-border: #2a4a7a;
-    --stock-text: #5b9cf5;
-    --stock-head: #3b7ddb;
-
-    --payment-bg: #1a3a2a;
-    --payment-border: #2a6a4a;
-    --payment-text: #4ecb71;
-    --payment-head: #34a853;
-
-    --closing-bg: #3a2a1a;
-    --closing-border: #6a4a2a;
-    --closing-text: #f5a623;
-    --closing-head: #e09422;
-
-    --state-bg: #12141d;
-    --state-border: #2980b9;
-
-    --frozen-w: 420px;
-    --row-h: 40px;
-    --state-h: 36px;
-    --hdr-h: 72px;
-    --date-w: 270px;
-    --cell-w: 90px;
+    --bg:#0f1117; --surface:#181a22; --surface-alt:#1e2130;
+    --border:#2a2d3a; --border-light:#353849;
+    --text:#e4e6ef; --text-muted:#8b8fa5; --text-dim:#5c6078;
+    --accent:#2980b9; --accent-glow:rgba(41,128,185,0.15);
+    --stock-bg:#1a2744; --stock-border:#2a4a7a; --stock-text:#5b9cf5; --stock-head:#3b7ddb;
+    --payment-bg:#1a3a2a; --payment-border:#2a6a4a; --payment-text:#4ecb71; --payment-head:#34a853;
+    --closing-bg:#3a2a1a; --closing-border:#6a4a2a; --closing-text:#f5a623; --closing-head:#e09422;
+    --state-bg:#12141d; --state-border:#2980b9;
+    --frozen-w:420px; --row-h:40px; --state-h:36px; --hdr-h:72px; --date-w:270px; --cell-w:90px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+#form1{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
 
 /* ── Top Bar ── */
 .topbar{background:#000;height:48px;display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;border-bottom:1px solid var(--border);}
@@ -60,10 +35,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .topbar .nav-links a:hover{background:var(--surface-alt);color:var(--text);}
 
 /* ── Controls Bar ── */
-.controls-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:20px;flex-shrink:0;flex-wrap:wrap;}
-.legend{display:flex;gap:16px;align-items:center;}
-.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;}
-.legend-swatch{width:14px;height:14px;border-radius:3px;}
+.controls-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap;}
+.legend{display:flex;gap:14px;align-items:center;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;}
+.legend-swatch{width:12px;height:12px;border-radius:3px;}
 .legend-swatch.stock{background:var(--stock-bg);border:1px solid var(--stock-border);}
 .legend-swatch.payment{background:var(--payment-bg);border:1px solid var(--payment-border);}
 .legend-swatch.closing{background:var(--closing-bg);border:1px solid var(--closing-border);}
@@ -72,9 +47,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .label-closing{color:var(--closing-text);}
 .controls-bar .info{font-size:11px;color:var(--text-dim);}
 
-/* ── Filter checkbox ── */
-.filter-check{display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none;}
-.filter-check input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+/* ── Filter Bar ── */
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap;}
+.filter-label{font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.state-filters{display:flex;gap:6px;align-items:center;}
+.state-btn{
+    padding:5px 14px;border-radius:4px;font-size:11px;font-weight:600;
+    border:1px solid var(--border);background:transparent;color:var(--text-muted);
+    cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;
+}
+.state-btn:hover{border-color:var(--accent);color:var(--text);}
+.state-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.filter-sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+.filter-check{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--text-muted);user-select:none;}
+.filter-check input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
 .filter-check:hover{color:var(--text);}
 
 /* ── Loading ── */
@@ -83,16 +69,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ════════════════════════════════════════════
-   LAYOUT: Outer wrapper is flex-column filling remaining height.
-   Inside we have:
-     1) A fixed-height HEADER row (date headers) — not scrollable vertically
-     2) A BODY area that scrolls VERTICALLY via a single scrollable container
-        The body contains frozen-left + data-right side by side.
-        Horizontal scroll is on the data side only.
+   LAYOUT: flex column fills viewport.
+   Header row = fixed height. Body row = flex:1.
+   Inside body: frozen-col (fixed width) + data-col (flex:1, overflow:auto).
+   data-col is the SINGLE scroll master for both H and V.
    ════════════════════════════════════════════ */
 .report-outer{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
 
-/* ── Header Row (frozen vertically, scrolls horizontally via JS) ── */
+/* Header row */
 .hdr-row{display:flex;flex-shrink:0;height:var(--hdr-h);border-bottom:2px solid var(--border);}
 .hdr-frozen{width:var(--frozen-w);flex-shrink:0;background:#000;border-right:2px solid var(--accent);display:flex;flex-direction:column;z-index:30;box-shadow:4px 0 12px rgba(0,0,0,0.3);}
 .hdr-frozen-top{height:38px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);}
@@ -109,19 +93,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .sub-header-cell.payment{color:var(--payment-head);border-bottom:2px solid var(--payment-head);}
 .sub-header-cell.closing{color:var(--closing-head);border-bottom:2px solid var(--closing-head);}
 
-/* ── Body Area — this is the SINGLE vertical scroll container ── */
-.body-row{flex:1;display:flex;overflow:hidden;}
+/* Body row */
+.body-row{flex:1;display:flex;overflow:hidden;min-height:0;} /* min-height:0 is KEY for flex child to allow shrinking */
 
-/* Frozen body: scrolls vertically via JS sync, no horizontal scroll */
 .frozen-col{width:var(--frozen-w);flex-shrink:0;overflow:hidden;background:var(--surface);border-right:2px solid var(--accent);z-index:15;box-shadow:4px 0 12px rgba(0,0,0,0.3);}
 
-/* Data body: scrolls BOTH horizontally and vertically — THIS is the scroll master */
-.data-col{flex:1;overflow:auto;}
+.data-col{flex:1;overflow:auto;min-width:0;} /* min-width:0 allows flex child to shrink below content */
 .data-col::-webkit-scrollbar{height:10px;width:10px;}
 .data-col::-webkit-scrollbar-track{background:var(--surface);}
 .data-col::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:5px;}
 .data-col::-webkit-scrollbar-thumb:hover{background:var(--text-dim);}
 .data-col::-webkit-scrollbar-corner{background:var(--surface);}
+
+/* dataInner gets explicit width via JS so horizontal scroll works */
+#dataInner{display:block;}
 
 /* ── Frozen Rows ── */
 .frozen-row{height:var(--row-h);display:grid;grid-template-columns:100px 1fr 80px;align-items:center;padding:0 12px;border-bottom:1px solid var(--border);font-size:12px;transition:background 0.12s;}
@@ -135,13 +120,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .frozen-state-row .state-name{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--accent);}
 .frozen-state-row .state-count{font-size:11px;color:var(--text-dim);}
 .frozen-state-row .state-total{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--payment-text);}
-.data-state-row{height:var(--state-h);display:flex;background:var(--state-bg);border-bottom:2px solid var(--state-border);border-top:1px solid var(--border-light);}
+.data-state-row{height:var(--state-h);background:var(--state-bg);border-bottom:2px solid var(--state-border);border-top:1px solid var(--border-light);}
 
 /* ── Data Rows ── */
 .data-row{display:flex;height:var(--row-h);border-bottom:1px solid var(--border);transition:background 0.12s;}
 .data-row:hover{background:rgba(255,255,255,0.02);}
-.day-group{width:var(--date-w);min-width:var(--date-w);display:flex;border-right:1px solid var(--border);}
-.data-cell{width:var(--cell-w);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:500;border-right:1px solid rgba(255,255,255,0.03);}
+.day-group{width:var(--date-w);min-width:var(--date-w);display:flex;border-right:1px solid var(--border);flex-shrink:0;}
+.data-cell{width:var(--cell-w);min-width:var(--cell-w);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:500;border-right:1px solid rgba(255,255,255,0.03);flex-shrink:0;}
 .data-cell.stock{background:var(--stock-bg);color:var(--stock-text);border-right-color:var(--stock-border);}
 .data-cell.payment{background:var(--payment-bg);color:var(--payment-text);border-right-color:var(--payment-border);}
 .data-cell.closing{background:var(--closing-bg);color:var(--closing-text);border-right-color:var(--closing-border);}
@@ -152,7 +137,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .day-group.sunday{opacity:.5;}
 .day-group.today .data-cell{box-shadow:inset 0 0 0 1px var(--accent);}
 
-/* ── Hidden rows when filtered ── */
 .row-hidden{display:none !important;}
 </style>
 </head>
@@ -182,21 +166,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
         <div class="legend-item"><div class="legend-swatch closing"></div><span class="label-closing">Closing Stock</span></div>
     </div>
     <span class="info" id="distributorCount"></span>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <span class="filter-label">State</span>
+    <div class="state-filters" id="stateFilters">
+        <button type="button" class="state-btn active" data-state="ALL" onclick="filterState(this)">All States</button>
+        <button type="button" class="state-btn" data-state="Tamil Nadu" onclick="filterState(this)">Tamil Nadu</button>
+        <button type="button" class="state-btn" data-state="Karnataka" onclick="filterState(this)">Karnataka</button>
+        <button type="button" class="state-btn" data-state="Andhra Pradesh" onclick="filterState(this)">Andhra Pradesh</button>
+        <button type="button" class="state-btn" data-state="Telangana" onclick="filterState(this)">Telangana</button>
+    </div>
+    <div class="filter-sep"></div>
     <label class="filter-check">
-        <input type="checkbox" id="chkActiveOnly" onclick="applyFilter()"/>
-        Show only Distributors/Stockists to whom Stock sent in 90 days
+        <input type="checkbox" id="chkActiveOnly" onchange="applyFilters()"/>
+        Show only Distributors / Stockists to whom Stock sent in 90 days
     </label>
 </div>
 
 <!-- Report -->
 <div class="report-outer" id="reportOuter">
-    <!-- Loading -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <span>Loading distributor data...</span>
     </div>
 
-    <!-- HEADER ROW: frozen header left + scrollable date headers right -->
+    <!-- HEADER: frozen left + scrollable date headers -->
     <div class="hdr-row" id="hdrRow" style="display:none;">
         <div class="hdr-frozen">
             <div class="hdr-frozen-top">Distributor Details</div>
@@ -212,7 +208,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
         </div>
     </div>
 
-    <!-- BODY ROW: frozen left column + scrollable data right -->
+    <!-- BODY: frozen left + scrollable data (THIS is the scroll master) -->
     <div class="body-row" id="bodyRow" style="display:none;">
         <div class="frozen-col" id="frozenCol">
             <div id="frozenInner"></div>
@@ -230,220 +226,191 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
     var DAYS = 90;
     var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
     var today = new Date(); today.setHours(0,0,0,0);
     var dates = [];
-    for (var i = DAYS - 1; i >= 0; i--) { var d = new Date(today); d.setDate(d.getDate() - i); dates.push(d); }
+    for (var i=DAYS-1;i>=0;i--){ var d=new Date(today); d.setDate(d.getDate()-i); dates.push(d); }
 
-    function fmtKey(d) {
-        var m = d.getMonth()+1, dy = d.getDate();
-        return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(dy<10?'0':'')+dy;
+    var TOTAL_DATA_WIDTH = dates.length * 270; // 90 * 270 = 24300px
+
+    function fmtKey(d){var m=d.getMonth()+1,dy=d.getDate();return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(dy<10?'0':'')+dy;}
+    function fmtDateFull(d){return dayNames[d.getDay()]+', '+d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();}
+    function isToday(d){return d.getTime()===today.getTime();}
+    function isSunday(d){return d.getDay()===0;}
+    function fmtAmount(n){
+        if(n>=10000000)return'\u20B9'+(n/10000000).toFixed(1)+'Cr';
+        if(n>=100000)return'\u20B9'+(n/100000).toFixed(1)+'L';
+        if(n>=1000)return'\u20B9'+(n/1000).toFixed(0)+'K';
+        return'\u20B9'+n;
     }
-    function fmtDateFull(d) { return dayNames[d.getDay()]+', '+d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear(); }
-    function isToday(d) { return d.getTime()===today.getTime(); }
-    function isSunday(d) { return d.getDay()===0; }
-    function fmtAmount(n) {
-        if(n>=10000000) return '\u20B9'+(n/10000000).toFixed(1)+'Cr';
-        if(n>=100000) return '\u20B9'+(n/100000).toFixed(1)+'L';
-        if(n>=1000) return '\u20B9'+(n/1000).toFixed(0)+'K';
-        return '\u20B9'+n;
-    }
-    function fmtLakh(n) {
-        if(n>=10000000) return '\u20B9'+(n/10000000).toFixed(1)+'Cr';
-        if(n>=100000) return '\u20B9'+(n/100000).toFixed(1)+'L';
-        if(n>=1000) return '\u20B9'+(n/1000).toFixed(0)+'K';
-        if(n>0) return '\u20B9'+Math.round(n);
-        return '';
+    function fmtLakh(n){
+        if(n>=10000000)return'\u20B9'+(n/10000000).toFixed(1)+'Cr';
+        if(n>=100000)return'\u20B9'+(n/100000).toFixed(1)+'L';
+        if(n>=1000)return'\u20B9'+(n/1000).toFixed(0)+'K';
+        if(n>0)return'\u20B9'+Math.round(n);
+        return'';
     }
 
     document.getElementById('dateRangeLabel').textContent =
         fmtDateFull(dates[0])+'  \u2192  '+fmtDateFull(dates[dates.length-1]);
 
-    // ── Data ──
-    var distributors = [], stockData = {};
-    // Track which distributor IDs have any stock sent in 90 days
-    var activeDistIds = {};
+    var distributors=[], stockData={}, activeDistIds={};
+    var currentStateFilter = 'ALL';
 
-    function fetchJSON(url,cb) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET',url,true);
-        xhr.onreadystatechange = function() {
-            if(xhr.readyState===4) {
-                if(xhr.status===200) { try{cb(null,JSON.parse(xhr.responseText));}catch(e){cb(e,null);} }
-                else cb(new Error('HTTP '+xhr.status),null);
-            }
-        };
+    function fetchJSON(url,cb){
+        var xhr=new XMLHttpRequest();xhr.open('GET',url,true);
+        xhr.onreadystatechange=function(){if(xhr.readyState===4){if(xhr.status===200){try{cb(null,JSON.parse(xhr.responseText));}catch(e){cb(e,null);}}else cb(new Error('HTTP '+xhr.status),null);}};
         xhr.send();
     }
 
-    fetchJSON('SADistStockAPI.ashx?action=distributors', function(err,data) {
-        if(err||!data) {
-            document.getElementById('loadingOverlay').innerHTML =
-                '<span style="color:#e63946;">Failed to load distributors. Please refresh.</span>';
-            return;
-        }
-        distributors = data;
-        fetchJSON('SADistStockAPI.ashx?action=stockData&days='+DAYS, function(err2,data2) {
-            stockData = (!err2 && data2) ? data2 : {};
-            // Build activeDistIds: any distributor that has at least one "s" (stock sent) entry
-            for (var did in stockData) {
-                var dayData = stockData[did];
-                for (var dk in dayData) {
-                    if (dayData[dk].s) { activeDistIds[did] = true; break; }
-                }
-            }
+    fetchJSON('SADistStockAPI.ashx?action=distributors',function(err,data){
+        if(err||!data){document.getElementById('loadingOverlay').innerHTML='<span style="color:#e63946;">Failed to load distributors. Please refresh.</span>';return;}
+        distributors=data;
+        fetchJSON('SADistStockAPI.ashx?action=stockData&days='+DAYS,function(err2,data2){
+            stockData=(!err2&&data2)?data2:{};
+            for(var did in stockData){var dd=stockData[did];for(var dk in dd){if(dd[dk].s){activeDistIds[did]=true;break;}}}
             renderReport();
         });
     });
 
-    // ── Make filter function global ──
-    window.applyFilter = function() {
-        var checked = document.getElementById('chkActiveOnly').checked;
-        var frozenRows = document.querySelectorAll('[data-did]');
-        var visibleCount = 0;
-        // Also handle state rows
-        var stateRows = document.querySelectorAll('[data-state]');
-        var stateVisible = {};
+    // ── State filter ──
+    window.filterState = function(btn) {
+        var btns = document.querySelectorAll('.state-btn');
+        btns.forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentStateFilter = btn.getAttribute('data-state');
+        applyFilters();
+    };
 
-        frozenRows.forEach(function(el) {
+    // ── Combined filter (state + active-only) ──
+    window.applyFilters = function() {
+        var activeOnly = document.getElementById('chkActiveOnly').checked;
+        var allEls = document.querySelectorAll('[data-did]');
+        var stateEls = document.querySelectorAll('[data-state]');
+        var stateVisible = {};
+        var visibleCount = 0;
+
+        allEls.forEach(function(el) {
             var did = el.getAttribute('data-did');
             var state = el.getAttribute('data-state-parent');
-            var hide = checked && !activeDistIds[did];
+            var hideState = (currentStateFilter !== 'ALL' && state !== currentStateFilter);
+            var hideActive = (activeOnly && !activeDistIds[did]);
+            var hide = hideState || hideActive;
             el.classList.toggle('row-hidden', hide);
-            if (!hide && state) {
+            if (!hide) {
                 stateVisible[state] = (stateVisible[state]||0) + 1;
-                visibleCount++;
+                // Count only frozen-rows (not data-rows) to avoid double counting
+                if (el.classList.contains('frozen-row')) visibleCount++;
             }
         });
 
-        stateRows.forEach(function(el) {
+        stateEls.forEach(function(el) {
             var state = el.getAttribute('data-state');
+            var hideState = (currentStateFilter !== 'ALL' && state !== currentStateFilter);
             var cnt = stateVisible[state] || 0;
-            el.classList.toggle('row-hidden', checked && cnt === 0);
-            // Update count label
+            el.classList.toggle('row-hidden', hideState || cnt === 0);
             var cntEl = el.querySelector('.state-count');
-            if (cntEl && !checked) {
-                cntEl.textContent = el.getAttribute('data-orig-count') + ' distributors';
-            } else if (cntEl && checked) {
-                cntEl.textContent = cnt + ' active';
-            }
+            if (cntEl) cntEl.textContent = cnt + ' distributors';
         });
 
-        if (!checked) visibleCount = distributors.length;
         document.getElementById('distributorCount').textContent = visibleCount + ' distributors shown';
     };
 
     function renderReport() {
-        if(distributors.length===0) {
-            document.getElementById('loadingOverlay').innerHTML='<span>No distributors found.</span>';
-            return;
-        }
+        if(distributors.length===0){document.getElementById('loadingOverlay').innerHTML='<span>No distributors found.</span>';return;}
 
         document.getElementById('loadingOverlay').style.display='none';
         document.getElementById('hdrRow').style.display='';
         document.getElementById('bodyRow').style.display='';
-        document.getElementById('distributorCount').textContent = distributors.length + ' distributors shown';
+        document.getElementById('distributorCount').textContent=distributors.length+' distributors shown';
 
         // ── Group by state ──
-        var stateMap = {}, stateOrder = [];
-        for (var i=0; i<distributors.length; i++) {
-            var d = distributors[i];
-            if (!stateMap[d.state]) { stateMap[d.state]=[]; stateOrder.push(d.state); }
+        var stateMap={}, stateOrder=[];
+        for(var i=0;i<distributors.length;i++){
+            var d=distributors[i];
+            if(!stateMap[d.state]){stateMap[d.state]=[];stateOrder.push(d.state);}
             stateMap[d.state].push(d);
         }
 
-        // ── Build date headers ──
-        var dateHeaderRow = document.getElementById('dateHeaderRow');
-        var subHeaderRow = document.getElementById('subHeaderRow');
-        var dhFrag = document.createDocumentFragment();
-        var shFrag = document.createDocumentFragment();
-        for (var i=0; i<dates.length; i++) {
-            var dt = dates[i];
-            var cell = document.createElement('div');
-            cell.className = 'date-header-cell';
-            if(isToday(dt)) cell.classList.add('today');
-            if(isSunday(dt)) cell.classList.add('sunday');
-            cell.textContent = dayNames[dt.getDay()]+' \u00B7 '+dt.getDate()+' '+months[dt.getMonth()];
+        // ── Date headers ──
+        var dateHeaderRow=document.getElementById('dateHeaderRow');
+        var subHeaderRow=document.getElementById('subHeaderRow');
+        var dhFrag=document.createDocumentFragment();
+        var shFrag=document.createDocumentFragment();
+        for(var i=0;i<dates.length;i++){
+            var dt=dates[i];
+            var cell=document.createElement('div');
+            cell.className='date-header-cell';
+            if(isToday(dt))cell.classList.add('today');
+            if(isSunday(dt))cell.classList.add('sunday');
+            cell.textContent=dayNames[dt.getDay()]+' \u00B7 '+dt.getDate()+' '+months[dt.getMonth()];
             dhFrag.appendChild(cell);
-
-            var grp = document.createElement('div');
-            grp.className = 'sub-header-group';
-            grp.innerHTML = '<div class="sub-header-cell stock">Sent</div><div class="sub-header-cell payment">Paid</div><div class="sub-header-cell closing">Close</div>';
+            var grp=document.createElement('div');
+            grp.className='sub-header-group';
+            grp.innerHTML='<div class="sub-header-cell stock">Sent</div><div class="sub-header-cell payment">Paid</div><div class="sub-header-cell closing">Close</div>';
             shFrag.appendChild(grp);
         }
         dateHeaderRow.appendChild(dhFrag);
         subHeaderRow.appendChild(shFrag);
 
-        // ── Build body rows ──
-        var frozenInner = document.getElementById('frozenInner');
-        var dataInner = document.getElementById('dataInner');
-        var fFrag = document.createDocumentFragment();
-        var dFrag = document.createDocumentFragment();
-        var totalDataWidth = dates.length * 270;
-        var rowIdx = 0;
+        // ── Body rows ──
+        var frozenInner=document.getElementById('frozenInner');
+        var dataInner=document.getElementById('dataInner');
 
-        for (var si=0; si<stateOrder.length; si++) {
-            var stateName = stateOrder[si];
-            var stateDists = stateMap[stateName];
-            var stateTotal = 0;
-            for (var j=0; j<stateDists.length; j++) stateTotal += (stateDists[j].mv||0);
+        // KEY FIX: set explicit width on dataInner so horizontal scroll triggers
+        dataInner.style.width = TOTAL_DATA_WIDTH + 'px';
 
-            // ── State header — frozen side ──
-            var srf = document.createElement('div');
-            srf.className = 'frozen-state-row';
-            srf.setAttribute('data-state', stateName);
-            srf.setAttribute('data-orig-count', stateDists.length);
-            srf.innerHTML =
-                '<span class="state-name">'+esc(stateName)+'</span>'+
-                '<span class="state-count">'+stateDists.length+' distributors</span>'+
-                '<span class="state-total">'+(stateTotal>0?fmtLakh(stateTotal)+' /30d':'')+'</span>';
+        var fFrag=document.createDocumentFragment();
+        var dFrag=document.createDocumentFragment();
+        var rowIdx=0;
+
+        for(var si=0;si<stateOrder.length;si++){
+            var stateName=stateOrder[si];
+            var stateDists=stateMap[stateName];
+            var stateTotal=0;
+            for(var j=0;j<stateDists.length;j++) stateTotal+=(stateDists[j].mv||0);
+
+            // State header — frozen
+            var srf=document.createElement('div');
+            srf.className='frozen-state-row';
+            srf.setAttribute('data-state',stateName);
+            srf.innerHTML='<span class="state-name">'+esc(stateName)+'</span><span class="state-count">'+stateDists.length+' distributors</span><span class="state-total">'+(stateTotal>0?fmtLakh(stateTotal)+' /30d':'')+'</span>';
             fFrag.appendChild(srf);
 
-            // ── State header — data side ──
-            var srd = document.createElement('div');
-            srd.className = 'data-state-row';
-            srd.setAttribute('data-state', stateName);
-            srd.style.width = totalDataWidth+'px';
+            // State header — data
+            var srd=document.createElement('div');
+            srd.className='data-state-row';
+            srd.setAttribute('data-state',stateName);
             dFrag.appendChild(srd);
 
-            // ── Distributor rows ──
-            for (var di=0; di<stateDists.length; di++) {
-                var dist = stateDists[di];
-                var distData = stockData[dist.id] || {};
+            // Distributor rows
+            for(var di=0;di<stateDists.length;di++){
+                var dist=stateDists[di];
+                var distData=stockData[dist.id]||{};
 
-                // Frozen row
-                var fr = document.createElement('div');
-                fr.className = 'frozen-row';
-                fr.setAttribute('data-did', dist.id);
-                fr.setAttribute('data-state-parent', stateName);
-                fr.setAttribute('data-idx', rowIdx);
-                fr.innerHTML =
-                    '<span class="city">'+esc(dist.city)+'</span>'+
-                    '<span class="distributor" title="'+esc(dist.name)+'">'+esc(dist.name)+'</span>'+
-                    '<span class="mv">'+fmtLakh(dist.mv||0)+'</span>';
+                var fr=document.createElement('div');
+                fr.className='frozen-row';
+                fr.setAttribute('data-did',dist.id);
+                fr.setAttribute('data-state-parent',stateName);
+                fr.setAttribute('data-idx',rowIdx);
+                fr.innerHTML='<span class="city">'+esc(dist.city)+'</span><span class="distributor" title="'+esc(dist.name)+'">'+esc(dist.name)+'</span><span class="mv">'+fmtLakh(dist.mv||0)+'</span>';
                 fFrag.appendChild(fr);
 
-                // Data row
-                var dr = document.createElement('div');
-                dr.className = 'data-row';
-                dr.setAttribute('data-did', dist.id);
-                dr.setAttribute('data-state-parent', stateName);
-                dr.setAttribute('data-idx', rowIdx);
+                var dr=document.createElement('div');
+                dr.className='data-row';
+                dr.setAttribute('data-did',dist.id);
+                dr.setAttribute('data-state-parent',stateName);
+                dr.setAttribute('data-idx',rowIdx);
 
-                for (var di2=0; di2<dates.length; di2++) {
-                    var dt = dates[di2];
-                    var key = fmtKey(dt);
-                    var entry = distData[key] || {};
-                    var grp = document.createElement('div');
-                    grp.className = 'day-group';
-                    if(isToday(dt)) grp.classList.add('today');
-                    if(isSunday(dt)) grp.classList.add('sunday');
-
-                    var sent = entry.s||0, pay = entry.p||0, close = entry.c||0;
-                    grp.innerHTML =
-                        '<div class="data-cell stock '+(sent?'has-value':'empty')+'">'+(sent||'')+'</div>'+
-                        '<div class="data-cell payment '+(pay?'has-value':'empty')+'">'+(pay?fmtAmount(pay):'')+'</div>'+
-                        '<div class="data-cell closing '+(close?'has-value':'empty')+'">'+(close||'')+'</div>';
+                for(var di2=0;di2<dates.length;di2++){
+                    var dt=dates[di2];
+                    var key=fmtKey(dt);
+                    var entry=distData[key]||{};
+                    var grp=document.createElement('div');
+                    grp.className='day-group';
+                    if(isToday(dt))grp.classList.add('today');
+                    if(isSunday(dt))grp.classList.add('sunday');
+                    var sent=entry.s||0,pay=entry.p||0,close=entry.c||0;
+                    grp.innerHTML='<div class="data-cell stock '+(sent?'has-value':'empty')+'">'+(sent||'')+'</div><div class="data-cell payment '+(pay?'has-value':'empty')+'">'+(pay?fmtAmount(pay):'')+'</div><div class="data-cell closing '+(close?'has-value':'empty')+'">'+(close||'')+'</div>';
                     dr.appendChild(grp);
                 }
                 dFrag.appendChild(dr);
@@ -454,42 +421,48 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
         dataInner.appendChild(dFrag);
 
         // ════════════════════════════════════════════
-        // SCROLL SYNC — dataCol is the master scroller
+        // SCROLL SYNC
+        // dataCol is the MASTER — it has both scrollbars
         // ════════════════════════════════════════════
-        var dataCol = document.getElementById('dataCol');
-        var frozenCol = document.getElementById('frozenCol');
-        var hdrScroll = document.getElementById('hdrScroll');
+        var dataCol=document.getElementById('dataCol');
+        var frozenCol=document.getElementById('frozenCol');
+        var hdrScroll=document.getElementById('hdrScroll');
 
-        // dataCol scroll drives: frozenCol vertical sync + hdrScroll horizontal sync
-        dataCol.addEventListener('scroll', function() {
-            frozenCol.scrollTop = dataCol.scrollTop;
-            hdrScroll.scrollLeft = dataCol.scrollLeft;
+        dataCol.addEventListener('scroll',function(){
+            frozenCol.scrollTop=dataCol.scrollTop;   // vertical sync
+            hdrScroll.scrollLeft=dataCol.scrollLeft;  // horizontal sync
         });
 
-        // Allow mouse wheel on frozen column to scroll the dataCol
-        frozenCol.addEventListener('wheel', function(e) {
-            dataCol.scrollTop += e.deltaY;
-            dataCol.scrollLeft += e.deltaX;
+        // Mouse wheel on frozen column → forward to dataCol
+        frozenCol.addEventListener('wheel',function(e){
+            dataCol.scrollTop+=e.deltaY;
+            dataCol.scrollLeft+=e.deltaX;
             e.preventDefault();
-        }, {passive:false});
+        },{passive:false});
+
+        // Mouse wheel on header → forward horizontal to dataCol
+        hdrScroll.addEventListener('wheel',function(e){
+            dataCol.scrollLeft+=e.deltaX||e.deltaY;
+            e.preventDefault();
+        },{passive:false});
 
         // ── Hover sync ──
-        var fRows = frozenInner.querySelectorAll('.frozen-row');
-        var dRows = dataInner.querySelectorAll('.data-row');
-        fRows.forEach(function(fr,i) {
-            fr.addEventListener('mouseenter', function(){ if(dRows[i]) dRows[i].style.background='var(--surface-alt)'; });
-            fr.addEventListener('mouseleave', function(){ if(dRows[i]) dRows[i].style.background=''; });
+        var fRows=frozenInner.querySelectorAll('.frozen-row');
+        var dRows=dataInner.querySelectorAll('.data-row');
+        fRows.forEach(function(fr,i){
+            fr.addEventListener('mouseenter',function(){if(dRows[i])dRows[i].style.background='var(--surface-alt)';});
+            fr.addEventListener('mouseleave',function(){if(dRows[i])dRows[i].style.background='';});
         });
-        dRows.forEach(function(dr,i) {
-            dr.addEventListener('mouseenter', function(){ if(fRows[i]) fRows[i].style.background='var(--surface-alt)'; });
-            dr.addEventListener('mouseleave', function(){ if(fRows[i]) fRows[i].style.background=''; });
+        dRows.forEach(function(dr,i){
+            dr.addEventListener('mouseenter',function(){if(fRows[i])fRows[i].style.background='var(--surface-alt)';});
+            dr.addEventListener('mouseleave',function(){if(fRows[i])fRows[i].style.background='';});
         });
 
         // ── Scroll to today (rightmost) ──
-        setTimeout(function(){ dataCol.scrollLeft = dataCol.scrollWidth; }, 150);
+        setTimeout(function(){dataCol.scrollLeft=dataCol.scrollWidth;},150);
     }
 
-    function esc(s) { var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 })();
 </script>
 </body>
