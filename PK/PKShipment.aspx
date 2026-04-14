@@ -481,14 +481,15 @@ window.addEventListener('load',function(){
     var sel=document.getElementById('selProduct');
     for(var pid in productData){
         var p=productData[pid];
+        var avCases=parseInt(p.availCases)||0;
+        var avLoose=parseInt(p.availLoose)||0;
         var jpc=parseInt(p.jarsPerCase)||12;
-        var avJars=parseInt(p.availJars)||0;
-        var avCases=Math.floor(avJars/jpc);
-        var avLoose=avJars-(avCases*jpc);
         var opt=document.createElement('option');
         opt.value=pid;
         opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' jars':'');
-        opt.setAttribute('data-avjars',avJars);
+        opt.setAttribute('data-avcases',avCases);
+        opt.setAttribute('data-avloose',avLoose);
+        opt.setAttribute('data-avjars',parseInt(p.availJars)||0);
         opt.setAttribute('data-jpc',jpc);
         opt.setAttribute('data-unitsize',parseInt(p.unitSize)||1);
         sel.appendChild(opt);
@@ -502,13 +503,13 @@ function onProductSelect(){
     var info=document.getElementById('stockInfo');
     if(sel.value==='0'){info.innerHTML='';return;}
     var opt=sel.options[sel.selectedIndex];
-    var avJars=parseInt(opt.getAttribute('data-avjars'))||0;
-    var jpc=parseInt(opt.getAttribute('data-jpc'))||12;
+    var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
+    var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
     // Subtract already added lines for same product
-    lines.forEach(function(l){if(l.pid===sel.value){avJars-=(l.cases*l.jpc+l.loose);}});
-    var avCases=Math.floor(avJars/jpc);
-    var avLoose=avJars-(avCases*jpc);
-    info.innerHTML='<span class="stock-badge'+(avJars<=0?' stock-zero':'')+'">FG Stock: '+avCases+' cases'+(avLoose>0?' + '+avLoose+' loose jars':'')+' ('+avJars+' jars total)</span>';
+    lines.forEach(function(l){if(l.pid===sel.value){avCases-=l.cases;avLoose-=l.loose;}});
+    if(avCases<0)avCases=0; if(avLoose<0)avLoose=0;
+    var total=avCases+avLoose;
+    info.innerHTML='<span class="stock-badge'+(total<=0?' stock-zero':'')+'">FG Stock: '+avCases+' cases'+(avLoose>0?' + '+avLoose+' loose jars':'')+'</span>';
 }
 
 function addLine(){
@@ -523,10 +524,14 @@ function addLine(){
     var us=parseInt(opt.getAttribute('data-unitsize'))||1;
     var lineJars=(cs*jpc)+lj;
     var totalPcs=lineJars*us;
-    var avJars=parseInt(opt.getAttribute('data-avjars'))||0;
-    var usedJars=0;
-    lines.forEach(function(l){if(l.pid===pid)usedJars+=(l.cases*l.jpc+l.loose);});
-    if(lineJars>(avJars-usedJars)){erpAlert('Insufficient FG stock. Available: '+(avJars-usedJars)+' jars.', {title:'Stock Insufficient', type:'danger'});return;}
+
+    // Validate cases and loose jars SEPARATELY
+    var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
+    var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
+    var usedCases=0, usedLoose=0;
+    lines.forEach(function(l){if(l.pid===pid){usedCases+=l.cases;usedLoose+=l.loose;}});
+    if(cs>(avCases-usedCases)){erpAlert('Insufficient CASES. Available: '+(avCases-usedCases)+' cases.', {title:'Stock Insufficient', type:'danger'});return;}
+    if(lj>(avLoose-usedLoose)){erpAlert('Insufficient loose JARS. Available: '+(avLoose-usedLoose)+' jars.', {title:'Stock Insufficient', type:'danger'});return;}
     var p=productData[pid];
     lines.push({pid:pid,name:p.name,code:p.code,cases:cs,loose:lj,jpc:jpc,unitSize:us,totalPcs:totalPcs});
     renderLines();
@@ -543,13 +548,13 @@ function updateDropdownStock(){
     for(var i=1;i<sel.options.length;i++){
         var opt=sel.options[i];
         var pid=opt.value;
-        var avJars=parseInt(opt.getAttribute('data-avjars'))||0;
-        var jpc=parseInt(opt.getAttribute('data-jpc'))||12;
-        var usedJars=0;
-        lines.forEach(function(l){if(l.pid===pid)usedJars+=(l.cases*l.jpc+l.loose);});
-        var remJars=avJars-usedJars;
-        var remCases=Math.floor(remJars/jpc);
-        var remLoose=remJars-(remCases*jpc);
+        var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
+        var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
+        var usedCases=0, usedLoose=0;
+        lines.forEach(function(l){if(l.pid===pid){usedCases+=l.cases;usedLoose+=l.loose;}});
+        var remCases=avCases-usedCases;
+        var remLoose=avLoose-usedLoose;
+        if(remCases<0)remCases=0; if(remLoose<0)remLoose=0;
         var p=productData[pid];
         if(p) opt.text=p.name+' ('+p.code+') — '+remCases+' cases'+(remLoose>0?' + '+remLoose+' jars':'');
     }

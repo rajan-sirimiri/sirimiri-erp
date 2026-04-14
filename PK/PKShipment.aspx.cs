@@ -78,6 +78,8 @@ namespace PKApp
                 }
                 int jpc = Convert.ToInt32(r["ContainersPerCase"]);
                 int availJars = Convert.ToInt32(r["AvailableFGJars"]);
+                int availCases = Convert.ToInt32(r["AvailableCases"]);
+                int availLoose = Convert.ToInt32(r["AvailableLooseJars"]);
                 int unitSize = 1;
                 int.TryParse(firstUnitSize, out unitSize);
                 if (unitSize <= 0) unitSize = 1;
@@ -88,7 +90,9 @@ namespace PKApp
                 sb.Append("\"code\":\"" + Esc(r["ProductCode"].ToString()) + "\",");
                 sb.Append("\"unitSize\":" + unitSize + ",");
                 sb.Append("\"jarsPerCase\":" + jpc + ",");
-                sb.Append("\"availJars\":" + availJars);
+                sb.Append("\"availJars\":" + availJars + ",");
+                sb.Append("\"availCases\":" + availCases + ",");
+                sb.Append("\"availLoose\":" + availLoose);
                 sb.Append("}");
                 first = false;
             }
@@ -125,7 +129,7 @@ namespace PKApp
             if (lineData == null || lineData.Length == 0)
             { ShowAlert("Please add at least one product line.", false); return; }
 
-            // Validate FG stock (in jars)
+            // Validate FG stock — cases and loose jars separately
             var fgStock = PKDatabaseHelper.GetFGStockForShipment();
             foreach (var line in lineData)
             {
@@ -134,19 +138,27 @@ namespace PKApp
                     if (Convert.ToInt32(r["ProductID"]) == line[0]) { stockRow = r; break; }
                 if (stockRow == null)
                 { ShowAlert("Product ID " + line[0] + " has no FG stock.", false); return; }
-                int availJars = Convert.ToInt32(stockRow["AvailableFGJars"]);
-                int jpc = line[3]; // jarsPerCase
-                int lineJars = (line[1] * jpc) + line[2]; // cases*jpc + looseJars
-                // If editing existing DC, add back the previously saved jars for this DC
+
+                int availCases = Convert.ToInt32(stockRow["AvailableCases"]);
+                int availLoose = Convert.ToInt32(stockRow["AvailableLooseJars"]);
+                int lineCases = line[1];
+                int lineLoose = line[2];
+
+                // If editing existing DC, add back this DC's own allocation
                 if (dcId > 0)
                 {
                     var existingLines = PKDatabaseHelper.GetDCLines(dcId);
                     foreach (DataRow el in existingLines.Rows)
                         if (Convert.ToInt32(el["ProductID"]) == line[0])
-                            availJars += (Convert.ToInt32(el["Cases"]) * Convert.ToInt32(el["JarsPerCase"])) + Convert.ToInt32(el["LooseJars"]);
+                        {
+                            availCases += Convert.ToInt32(el["Cases"]);
+                            availLoose += Convert.ToInt32(el["LooseJars"]);
+                        }
                 }
-                if (lineJars > availJars)
-                { ShowAlert("Insufficient FG stock for product. Need " + lineJars + " jars, available " + availJars + ".", false); return; }
+                if (lineCases > availCases)
+                { ShowAlert("Insufficient CASES for " + (stockRow["ProductName"] ?? "product") + ". Need " + lineCases + ", available " + availCases + ".", false); return; }
+                if (lineLoose > availLoose)
+                { ShowAlert("Insufficient loose JARS for " + (stockRow["ProductName"] ?? "product") + ". Need " + lineLoose + ", available " + availLoose + ".", false); return; }
             }
 
             try
