@@ -20,7 +20,11 @@ namespace PKApp {
             var dt = PKDatabaseHelper.GetFGStockSummary();
             rptFG.DataSource = dt; rptFG.DataBind();
             int total = dt.Rows.Count, withStock = 0, zero = 0;
-            foreach (DataRow r in dt.Rows) { if (Convert.ToDecimal(r["FGAvailable"]) > 0) withStock++; else zero++; }
+            foreach (DataRow r in dt.Rows) {
+                int looseJars = Convert.ToInt32(r["FGLooseJars"]);
+                int fgCases = Convert.ToInt32(r["FGCases"]);
+                if (looseJars > 0 || fgCases > 0) withStock++; else zero++;
+            }
             lblTotal.Text = total.ToString(); lblWithStock.Text = withStock.ToString(); lblZero.Text = zero.ToString();
         }
     }

@@ -70,29 +70,39 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 24p
             <thead><tr>
                 <th>Code</th>
                 <th>Product</th>
-                <th class="num">Total Production Units</th>
                 <th>Container</th>
-                <th class="num">Cases Packed</th>
-                <th class="num">Jars / Boxes (loose)</th>
-                <th class="num">Individual Pcs (loose)</th>
+                <th class="num">Total JARs<br/>Packed</th>
+                <th class="num" style="color:#2980b9">FG Loose<br/>JARs</th>
+                <th class="num">Cases<br/>Packed</th>
+                <th class="num" style="color:#e74c3c">Dispatched</th>
+                <th class="num" style="color:#2980b9">FG<br/>Cases</th>
+                <th class="num" style="color:#e67e22">Reserved<br/>(Draft DC)</th>
+                <th class="num" style="color:#27ae60">Avail<br/>for DC</th>
             </tr></thead>
             <tbody>
                 <asp:Repeater ID="rptFG" runat="server">
                     <ItemTemplate><tr>
                         <td style="font-size:11px;color:var(--text-dim)"><%# Eval("ProductCode") %></td>
                         <td><strong><%# Eval("ProductName") %></strong></td>
-                        <td class="num">
-                            <span class='<%# Convert.ToDecimal(Eval("FGAvailable")) > 0 ? "stock-ok" : "stock-zero" %>' style="font-size:16px;font-weight:700;">
-                                <%# string.Format("{0:N0}", Eval("FGAvailable")) %>
-                            </span>
-                        </td>
                         <td style="font-size:12px;color:var(--text-muted)">
                             <%# Eval("ContainerType") == DBNull.Value || string.IsNullOrEmpty(Eval("ContainerType").ToString()) ? "—" : Eval("ContainerType") %>
                             <%# (Eval("ContainerType") != DBNull.Value && Eval("ContainerType").ToString() != "DIRECT" && Convert.ToInt32(Eval("ContainersPerCase")) > 0) ? "<br/><small>" + Eval("ContainersPerCase") + " per case</small>" : "" %>
                         </td>
-                        <td class="num" style="font-weight:700"><%# Convert.ToInt32(Eval("TotalCases")) > 0 ? string.Format("{0:N0}", Eval("TotalCases")) : "—" %></td>
-                        <td class="num"><%# Convert.ToInt32(Eval("TotalJars"))  > 0 ? string.Format("{0:N0}", Eval("TotalJars"))  : "—" %></td>
-                        <td class="num"><%# Convert.ToInt32(Eval("TotalPcs"))   > 0 ? string.Format("{0:N0}", Eval("TotalPcs"))   : "—" %></td>
+                        <td class="num"><%# Convert.ToInt32(Eval("TotalJarsPacked")) > 0 ? string.Format("{0:N0}", Eval("TotalJarsPacked")) : "—" %></td>
+                        <td class="num">
+                            <span class='<%# Convert.ToInt32(Eval("FGLooseJars")) > 0 ? "stock-ok" : "stock-zero" %>' style="font-size:15px;font-weight:700;">
+                                <%# Convert.ToInt32(Eval("FGLooseJars")) > 0 ? string.Format("{0:N0}", Eval("FGLooseJars")) : "0" %>
+                            </span>
+                        </td>
+                        <td class="num" style="font-weight:600"><%# Convert.ToInt32(Eval("CasesPacked")) > 0 ? string.Format("{0:N0}", Eval("CasesPacked")) : "—" %></td>
+                        <td class="num" style="color:#e74c3c"><%# Convert.ToInt32(Eval("CasesDispatched")) > 0 ? string.Format("{0:N0}", Eval("CasesDispatched")) : "—" %></td>
+                        <td class="num">
+                            <span class='<%# Convert.ToInt32(Eval("FGCases")) > 0 ? "stock-ok" : "stock-zero" %>' style="font-size:15px;font-weight:700;">
+                                <%# Convert.ToInt32(Eval("FGCases")) > 0 ? string.Format("{0:N0}", Eval("FGCases")) : "0" %>
+                            </span>
+                        </td>
+                        <td class="num" style="color:#e67e22"><%# Convert.ToInt32(Eval("CasesReserved")) > 0 ? string.Format("{0:N0}", Eval("CasesReserved")) : "—" %></td>
+                        <td class="num" style="color:#27ae60;font-weight:700"><%# Convert.ToInt32(Eval("AvailableForDC")) > 0 ? string.Format("{0:N0}", Eval("AvailableForDC")) : "0" %></td>
                     </tr></ItemTemplate>
                 </asp:Repeater>
             </tbody>
