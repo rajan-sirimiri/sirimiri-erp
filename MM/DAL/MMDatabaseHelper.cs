@@ -857,11 +857,50 @@ namespace MMApp.DAL
         public static DataTable GetSupplierRecoverables(int supplierId)
         {
             return ExecuteQuery(
-                "SELECT i.InwardID, i.GRNNo, i.InwardDate, r.RMName, r.RMCode, " +
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, r.RMName, r.RMName AS MaterialName, r.RMCode, r.RMCode AS MaterialCode, " +
                 "u.Abbreviation, i.ShortageQty, i.ShortageValue " +
                 "FROM MM_RawInward i " +
                 "JOIN MM_RawMaterials r ON r.RMID = i.RMID " +
                 "JOIN MM_UOM u ON u.UOMID = r.UOMID " +
+                "WHERE i.SupplierID = ?s AND i.ShortageQty > 0 " +
+                "ORDER BY i.InwardDate DESC;",
+                new MySqlParameter("s", supplierId));
+        }
+
+        public static DataTable GetSupplierRecoverablesPM(int supplierId)
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, p.PMName AS MaterialName, p.PMCode AS MaterialCode, " +
+                "u.Abbreviation, i.ShortageQty, i.ShortageValue " +
+                "FROM MM_PackingInward i " +
+                "JOIN MM_PackingMaterials p ON p.PMID = i.PMID " +
+                "JOIN MM_UOM u ON u.UOMID = p.UOMID " +
+                "WHERE i.SupplierID = ?s AND i.ShortageQty > 0 " +
+                "ORDER BY i.InwardDate DESC;",
+                new MySqlParameter("s", supplierId));
+        }
+
+        public static DataTable GetSupplierRecoverablesCN(int supplierId)
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, c.ConsumableName AS MaterialName, c.ConsumableCode AS MaterialCode, " +
+                "u.Abbreviation, i.ShortageQty, i.ShortageValue " +
+                "FROM MM_ConsumableInward i " +
+                "JOIN MM_Consumables c ON c.ConsumableID = i.ConsumableID " +
+                "JOIN MM_UOM u ON u.UOMID = c.UOMID " +
+                "WHERE i.SupplierID = ?s AND i.ShortageQty > 0 " +
+                "ORDER BY i.InwardDate DESC;",
+                new MySqlParameter("s", supplierId));
+        }
+
+        public static DataTable GetSupplierRecoverablesST(int supplierId)
+        {
+            return ExecuteQuery(
+                "SELECT i.InwardID, i.GRNNo, i.InwardDate, s.StationaryName AS MaterialName, s.StationaryCode AS MaterialCode, " +
+                "u.Abbreviation, i.ShortageQty, i.ShortageValue " +
+                "FROM MM_StationaryInward i " +
+                "JOIN MM_Stationaries s ON s.StationaryID = i.StationaryID " +
+                "JOIN MM_UOM u ON u.UOMID = s.UOMID " +
                 "WHERE i.SupplierID = ?s AND i.ShortageQty > 0 " +
                 "ORDER BY i.InwardDate DESC;",
                 new MySqlParameter("s", supplierId));

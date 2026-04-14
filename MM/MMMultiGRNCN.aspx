@@ -359,7 +359,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
         recPanel.innerHTML = '<div style="text-align:center;padding:16px;color:#999;font-size:12px;">Loading...</div>';
 
-        fetch('MMRecoverablesAPI.ashx?supId=' + supId)
+        fetch('MMRecoverablesAPI.ashx?supId=' + supId + '&type=CN')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.items || data.items.length === 0) {

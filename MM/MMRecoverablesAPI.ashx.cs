@@ -28,7 +28,16 @@ namespace MMApp
                     return;
                 }
 
-                DataTable dt = MMDatabaseHelper.GetSupplierRecoverables(supplierId);
+                string type = (context.Request.QueryString["type"] ?? "RM").ToUpper();
+                DataTable dt;
+                switch (type)
+                {
+                    case "PM": dt = MMDatabaseHelper.GetSupplierRecoverablesPM(supplierId); break;
+                    case "CN": dt = MMDatabaseHelper.GetSupplierRecoverablesCN(supplierId); break;
+                    case "ST": dt = MMDatabaseHelper.GetSupplierRecoverablesST(supplierId); break;
+                    default:   dt = MMDatabaseHelper.GetSupplierRecoverables(supplierId); break;
+                }
+
                 var sb = new StringBuilder("{\"items\":[");
                 decimal total = 0;
                 foreach (DataRow r in dt.Rows)
@@ -37,7 +46,7 @@ namespace MMApp
                     total += shortVal;
                     sb.AppendFormat("{{\"grn\":\"{0}\",\"rm\":\"{1}\",\"date\":\"{2}\",\"qty\":\"{3}\",\"uom\":\"{4}\",\"value\":\"{5:N2}\"}},",
                         EscapeJson(r["GRNNo"].ToString()),
-                        EscapeJson(r["RMName"].ToString()),
+                        EscapeJson(r["MaterialName"].ToString()),
                         Convert.ToDateTime(r["InwardDate"]).ToString("dd-MMM-yy"),
                         r["ShortageQty"],
                         EscapeJson(r["Abbreviation"].ToString()),
