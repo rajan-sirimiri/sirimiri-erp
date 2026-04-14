@@ -200,10 +200,11 @@ tr:hover{background:rgba(41,128,185,0.04);}
         <div class="form-group" style="flex:2;">
             <label>Customer</label>
             <div style="position:relative;">
-                <input type="text" id="txtCustSearch" placeholder="Type to search customer..." autocomplete="off"
-                    onkeyup="filterCustomerDDL(this.value);"
-                    style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px 8px 0 0;font-family:inherit;font-size:13px;background:#fafafa;outline:none;"/>
-                <asp:DropDownList ID="ddlCustomer" runat="server" style="width:100%;border-radius:0 0 8px 8px;border-top:none;"/>
+                <input type="text" id="txtCustSearch" placeholder="Click to select customer..." autocomplete="off"
+                    onfocus="this.blur();openCustModal();"
+                    readonly="readonly"
+                    style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fafafa;outline:none;cursor:pointer;"/>
+                <asp:DropDownList ID="ddlCustomer" runat="server" style="display:none;"/>
             </div>
         </div>
     </div>
@@ -291,14 +292,89 @@ function addShipLine() {
         + '<button type="button" class="line-remove" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
 }
-function filterCustomerDDL(val) {
+// ── Customer Modal Search (GRN-style) ──
+var _custOv = null;
+function openCustModal() {
     var ddl = document.getElementById('<%= ddlCustomer.ClientID %>');
     if (!ddl) return;
-    var f = val.toLowerCase();
+    var items = [];
     for (var i = 0; i < ddl.options.length; i++) {
-        ddl.options[i].style.display = (f === '' || ddl.options[i].text.toLowerCase().indexOf(f) >= 0) ? '' : 'none';
+        if (ddl.options[i].value === '0') continue;
+        items.push({ value: ddl.options[i].value, text: ddl.options[i].text, idx: i });
     }
+    if (_custOv) _custOv.remove();
+
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px 0;';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;';
+
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:16px 20px 12px;border-bottom:2px solid #f0ede8;display:flex;align-items:center;justify-content:space-between;';
+    hdr.innerHTML = '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:.06em;">Select Customer</span>';
+    var closeBtn = document.createElement('button'); closeBtn.type = 'button'; closeBtn.innerHTML = '\u2715';
+    closeBtn.style.cssText = 'border:none;background:none;font-size:20px;cursor:pointer;color:#999;padding:4px 8px;';
+    closeBtn.onclick = function() { ov.remove(); _custOv = null; };
+    hdr.appendChild(closeBtn); box.appendChild(hdr);
+
+    var sWrap = document.createElement('div'); sWrap.style.cssText = 'padding:12px 20px;';
+    var sInput = document.createElement('input'); sInput.type = 'text'; sInput.placeholder = 'Search customer name, code...';
+    sInput.style.cssText = 'width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;font-family:\'DM Sans\',sans-serif;outline:none;background:#fafafa;';
+    sInput.setAttribute('autocomplete', 'off');
+    sWrap.appendChild(sInput); box.appendChild(sWrap);
+
+    var list = document.createElement('div');
+    list.style.cssText = 'flex:1;overflow-y:auto;padding:0 8px 12px;-webkit-overflow-scrolling:touch;';
+
+    function renderList(query) {
+        list.innerHTML = '';
+        var q = (query || '').toLowerCase().trim();
+        var count = 0;
+        items.forEach(function(it) {
+            if (q && it.text.toLowerCase().indexOf(q) < 0) return;
+            count++;
+            var row = document.createElement('div');
+            row.style.cssText = 'padding:12px 14px;border-radius:8px;cursor:pointer;font-size:14px;margin:2px 0;transition:background 0.1s;';
+            row.onmouseenter = function() { row.style.background = '#f5f5f0'; };
+            row.onmouseleave = function() { row.style.background = ''; };
+            if (q) {
+                var idx = it.text.toLowerCase().indexOf(q);
+                row.innerHTML = escM(it.text.substring(0, idx)) +
+                    '<strong style="color:var(--accent,#2980b9);">' + escM(it.text.substring(idx, idx + q.length)) + '</strong>' +
+                    escM(it.text.substring(idx + q.length));
+            } else { row.textContent = it.text; }
+            row.onclick = function() {
+                ddl.selectedIndex = it.idx;
+                document.getElementById('txtCustSearch').value = it.text;
+                ov.remove(); _custOv = null;
+            };
+            list.appendChild(row);
+        });
+        if (count === 0) {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'padding:20px;text-align:center;color:#999;font-size:13px;';
+            empty.textContent = 'No customers found';
+            list.appendChild(empty);
+        }
+    }
+
+    sInput.addEventListener('input', function() { renderList(sInput.value); });
+    box.appendChild(list); ov.appendChild(box); document.body.appendChild(ov);
+    _custOv = ov;
+    ov.onclick = function(e) { if (e.target === ov) { ov.remove(); _custOv = null; } };
+    renderList('');
+    setTimeout(function() { sInput.focus(); }, 150);
 }
+function escM(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Sync customer name on page load (for edit mode)
+window.addEventListener('load', function() {
+    var ddl = document.getElementById('<%= ddlCustomer.ClientID %>');
+    if (ddl && ddl.selectedIndex > 0) {
+        document.getElementById('txtCustSearch').value = ddl.options[ddl.selectedIndex].text;
+    }
+});
 </script>
 <script src="/StockApp/erp-modal.js"></script><script src="/StockApp/erp-keepalive.js"></script>
 </form></body></html>
