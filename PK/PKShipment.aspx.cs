@@ -457,10 +457,14 @@ namespace PKApp
                 }
             }
 
-            PKDatabaseHelper.ConvertSAShipmentToDC(shipId);
+            int dcId = PKDatabaseHelper.ConvertSAShipmentToDC(shipId);
             ShowAlert("SH-" + shipId.ToString("D5") + " converted to Delivery Challan. SA side is now read-only.", true);
             pnlSADetail.Visible = false;
             BindSAOrders();
+            BindDCList();
+
+            // Auto-load the newly created DC for editing
+            if (dcId > 0) LoadDC(dcId);
         }
 
         protected void btnConvertDC_Click(object s, EventArgs e)

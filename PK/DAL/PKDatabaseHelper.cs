@@ -1549,15 +1549,88 @@ namespace PKApp.DAL
         }
 
         /// <summary>Convert SA shipment to DC status</summary>
-        public static void ConvertSAShipmentToDC(int shipmentId)
+        /// <summary>Convert SA shipment to a real Delivery Challan with line items</summary>
+        public static int ConvertSAShipmentToDC(int shipmentId)
         {
+            // Get shipment header
+            var sh = ExecuteQueryRow(
+                "SELECT CustomerID, ShipmentDate, Remarks FROM SA_Shipments WHERE ShipmentID=?sid;",
+                new MySqlParameter("?sid", shipmentId));
+            if (sh == null) throw new Exception("Shipment not found.");
+
+            int customerId = Convert.ToInt32(sh["CustomerID"]);
+            DateTime dcDate = Convert.ToDateTime(sh["ShipmentDate"]);
+            string remarks = sh["Remarks"] != DBNull.Value ? sh["Remarks"].ToString() : "";
+            string saRef = "SH-" + shipmentId.ToString("D5");
+
+            // Create DC
+            string dcNumber = GenerateDCNumber();
+            ExecuteNonQuery(
+                "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                new MySqlParameter("?num", dcNumber),
+                new MySqlParameter("?cid", customerId),
+                new MySqlParameter("?dt", dcDate),
+                new MySqlParameter("?rem", string.IsNullOrEmpty(remarks) ? saRef : saRef + " — " + remarks),
+                new MySqlParameter("?by", 1), // system
+                new MySqlParameter("?now", NowIST()));
+            int dcId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+
+            // Get shipment lines and create DC lines
+            var lines = ExecuteQuery(
+                "SELECT sl.ProductID, sl.ShippedQty, IFNULL(p.ContainersPerCase, 12) AS JPC," +
+                " IFNULL(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1) AS UnitSize" +
+                " FROM SA_ShipmentLines sl" +
+                " JOIN PP_Products p ON p.ProductID = sl.ProductID" +
+                " WHERE sl.ShipmentID=?sid AND sl.ShippedQty > 0;",
+                new MySqlParameter("?sid", shipmentId));
+
+            foreach (System.Data.DataRow r in lines.Rows)
+            {
+                int productId = Convert.ToInt32(r["ProductID"]);
+                int shippedQty = Convert.ToInt32(r["ShippedQty"]); // in jars/containers
+                int jpc = Convert.ToInt32(r["JPC"]);
+                int unitSize = Convert.ToInt32(r["UnitSize"]);
+                if (unitSize <= 0) unitSize = 1;
+
+                int cases = shippedQty / jpc;
+                int looseJars = shippedQty % jpc;
+                int totalPcs = shippedQty * unitSize;
+
+                ExecuteNonQuery(
+                    "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs)" +
+                    " VALUES(?dcid, ?pid, ?cs, ?lj, ?jpc, ?tp);",
+                    new MySqlParameter("?dcid", dcId),
+                    new MySqlParameter("?pid", productId),
+                    new MySqlParameter("?cs", cases),
+                    new MySqlParameter("?lj", looseJars),
+                    new MySqlParameter("?jpc", jpc),
+                    new MySqlParameter("?tp", totalPcs));
+            }
+
+            // Mark SA shipment as converted
             ExecuteNonQuery("UPDATE SA_Shipments SET Status='DC' WHERE ShipmentID=?sid;",
                 new MySqlParameter("?sid", shipmentId));
+
+            return dcId;
         }
 
-        /// <summary>Unconvert DC back to Order status — SA regains edit rights</summary>
+        /// <summary>Unconvert DC back to Order status — delete DC and restore SA edit rights</summary>
         public static void UnconvertSAShipmentDC(int shipmentId)
         {
+            // Find DC created from this shipment (by remarks containing SH-XXXXX)
+            string saRef = "SH-" + shipmentId.ToString("D5");
+            var dcRow = ExecuteQueryRow(
+                "SELECT DCID FROM PK_DeliveryChallans WHERE Remarks LIKE ?ref AND Status='DRAFT' LIMIT 1;",
+                new MySqlParameter("?ref", "%" + saRef + "%"));
+
+            if (dcRow != null)
+            {
+                int dcId = Convert.ToInt32(dcRow["DCID"]);
+                ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
+                ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id;", new MySqlParameter("?id", dcId));
+            }
+
             ExecuteNonQuery("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid AND Status='DC';",
                 new MySqlParameter("?sid", shipmentId));
         }
