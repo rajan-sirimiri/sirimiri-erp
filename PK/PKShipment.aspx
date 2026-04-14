@@ -134,7 +134,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:TextBox ID="txtRemarks" runat="server" TextMode="MultiLine" Rows="2" MaxLength="500" placeholder="Optional notes"/></div>
 
         <div class="btn-row">
-            <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" CausesValidation="false"/>
+            <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" OnClientClick="syncLines();" CausesValidation="false"/>
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
