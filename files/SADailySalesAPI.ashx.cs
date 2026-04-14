@@ -52,6 +52,8 @@ namespace StockApp
                 FROM PP_Products p
                 LEFT JOIN SA_ProductDefaultPack dp ON dp.ProductID = p.ProductID
                 WHERE p.ProductType='Core' AND p.IsActive=1
+                  AND p.ProductCode != 'FG-RETIRED'
+                  AND p.ProductName NOT LIKE 'ZOHO %'
                 ORDER BY p.ProductName";
             DataTable dtProd = DatabaseHelper.ExecuteQueryPublic(sqlProd);
 
@@ -60,6 +62,8 @@ namespace StockApp
                 FROM PP_FGPackingOptions fo
                 INNER JOIN PP_Products p ON p.ProductID = fo.ProductID
                 WHERE p.ProductType='Core' AND p.IsActive=1 AND fo.IsActive=1
+                  AND p.ProductCode != 'FG-RETIRED'
+                  AND p.ProductName NOT LIKE 'ZOHO %'
                 ORDER BY fo.ProductID, FIELD(fo.PackForm,'PCS','JAR','BOX','CASE'), fo.UnitsPerPack";
             DataTable dtPack = DatabaseHelper.ExecuteQueryPublic(sqlPack);
 
