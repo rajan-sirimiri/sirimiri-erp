@@ -846,15 +846,20 @@ namespace PKApp.DAL
         // ── REPORTS ──────────────────────────────────────────────────────────
         public static DataTable GetFGStockSummary()
         {
-            // Only Core products. Cases/Jars/Pcs calculated from packing execution records.
-            // FGAvailable = total individual pcs packed (from PK_FGStock).
+            // FGAvailable = total pieces packed (PK_FGStock, which is a ledger with +/- entries)
+            //             − secondary packing consumption (jars converted to cases × unitSize = pieces)
+            // PK_FGStock.QtyPacked is in PIECES
+            // PK_SecondaryPacking.TotalUnits is in JARS, multiply by UnitSize to get pieces
             return ExecuteQuery(
                 "SELECT p.ProductCode, p.ProductName," +
                 " p.ContainerType, p.ContainersPerCase," +
                 " IFNULL(pk.TotalCases,0) AS TotalCases," +
                 " IFNULL(pk.TotalJars,0)  AS TotalJars," +
                 " IFNULL(pk.TotalPcs,0)   AS TotalPcs," +
-                " ROUND(IFNULL(fg.FGAvailable,0),0) AS FGAvailable" +
+                " ROUND(IFNULL(fg.FGAvailable,0)" +
+                "  - IFNULL(sp.SecPackedJars, 0)" +
+                "    * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED)" +
+                ", 0) AS FGAvailable" +
                 " FROM PP_Products p" +
                 " LEFT JOIN (" +
                 "   SELECT pe.OrderID," +
@@ -869,6 +874,10 @@ namespace PKApp.DAL
                 "   SELECT ProductID, SUM(QtyPacked) AS FGAvailable" +
                 "   FROM PK_FGStock GROUP BY ProductID" +
                 " ) fg ON fg.ProductID=p.ProductID" +
+                " LEFT JOIN (" +
+                "   SELECT ProductID, SUM(TotalUnits) AS SecPackedJars" +
+                "   FROM PK_SecondaryPacking GROUP BY ProductID" +
+                " ) sp ON sp.ProductID=p.ProductID" +
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
                 " ORDER BY p.ProductName;");
         }
