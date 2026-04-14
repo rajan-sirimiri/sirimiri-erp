@@ -133,8 +133,16 @@
         <a id="lnkDistStock" runat="server" href="StockEntry.aspx" class="menu-card cat-stock">
             <div class="menu-icon">&#x1F4E6;</div>
             <div>
-                <div class="menu-title">Distributor Stock<br/>Position</div>
-                <div class="menu-desc">View and update distributor-wise stock levels across all products and locations</div>
+                <div class="menu-title">Distributor Stock<br/>Position Entry</div>
+                <div class="menu-desc">Record closing stock, view sales &amp; payment summary per distributor</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a id="lnkDistStockReport" runat="server" href="SADistStockPosition.aspx" class="menu-card cat-stock">
+            <div class="menu-icon">&#x1F4CA;</div>
+            <div>
+                <div class="menu-title">Distributor Stock<br/>Position Report</div>
+                <div class="menu-desc">90-day view — stock sent, payments received &amp; closing stock across all distributors</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>

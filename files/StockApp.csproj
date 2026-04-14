@@ -85,11 +85,23 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Content Include="SAHome.aspx" />
+    <Content Include="SADistStockPosition.aspx" />
+    <Content Include="SADistStockAPI.ashx" />
     <Content Include="SASalesForce.aspx" />
     <Content Include="StockEntry.aspx" />
     <Compile Include="SAHome.aspx.cs">
       <DependentUpon>SAHome.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SADistStockPosition.aspx.cs">
+      <DependentUpon>SADistStockPosition.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SADistStockPosition.aspx.designer.cs">
+      <DependentUpon>SADistStockPosition.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="SADistStockAPI.ashx.cs">
+      <DependentUpon>SADistStockAPI.ashx</DependentUpon>
     </Compile>
     <Compile Include="SASalesForce.aspx.cs">
       <DependentUpon>SASalesForce.aspx</DependentUpon>
