@@ -56,10 +56,12 @@
         .product-name{font-size:14px;font-weight:500;color:var(--text)}
         .product-meta{font-size:11px;color:var(--muted);margin-top:2px}
         .qty-wrap{display:flex;align-items:center;gap:8px}
-        .qty-input{width:90px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;text-align:center;color:var(--text)}
+        .pack-select{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;min-width:130px}
+        .pack-select:focus{outline:none;border-color:var(--accent)}
+        .qty-input{width:80px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;text-align:center;color:var(--text)}
         .qty-input:focus{outline:none;border-color:var(--accent);background:#fff8f8}
         .qty-input:invalid{border-color:#e74c3c}
-        .units-label{font-size:13px;color:var(--muted);font-weight:500}
+        .units-label{font-size:12px;color:var(--muted);font-weight:500;min-width:50px}
         /* Buttons */
         .btn-row{display:flex;gap:12px;margin-top:8px}
         .btn-save{padding:12px 32px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.04em}
@@ -113,12 +115,8 @@
         </div>
 
         <!-- Messages -->
-        <asp:Panel ID="pnlResult" runat="server" Visible="false">
-            <div class="msg-ok"><asp:Label ID="lblResultMsg" runat="server" /></div>
-        </asp:Panel>
-        <asp:Panel ID="pnlError" runat="server" Visible="false">
-            <div class="msg-err"><asp:Label ID="lblErrorMsg" runat="server" /></div>
-        </asp:Panel>
+        <div class="msg-ok" id="msgOk" style="display:none;"></div>
+        <div class="msg-err" id="msgErr" style="display:none;"></div>
 
         <!-- DISTRIBUTOR SELECTION -->
         <div class="card">
@@ -144,56 +142,192 @@
             </div>
         </div>
 
-        <!-- PRODUCT ENTRY -->
-        <asp:Panel ID="pnlSalesEntry" runat="server">
-        <div class="card">
+        <!-- PRODUCT ENTRY (JS-rendered with pack form selector) -->
+        <div class="card" id="cardProducts" style="display:none;">
             <div class="card-head"><h2>ENTER QUANTITIES SOLD</h2></div>
             <div class="card-body">
-                <asp:HiddenField ID="hfProductData" runat="server" />
                 <table class="product-table">
                     <thead>
                         <tr>
                             <th>Product</th>
-                            <th style="width:180px;">Quantity</th>
+                            <th style="width:160px;">Pack Form</th>
+                            <th style="width:160px;">Quantity</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <asp:Repeater ID="rptProducts" runat="server">
-                            <ItemTemplate>
-                                <tr>
-                                    <td>
-                                        <div class="product-name"><%# Eval("ProductName") %></div>
-                                        <div class="product-meta">
-                                            <%# Eval("MRP", "Rs. {0:N2}") %>
-                                            <%# Convert.ToString(Eval("HSNCode")) != "" ? " &nbsp;|&nbsp; HSN: " + Eval("HSNCode") : "" %>
-                                        </div>
-                                        <asp:HiddenField ID="hfProductId" runat="server" Value='<%# Eval("ProductID") %>' />
-                                    </td>
-                                    <td>
-                                        <div class="qty-wrap">
-                                            <asp:TextBox ID="txtQty" runat="server"
-                                                CssClass="qty-input"
-                                                TextMode="Number"
-                                                Text="0" />
-                                            <span class="units-label">Units</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </ItemTemplate>
-                        </asp:Repeater>
-                    </tbody>
+                    <tbody id="tbodyProducts"></tbody>
                 </table>
 
                 <br/>
                 <div class="btn-row">
-                    <asp:Button ID="btnSave" runat="server" Text="SAVE" CssClass="btn-save" OnClick="btnSave_Click" />
-                    <asp:Button ID="btnCancel" runat="server" Text="CANCEL" CssClass="btn-cancel" OnClick="btnCancel_Click" CausesValidation="false" />
+                    <button type="button" class="btn-save" onclick="saveEntries()">SAVE</button>
+                    <button type="button" class="btn-cancel" onclick="resetForm()">CANCEL</button>
                 </div>
             </div>
         </div>
-        </asp:Panel>
 
     </div>
 </form>
+
+<script>
+(function(){
+    // Load products with packing options
+    var products = [];
+
+    function fetchJSON(url, cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
+            }
+        };
+        xhr.send();
+    }
+
+    fetchJSON('SADailySalesAPI.ashx?action=products', function(data) {
+        if (!data || data.error) return;
+        products = data;
+        renderProducts();
+    });
+
+    function renderProducts() {
+        var tbody = document.getElementById('tbodyProducts');
+        if (!tbody) return;
+        var html = '';
+        for (var i = 0; i < products.length; i++) {
+            var p = products[i];
+            var meta = [];
+            if (p.wt > 0) meta.push(p.wt + 'g');
+            if (p.ct) meta.push(p.ct);
+            if (p.hsn) meta.push('HSN: ' + p.hsn);
+
+            // Build pack form dropdown
+            var opts = '';
+            if (p.packs.length === 0) {
+                opts = '<option value="PCS|1">PCS</option>';
+            } else {
+                for (var j = 0; j < p.packs.length; j++) {
+                    var pk = p.packs[j];
+                    var label = pk.form;
+                    if (pk.units > 1) label += ' of ' + pk.units;
+                    if (pk.desc && pk.desc !== pk.form && pk.desc !== 'PCS') label = pk.desc;
+                    opts += '<option value="' + pk.form + '|' + pk.units + '">' + esc(label) + '</option>';
+                }
+            }
+
+            html += '<tr data-pid="' + p.id + '">' +
+                '<td><div class="product-name">' + esc(p.name) + '</div>' +
+                (meta.length ? '<div class="product-meta">' + esc(meta.join(' | ')) + '</div>' : '') +
+                '</td>' +
+                '<td><select class="pack-select" id="pack_' + p.id + '">' + opts + '</select></td>' +
+                '<td><div class="qty-wrap">' +
+                '<input type="number" class="qty-input" id="qty_' + p.id + '" value="0" min="0"/>' +
+                '<span class="units-label" id="lbl_' + p.id + '"></span>' +
+                '</div></td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+        document.getElementById('cardProducts').style.display = '';
+
+        // Attach change listeners to update unit labels
+        for (var i = 0; i < products.length; i++) {
+            (function(pid) {
+                var sel = document.getElementById('pack_' + pid);
+                var qty = document.getElementById('qty_' + pid);
+                var lbl = document.getElementById('lbl_' + pid);
+                function updateLabel() {
+                    var parts = sel.value.split('|');
+                    var units = parseInt(parts[1]) || 1;
+                    var q = parseInt(qty.value) || 0;
+                    if (q > 0 && units > 1) {
+                        lbl.textContent = '= ' + (q * units) + ' pcs';
+                    } else {
+                        lbl.textContent = '';
+                    }
+                }
+                sel.addEventListener('change', updateLabel);
+                qty.addEventListener('input', updateLabel);
+            })(products[i].id);
+        }
+    }
+
+    // Save
+    window.saveEntries = function() {
+        // Get selected distributor IDs from the ASP ListBox
+        var lst = document.getElementById('<%= lstDistributor.ClientID %>');
+        if (!lst) { alert('Distributor list not found.'); return; }
+        var custIds = [];
+        for (var i = 0; i < lst.options.length; i++) {
+            if (lst.options[i].selected) custIds.push(lst.options[i].value);
+        }
+        if (custIds.length === 0) { alert('Please select at least one distributor.'); return; }
+
+        // Collect entries: pid|form|unitsPerPack|qty
+        var entries = [];
+        for (var i = 0; i < products.length; i++) {
+            var pid = products[i].id;
+            var qty = parseInt(document.getElementById('qty_' + pid).value) || 0;
+            if (qty <= 0) continue;
+            var packVal = document.getElementById('pack_' + pid).value; // "JAR|50"
+            entries.push(pid + '|' + packVal + '|' + qty);
+        }
+        if (entries.length === 0) { alert('Please enter quantity for at least one product.'); return; }
+
+        // POST to API
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'SADailySalesAPI.ashx', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                try {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.ok) {
+                        // Show success
+                        var distNames = [];
+                        for (var i = 0; i < lst.options.length; i++)
+                            if (lst.options[i].selected) distNames.push(lst.options[i].text);
+                        showMsg('ok', 'Saved ' + entries.length + ' product(s) across ' + custIds.length +
+                            ' distributor(s): ' + distNames.join(', ') +
+                            '<br/><small>Entered by: <strong>' + resp.user + '</strong> at ' + new Date().toLocaleTimeString() + '</small>');
+                        resetQty();
+                    } else {
+                        showMsg('err', resp.error || 'Save failed.');
+                    }
+                } catch(e) {
+                    showMsg('err', 'Unexpected error. Please try again.');
+                }
+            }
+        };
+        xhr.send('action=save&customerIds=' + encodeURIComponent(custIds.join(',')) +
+                 '&entries=' + encodeURIComponent(entries.join(';')) +
+                 '&date=' + new Date().toISOString().split('T')[0]);
+    };
+
+    window.resetForm = function() {
+        // Reset ASP dropdowns via postback would lose JS state. Just reset qty.
+        resetQty();
+        showMsg('', '');
+    };
+
+    function resetQty() {
+        for (var i = 0; i < products.length; i++) {
+            var pid = products[i].id;
+            var qty = document.getElementById('qty_' + pid);
+            if (qty) qty.value = '0';
+            var lbl = document.getElementById('lbl_' + pid);
+            if (lbl) lbl.textContent = '';
+        }
+    }
+
+    function showMsg(type, msg) {
+        var okEl = document.getElementById('msgOk');
+        var errEl = document.getElementById('msgErr');
+        if (okEl) { okEl.style.display = type === 'ok' ? '' : 'none'; okEl.innerHTML = msg; }
+        if (errEl) { errEl.style.display = type === 'err' ? '' : 'none'; errEl.innerHTML = msg; }
+    }
+
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+})();
+</script>
 </body>
 </html>
