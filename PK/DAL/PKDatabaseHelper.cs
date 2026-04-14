@@ -862,7 +862,7 @@ namespace PKApp.DAL
 
                 // Total JARs from primary packing (FGStock is in PCS, divide by UnitSize)
                 " ROUND(IFNULL(fg.TotalPCS, 0), 0) AS TotalPCS," +
-                " ROUND(IFNULL(fg.TotalPCS, 0)" +
+                " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 ", 0) AS TotalJarsPacked," +
 
@@ -870,7 +870,7 @@ namespace PKApp.DAL
                 " ROUND(IFNULL(sp.JarsUsedInCases, 0), 0) AS JarsUsedInCases," +
 
                 // FG Loose JARs = Total JARs − JARs in cases
-                " ROUND(IFNULL(fg.TotalPCS, 0)" +
+                " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 "  - IFNULL(sp.JarsUsedInCases, 0)" +
                 ", 0) AS FGLooseJars," +
@@ -1400,7 +1400,7 @@ namespace PKApp.DAL
                 " ou.Abbreviation AS Unit," +
 
                 // Loose JARs available (primary packed − case-packed − loose jars in DCs)
-                " ROUND(IFNULL(fg.TotalPCS, 0)" +
+                " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 "  - IFNULL(sp.JarsInCases, 0)" +
                 "  - IFNULL(dcLoose.TotalLooseJars, 0)" +
