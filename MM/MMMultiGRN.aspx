@@ -129,6 +129,22 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
                 <label>Transport Cost (Total)</label>
                 <input type="number" id="txtTransport" step="0.01" min="0" placeholder="0.00" oninput="recalcAll();"/>
             </div>
+            <div class="form-group">
+                <label>Loading Charges</label>
+                <input type="number" id="txtLoading" step="0.01" min="0" placeholder="0.00" oninput="recalcAll();"/>
+            </div>
+            <div class="form-group">
+                <label>Unloading Charges</label>
+                <input type="number" id="txtUnloading" step="0.01" min="0" placeholder="0.00" oninput="recalcAll();"/>
+            </div>
+            <div class="form-group" style="align-self:end;">
+                <label style="display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" id="chkManualInvoice" onchange="toggleManualInvoice();" style="width:15px;height:15px;accent-color:#e67e22;"/>
+                    <span style="color:#e67e22;font-weight:600;">Manual Invoice</span>
+                </label>
+            </div>
+        </div>
+        <div class="header-grid" style="margin-top:10px;">
             <div class="form-group" style="align-self:end;">
                 <label style="display:flex;align-items:center;gap:6px;">
                     <input type="checkbox" id="chkTransInInvoice" onchange="recalcAll();" style="width:15px;height:15px;"/>
@@ -139,12 +155,6 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
                 <label style="display:flex;align-items:center;gap:6px;">
                     <input type="checkbox" id="chkTransGST" onchange="recalcAll();" style="width:15px;height:15px;"/>
                     Transport attracts GST
-                </label>
-            </div>
-            <div class="form-group" style="align-self:end;">
-                <label style="display:flex;align-items:center;gap:6px;">
-                    <input type="checkbox" id="chkManualInvoice" onchange="toggleManualInvoice();" style="width:15px;height:15px;accent-color:#e67e22;"/>
-                    <span style="color:#e67e22;font-weight:600;">Manual Invoice</span>
                 </label>
             </div>
         </div>
@@ -479,15 +489,15 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             count++;
         });
         var transport = parseFloat(document.getElementById('txtTransport').value) || 0;
-        var transInInv = document.getElementById('chkTransInInvoice').checked;
-        var transGST = document.getElementById('chkTransGST').checked;
+        var loading = parseFloat(document.getElementById('txtLoading').value) || 0;
+        var unloading = parseFloat(document.getElementById('txtUnloading').value) || 0;
 
-        var grand = subtotal + totalGST + transport;
+        var grand = subtotal + totalGST + transport + loading + unloading;
 
         document.getElementById('dispItemCount').innerText = count;
         document.getElementById('dispSubtotal').innerText = 'Rs. ' + subtotal.toFixed(2);
         document.getElementById('dispGST').innerText = 'Rs. ' + totalGST.toFixed(2);
-        document.getElementById('dispTransport').innerText = 'Rs. ' + transport.toFixed(2);
+        document.getElementById('dispTransport').innerText = 'Rs. ' + (transport + loading + unloading).toFixed(2);
         document.getElementById('dispGrand').innerText = grand.toFixed(2);
     }
 
@@ -502,6 +512,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         document.getElementById('txtInvoiceNo').value = '';
         document.getElementById('txtInvoiceDate').value = '';
         document.getElementById('txtTransport').value = '';
+        document.getElementById('txtLoading').value = '';
+        document.getElementById('txtUnloading').value = '';
         document.getElementById('chkTransInInvoice').checked = false;
         document.getElementById('chkTransGST').checked = false;
         document.getElementById('chkManualInvoice').checked = false;
@@ -556,6 +568,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             invoiceDate: document.getElementById('txtInvoiceDate').value,
             grnDate: grnDate,
             transport: document.getElementById('txtTransport').value || '0',
+            loading: document.getElementById('txtLoading').value || '0',
+            unloading: document.getElementById('txtUnloading').value || '0',
             transInInvoice: document.getElementById('chkTransInInvoice').checked ? '1' : '0',
             transGST: document.getElementById('chkTransGST').checked ? '1' : '0',
             items: items
@@ -578,6 +592,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         var invoiceNo = document.getElementById('txtInvoiceNo').value || '(none)';
         var invoiceDate = document.getElementById('txtInvoiceDate').value || '—';
         var transport = parseFloat(document.getElementById('txtTransport').value) || 0;
+        var loading = parseFloat(document.getElementById('txtLoading').value) || 0;
+        var unloading = parseFloat(document.getElementById('txtUnloading').value) || 0;
 
         // Header summary
         var hdrHtml = '<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">';
@@ -586,6 +602,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Invoice Date</td><td style="padding:4px 0;">' + invoiceDate + '</td></tr>';
         hdrHtml += '<tr><td style="padding:4px 0;color:#666;">GRN Date</td><td style="padding:4px 0;">' + grnDate + '</td></tr>';
         hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Transport Cost</td><td style="padding:4px 0;">Rs. ' + transport.toFixed(2) + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Loading Charges</td><td style="padding:4px 0;">Rs. ' + loading.toFixed(2) + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Unloading Charges</td><td style="padding:4px 0;">Rs. ' + unloading.toFixed(2) + '</td></tr>';
         hdrHtml += '</table>';
         document.getElementById('confirmHeader').innerHTML = hdrHtml;
 
@@ -636,11 +654,13 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
         document.getElementById('confirmItems').innerHTML = tblHtml;
 
-        var grand = subtotal + totalGST + transport;
-        var totHtml = '<div style="display:flex;justify-content:flex-end;gap:20px;flex-wrap:wrap;">';
+        var grand = subtotal + totalGST + transport + loading + unloading;
+        var totHtml = '<div style="display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;font-size:12px;">';
         totHtml += '<span>Subtotal: Rs. ' + subtotal.toFixed(2) + '</span>';
         totHtml += '<span>GST: Rs. ' + totalGST.toFixed(2) + '</span>';
         totHtml += '<span>Transport: Rs. ' + transport.toFixed(2) + '</span>';
+        if (loading > 0) totHtml += '<span>Loading: Rs. ' + loading.toFixed(2) + '</span>';
+        if (unloading > 0) totHtml += '<span>Unloading: Rs. ' + unloading.toFixed(2) + '</span>';
         totHtml += '<span style="color:var(--teal);font-size:15px;">Grand Total: Rs. ' + grand.toFixed(2) + '</span>';
         totHtml += '</div>';
         document.getElementById('confirmTotals').innerHTML = totHtml;

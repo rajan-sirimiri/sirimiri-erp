@@ -9,13 +9,13 @@ namespace MMApp
 {
     public partial class MMMultiGRNPM : Page
     {
-        protected Label lblNavUser, lblRecSupplier, lblRecTotal;
-        protected Panel pnlAlert, pnlPendingPanel, pnlPendingEmpty, pnlPendingList, pnlRecEmpty, pnlRecList;
+        protected Label lblNavUser;
+        protected Panel pnlAlert, pnlPendingPanel, pnlPendingEmpty, pnlPendingList;
         protected Literal litAlert;
         protected DropDownList ddlSupplier;
         protected HiddenField hfLineItems, hfSupplierID;
         protected Button btnSave, btnSupplierTrigger;
-        protected Repeater rptPending, rptRecoverables;
+        protected Repeater rptPending;
 
         public string ItemDataJson  = "{}";
         public string ItemOptionsJson = "[]";
@@ -44,6 +44,7 @@ namespace MMApp
                     var item = ddlSupplier.Items.FindByValue(selSup);
                     if (item != null) ddlSupplier.SelectedValue = selSup;
                 }
+                LoadPendingInvoices();
             }
             BuildItemJson();
             BuildItemOptionsJson();
@@ -131,46 +132,9 @@ namespace MMApp
             }
         }
 
-        void LoadRecoverables(int supplierId)
-        {
-            if (supplierId <= 0)
-            {
-                lblRecSupplier.Text = "— Select a supplier —";
-                pnlRecList.Visible = false;
-                pnlRecEmpty.Visible = true;
-                return;
-            }
-            if (ddlSupplier.Items.FindByValue(supplierId.ToString()) != null)
-                lblRecSupplier.Text = ddlSupplier.Items.FindByValue(supplierId.ToString()).Text;
-
-            DataTable dt = MMDatabaseHelper.GetSupplierRecoverables(supplierId);
-            if (dt.Rows.Count > 0)
-            {
-                rptRecoverables.DataSource = dt;
-                rptRecoverables.DataBind();
-                pnlRecList.Visible = true;
-                pnlRecEmpty.Visible = false;
-                decimal total = 0;
-                foreach (DataRow r in dt.Rows)
-                    total += r["ShortageValue"] == DBNull.Value ? 0 : Convert.ToDecimal(r["ShortageValue"]);
-                lblRecTotal.Text = total.ToString("N2");
-            }
-            else
-            {
-                pnlRecList.Visible = false;
-                pnlRecEmpty.Visible = true;
-            }
-        }
-
         protected void btnSupplierTrigger_Click(object sender, EventArgs e)
         {
-            int supId;
-            int.TryParse(hfSupplierID.Value, out supId);
-            if (supId > 0)
-            {
-                ddlSupplier.SelectedValue = supId.ToString();
-                LoadRecoverables(supId);
-            }
+            // Kept for form compatibility — recoverables now loaded via AJAX
         }
 
         protected void btnSave_Click(object sender, EventArgs e)
@@ -205,10 +169,14 @@ namespace MMApp
 
                 decimal totalTransport;
                 decimal.TryParse(payload.Transport, out totalTransport);
+                decimal totalLoading;
+                decimal.TryParse(payload.Loading, out totalLoading);
+                decimal totalUnloading;
+                decimal.TryParse(payload.Unloading, out totalUnloading);
                 bool transInInvoice = payload.TransInInvoice == "1";
                 bool transGST = payload.TransGST == "1";
 
-                // Calculate total line value for transport proportion
+                // Calculate total line value for proportional allocation
                 decimal totalLineValue = 0;
                 foreach (var item in payload.Items)
                 {
@@ -224,39 +192,48 @@ namespace MMApp
                 foreach (var item in payload.Items)
                 {
                     int pmId = Convert.ToInt32(item.RmId);
-                    decimal qtyInv, qtyAct, qtyUom, rate;
+                    decimal qtyInv, qtyAct, rate;
                     decimal.TryParse(item.QtyInv, out qtyInv);
                     decimal.TryParse(item.QtyAct, out qtyAct);
-                    decimal.TryParse(item.QtyUom, out qtyUom);
                     decimal.TryParse(item.Rate, out rate);
 
                     decimal? gstRate = null;
                     decimal gstParsed;
                     if (decimal.TryParse(item.Gst, out gstParsed)) gstRate = gstParsed;
 
-                    // Transport allocation: proportion of this line's value to total
+                    // Proportional allocation of transport, loading, unloading
                     decimal lineValue = qtyInv * rate;
-                    decimal lineTransport = 0;
-                    if (totalTransport > 0 && totalLineValue > 0)
-                        lineTransport = Math.Round(totalTransport * (lineValue / totalLineValue), 2);
+                    decimal proportion = (totalLineValue > 0) ? (lineValue / totalLineValue) : 0;
+                    decimal lineTransport = Math.Round(totalTransport * proportion, 2);
+                    decimal lineLoading   = Math.Round(totalLoading * proportion, 2);
+                    decimal lineUnloading = Math.Round(totalUnloading * proportion, 2);
 
                     // Calculate GST and total for this line
                     decimal taxable = lineValue + (transInInvoice ? lineTransport : 0);
                     decimal gstBase = transGST ? taxable : lineValue;
                     decimal gstAmt = gstRate.HasValue ? Math.Round(gstBase * (gstRate.Value / 100), 2) : 0;
-                    decimal total = taxable + gstAmt + (transInInvoice ? 0 : lineTransport);
+                    decimal total = taxable + gstAmt + (transInInvoice ? 0 : lineTransport) + lineLoading + lineUnloading;
 
                     string grnNo = MMDatabaseHelper.GenerateGRNNumber("PM");
                     bool qc = item.Qc == "1";
 
+                    // Build remarks with supplier invoice qty if provided
+                    string remarks = "Multi-GRN";
+                    if (!string.IsNullOrEmpty(item.SupQty) && item.SupQty != "0")
+                    {
+                        string supUom = !string.IsNullOrEmpty(item.SupUom) ? " " + item.SupUom : "";
+                        remarks = "[Supplier Invoice: " + item.SupQty + supUom + "] " + remarks;
+                    }
+
+                    // qtyInv = Standard Qty (stored as Quantity and QtyInUOM)
                     MMDatabaseHelper.AddPackingInward(
                         grnNo, grnDate, invoiceDate,
                         payload.InvoiceNo, supplierId, pmId,
-                        qtyInv, qtyAct, qtyUom, rate,
+                        qtyInv, qtyAct, qtyInv, rate,
                         item.Hsn, gstRate, gstAmt,
                         lineTransport, transInInvoice, transGST,
-                        0, 0, true,
-                        total, "", "Multi-GRN",
+                        lineLoading, lineUnloading, true,
+                        total, "", remarks,
                         qc, "Approved", userId);
 
                     savedCount++;
@@ -301,6 +278,8 @@ namespace MMApp
                 result.InvoiceDate = ExtractString(json, "invoiceDate");
                 result.GrnDate = ExtractString(json, "grnDate");
                 result.Transport = ExtractString(json, "transport");
+                result.Loading = ExtractString(json, "loading");
+                result.Unloading = ExtractString(json, "unloading");
                 result.TransInInvoice = ExtractString(json, "transInInvoice");
                 result.TransGST = ExtractString(json, "transGST");
 
@@ -321,7 +300,8 @@ namespace MMApp
                         RmId = ExtractString("{" + b + "}", "rmId"),
                         QtyInv = ExtractString("{" + b + "}", "qtyInv"),
                         QtyAct = ExtractString("{" + b + "}", "qtyAct"),
-                        QtyUom = ExtractString("{" + b + "}", "qtyUom"),
+                        SupQty = ExtractString("{" + b + "}", "supQty"),
+                        SupUom = ExtractString("{" + b + "}", "supUom"),
                         Rate = ExtractString("{" + b + "}", "rate"),
                         Hsn = ExtractString("{" + b + "}", "hsn"),
                         Gst = ExtractString("{" + b + "}", "gst"),
@@ -359,13 +339,13 @@ namespace MMApp
         class PayloadData
         {
             public string InvoiceNo = "", InvoiceDate = "", GrnDate = "";
-            public string Transport = "0", TransInInvoice = "0", TransGST = "0";
+            public string Transport = "0", Loading = "0", Unloading = "0", TransInInvoice = "0", TransGST = "0";
             public System.Collections.Generic.List<LineItemData> Items = new System.Collections.Generic.List<LineItemData>();
         }
 
         class LineItemData
         {
-            public string RmId, QtyInv, QtyAct, QtyUom, Rate, Hsn, Gst, Qc;
+            public string RmId, QtyInv, QtyAct, SupQty, SupUom, Rate, Hsn, Gst, Qc;
         }
     }
 }

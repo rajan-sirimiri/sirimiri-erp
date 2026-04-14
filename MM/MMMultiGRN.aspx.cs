@@ -169,10 +169,14 @@ namespace MMApp
 
                 decimal totalTransport;
                 decimal.TryParse(payload.Transport, out totalTransport);
+                decimal totalLoading;
+                decimal.TryParse(payload.Loading, out totalLoading);
+                decimal totalUnloading;
+                decimal.TryParse(payload.Unloading, out totalUnloading);
                 bool transInInvoice = payload.TransInInvoice == "1";
                 bool transGST = payload.TransGST == "1";
 
-                // Calculate total line value for transport proportion
+                // Calculate total line value for proportional allocation
                 decimal totalLineValue = 0;
                 foreach (var item in payload.Items)
                 {
@@ -197,17 +201,18 @@ namespace MMApp
                     decimal gstParsed;
                     if (decimal.TryParse(item.Gst, out gstParsed)) gstRate = gstParsed;
 
-                    // Transport allocation: proportion of this line's value to total
+                    // Proportional allocation of transport, loading, unloading
                     decimal lineValue = qtyInv * rate;
-                    decimal lineTransport = 0;
-                    if (totalTransport > 0 && totalLineValue > 0)
-                        lineTransport = Math.Round(totalTransport * (lineValue / totalLineValue), 2);
+                    decimal proportion = (totalLineValue > 0) ? (lineValue / totalLineValue) : 0;
+                    decimal lineTransport = Math.Round(totalTransport * proportion, 2);
+                    decimal lineLoading   = Math.Round(totalLoading * proportion, 2);
+                    decimal lineUnloading = Math.Round(totalUnloading * proportion, 2);
 
                     // Calculate GST and total for this line
                     decimal taxable = lineValue + (transInInvoice ? lineTransport : 0);
                     decimal gstBase = transGST ? taxable : lineValue;
                     decimal gstAmt = gstRate.HasValue ? Math.Round(gstBase * (gstRate.Value / 100), 2) : 0;
-                    decimal total = taxable + gstAmt + (transInInvoice ? 0 : lineTransport);
+                    decimal total = taxable + gstAmt + (transInInvoice ? 0 : lineTransport) + lineLoading + lineUnloading;
 
                     string grnNo = MMDatabaseHelper.GenerateGRNNumber("RM");
                     bool qc = item.Qc == "1";
@@ -227,7 +232,7 @@ namespace MMApp
                         qtyInv, qtyAct, qtyInv, rate,
                         item.Hsn, gstRate, gstAmt,
                         lineTransport, transInInvoice, transGST,
-                        0, 0, true,
+                        lineLoading, lineUnloading, true,
                         total, "", remarks,
                         qc, "Approved", userId);
 
@@ -273,6 +278,8 @@ namespace MMApp
                 result.InvoiceDate = ExtractString(json, "invoiceDate");
                 result.GrnDate = ExtractString(json, "grnDate");
                 result.Transport = ExtractString(json, "transport");
+                result.Loading = ExtractString(json, "loading");
+                result.Unloading = ExtractString(json, "unloading");
                 result.TransInInvoice = ExtractString(json, "transInInvoice");
                 result.TransGST = ExtractString(json, "transGST");
 
@@ -332,7 +339,7 @@ namespace MMApp
         class PayloadData
         {
             public string InvoiceNo = "", InvoiceDate = "", GrnDate = "";
-            public string Transport = "0", TransInInvoice = "0", TransGST = "0";
+            public string Transport = "0", Loading = "0", Unloading = "0", TransInInvoice = "0", TransGST = "0";
             public System.Collections.Generic.List<LineItemData> Items = new System.Collections.Generic.List<LineItemData>();
         }
 
