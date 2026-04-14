@@ -185,8 +185,35 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
         <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
             <button type="button" class="btn-clear" onclick="clearAll();">Clear All</button>
-            <asp:Button ID="btnSave" runat="server" Text="&#x2714; Save All GRNs" CssClass="btn-save"
+            <button type="button" class="btn-save" onclick="showGRNConfirm();">&#x2714; Review &amp; Save All GRNs</button>
+            <asp:Button ID="btnSave" runat="server" Text="Save" style="display:none;"
                 OnClick="btnSave_Click" OnClientClick="return prepareSubmit();" CausesValidation="false"/>
+        </div>
+    </div>
+
+    <!-- GRN Confirmation Modal -->
+    <div id="grnConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:14px;max-width:700px;width:95%;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,.2);max-height:85vh;overflow-y:auto;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;margin-bottom:16px;border-bottom:2px solid var(--teal);padding-bottom:8px;">
+                Confirm Multi-Item GRN Submission
+            </div>
+            <!-- Header summary -->
+            <div id="confirmHeader" style="font-size:13px;line-height:1.8;margin-bottom:14px;"></div>
+            <!-- Line items table -->
+            <div id="confirmItems" style="font-size:12px;overflow-x:auto;margin-bottom:14px;"></div>
+            <!-- Totals -->
+            <div id="confirmTotals" style="font-size:13px;font-weight:600;text-align:right;margin-bottom:16px;"></div>
+            <!-- Verification -->
+            <div style="padding-top:12px;border-top:1px solid #e0e0e0;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" id="chkQtyVerified" style="width:18px;height:18px;accent-color:var(--teal);" />
+                    I have verified all quantities and amounts
+                </label>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="button" onclick="confirmGRN();" style="flex:1;padding:12px;border:none;border-radius:8px;background:var(--teal);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirm &amp; Save</button>
+                <button type="button" onclick="closeGRNConfirm();" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;color:#333;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+            </div>
         </div>
     </div>
 </div>
@@ -220,33 +247,16 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     </div>
     </asp:Panel>
 
-    <!-- Supplier Recoverables -->
+    <!-- Supplier Recoverables (AJAX-loaded) -->
     <div class="rec-panel">
         <div class="rec-header">
             <div class="rec-title">Supplier Recoverables</div>
             <div class="rec-sub">Pending shortage recovery</div>
-            <div style="font-size:12px;font-weight:600;margin-top:4px;"><asp:Label ID="lblRecSupplier" runat="server" Text="— Select a supplier —"/></div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px;" id="recSupplierLabel">— Select a supplier —</div>
         </div>
-        <asp:Panel ID="pnlRecEmpty" runat="server"><div class="rec-empty">Select a supplier to view recoverables</div></asp:Panel>
-        <asp:Panel ID="pnlRecList" runat="server" Visible="false">
-            <div style="max-height:250px;overflow-y:auto;">
-                <asp:Repeater ID="rptRecoverables" runat="server">
-                    <ItemTemplate>
-                        <div class="rec-item">
-                            <div style="font-size:11px;font-weight:500;"><%# Eval("RMName") %></div>
-                            <div style="display:flex;justify-content:space-between;font-size:11px;">
-                                <span style="color:var(--text-dim);"><%# Eval("GRNNo") %> — <%# Eval("InwardDate","{0:dd-MMM-yy}") %></span>
-                                <span style="color:#e74c3c;font-weight:600;"><%# Eval("ShortageQty") %> short</span>
-                            </div>
-                        </div>
-                    </ItemTemplate>
-                </asp:Repeater>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:2px solid var(--teal);font-size:12px;font-weight:700;">
-                <span>Total Recoverable</span>
-                <span style="color:var(--teal);">Rs. <asp:Label ID="lblRecTotal" runat="server" Text="0.00"/></span>
-            </div>
-        </asp:Panel>
+        <div id="recoverablesContent">
+            <div class="rec-empty">Select a supplier to view recoverables</div>
+        </div>
     </div>
 </div>
 </div>
@@ -323,7 +333,46 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
     function onSupplierSelect(supId) {
         document.getElementById('<%= hfSupplierID.ClientID %>').value = supId;
-        __doPostBack('<%= btnSupplierTrigger.UniqueID %>', '');
+        // Load recoverables via AJAX — no postback, preserves line items
+        loadRecoverablesAjax(supId);
+    }
+
+    function loadRecoverablesAjax(supId) {
+        var recPanel = document.getElementById('recoverablesContent');
+        var recSupLabel = document.getElementById('recSupplierLabel');
+        if (!recPanel) return;
+
+        // Get supplier name
+        var supDdl = document.getElementById('<%= ddlSupplier.ClientID %>');
+        var supName = supDdl && supDdl.selectedIndex >= 0 ? supDdl.options[supDdl.selectedIndex].text : '';
+        if (recSupLabel) recSupLabel.innerText = supName || '—';
+
+        recPanel.innerHTML = '<div style="text-align:center;padding:16px;color:#999;font-size:12px;">Loading...</div>';
+
+        fetch('MMRecoverablesAPI.ashx?supId=' + supId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.items || data.items.length === 0) {
+                    recPanel.innerHTML = '<div style="text-align:center;padding:16px;color:#2ecc71;font-size:12px;">&#10003; No pending recoverables</div>';
+                    return;
+                }
+                var html = '<div style="max-height:250px;overflow-y:auto;">';
+                data.items.forEach(function(it) {
+                    html += '<div style="padding:8px 0;border-bottom:1px solid #f2f0ed;">';
+                    html += '<div style="font-size:11px;font-weight:500;">' + it.rm + '</div>';
+                    html += '<div style="display:flex;justify-content:space-between;font-size:11px;">';
+                    html += '<span style="color:#999;">' + it.grn + ' — ' + it.date + '</span>';
+                    html += '<span style="color:#e74c3c;font-weight:600;">' + it.qty + ' ' + it.uom + ' short</span>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                html += '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:2px solid var(--teal);font-size:12px;font-weight:700;">';
+                html += '<span>Total Recoverable</span><span style="color:var(--teal);">Rs. ' + data.total + '</span></div>';
+                recPanel.innerHTML = html;
+            })
+            .catch(function() {
+                recPanel.innerHTML = '<div style="text-align:center;padding:16px;color:#e74c3c;font-size:12px;">Failed to load</div>';
+            });
     }
 
     // ── Manual Invoice ──
@@ -513,6 +562,101 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         };
         document.getElementById('<%= hfLineItems.ClientID %>').value = JSON.stringify(payload);
         return true;
+    }
+
+    // ── GRN Confirmation Modal ──
+    function showGRNConfirm() {
+        var rows = document.querySelectorAll('#tbodyItems tr');
+        if (rows.length === 0) { alert('No line items to save.'); return; }
+
+        var grnDate = document.getElementById('txtGRNDate').value;
+        if (!grnDate) { alert('GRN Date is required.'); return; }
+        var supDdl = document.getElementById('<%= ddlSupplier.ClientID %>');
+        if (!supDdl || supDdl.value === '0') { alert('Please select a supplier.'); return; }
+
+        var supplierName = supDdl.options[supDdl.selectedIndex].text;
+        var invoiceNo = document.getElementById('txtInvoiceNo').value || '(none)';
+        var invoiceDate = document.getElementById('txtInvoiceDate').value || '—';
+        var transport = parseFloat(document.getElementById('txtTransport').value) || 0;
+
+        // Header summary
+        var hdrHtml = '<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;width:35%;">Supplier</td><td style="padding:4px 0;font-weight:600;">' + supplierName + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Invoice No</td><td style="padding:4px 0;">' + invoiceNo + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Invoice Date</td><td style="padding:4px 0;">' + invoiceDate + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">GRN Date</td><td style="padding:4px 0;">' + grnDate + '</td></tr>';
+        hdrHtml += '<tr><td style="padding:4px 0;color:#666;">Transport Cost</td><td style="padding:4px 0;">Rs. ' + transport.toFixed(2) + '</td></tr>';
+        hdrHtml += '</table>';
+        document.getElementById('confirmHeader').innerHTML = hdrHtml;
+
+        // Line items table
+        var tblHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        tblHtml += '<thead><tr style="background:#faf9f7;"><th style="padding:6px;text-align:left;border-bottom:2px solid #e0e0e0;">#</th>';
+        tblHtml += '<th style="padding:6px;text-align:left;border-bottom:2px solid #e0e0e0;">Material</th>';
+        tblHtml += '<th style="padding:6px;text-align:right;border-bottom:2px solid #e0e0e0;">Std Qty</th>';
+        tblHtml += '<th style="padding:6px;text-align:right;border-bottom:2px solid #e0e0e0;">Act Qty</th>';
+        tblHtml += '<th style="padding:6px;text-align:right;border-bottom:2px solid #e0e0e0;">Rate</th>';
+        tblHtml += '<th style="padding:6px;text-align:right;border-bottom:2px solid #e0e0e0;">GST%</th>';
+        tblHtml += '<th style="padding:6px;text-align:right;border-bottom:2px solid #e0e0e0;">Amount</th>';
+        tblHtml += '<th style="padding:6px;text-align:center;border-bottom:2px solid #e0e0e0;">QC</th></tr></thead><tbody>';
+
+        var subtotal = 0, totalGST = 0, lineNum = 0, hasError = false;
+        rows.forEach(function(tr) {
+            var idx = tr.dataset.idx;
+            var rmSel = document.getElementById('rm_'+idx);
+            if (!rmSel || rmSel.value === '0') { hasError = true; return; }
+            var matName = rmSel.options[rmSel.selectedIndex].text;
+            var qtyInv = parseFloat(document.getElementById('qtyInv_'+idx)?.value) || 0;
+            var qtyAct = parseFloat(document.getElementById('qtyAct_'+idx)?.value) || 0;
+            var rate = parseFloat(document.getElementById('rate_'+idx)?.value) || 0;
+            var gstRate = parseFloat(document.getElementById('gst_'+idx)?.value) || 0;
+            if (!qtyInv || !qtyAct || !rate) { hasError = true; return; }
+
+            lineNum++;
+            var lineAmt = qtyInv * rate;
+            var lineGST = lineAmt * (gstRate / 100);
+            subtotal += lineAmt;
+            totalGST += lineGST;
+            var qcChk = document.getElementById('qc_'+idx)?.checked;
+
+            tblHtml += '<tr style="border-bottom:1px solid #f0f0f0;">';
+            tblHtml += '<td style="padding:5px 6px;">' + lineNum + '</td>';
+            tblHtml += '<td style="padding:5px 6px;font-weight:500;">' + matName + '</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:right;">' + qtyInv.toFixed(3) + '</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:right;">' + qtyAct.toFixed(3) + '</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:right;">' + rate.toFixed(2) + '</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:right;">' + gstRate + '%</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:right;font-weight:600;">' + (lineAmt + lineGST).toFixed(2) + '</td>';
+            tblHtml += '<td style="padding:5px 6px;text-align:center;">' + (qcChk ? '✓' : '—') + '</td>';
+            tblHtml += '</tr>';
+        });
+        tblHtml += '</tbody></table>';
+
+        if (hasError || lineNum === 0) { alert('Please fill all required fields for each line item.'); return; }
+
+        document.getElementById('confirmItems').innerHTML = tblHtml;
+
+        var grand = subtotal + totalGST + transport;
+        var totHtml = '<div style="display:flex;justify-content:flex-end;gap:20px;flex-wrap:wrap;">';
+        totHtml += '<span>Subtotal: Rs. ' + subtotal.toFixed(2) + '</span>';
+        totHtml += '<span>GST: Rs. ' + totalGST.toFixed(2) + '</span>';
+        totHtml += '<span>Transport: Rs. ' + transport.toFixed(2) + '</span>';
+        totHtml += '<span style="color:var(--teal);font-size:15px;">Grand Total: Rs. ' + grand.toFixed(2) + '</span>';
+        totHtml += '</div>';
+        document.getElementById('confirmTotals').innerHTML = totHtml;
+
+        document.getElementById('chkQtyVerified').checked = false;
+        document.getElementById('grnConfirmOverlay').style.display = 'flex';
+    }
+
+    function confirmGRN() {
+        if (!prepareSubmit()) return;
+        closeGRNConfirm();
+        document.getElementById('<%= btnSave.ClientID %>').click();
+    }
+
+    function closeGRNConfirm() {
+        document.getElementById('grnConfirmOverlay').style.display = 'none';
     }
 
     // ── Init ──

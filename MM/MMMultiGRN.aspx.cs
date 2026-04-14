@@ -9,13 +9,13 @@ namespace MMApp
 {
     public partial class MMMultiGRN : Page
     {
-        protected Label lblNavUser, lblRecSupplier, lblRecTotal;
-        protected Panel pnlAlert, pnlPendingPanel, pnlPendingEmpty, pnlPendingList, pnlRecEmpty, pnlRecList;
+        protected Label lblNavUser;
+        protected Panel pnlAlert, pnlPendingPanel, pnlPendingEmpty, pnlPendingList;
         protected Literal litAlert;
         protected DropDownList ddlSupplier;
         protected HiddenField hfLineItems, hfSupplierID;
         protected Button btnSave, btnSupplierTrigger;
-        protected Repeater rptPending, rptRecoverables;
+        protected Repeater rptPending;
 
         public string RMDataJson  = "{}";
         public string RMOptionsJson = "[]";
@@ -44,6 +44,7 @@ namespace MMApp
                     var item = ddlSupplier.Items.FindByValue(selSup);
                     if (item != null) ddlSupplier.SelectedValue = selSup;
                 }
+                LoadPendingInvoices();
             }
             BuildRMJson();
             BuildRMOptionsJson();
@@ -131,46 +132,9 @@ namespace MMApp
             }
         }
 
-        void LoadRecoverables(int supplierId)
-        {
-            if (supplierId <= 0)
-            {
-                lblRecSupplier.Text = "— Select a supplier —";
-                pnlRecList.Visible = false;
-                pnlRecEmpty.Visible = true;
-                return;
-            }
-            if (ddlSupplier.Items.FindByValue(supplierId.ToString()) != null)
-                lblRecSupplier.Text = ddlSupplier.Items.FindByValue(supplierId.ToString()).Text;
-
-            DataTable dt = MMDatabaseHelper.GetSupplierRecoverables(supplierId);
-            if (dt.Rows.Count > 0)
-            {
-                rptRecoverables.DataSource = dt;
-                rptRecoverables.DataBind();
-                pnlRecList.Visible = true;
-                pnlRecEmpty.Visible = false;
-                decimal total = 0;
-                foreach (DataRow r in dt.Rows)
-                    total += r["ShortageValue"] == DBNull.Value ? 0 : Convert.ToDecimal(r["ShortageValue"]);
-                lblRecTotal.Text = total.ToString("N2");
-            }
-            else
-            {
-                pnlRecList.Visible = false;
-                pnlRecEmpty.Visible = true;
-            }
-        }
-
         protected void btnSupplierTrigger_Click(object sender, EventArgs e)
         {
-            int supId;
-            int.TryParse(hfSupplierID.Value, out supId);
-            if (supId > 0)
-            {
-                ddlSupplier.SelectedValue = supId.ToString();
-                LoadRecoverables(supId);
-            }
+            // Kept for form compatibility — recoverables now loaded via AJAX
         }
 
         protected void btnSave_Click(object sender, EventArgs e)
