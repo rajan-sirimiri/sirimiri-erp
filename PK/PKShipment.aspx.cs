@@ -16,7 +16,7 @@ namespace PKApp
         protected HiddenField hfDCID, hfLines, hfProductData, hfSAShipId, hfSAProductOptions;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
-        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView;
+        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
         protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
         protected Panel pnlProjEmpty;
@@ -38,6 +38,7 @@ namespace PKApp
                 BindCustomers();
                 BuildProductData();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                if (btnDeleteDC != null) btnDeleteDC.Visible = false;
                 BindDCList();
                 LoadProjDropdowns();
                 BindProjections();
@@ -211,8 +212,41 @@ namespace PKApp
             pnlLocked.Visible = false;
             btnDraftSave.Visible = true;
             btnFinalise.Visible = true;
+            if (btnDeleteDC != null) btnDeleteDC.Visible = false;
             BuildProductData();
             if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        // ── DELETE DRAFT DC ──
+        protected void btnDeleteDC_Click(object s, EventArgs e)
+        {
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0) { ShowAlert("No DC selected to delete.", false); return; }
+
+            try
+            {
+                var dc = PKDatabaseHelper.GetDCById(dcId);
+                if (dc == null) { ShowAlert("DC not found.", false); return; }
+                if (dc["Status"].ToString() != "DRAFT")
+                { ShowAlert("Only DRAFT DCs can be deleted. Finalised DCs cannot be removed.", false); return; }
+
+                string dcNumber = dc["DCNumber"].ToString();
+                PKDatabaseHelper.DeleteDraftDC(dcId);
+
+                // Reset form to new
+                hfDCID.Value = "0";
+                hfLines.Value = "";
+                txtDCNumber.Text = "";
+                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                txtRemarks.Text = "";
+                if (ddlCustomer != null) ddlCustomer.SelectedIndex = 0;
+                lblFormTitle.Text = "New Delivery Challan";
+
+                ShowAlert(dcNumber + " deleted. All reserved stock has been freed.", true);
+                BuildProductData();
+                BindDCList();
+            }
+            catch (Exception ex) { ShowAlert("Error deleting DC: " + ex.Message, false); }
         }
 
         // ── LOAD EXISTING DC ──
@@ -266,6 +300,7 @@ namespace PKApp
                 pnlLocked.Visible = false;
                 btnDraftSave.Visible = true;
                 btnFinalise.Visible = true;
+                if (btnDeleteDC != null) btnDeleteDC.Visible = true;
             }
             else
             {
