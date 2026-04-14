@@ -133,6 +133,7 @@
     <Content Include="DailySales.aspx" />
     <Content Include="SADailySalesAPI.ashx" />
     <Content Include="SADailySalesReport.aspx" />
+    <Content Include="SAProductDefaults.aspx" />
     <Compile Include="DailySales.aspx.cs">
       <DependentUpon>DailySales.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -149,6 +150,13 @@
     </Compile>
     <Compile Include="SADailySalesReport.aspx.designer.cs">
       <DependentUpon>SADailySalesReport.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="SAProductDefaults.aspx.cs">
+      <DependentUpon>SAProductDefaults.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SAProductDefaults.aspx.designer.cs">
+      <DependentUpon>SAProductDefaults.aspx</DependentUpon>
     </Compile>
     <Content Include="DataImport.aspx" />
     <Compile Include="DataImport.aspx.cs">

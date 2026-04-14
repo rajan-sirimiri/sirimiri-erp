@@ -206,6 +206,26 @@
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
+        <a id="lnkDailySalesReport" runat="server" href="SADailySalesReport.aspx" class="menu-card cat-report">
+            <div class="menu-icon">&#x1F4DD;</div>
+            <div>
+                <div class="menu-title">Daily Sales<br/>Report</div>
+                <div class="menu-desc">SO/SR wise — units sold, new &amp; repeat shops, distributor &amp; product breakdown by date</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+    </div>
+
+    <div class="section-head">Settings</div>
+    <div class="menu-grid">
+        <a id="lnkProductDefaults" runat="server" href="SAProductDefaults.aspx" class="menu-card cat-stock">
+            <div class="menu-icon">&#x2699;</div>
+            <div>
+                <div class="menu-title">Product Default<br/>Selling Unit</div>
+                <div class="menu-desc">Set default pack form (PCS, JAR, BOX, CASE) per product for Daily Sales Entry</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
     </div>
 
 </main>
