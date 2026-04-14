@@ -60,8 +60,13 @@
         .pack-select:focus{outline:none;border-color:var(--accent)}
         .qty-input{width:80px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;text-align:center;color:var(--text)}
         .qty-input:focus{outline:none;border-color:var(--accent);background:#fff8f8}
-        .qty-input:invalid{border-color:#e74c3c}
-        .units-label{font-size:12px;color:var(--muted);font-weight:500;min-width:50px}
+        .units-label{font-size:12px;color:var(--muted);font-weight:500;min-width:55px}
+        .shop-field{display:flex;align-items:center;gap:8px}
+        .shop-input{width:70px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;text-align:center;color:var(--text)}
+        .shop-input:focus{outline:none;border-color:var(--accent);background:#fff8f8}
+        .shop-label{font-size:13px;color:var(--muted);font-weight:500}
+        .shop-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        @media(max-width:640px){.shop-row{grid-template-columns:1fr}}
         /* Buttons */
         .btn-row{display:flex;gap:12px;margin-top:8px}
         .btn-save{padding:12px 32px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.04em}
@@ -142,7 +147,30 @@
             </div>
         </div>
 
-        <!-- PRODUCT ENTRY (JS-rendered with pack form selector) -->
+        <!-- SHOP PLACEMENT -->
+        <div class="card">
+            <div class="card-head"><h2>SHOP PLACEMENT</h2></div>
+            <div class="card-body">
+                <div class="shop-row">
+                    <div class="field">
+                        <label>New Shops Placed</label>
+                        <div class="shop-field">
+                            <input type="number" class="shop-input" id="txtNewShops" value="0" min="0"/>
+                            <span class="shop-label">shops</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Repeat Shops Placed</label>
+                        <div class="shop-field">
+                            <input type="number" class="shop-input" id="txtRepeatShops" value="0" min="0"/>
+                            <span class="shop-label">shops</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRODUCT ENTRY (JS-rendered with pack form selector + default) -->
         <div class="card" id="cardProducts" style="display:none;">
             <div class="card-head"><h2>ENTER QUANTITIES SOLD</h2></div>
             <div class="card-body">
@@ -151,16 +179,15 @@
                         <tr>
                             <th>Product</th>
                             <th style="width:160px;">Pack Form</th>
-                            <th style="width:160px;">Quantity</th>
+                            <th style="width:170px;">Quantity</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyProducts"></tbody>
                 </table>
-
                 <br/>
                 <div class="btn-row">
                     <button type="button" class="btn-save" onclick="saveEntries()">SAVE</button>
-                    <button type="button" class="btn-cancel" onclick="resetForm()">CANCEL</button>
+                    <button type="button" class="btn-cancel" onclick="resetQty()">CLEAR</button>
                 </div>
             </div>
         </div>
@@ -170,12 +197,10 @@
 
 <script>
 (function(){
-    // Load products with packing options
     var products = [];
 
     function fetchJSON(url, cb) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
+        var xhr = new XMLHttpRequest(); xhr.open('GET', url, true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState === 4 && xhr.status === 200) {
                 try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
@@ -201,17 +226,17 @@
             if (p.ct) meta.push(p.ct);
             if (p.hsn) meta.push('HSN: ' + p.hsn);
 
-            // Build pack form dropdown
+            // Build pack form dropdown, pre-select default
             var opts = '';
             if (p.packs.length === 0) {
-                opts = '<option value="PCS|1">PCS</option>';
+                opts = '<option value="PCS|1" selected>PCS</option>';
             } else {
                 for (var j = 0; j < p.packs.length; j++) {
                     var pk = p.packs[j];
-                    var label = pk.form;
-                    if (pk.units > 1) label += ' of ' + pk.units;
-                    if (pk.desc && pk.desc !== pk.form && pk.desc !== 'PCS') label = pk.desc;
-                    opts += '<option value="' + pk.form + '|' + pk.units + '">' + esc(label) + '</option>';
+                    var label = pk.desc && pk.desc !== pk.form && pk.desc !== 'PCS' ? pk.desc : pk.form;
+                    if (pk.units > 1 && label === pk.form) label += ' of ' + pk.units;
+                    var isDefault = (pk.form === p.df);
+                    opts += '<option value="' + pk.form + '|' + pk.units + '"' + (isDefault ? ' selected' : '') + '>' + esc(label) + '</option>';
                 }
             }
 
@@ -223,57 +248,57 @@
                 '<td><div class="qty-wrap">' +
                 '<input type="number" class="qty-input" id="qty_' + p.id + '" value="0" min="0"/>' +
                 '<span class="units-label" id="lbl_' + p.id + '"></span>' +
-                '</div></td>' +
-                '</tr>';
+                '</div></td></tr>';
         }
         tbody.innerHTML = html;
         document.getElementById('cardProducts').style.display = '';
 
-        // Attach change listeners to update unit labels
+        // Update labels on change
         for (var i = 0; i < products.length; i++) {
             (function(pid) {
                 var sel = document.getElementById('pack_' + pid);
                 var qty = document.getElementById('qty_' + pid);
                 var lbl = document.getElementById('lbl_' + pid);
-                function updateLabel() {
+                function upd() {
                     var parts = sel.value.split('|');
                     var units = parseInt(parts[1]) || 1;
                     var q = parseInt(qty.value) || 0;
-                    if (q > 0 && units > 1) {
-                        lbl.textContent = '= ' + (q * units) + ' pcs';
-                    } else {
-                        lbl.textContent = '';
-                    }
+                    lbl.textContent = (q > 0 && units > 1) ? '= ' + (q * units) + ' pcs' : '';
                 }
-                sel.addEventListener('change', updateLabel);
-                qty.addEventListener('input', updateLabel);
+                sel.addEventListener('change', upd);
+                qty.addEventListener('input', upd);
             })(products[i].id);
         }
     }
 
-    // Save
+    // ── SAVE ──
     window.saveEntries = function() {
-        // Get selected distributor IDs from the ASP ListBox
         var lst = document.getElementById('<%= lstDistributor.ClientID %>');
-        if (!lst) { alert('Distributor list not found.'); return; }
+        if (!lst) { showMsg('err', 'Distributor list not found.'); return; }
         var custIds = [];
-        for (var i = 0; i < lst.options.length; i++) {
+        for (var i = 0; i < lst.options.length; i++)
             if (lst.options[i].selected) custIds.push(lst.options[i].value);
-        }
-        if (custIds.length === 0) { alert('Please select at least one distributor.'); return; }
+        if (custIds.length === 0) { showMsg('err', 'Please select at least one distributor.'); return; }
 
-        // Collect entries: pid|form|unitsPerPack|qty
+        // Product entries
         var entries = [];
         for (var i = 0; i < products.length; i++) {
             var pid = products[i].id;
             var qty = parseInt(document.getElementById('qty_' + pid).value) || 0;
             if (qty <= 0) continue;
-            var packVal = document.getElementById('pack_' + pid).value; // "JAR|50"
+            var packVal = document.getElementById('pack_' + pid).value;
             entries.push(pid + '|' + packVal + '|' + qty);
         }
-        if (entries.length === 0) { alert('Please enter quantity for at least one product.'); return; }
 
-        // POST to API
+        var newShops = parseInt(document.getElementById('txtNewShops').value) || 0;
+        var repeatShops = parseInt(document.getElementById('txtRepeatShops').value) || 0;
+
+        if (entries.length === 0 && newShops === 0 && repeatShops === 0) {
+            showMsg('err', 'Please enter quantity for at least one product or shop placement.');
+            return;
+        }
+
+        // POST
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'SADailySalesAPI.ashx', true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -282,48 +307,44 @@
                 try {
                     var resp = JSON.parse(xhr.responseText);
                     if (resp.ok) {
-                        // Show success
                         var distNames = [];
                         for (var i = 0; i < lst.options.length; i++)
                             if (lst.options[i].selected) distNames.push(lst.options[i].text);
-                        showMsg('ok', 'Saved ' + entries.length + ' product(s) across ' + custIds.length +
-                            ' distributor(s): ' + distNames.join(', ') +
-                            '<br/><small>Entered by: <strong>' + resp.user + '</strong> at ' + new Date().toLocaleTimeString() + '</small>');
+                        var msg = 'Saved ' + entries.length + ' product(s) across ' + custIds.length + ' distributor(s): ' + distNames.join(', ');
+                        if (newShops > 0 || repeatShops > 0)
+                            msg += '<br/>Shops — New: ' + newShops + ', Repeat: ' + repeatShops;
+                        msg += '<br/><small>Entered by: <strong>' + resp.user + '</strong> at ' + new Date().toLocaleTimeString() + '</small>';
+                        showMsg('ok', msg);
                         resetQty();
                     } else {
                         showMsg('err', resp.error || 'Save failed.');
                     }
-                } catch(e) {
-                    showMsg('err', 'Unexpected error. Please try again.');
-                }
+                } catch(e) { showMsg('err', 'Unexpected error. Please try again.'); }
             }
         };
-        xhr.send('action=save&customerIds=' + encodeURIComponent(custIds.join(',')) +
-                 '&entries=' + encodeURIComponent(entries.join(';')) +
-                 '&date=' + new Date().toISOString().split('T')[0]);
+        xhr.send('action=save' +
+            '&customerIds=' + encodeURIComponent(custIds.join(',')) +
+            '&entries=' + encodeURIComponent(entries.join(';')) +
+            '&newShops=' + newShops +
+            '&repeatShops=' + repeatShops +
+            '&date=' + new Date().toISOString().split('T')[0]);
     };
 
-    window.resetForm = function() {
-        // Reset ASP dropdowns via postback would lose JS state. Just reset qty.
-        resetQty();
-        showMsg('', '');
-    };
-
-    function resetQty() {
+    window.resetQty = function() {
         for (var i = 0; i < products.length; i++) {
             var pid = products[i].id;
-            var qty = document.getElementById('qty_' + pid);
-            if (qty) qty.value = '0';
-            var lbl = document.getElementById('lbl_' + pid);
-            if (lbl) lbl.textContent = '';
+            var q = document.getElementById('qty_' + pid); if (q) q.value = '0';
+            var l = document.getElementById('lbl_' + pid); if (l) l.textContent = '';
         }
-    }
+        document.getElementById('txtNewShops').value = '0';
+        document.getElementById('txtRepeatShops').value = '0';
+    };
 
     function showMsg(type, msg) {
-        var okEl = document.getElementById('msgOk');
-        var errEl = document.getElementById('msgErr');
-        if (okEl) { okEl.style.display = type === 'ok' ? '' : 'none'; okEl.innerHTML = msg; }
-        if (errEl) { errEl.style.display = type === 'err' ? '' : 'none'; errEl.innerHTML = msg; }
+        var ok = document.getElementById('msgOk'), err = document.getElementById('msgErr');
+        if (ok) { ok.style.display = type === 'ok' ? '' : 'none'; ok.innerHTML = msg; }
+        if (err) { err.style.display = type === 'err' ? '' : 'none'; err.innerHTML = msg; }
+        window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
