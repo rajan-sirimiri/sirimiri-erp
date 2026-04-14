@@ -87,6 +87,8 @@
     <Content Include="SAHome.aspx" />
     <Content Include="SADistStockPosition.aspx" />
     <Content Include="SADistStockAPI.ashx" />
+    <Content Include="SAFGStock.aspx" />
+    <Content Include="SAFGStockAPI.ashx" />
     <Content Include="SASalesForce.aspx" />
     <Content Include="StockEntry.aspx" />
     <Compile Include="SAHome.aspx.cs">
@@ -102,6 +104,16 @@
     </Compile>
     <Compile Include="SADistStockAPI.ashx.cs">
       <DependentUpon>SADistStockAPI.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="SAFGStock.aspx.cs">
+      <DependentUpon>SAFGStock.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SAFGStock.aspx.designer.cs">
+      <DependentUpon>SAFGStock.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="SAFGStockAPI.ashx.cs">
+      <DependentUpon>SAFGStockAPI.ashx</DependentUpon>
     </Compile>
     <Compile Include="SASalesForce.aspx.cs">
       <DependentUpon>SASalesForce.aspx</DependentUpon>
@@ -131,32 +143,12 @@
       <DependentUpon>ProductMaster.aspx</DependentUpon>
     </Compile>
     <Content Include="DailySales.aspx" />
-    <Content Include="SADailySalesAPI.ashx" />
-    <Content Include="SADailySalesReport.aspx" />
-    <Content Include="SAProductDefaults.aspx" />
     <Compile Include="DailySales.aspx.cs">
       <DependentUpon>DailySales.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="DailySales.aspx.designer.cs">
       <DependentUpon>DailySales.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="SADailySalesAPI.ashx.cs">
-      <DependentUpon>SADailySalesAPI.ashx</DependentUpon>
-    </Compile>
-    <Compile Include="SADailySalesReport.aspx.cs">
-      <DependentUpon>SADailySalesReport.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="SADailySalesReport.aspx.designer.cs">
-      <DependentUpon>SADailySalesReport.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="SAProductDefaults.aspx.cs">
-      <DependentUpon>SAProductDefaults.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="SAProductDefaults.aspx.designer.cs">
-      <DependentUpon>SAProductDefaults.aspx</DependentUpon>
     </Compile>
     <Content Include="DataImport.aspx" />
     <Compile Include="DataImport.aspx.cs">

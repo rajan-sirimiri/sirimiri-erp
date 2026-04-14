@@ -155,14 +155,14 @@
                     <div class="field">
                         <label>New Shops Placed</label>
                         <div class="shop-field">
-                            <input type="number" class="shop-input" id="txtNewShops" value="0" min="0"/>
+                            <input type="number" class="shop-input" id="txtNewShops" value="" min="0" placeholder=""/>
                             <span class="shop-label">shops</span>
                         </div>
                     </div>
                     <div class="field">
                         <label>Repeat Shops Placed</label>
                         <div class="shop-field">
-                            <input type="number" class="shop-input" id="txtRepeatShops" value="0" min="0"/>
+                            <input type="number" class="shop-input" id="txtRepeatShops" value="" min="0" placeholder=""/>
                             <span class="shop-label">shops</span>
                         </div>
                     </div>
@@ -246,7 +246,7 @@
                 '</td>' +
                 '<td><select class="pack-select" id="pack_' + p.id + '">' + opts + '</select></td>' +
                 '<td><div class="qty-wrap">' +
-                '<input type="number" class="qty-input" id="qty_' + p.id + '" value="0" min="0"/>' +
+                '<input type="number" class="qty-input" id="qty_' + p.id + '" value="" min="0" placeholder=""/>' +
                 '<span class="units-label" id="lbl_' + p.id + '"></span>' +
                 '</div></td></tr>';
         }
@@ -333,11 +333,11 @@
     window.resetQty = function() {
         for (var i = 0; i < products.length; i++) {
             var pid = products[i].id;
-            var q = document.getElementById('qty_' + pid); if (q) q.value = '0';
+            var q = document.getElementById('qty_' + pid); if (q) q.value = '';
             var l = document.getElementById('lbl_' + pid); if (l) l.textContent = '';
         }
-        document.getElementById('txtNewShops').value = '0';
-        document.getElementById('txtRepeatShops').value = '0';
+        document.getElementById('txtNewShops').value = '';
+        document.getElementById('txtRepeatShops').value = '';
     };
 
     function showMsg(type, msg) {
