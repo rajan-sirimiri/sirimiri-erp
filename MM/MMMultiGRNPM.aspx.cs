@@ -245,9 +245,20 @@ namespace MMApp
                 hfLineItems.Value = "[]";
                 LoadPendingInvoices();
 
-                // Reset form via client script
-                ClientScript.RegisterStartupScript(this.GetType(), "clearAfterSave",
-                    "clearAll();", true);
+                // Reset line items but keep supplier, then reload recoverables
+                string savedSupId = supplierId.ToString();
+                ClientScript.RegisterStartupScript(this.GetType(), "afterSave",
+                    "document.getElementById('tbodyItems').innerHTML='';" +
+                    "document.getElementById('txtInvoiceNo').value='';" +
+                    "document.getElementById('txtInvoiceDate').value='';" +
+                    "document.getElementById('txtTransport').value='';" +
+                    "document.getElementById('txtLoading').value='';" +
+                    "document.getElementById('txtUnloading').value='';" +
+                    "document.getElementById('chkTransInInvoice').checked=false;" +
+                    "document.getElementById('chkTransGST').checked=false;" +
+                    "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;" +
+                    "rowIdx=0;addRow();recalcAll();" +
+                    "loadRecoverablesAjax('" + savedSupId + "');", true);
             }
             catch (Exception ex)
             {
