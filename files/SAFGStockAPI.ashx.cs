@@ -71,7 +71,7 @@ namespace StockApp
                     SELECT dl.ProductID, SUM(dl.Cases) AS TotalCases
                     FROM PK_DCLines dl
                     INNER JOIN PK_DeliveryChallans dc ON dc.DCID = dl.DCID
-                    WHERE dc.Status = 'FINALISED'
+                    WHERE dc.Status IN ('DRAFT','FINALISED')
                     GROUP BY dl.ProductID
                 ) dispatched ON dispatched.ProductID = p.ProductID
                 WHERE p.ProductType = 'Core' AND p.IsActive = 1
