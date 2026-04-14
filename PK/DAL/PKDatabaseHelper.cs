@@ -1384,33 +1384,89 @@ namespace PKApp.DAL
         /// FG = Secondary Packing output (in jars) minus already shipped DC lines (in jars).
         public static DataTable GetFGStockForShipment()
         {
+            // FG available for DC (in jars):
+            //   Total JARs = Primary packed PCS / UnitSize (from PK_FGStock)
+            //   JARs in cases = SecondaryPacking.TotalUnits (jars consumed by case packing)
+            //   Loose JARs = Total JARs − JARs in cases
+            //   Case JARs = SecondaryPacking cases × ContainersPerCase
+            //   Total FG JARs = Loose JARs + Case JARs (not yet dispatched)
+            //   Shipped JARs = DC lines (DRAFT + FINALISED) cases*jpc + loose
+            //   Available = Total FG JARs − Shipped JARs
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductName, p.ProductCode," +
                 " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
                 " IFNULL(p.UnitsPerContainer, '1') AS UnitsPerContainer," +
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
                 " ou.Abbreviation AS Unit," +
-                // FG total from secondary packing (in JARS = cases * jarsPerCase)
-                " IFNULL(sp.TotalJars, 0) AS FGTotalJars," +
-                // Already shipped via DC lines (we store Cases and LooseJars, convert back to jars)
+
+                // Total JARs from primary packing
+                " ROUND(IFNULL(fg.TotalPCS, 0)" +
+                "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                ", 0) AS TotalJarsPacked," +
+
+                // JARs consumed by case packing
+                " ROUND(IFNULL(sp.JarsInCases, 0), 0) AS JarsInCases," +
+
+                // Case JARs = cases × jars per case (these jars are now in case form)
+                " ROUND(IFNULL(sp.CasesPacked, 0) * IFNULL(p.ContainersPerCase, 12), 0) AS CaseJars," +
+
+                // Loose JARs (not case-packed)
+                " ROUND(IFNULL(fg.TotalPCS, 0)" +
+                "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                "  - IFNULL(sp.JarsInCases, 0), 0) AS LooseJars," +
+
+                // Total FG in JAR-equivalent: Loose JARs + (Cases × JarsPerCase)
+                " ROUND(" +
+                "  (IFNULL(fg.TotalPCS, 0)" +
+                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                "   - IFNULL(sp.JarsInCases, 0))" +    // loose jars
+                "  + (IFNULL(sp.CasesPacked, 0) * IFNULL(p.ContainersPerCase, 12))" +  // case jars
+                ", 0) AS FGTotalJars," +
+
+                // Already allocated via DC lines (DRAFT + FINALISED) — in jars
                 " IFNULL(shipped.TotalShippedJars, 0) AS ShippedJars," +
-                // Available FG in jars
-                " ROUND(IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0), 0) AS AvailableFGJars," +
-                // Also provide pieces for reference
-                " ROUND((IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0))" +
-                "  * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 0) AS AvailableFGPcs" +
+
+                // Available FG in jars for new DC
+                " ROUND(" +
+                "  (IFNULL(fg.TotalPCS, 0)" +
+                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                "   - IFNULL(sp.JarsInCases, 0))" +
+                "  + (IFNULL(sp.CasesPacked, 0) * IFNULL(p.ContainersPerCase, 12))" +
+                "  - IFNULL(shipped.TotalShippedJars, 0)" +
+                ", 0) AS AvailableFGJars," +
+
+                // Available in pieces
+                " ROUND((" +
+                "  (IFNULL(fg.TotalPCS, 0)" +
+                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                "   - IFNULL(sp.JarsInCases, 0))" +
+                "  + (IFNULL(sp.CasesPacked, 0) * IFNULL(p.ContainersPerCase, 12))" +
+                "  - IFNULL(shipped.TotalShippedJars, 0)" +
+                ") * CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 0) AS AvailableFGPcs" +
+
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
-                " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS TotalJars" +
+
+                // Primary packing total PCS
+                " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPCS" +
+                "   FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID = p.ProductID" +
+
+                // Secondary packing: jars consumed + cases created
+                " LEFT JOIN (SELECT ProductID," +
+                "   SUM(TotalUnits) AS JarsInCases," +
+                "   SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
+
+                // DC lines allocated (DRAFT + FINALISED)
                 " LEFT JOIN (SELECT dl.ProductID," +
                 "   SUM(dl.Cases * dl.JarsPerCase + dl.LooseJars) AS TotalShippedJars" +
                 "   FROM PK_DCLines dl" +
                 "   JOIN PK_DeliveryChallans dch ON dch.DCID = dl.DCID" +
                 "   WHERE dch.Status IN ('DRAFT','FINALISED')" +
                 "   GROUP BY dl.ProductID) shipped ON shipped.ProductID = p.ProductID" +
+
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
-                " AND IFNULL(sp.TotalJars, 0) > 0" +
+                " AND IFNULL(fg.TotalPCS, 0) > 0" +
                 " ORDER BY p.ProductName;");
         }
 

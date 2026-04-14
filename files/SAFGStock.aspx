@@ -63,15 +63,14 @@ tr:hover td{background:#f8f9fb}
 
 <div class="page-wrap">
     <div class="page-header">
-        <div class="page-title">FINISHED GOODS STOCK LEVEL — CASES</div>
+        <div class="page-title">FINISHED GOODS STOCK LEVEL</div>
         <a class="btn-pdf" href="SAFGStockAPI.ashx?action=pdf" target="_blank">&#x1F4C4; Download PDF</a>
     </div>
 
     <div class="summary-strip" id="summaryStrip" style="display:none;">
         <div class="summary-card"><div class="label">Products</div><div class="val" id="sumProducts">0</div></div>
-        <div class="summary-card"><div class="label">Total Packed</div><div class="val" id="sumPacked">0</div></div>
-        <div class="summary-card"><div class="label">Dispatched</div><div class="val" id="sumDispatched">0</div></div>
-        <div class="summary-card" style="border-left-color:#2980b9"><div class="label">FG Stock</div><div class="val" id="sumFGStock" style="color:#2980b9">0</div></div>
+        <div class="summary-card" style="border-left-color:#2980b9"><div class="label">FG Loose JARs</div><div class="val" id="sumLooseJars" style="color:#2980b9">0</div></div>
+        <div class="summary-card" style="border-left-color:#2980b9"><div class="label">FG Cases</div><div class="val" id="sumFGCases" style="color:#2980b9">0</div></div>
         <div class="summary-card" style="border-left-color:#e67e22"><div class="label">Reserved (Draft DC)</div><div class="val" id="sumReserved" style="color:#e67e22">0</div></div>
         <div class="summary-card" style="border-left-color:#27ae60"><div class="label">Available for DC</div><div class="val" id="sumAvailDC" style="color:#27ae60">0</div></div>
     </div>
@@ -112,24 +111,24 @@ tr:hover td{background:#f8f9fb}
             return;
         }
 
-        var totalPacked = 0, totalDisp = 0, totalFG = 0, totalRes = 0, totalAvailDC = 0;
+        var totalLooseJars = 0, totalFGCases = 0, totalRes = 0, totalAvailDC = 0;
 
         var html = '<table><thead><tr>';
         html += '<th style="width:30px">#</th>';
         html += '<th style="width:80px">Product Code</th>';
         html += '<th>Product Name</th>';
-        html += '<th style="width:80px;text-align:right">Packed</th>';
-        html += '<th style="width:85px;text-align:right">Dispatched</th>';
-        html += '<th style="width:80px;text-align:right">FG Stock</th>';
-        html += '<th style="width:80px;text-align:right">Reserved</th>';
-        html += '<th style="width:90px;text-align:right">Avail for DC</th>';
+        html += '<th style="width:80px;text-align:right">FG Loose<br/>JARs</th>';
+        html += '<th style="width:80px;text-align:right">Cases<br/>Packed</th>';
+        html += '<th style="width:80px;text-align:right">Dispatched</th>';
+        html += '<th style="width:70px;text-align:right">FG<br/>Cases</th>';
+        html += '<th style="width:70px;text-align:right">Reserved</th>';
+        html += '<th style="width:80px;text-align:right">Avail<br/>for DC</th>';
         html += '</tr></thead><tbody>';
 
         for (var i = 0; i < data.length; i++) {
             var d = data[i];
-            totalPacked += d.packed;
-            totalDisp += d.dispatched;
-            totalFG += d.fgStock;
+            totalLooseJars += d.looseJars;
+            totalFGCases += d.fgCases;
             totalRes += d.reserved;
             totalAvailDC += d.availDC;
 
@@ -139,9 +138,10 @@ tr:hover td{background:#f8f9fb}
             html += '<td style="color:var(--muted);font-size:11px">' + (i + 1) + '</td>';
             html += '<td class="code">' + esc(d.code) + '</td>';
             html += '<td class="product-name">' + esc(d.name) + '</td>';
-            html += '<td class="num">' + (d.packed > 0 ? fmt(d.packed) : '<span style="color:#ccc">—</span>') + '</td>';
+            html += '<td class="num" style="color:#2980b9;font-weight:700">' + (d.looseJars > 0 ? fmt(d.looseJars) : '<span style="color:#ccc">0</span>') + '</td>';
+            html += '<td class="num">' + (d.casesPacked > 0 ? fmt(d.casesPacked) : '<span style="color:#ccc">—</span>') + '</td>';
             html += '<td class="num">' + (d.dispatched > 0 ? fmt(d.dispatched) : '<span style="color:#ccc">—</span>') + '</td>';
-            html += '<td class="num" style="font-weight:700;color:var(--accent)">' + (d.fgStock > 0 ? fmt(d.fgStock) : '<span style="color:#ccc">0</span>') + '</td>';
+            html += '<td class="num" style="color:#2980b9;font-weight:700">' + (d.fgCases > 0 ? fmt(d.fgCases) : '<span style="color:#ccc">0</span>') + '</td>';
             html += '<td class="num" style="color:#e67e22">' + (d.reserved > 0 ? fmt(d.reserved) : '<span style="color:#ccc">—</span>') + '</td>';
             html += '<td class="num ' + availClass + '">' + fmt(d.availDC) + '</td>';
             html += '</tr>';
@@ -151,9 +151,8 @@ tr:hover td{background:#f8f9fb}
         document.getElementById('tableArea').innerHTML = html;
         document.getElementById('summaryStrip').style.display = '';
         document.getElementById('sumProducts').textContent = data.length;
-        document.getElementById('sumPacked').textContent = fmt(totalPacked);
-        document.getElementById('sumDispatched').textContent = fmt(totalDisp);
-        document.getElementById('sumFGStock').textContent = fmt(totalFG);
+        document.getElementById('sumLooseJars').textContent = fmt(totalLooseJars);
+        document.getElementById('sumFGCases').textContent = fmt(totalFGCases);
         document.getElementById('sumReserved').textContent = fmt(totalRes);
         document.getElementById('sumAvailDC').textContent = fmt(totalAvailDC);
         document.getElementById('timestamp').textContent = 'Last refreshed: ' + new Date().toLocaleString();
