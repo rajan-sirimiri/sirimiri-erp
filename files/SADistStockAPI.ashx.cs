@@ -51,13 +51,16 @@ namespace StockApp
         private string GetDistributors()
         {
             string sql = @"
-                SELECT c.CustomerID, c.CustomerName, c.City, c.State
+                SELECT c.CustomerID, c.CustomerName, c.City, c.State,
+                       IFNULL((SELECT SUM(si.TotalValue) FROM FIN_SalesInvoice si
+                         WHERE si.CustomerID = c.CustomerID
+                           AND si.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)), 0) AS MonthlySales
                 FROM PK_Customers c
                 WHERE c.CustomerType IN ('DI','ST')
                   AND c.IsActive = 1
                   AND c.State IS NOT NULL AND c.State != ''
                   AND c.City IS NOT NULL AND c.City != ''
-                ORDER BY c.State, c.City, c.CustomerName";
+                ORDER BY c.State, MonthlySales DESC, c.CustomerName";
 
             DataTable dt = DatabaseHelper.ExecuteQueryPublic(sql);
             var sb = new StringBuilder("[");
@@ -65,12 +68,14 @@ namespace StockApp
             foreach (DataRow r in dt.Rows)
             {
                 if (!first) sb.Append(",");
+                decimal mv = r["MonthlySales"] != DBNull.Value ? Convert.ToDecimal(r["MonthlySales"]) : 0;
                 sb.AppendFormat(
-                    "{{\"id\":{0},\"name\":\"{1}\",\"city\":\"{2}\",\"state\":\"{3}\"}}",
+                    "{{\"id\":{0},\"name\":\"{1}\",\"city\":\"{2}\",\"state\":\"{3}\",\"mv\":{4}}}",
                     r["CustomerID"],
                     EscJson(r["CustomerName"].ToString()),
                     EscJson(r["City"].ToString()),
-                    EscJson(r["State"].ToString())
+                    EscJson(r["State"].ToString()),
+                    mv.ToString("0.##", CultureInfo.InvariantCulture)
                 );
                 first = false;
             }
