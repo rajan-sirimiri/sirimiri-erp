@@ -54,12 +54,17 @@ namespace StockApp
         /// </summary>
         private DataTable GetFGStockData()
         {
+            // FG Stock = Packed − Finalised (stock still in facility)
+            // Reserved = DRAFT DCs (allocated but not yet shipped)
+            // Available for DC = FG Stock − Reserved
             string sql = @"
                 SELECT p.ProductCode, p.ProductName, p.ContainerType,
                        p.ContainersPerCase,
                        IFNULL(packed.TotalCases, 0) AS CasesPacked,
-                       IFNULL(dispatched.TotalCases, 0) AS CasesDispatched,
-                       IFNULL(packed.TotalCases, 0) - IFNULL(dispatched.TotalCases, 0) AS AvailableCases
+                       IFNULL(finalised.TotalCases, 0) AS CasesDispatched,
+                       IFNULL(packed.TotalCases, 0) - IFNULL(finalised.TotalCases, 0) AS FGStock,
+                       IFNULL(draft.TotalCases, 0) AS CasesReserved,
+                       IFNULL(packed.TotalCases, 0) - IFNULL(finalised.TotalCases, 0) - IFNULL(draft.TotalCases, 0) AS AvailableForDC
                 FROM PP_Products p
                 INNER JOIN (
                     SELECT ProductID, SUM(QtyCartons) AS TotalCases
@@ -71,9 +76,16 @@ namespace StockApp
                     SELECT dl.ProductID, SUM(dl.Cases) AS TotalCases
                     FROM PK_DCLines dl
                     INNER JOIN PK_DeliveryChallans dc ON dc.DCID = dl.DCID
-                    WHERE dc.Status IN ('DRAFT','FINALISED')
+                    WHERE dc.Status = 'FINALISED'
                     GROUP BY dl.ProductID
-                ) dispatched ON dispatched.ProductID = p.ProductID
+                ) finalised ON finalised.ProductID = p.ProductID
+                LEFT JOIN (
+                    SELECT dl.ProductID, SUM(dl.Cases) AS TotalCases
+                    FROM PK_DCLines dl
+                    INNER JOIN PK_DeliveryChallans dc ON dc.DCID = dl.DCID
+                    WHERE dc.Status = 'DRAFT'
+                    GROUP BY dl.ProductID
+                ) draft ON draft.ProductID = p.ProductID
                 WHERE p.ProductType = 'Core' AND p.IsActive = 1
                   AND p.ProductCode != 'FG-RETIRED'
                   AND p.ProductName NOT LIKE 'ZOHO %'
@@ -90,16 +102,17 @@ namespace StockApp
             foreach (DataRow r in dt.Rows)
             {
                 if (!first) sb.Append(",");
-                int avail = Convert.ToInt32(r["AvailableCases"]);
                 sb.AppendFormat(
-                    "{{\"code\":\"{0}\",\"name\":\"{1}\",\"ct\":\"{2}\",\"cpc\":{3},\"packed\":{4},\"dispatched\":{5},\"available\":{6}}}",
+                    "{{\"code\":\"{0}\",\"name\":\"{1}\",\"ct\":\"{2}\",\"cpc\":{3},\"packed\":{4},\"dispatched\":{5},\"fgStock\":{6},\"reserved\":{7},\"availDC\":{8}}}",
                     Esc(r["ProductCode"].ToString()),
                     Esc(r["ProductName"].ToString()),
                     Esc(r["ContainerType"] != DBNull.Value ? r["ContainerType"].ToString() : ""),
                     r["ContainersPerCase"] != DBNull.Value ? Convert.ToInt32(r["ContainersPerCase"]) : 0,
                     Convert.ToInt32(r["CasesPacked"]),
                     Convert.ToInt32(r["CasesDispatched"]),
-                    avail);
+                    Convert.ToInt32(r["FGStock"]),
+                    Convert.ToInt32(r["CasesReserved"]),
+                    Convert.ToInt32(r["AvailableForDC"]));
                 first = false;
             }
             sb.Append("]");
@@ -143,28 +156,34 @@ namespace StockApp
             sb.Append("<button class='no-print' onclick='window.print()' style='padding:8px 20px;background:#2980b9;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;margin-bottom:12px'>Print / Save as PDF</button>");
 
             sb.Append("<table><thead><tr>");
-            sb.Append("<th style='width:40px'>#</th>");
-            sb.Append("<th style='width:90px'>Product Code</th>");
+            sb.Append("<th style='width:30px'>#</th>");
+            sb.Append("<th style='width:75px'>Code</th>");
             sb.Append("<th>Product Name</th>");
-            sb.Append("<th style='width:90px;text-align:right'>Cases Packed</th>");
-            sb.Append("<th style='width:90px;text-align:right'>Dispatched</th>");
-            sb.Append("<th style='width:100px;text-align:right'>Available Cases</th>");
+            sb.Append("<th style='width:70px;text-align:right'>Packed</th>");
+            sb.Append("<th style='width:75px;text-align:right'>Dispatched</th>");
+            sb.Append("<th style='width:70px;text-align:right'>FG Stock</th>");
+            sb.Append("<th style='width:70px;text-align:right'>Reserved</th>");
+            sb.Append("<th style='width:80px;text-align:right'>Avail for DC</th>");
             sb.Append("</tr></thead><tbody>");
 
             int row = 0;
             foreach (DataRow r in dt.Rows)
             {
                 row++;
-                int avail = Convert.ToInt32(r["AvailableCases"]);
                 int packed = Convert.ToInt32(r["CasesPacked"]);
                 int dispatched = Convert.ToInt32(r["CasesDispatched"]);
+                int fgStock = Convert.ToInt32(r["FGStock"]);
+                int reserved = Convert.ToInt32(r["CasesReserved"]);
+                int availDC = Convert.ToInt32(r["AvailableForDC"]);
 
                 sb.AppendFormat("<tr><td>{0}</td>", row);
                 sb.AppendFormat("<td>{0}</td>", r["ProductCode"]);
                 sb.AppendFormat("<td>{0}</td>", r["ProductName"]);
                 sb.AppendFormat("<td class='num'>{0}</td>", packed > 0 ? packed.ToString("N0") : "<span class='zero'>—</span>");
                 sb.AppendFormat("<td class='num'>{0}</td>", dispatched > 0 ? dispatched.ToString("N0") : "<span class='zero'>—</span>");
-                sb.AppendFormat("<td class='num avail'>{0}</td>", avail > 0 ? avail.ToString("N0") : (avail == 0 ? "<span class='zero'>0</span>" : "<span style='color:#e74c3c'>" + avail.ToString("N0") + "</span>"));
+                sb.AppendFormat("<td class='num' style='font-weight:700;color:#2980b9'>{0}</td>", fgStock > 0 ? fgStock.ToString("N0") : "<span class='zero'>0</span>");
+                sb.AppendFormat("<td class='num' style='color:#e67e22'>{0}</td>", reserved > 0 ? reserved.ToString("N0") : "<span class='zero'>—</span>");
+                sb.AppendFormat("<td class='num avail'>{0}</td>", availDC > 0 ? availDC.ToString("N0") : (availDC < 0 ? "<span style='color:#e74c3c'>" + availDC.ToString("N0") + "</span>" : "<span class='zero'>0</span>"));
                 sb.Append("</tr>");
             }
 
