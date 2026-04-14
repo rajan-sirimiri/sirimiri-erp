@@ -193,6 +193,16 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             <div class="total-grand">Grand Total: Rs. <span id="dispGrand">0.00</span></div>
         </div>
 
+        <!-- Live Shortage Indicator -->
+        <div id="shortageBar" style="display:none;margin-top:10px;padding:12px 16px;background:#fdf3f2;border:1.5px solid #f5c2c7;border-radius:10px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#e74c3c;margin-bottom:6px;">&#9888; Shortage / Recoverable</div>
+            <div id="shortageDetails" style="font-size:12px;"></div>
+            <div id="shortageTotalRow" style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #f5c2c7;margin-top:8px;font-weight:700;font-size:13px;color:#e74c3c;">
+                <span>Total Shortage Value</span>
+                <span id="shortageTotal">Rs. 0.00</span>
+            </div>
+        </div>
+
         <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
             <button type="button" class="btn-clear" onclick="clearAll();">Clear All</button>
             <button type="button" class="btn-save" onclick="showGRNConfirm();">&#x2714; Review &amp; Save All GRNs</button>
@@ -427,7 +437,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             '<td class="col-sm">'+buildUOMSelect(rowIdx, 'stdUom')+'</td>' +
             '<td class="col-num"><input type="number" id="supQty_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
             '<td class="col-sm">'+buildUOMSelect(rowIdx, 'supUom')+'</td>' +
-            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
+            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="recalcAll();"/></td>' +
             '<td class="col-num"><input type="number" id="rate_'+rowIdx+'" step="0.01" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
             '<td class="col-sm"><input type="text" id="hsn_'+rowIdx+'" maxlength="10" style="width:60px;"/></td>' +
             '<td class="col-sm"><input type="number" id="gst_'+rowIdx+'" step="0.01" min="0" placeholder="0" oninput="calcRow('+rowIdx+');"/></td>' +
@@ -477,9 +487,13 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     function recalcAll() {
         var rows = document.querySelectorAll('#tbodyItems tr');
         var subtotal = 0, totalGST = 0, count = 0;
+        var shortages = [];
+        var totalShortageValue = 0;
+
         rows.forEach(function(tr) {
             var idx = tr.dataset.idx;
             var qtyInv = parseFloat(document.getElementById('qtyInv_'+idx)?.value) || 0;
+            var qtyAct = parseFloat(document.getElementById('qtyAct_'+idx)?.value) || 0;
             var rate = parseFloat(document.getElementById('rate_'+idx)?.value) || 0;
             var gstRate = parseFloat(document.getElementById('gst_'+idx)?.value) || 0;
             var lineAmt = qtyInv * rate;
@@ -487,6 +501,18 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             subtotal += lineAmt;
             totalGST += lineGST;
             count++;
+
+            // Shortage detection
+            var shortage = qtyInv - qtyAct;
+            if (shortage > 0 && qtyAct > 0) {
+                var rmSel = document.getElementById('rm_'+idx);
+                var matName = rmSel && rmSel.selectedIndex > 0 ? rmSel.options[rmSel.selectedIndex].text : 'Item ' + idx;
+                var stdUomSel = document.getElementById('stdUom_'+idx);
+                var uomText = stdUomSel && stdUomSel.selectedIndex >= 0 ? stdUomSel.options[stdUomSel.selectedIndex].text : '';
+                var shortageVal = shortage * rate;
+                totalShortageValue += shortageVal;
+                shortages.push({name: matName, qty: shortage, uom: uomText, value: shortageVal, rate: rate});
+            }
         });
         var transport = parseFloat(document.getElementById('txtTransport').value) || 0;
         var loading = parseFloat(document.getElementById('txtLoading').value) || 0;
@@ -499,6 +525,23 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
         document.getElementById('dispGST').innerText = 'Rs. ' + totalGST.toFixed(2);
         document.getElementById('dispTransport').innerText = 'Rs. ' + (transport + loading + unloading).toFixed(2);
         document.getElementById('dispGrand').innerText = grand.toFixed(2);
+
+        // Update shortage bar
+        var shortageBar = document.getElementById('shortageBar');
+        if (shortages.length > 0) {
+            var html = '';
+            shortages.forEach(function(s) {
+                html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #fce4e4;">';
+                html += '<span style="font-weight:500;">' + s.name + '</span>';
+                html += '<span><strong style="color:#e74c3c;">' + s.qty.toFixed(3) + ' ' + s.uom + '</strong> short @ Rs. ' + s.rate.toFixed(2) + ' = <strong>Rs. ' + s.value.toFixed(2) + '</strong></span>';
+                html += '</div>';
+            });
+            document.getElementById('shortageDetails').innerHTML = html;
+            document.getElementById('shortageTotal').innerText = 'Rs. ' + totalShortageValue.toFixed(2);
+            shortageBar.style.display = 'block';
+        } else {
+            shortageBar.style.display = 'none';
+        }
     }
 
     function updateCount() {
