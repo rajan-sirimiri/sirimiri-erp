@@ -84,6 +84,7 @@
       <DependentUpon>ChangePassword.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="SADailySalesReport.aspx" />
     <Content Include="SAHome.aspx" />
     <Content Include="SADistStockPosition.aspx" />
     <Content Include="SADistStockAPI.ashx" />
@@ -91,6 +92,15 @@
     <Content Include="SAFGStockAPI.ashx" />
     <Content Include="SASalesForce.aspx" />
     <Content Include="StockEntry.aspx" />
+    <Compile Include="SADailySalesAPI.ashx.cs">
+      <DependentUpon>SADailySalesAPI.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="SADailySalesReport.aspx.cs">
+      <DependentUpon>SADailySalesReport.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="SADailySalesReport.aspx.designer.cs">
+      <DependentUpon>SADailySalesReport.aspx</DependentUpon>
+    </Compile>
     <Compile Include="SAHome.aspx.cs">
       <DependentUpon>SAHome.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -181,6 +191,9 @@
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.jpg" />
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />
     <Content Include="Logo_ERP.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="SADailySalesAPI.ashx" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v17.0\WebApplications\Microsoft.WebApplication.targets')" />

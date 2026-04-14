@@ -1355,7 +1355,7 @@ namespace PKApp.DAL
                 "   WHERE dch.Status IN ('DRAFT','FINALISED')" +
                 "   GROUP BY dl.ProductID) shipped ON shipped.ProductID = p.ProductID" +
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
-                " AND IFNULL(sp.TotalJars, 0) - IFNULL(shipped.TotalShippedJars, 0) > 0" +
+                " AND IFNULL(sp.TotalJars, 0) > 0" +
                 " ORDER BY p.ProductName;");
         }
 
