@@ -218,7 +218,15 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             <div class="menu-icon">&#x1F4CA;</div>
             <div>
                 <div class="menu-title">SFG Stock Report</div>
-                <div class="menu-desc">Semi-Finished Goods — packed jars/boxes by product</div>
+                <div class="menu-desc">Semi-Finished Goods — packed jars/boxes by product with FG cases breakdown</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
+        <a id="lnkFGStock" runat="server" href="/StockApp/SAFGStock.aspx" class="menu-card cat-report">
+            <div class="menu-icon">&#x1F4E6;</div>
+            <div>
+                <div class="menu-title">FG Stock Level</div>
+                <div class="menu-desc">Finished Goods — loose jars, cases, reserved (draft DC), available for DC with PDF download</div>
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>

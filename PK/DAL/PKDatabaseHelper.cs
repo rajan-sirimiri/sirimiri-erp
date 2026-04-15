@@ -864,7 +864,7 @@ namespace PKApp.DAL
                 " ROUND(IFNULL(fg.TotalPCS, 0), 0) AS TotalPCS," +
                 " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
-                ", 0) AS TotalJarsPacked," +
+                ") AS TotalJarsPacked," +
 
                 // JARs consumed by secondary packing (case packing)
                 " ROUND(IFNULL(sp.JarsUsedInCases, 0), 0) AS JarsUsedInCases," +
@@ -873,7 +873,7 @@ namespace PKApp.DAL
                 " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 "  - IFNULL(sp.JarsUsedInCases, 0)" +
-                ", 0) AS FGLooseJars," +
+                ") AS FGLooseJars," +
 
                 // Cases packed
                 " ROUND(IFNULL(sp.CasesPacked, 0), 0) AS CasesPacked," +
@@ -1404,7 +1404,7 @@ namespace PKApp.DAL
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 "  - IFNULL(sp.JarsInCases, 0)" +
                 "  - IFNULL(dcLoose.TotalLooseJars, 0)" +
-                ", 0) AS AvailableLooseJars," +
+                ") AS AvailableLooseJars," +
 
                 // Cases available (cases packed − cases in DCs)
                 " ROUND(IFNULL(sp.CasesPacked, 0)" +
