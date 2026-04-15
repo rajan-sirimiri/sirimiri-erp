@@ -100,8 +100,13 @@ tr:hover td{background:#f8f9fb;}
     function fetchJSON(url, cb) {
         var xhr = new XMLHttpRequest(); xhr.open('GET', url, true);
         xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try { cb(JSON.parse(xhr.responseText)); } catch(e) { cb(null); }
+                } else {
+                    console.error('FG Opening Stock API error:', xhr.status, xhr.responseText);
+                    cb(null);
+                }
             }
         };
         xhr.send();

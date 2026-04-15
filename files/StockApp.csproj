@@ -97,6 +97,7 @@
     </Compile>
     <Compile Include="SADailySalesReport.aspx.cs">
       <DependentUpon>SADailySalesReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="SADailySalesReport.aspx.designer.cs">
       <DependentUpon>SADailySalesReport.aspx</DependentUpon>

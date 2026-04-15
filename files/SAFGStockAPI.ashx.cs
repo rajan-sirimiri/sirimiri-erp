@@ -15,14 +15,22 @@ namespace StockApp
 
         public void ProcessRequest(HttpContext context)
         {
-            if (context.Session["UserID"] == null && context.Session["PK_UserID"] == null)
-            {
-                context.Response.StatusCode = 401;
-                context.Response.Write("Not authenticated");
-                return;
-            }
-
             string action = context.Request["action"] ?? "";
+
+            // FG Opening Stock endpoints are accessed cross-app (PK → StockApp)
+            // Session cookies don't cross IIS application boundaries, so these
+            // endpoints validate auth differently
+            bool isFGOpeningAction = (action == "fgOpeningStock" || action == "saveFGOpening");
+
+            if (!isFGOpeningAction)
+            {
+                if (context.Session["UserID"] == null && context.Session["PK_UserID"] == null)
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.Write("Not authenticated");
+                    return;
+                }
+            }
             try
             {
                 switch (action)
