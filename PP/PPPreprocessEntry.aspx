@@ -96,6 +96,10 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 .btn-close-shift{background:#1a1a1a;color:#fff;border:none;border-radius:9px;
     padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
 .btn-close-shift:hover{background:#333;}
+.btn-shift-start{background:#e74c3c;color:#fff;border:none;border-radius:9px;
+    padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.06em;
+    font-family:'Bebas Neue',sans-serif;transition:background .2s;}
+.btn-shift-start:hover{background:#c0392b;}
 
 @media(max-width:900px){.stage-grid{grid-template-columns:1fr 1fr;} .stock-summary{grid-template-columns:1fr 1fr;}}
 .stock-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
@@ -126,6 +130,7 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
 <asp:HiddenField ID="hfOutputUnit"  runat="server" Value=""/>
 <asp:HiddenField ID="hfBatchSize"   runat="server" Value="0"/>
 <asp:HiddenField ID="hfIsPriceCalc" runat="server" Value="0"/>
+<asp:HiddenField ID="hfShiftID"     runat="server" Value="0"/>
 
 <nav>
     <a class="nav-logo" href="PPHome.aspx">
@@ -159,6 +164,39 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
                 OnSelectedIndexChanged="ddlProduct_Changed"/>
         </div>
     </div>
+
+    <!-- SHIFT BANNER — No active shift -->
+    <asp:Panel ID="pnlShiftStart" runat="server" Visible="false">
+    <div class="card" style="border-left:4px solid #e74c3c;background:#fdf3f2;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;color:#e74c3c;">NO ACTIVE SHIFT</div>
+                <div style="font-size:12px;color:var(--text-muted);">Start a shift to begin recording pre-processing entries. All stage data will be linked to this shift.</div>
+            </div>
+            <asp:Button ID="btnStartShift" runat="server" CssClass="btn-shift-start"
+                Text="&#x25B6; START SHIFT" OnClick="btnStartShift_Click" CausesValidation="false"/>
+        </div>
+    </div>
+    </asp:Panel>
+
+    <!-- SHIFT ACTIVE BANNER -->
+    <asp:Panel ID="pnlShiftActive" runat="server" Visible="false">
+    <div class="card" style="border-left:4px solid #27ae60;background:#eafaf1;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;color:#27ae60;">
+                    SHIFT ACTIVE — <asp:Label ID="lblShiftInfo" runat="server"/>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);">
+                    Started at <asp:Label ID="lblShiftStartTime" runat="server"/> by <asp:Label ID="lblShiftStartedBy" runat="server"/>
+                </div>
+            </div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#27ae60;">
+                <asp:Label ID="lblShiftDuration" runat="server"/>
+            </div>
+        </div>
+    </div>
+    </asp:Panel>
 
     <asp:Panel ID="pnlStages" runat="server" Visible="false">
 
@@ -342,13 +380,26 @@ select:focus,input:focus{border-color:var(--accent-dark);background:#fff;}
             <div style="font-size:12px;color:var(--text-dim);font-style:italic;margin-bottom:14px;">No scrap materials linked to this product's input RM</div>
         </asp:Panel>
         <asp:Button ID="btnCloseShift" runat="server" CssClass="btn-close-shift"
-            Text="&#9654; Close Shift" OnClick="btnCloseShift_Click" CausesValidation="false"/>
+            Text="&#x23F9; END SHIFT" OnClick="btnCloseShift_Click" CausesValidation="false"
+            OnClientClick="return doEndShiftConfirm();"/>
     </div>
 
     </asp:Panel>
 
 </div>
 </form>
+<script>
+function doEndShiftConfirm(){
+    erpConfirm('Are you sure you want to END this shift? All scrap entries will be recorded and the shift will be marked as completed. No further entries can be added to this shift.', {
+        title: 'End Shift',
+        type: 'warn',
+        okText: 'End Shift',
+        onOk: function(){ __doPostBack('<%= btnCloseShift.UniqueID %>', ''); }
+    });
+    return false;
+}
+</script>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

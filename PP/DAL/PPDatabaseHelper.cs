@@ -1098,10 +1098,11 @@ namespace PPApp.DAL
         // Stage 2: tracking only
         // Stage 3: adds to Output RM stock (product name = RM name), deducts from Stage 2 log
         public static void AddPreprocessEntry(int productId, int stage, decimal qty,
-            string productName, string inputRMName, string stageLabel, int userId)
+            string productName, string inputRMName, string stageLabel, int shiftId, int userId)
         {
             string grnNo  = "PREP-" + NowIST().ToString("yyyyMMddHHmmss") + "-" + productId + "-S" + stage;
-            string remarks = "Preprocess S" + stage + ": " + stageLabel + " | Product=" + productName;
+            string remarks = "Preprocess S" + stage + ": " + stageLabel + " | Product=" + productName
+                + (shiftId > 0 ? " | Shift=" + shiftId : "");
 
             var supObj = ExecuteScalar(
                 "SELECT SupplierID FROM MM_Suppliers WHERE SupplierCode='INT-PROD' LIMIT 1;");
@@ -1169,9 +1170,10 @@ namespace PPApp.DAL
 
                 // Log for stage tracking
                 ExecuteNonQuery(
-                    "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
-                    " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
+                    "INSERT INTO PP_PreprocessLog (ProductID, ShiftID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
+                    " VALUES (?pid, ?shiftid, ?stage, ?qty, ?rem, ?now, ?by);",
                     new MySqlParameter("?pid",   productId),
+                    new MySqlParameter("?shiftid", shiftId > 0 ? (object)shiftId : DBNull.Value),
                     new MySqlParameter("?stage", stage),
                     new MySqlParameter("?qty",   qty),
                     new MySqlParameter("?rem",   remarks),
@@ -1240,9 +1242,10 @@ namespace PPApp.DAL
 
                 // Log Stage 3 for tracking
                 ExecuteNonQuery(
-                    "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
-                    " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
+                    "INSERT INTO PP_PreprocessLog (ProductID, ShiftID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
+                    " VALUES (?pid, ?shiftid, ?stage, ?qty, ?rem, ?now, ?by);",
                     new MySqlParameter("?pid",   productId),
+                    new MySqlParameter("?shiftid", shiftId > 0 ? (object)shiftId : DBNull.Value),
                     new MySqlParameter("?stage", stage),
                     new MySqlParameter("?qty",   qty),
                     new MySqlParameter("?rem",   remarks),
@@ -1351,9 +1354,10 @@ namespace PPApp.DAL
 
                 // Log Stage 4 for tracking
                 ExecuteNonQuery(
-                    "INSERT INTO PP_PreprocessLog (ProductID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
-                    " VALUES (?pid, ?stage, ?qty, ?rem, ?now, ?by);",
+                    "INSERT INTO PP_PreprocessLog (ProductID, ShiftID, Stage, Qty, Remarks, CreatedAt, CreatedBy)" +
+                    " VALUES (?pid, ?shiftid, ?stage, ?qty, ?rem, ?now, ?by);",
                     new MySqlParameter("?pid",   productId),
+                    new MySqlParameter("?shiftid", shiftId > 0 ? (object)shiftId : DBNull.Value),
                     new MySqlParameter("?stage", stage),
                     new MySqlParameter("?qty",   qty),
                     new MySqlParameter("?rem",   remarks),
@@ -1402,6 +1406,72 @@ namespace PPApp.DAL
                 " ORDER BY ConsumedAt;",
                 new MySqlParameter("?pid",   productId),
                 new MySqlParameter("?today", TodayIST()));
+        }
+
+        // ── PREPROCESS SHIFT MANAGEMENT ─────────────────────────────────
+
+        public static int StartPreprocessShift(int productId, int userId)
+        {
+            // Check no active shift exists for this product
+            var existing = GetActivePreprocessShift(productId);
+            if (existing != null)
+                throw new Exception("An active shift already exists for this product (Shift #" + existing["ShiftID"] + ").");
+
+            ExecuteNonQuery(
+                "INSERT INTO PP_PreprocessShift (ProductID, ShiftDate, StartTime, StartedBy, Status)" +
+                " VALUES(?pid, ?dt, ?now, ?by, 'Active');",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?dt",  TodayIST()),
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by",  userId));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static void EndPreprocessShift(int shiftId, int userId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PP_PreprocessShift SET Status='Ended', EndTime=?now, EndedBy=?by" +
+                " WHERE ShiftID=?sid AND Status='Active';",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by",  userId),
+                new MySqlParameter("?sid", shiftId));
+        }
+
+        public static DataRow GetActivePreprocessShift(int productId)
+        {
+            return ExecuteQueryRow(
+                "SELECT s.ShiftID, s.ProductID, s.ShiftDate, s.StartTime, s.StartedBy," +
+                " IFNULL(u.FullName, '') AS StartedByName" +
+                " FROM PP_PreprocessShift s" +
+                " LEFT JOIN Users u ON u.UserID = s.StartedBy" +
+                " WHERE s.ProductID=?pid AND s.Status='Active' LIMIT 1;",
+                new MySqlParameter("?pid", productId));
+        }
+
+        public static DataTable GetPreprocessLogByShift(int productId, int shiftId)
+        {
+            return ExecuteQuery(
+                "SELECT Stage, Qty, CreatedAt FROM PP_PreprocessLog" +
+                " WHERE ProductID=?pid AND ShiftID=?sid" +
+                " ORDER BY Stage, CreatedAt;",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?sid", shiftId));
+        }
+
+        public static DataTable GetPreprocessStage1LogByShift(int productId, int shiftId)
+        {
+            // Stage 1 entries are in MM_StockConsumption, not PP_PreprocessLog
+            // Filter by the shift's time range
+            return ExecuteQuery(
+                "SELECT c.QtyConsumed AS Qty, c.ConsumedAt AS CreatedAt" +
+                " FROM MM_StockConsumption c" +
+                " JOIN PP_PreprocessShift s ON s.ShiftID=?sid" +
+                " WHERE c.OrderID=?pid AND c.BatchNo=1 AND c.SourceType='PREPROCESS'" +
+                " AND c.ConsumedAt >= s.StartTime" +
+                " AND (s.EndTime IS NULL OR c.ConsumedAt <= s.EndTime)" +
+                " ORDER BY c.ConsumedAt;",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?sid", shiftId));
         }
 
         public static DataTable ExecuteQueryPublic(string sql, params MySqlParameter[] prms)

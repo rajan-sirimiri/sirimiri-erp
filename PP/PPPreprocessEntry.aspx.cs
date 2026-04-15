@@ -12,16 +12,18 @@ namespace PPApp
         protected Panel        pnlAlert, pnlStages, pnlS1Empty, pnlS1Table;
         protected Panel        pnlS2Empty, pnlS2Table, pnlS3Empty, pnlS3Table;
         protected Panel        pnlScrapInputs, pnlNoScrap;
+        protected Panel        pnlShiftStart, pnlShiftActive;
         protected DropDownList ddlProduct;
         protected HiddenField  hfProductId, hfInputRMName, hfStage1Label, hfStage2Label, hfStage3Label, hfStage4Label, hfOutputUnit;
-        protected HiddenField  hfBatchSize, hfIsPriceCalc;
+        protected HiddenField  hfBatchSize, hfIsPriceCalc, hfShiftID;
         protected Label        lblStage1, lblStage2, lblStage3, lblStage4;
         protected Label        lblS1Unit, lblS2Unit, lblS3Unit, lblS4Unit;
         protected Label        lblS1Total, lblS2Total, lblS3Total, lblS4Total;
         protected Repeater     rptS1, rptS2, rptS3, rptS4, rptScrapItems;
-        protected Button       btnS1, btnS2, btnS3, btnS4, btnCloseShift;
+        protected Button       btnS1, btnS2, btnS3, btnS4, btnCloseShift, btnStartShift;
         protected Label        lblRawPeanutStock, lblSortedStock, lblRoastedPending, lblStage4Stock;
         protected Label        lblInputRMTitle, lblStage2Title, lblStage3Title, lblStage4Title;
+        protected Label        lblShiftInfo, lblShiftStartTime, lblShiftStartedBy, lblShiftDuration;
         protected Panel        pnlStage4Card, pnlS4Summary, pnlS4Empty, pnlS4Table;
         protected System.Web.UI.HtmlControls.HtmlInputGenericControl txtS1, txtS2, txtS3, txtS4;
 
@@ -146,9 +148,41 @@ namespace PPApp
             // Load scrap for input RM
             LoadScrapItems(row["InputRMName"].ToString());
 
-            pnlStages.Visible = true;
-            RefreshAllStages(productId);
-            RefreshStockSummary();
+            // Check for active shift for this product
+            CheckShiftState(productId);
+        }
+
+        private void CheckShiftState(int productId)
+        {
+            var activeShift = PPDatabaseHelper.GetActivePreprocessShift(productId);
+            if (activeShift != null)
+            {
+                // Active shift exists — show stages + active banner
+                int shiftId = Convert.ToInt32(activeShift["ShiftID"]);
+                hfShiftID.Value = shiftId.ToString();
+                pnlShiftStart.Visible = false;
+                pnlShiftActive.Visible = true;
+                pnlStages.Visible = true;
+
+                DateTime startTime = Convert.ToDateTime(activeShift["StartTime"]);
+                lblShiftInfo.Text = "Shift #" + shiftId;
+                lblShiftStartTime.Text = startTime.ToString("hh:mm tt");
+                lblShiftStartedBy.Text = activeShift["StartedByName"] != DBNull.Value
+                    ? activeShift["StartedByName"].ToString() : "—";
+                TimeSpan elapsed = PPDatabaseHelper.NowIST() - startTime;
+                lblShiftDuration.Text = ((int)elapsed.TotalHours).ToString("D2") + ":" + elapsed.Minutes.ToString("D2");
+
+                RefreshAllStages(productId);
+                RefreshStockSummary();
+            }
+            else
+            {
+                // No active shift — show start button, hide stages
+                hfShiftID.Value = "0";
+                pnlShiftStart.Visible = true;
+                pnlShiftActive.Visible = false;
+                pnlStages.Visible = false;
+            }
         }
 
         private void LoadScrapItems(string inputRMName)
@@ -202,12 +236,18 @@ namespace PPApp
 
         private void RefreshAllStages(int productId)
         {
-            // Stage 1
-            var s1 = PPDatabaseHelper.GetPreprocessStage1LogToday(productId);
+            int shiftId = Convert.ToInt32(hfShiftID.Value);
+
+            // Stage 1 — filter by shift if active
+            var s1 = shiftId > 0
+                ? PPDatabaseHelper.GetPreprocessStage1LogByShift(productId, shiftId)
+                : PPDatabaseHelper.GetPreprocessStage1LogToday(productId);
             BindStageLog(s1, rptS1, pnlS1Empty, pnlS1Table, lblS1Total, hfOutputUnit.Value);
 
-            // Stages 2, 3 & 4
-            var log = PPDatabaseHelper.GetPreprocessLogToday(productId);
+            // Stages 2, 3 & 4 — filter by shift if active
+            var log = shiftId > 0
+                ? PPDatabaseHelper.GetPreprocessLogByShift(productId, shiftId)
+                : PPDatabaseHelper.GetPreprocessLogToday(productId);
             var s2 = new DataTable(); s2.Columns.Add("Qty", typeof(decimal)); s2.Columns.Add("CreatedAt", typeof(DateTime));
             var s3 = new DataTable(); s3.Columns.Add("Qty", typeof(decimal)); s3.Columns.Add("CreatedAt", typeof(DateTime));
             var s4 = new DataTable(); s4.Columns.Add("Qty", typeof(decimal)); s4.Columns.Add("CreatedAt", typeof(DateTime));
@@ -234,6 +274,22 @@ namespace PPApp
             total.Text = sum.ToString("0.###") + " " + unit;
         }
 
+        // ── SHIFT START ──
+        protected void btnStartShift_Click(object sender, EventArgs e)
+        {
+            int productId = Convert.ToInt32(hfProductId.Value);
+            if (productId == 0) { ShowAlert("Please select a product first.", false); return; }
+
+            try
+            {
+                int shiftId = PPDatabaseHelper.StartPreprocessShift(productId, UserID);
+                hfShiftID.Value = shiftId.ToString();
+                ShowAlert("Shift #" + shiftId + " started.", true);
+                CheckShiftState(productId);
+            }
+            catch (Exception ex) { ShowAlert("Error starting shift: " + ex.Message, false); }
+        }
+
         protected void btnS1_Click(object sender, EventArgs e) => RecordStage(1, txtS1?.Value);
         protected void btnS2_Click(object sender, EventArgs e) => RecordStage(2, txtS2?.Value);
         protected void btnS3_Click(object sender, EventArgs e) => RecordStage(3, txtS3?.Value);
@@ -243,6 +299,10 @@ namespace PPApp
         {
             int productId = Convert.ToInt32(hfProductId.Value);
             if (productId == 0) { ShowAlert("Please select a product.", false); return; }
+
+            // Require active shift
+            int shiftId = Convert.ToInt32(hfShiftID.Value);
+            if (shiftId == 0) { ShowAlert("No active shift. Please start a shift first.", false); return; }
 
             // For IsPriceCalcProduct: Stage 1 is fixed to BatchSize, Stages 2-4 cannot exceed BatchSize
             bool isPCalc = hfIsPriceCalc != null && hfIsPriceCalc.Value == "1";
@@ -280,7 +340,7 @@ namespace PPApp
             try
             {
                 PPDatabaseHelper.AddPreprocessEntry(productId, stage, qty,
-                    productName, hfInputRMName.Value, stageLabel, UserID);
+                    productName, hfInputRMName.Value, stageLabel, shiftId, UserID);
                 // Clear the input box that was just submitted
                 if (stage == 1 && txtS1 != null) txtS1.Value = "";
                 if (stage == 2 && txtS2 != null) txtS2.Value = "";
@@ -313,9 +373,13 @@ namespace PPApp
             int productId = Convert.ToInt32(hfProductId.Value);
             if (productId == 0) { ShowAlert("Please select a product.", false); return; }
 
+            int shiftId = Convert.ToInt32(hfShiftID.Value);
+            if (shiftId == 0) { ShowAlert("No active shift to end.", false); return; }
+
             string rmName = hfInputRMName.Value;
             int scrapCount = 0;
 
+            // Record scrap entries
             foreach (string key in Request.Form.AllKeys)
             {
                 if (key == null || !key.StartsWith("scrap_")) continue;
@@ -332,7 +396,21 @@ namespace PPApp
                 scrapCount++;
             }
 
-            ShowAlert("Shift closed." + (scrapCount > 0 ? " " + scrapCount + " scrap entries recorded." : ""), true);
+            // End the shift
+            try
+            {
+                PPDatabaseHelper.EndPreprocessShift(shiftId, UserID);
+                hfShiftID.Value = "0";
+                string msg = "Shift #" + shiftId + " ended.";
+                if (scrapCount > 0) msg += " " + scrapCount + " scrap entries recorded.";
+                ShowAlert(msg, true);
+
+                // Reset UI — hide stages, show start button
+                pnlStages.Visible = false;
+                pnlShiftActive.Visible = false;
+                pnlShiftStart.Visible = true;
+            }
+            catch (Exception ex) { ShowAlert("Error ending shift: " + ex.Message, false); }
         }
 
         private void RefreshStockSummary()
