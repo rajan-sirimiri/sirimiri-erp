@@ -129,7 +129,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
     <div style="display:flex;gap:12px;align-items:center;">
         <asp:Button ID="btnImport" runat="server" Text="&#x1F4E5; Import Sales Data" CssClass="btn btn-teal" OnClick="btnImport_Click"
-            OnClientClick="return confirm('Import all new invoices? Already imported vouchers will be skipped.');"/>
+            OnClientClick="return doImportConfirm(this);"/>
         <span style="font-size:11px;color:var(--text-dim);">Already imported invoices will be skipped automatically.</span>
     </div>
 </div>
@@ -171,6 +171,15 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 function loadSavedFile(fileName) {
     document.getElementById('<%= hfLoadFileName.ClientID %>').value = fileName;
     document.getElementById('<%= btnLoadSaved.ClientID %>').click();
+}
+function doImportConfirm(btn) {
+    erpConfirm('Import all new invoices? Already imported vouchers will be skipped.', {
+        title: 'Confirm Import',
+        type: 'info',
+        okText: 'Import',
+        onOk: function() { __doPostBack('<%= btnImport.UniqueID %>', ''); }
+    });
+    return false;
 }
 </script>
 <script src="/StockApp/erp-modal.js"></script>

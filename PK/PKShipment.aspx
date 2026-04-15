@@ -138,7 +138,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
-            <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return confirm('Are you sure you want to DELETE this entire Delivery Challan? All reserved stock will be freed. This cannot be undone.');" CausesValidation="false"/>
+            <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return doDeleteDCConfirm();" CausesValidation="false"/>
         </div>
     </div>
     </asp:Panel>
@@ -598,6 +598,17 @@ function addSAEditLine(){
         + '<div class="form-group" style="flex:1;"><input type="number" name="sa_edit_qty" min="0" step="1" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;" placeholder="Qty"/></div>'
         + '<div style="flex:0;"><button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest(\'.form-row\').remove();">&#x2715;</button></div>';
     d.appendChild(r);
+}
+</script>
+<script>
+function doDeleteDCConfirm(){
+    erpConfirm('Are you sure you want to DELETE this entire Delivery Challan? All reserved stock will be freed. This cannot be undone.', {
+        title: 'Delete Delivery Challan',
+        type: 'danger',
+        okText: 'Delete',
+        onOk: function(){ __doPostBack('<%= btnDeleteDC.UniqueID %>', ''); }
+    });
+    return false;
 }
 </script>
 <script src="/StockApp/erp-modal.js"></script>
