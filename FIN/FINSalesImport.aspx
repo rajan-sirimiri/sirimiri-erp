@@ -128,8 +128,8 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     </asp:Panel>
 
     <div style="display:flex;gap:12px;align-items:center;">
-        <asp:Button ID="btnImport" runat="server" Text="&#x1F4E5; Import Sales Data" CssClass="btn btn-teal" OnClick="btnImport_Click"
-            OnClientClick="return confirm('Import all new invoices? Already imported vouchers will be skipped.');"/>
+        <asp:Button ID="btnImportHidden" runat="server" OnClick="btnImport_Click" style="display:none;"/>
+        <button type="button" class="btn btn-teal" onclick="doImportConfirm();">&#x1F4E5; Import Sales Data</button>
         <span style="font-size:11px;color:var(--text-dim);">Already imported invoices will be skipped automatically.</span>
     </div>
 </div>
@@ -167,13 +167,27 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 </div>
 
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script>
 function loadSavedFile(fileName) {
     document.getElementById('<%= hfLoadFileName.ClientID %>').value = fileName;
     document.getElementById('<%= btnLoadSaved.ClientID %>').click();
 }
+function doImportConfirm() {
+    if (typeof erpConfirm === 'function') {
+        erpConfirm('Import all new invoices? Already imported vouchers will be skipped.', {
+            title: 'Confirm Import',
+            type: 'info',
+            okText: 'Import',
+            onOk: function() { document.getElementById('<%= btnImportHidden.ClientID %>').click(); }
+        });
+    } else {
+        if (confirm('Import all new invoices? Already imported vouchers will be skipped.')) {
+            document.getElementById('<%= btnImportHidden.ClientID %>').click();
+        }
+    }
+}
 </script>
-<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

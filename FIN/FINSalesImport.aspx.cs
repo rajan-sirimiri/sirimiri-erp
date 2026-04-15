@@ -14,7 +14,7 @@ namespace FINApp
         protected System.Web.UI.WebControls.Label        lblNavUser, lblAlert;
         protected System.Web.UI.WebControls.Panel        pnlAlert, pnlResults, pnlNoSavedFiles;
         protected System.Web.UI.WebControls.FileUpload   fileUpload;
-        protected System.Web.UI.WebControls.Button       btnUpload, btnImport, btnLoadSaved;
+        protected System.Web.UI.WebControls.Button       btnUpload, btnImport, btnImportHidden, btnLoadSaved;
         protected System.Web.UI.WebControls.HiddenField  hfLoadFileName, hfFilePath;
         protected System.Web.UI.WebControls.Repeater     rptSavedFiles, rptImportHistory;
         protected System.Web.UI.WebControls.Label        lblPreviewTotal, lblPreviewInvoices, lblPreviewMapped, lblPreviewUnmapped;
