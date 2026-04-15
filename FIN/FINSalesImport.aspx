@@ -167,22 +167,29 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 </div>
 
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script>
 function loadSavedFile(fileName) {
     document.getElementById('<%= hfLoadFileName.ClientID %>').value = fileName;
     document.getElementById('<%= btnLoadSaved.ClientID %>').click();
 }
 function doImportConfirm(btn) {
-    erpConfirm('Import all new invoices? Already imported vouchers will be skipped.', {
-        title: 'Confirm Import',
-        type: 'info',
-        okText: 'Import',
-        onOk: function() { __doPostBack('<%= btnImport.UniqueID %>', ''); }
-    });
+    if (typeof erpConfirm === 'function') {
+        erpConfirm('Import all new invoices? Already imported vouchers will be skipped.', {
+            title: 'Confirm Import',
+            type: 'info',
+            okText: 'Import',
+            onOk: function() { __doPostBack('<%= btnImport.UniqueID %>', ''); }
+        });
+        return false;
+    }
+    // Fallback to native confirm
+    if (confirm('Import all new invoices? Already imported vouchers will be skipped.')) {
+        return true;
+    }
     return false;
 }
 </script>
-<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>
