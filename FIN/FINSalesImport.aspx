@@ -179,7 +179,11 @@ function doImportConfirm() {
             title: 'Confirm Import',
             type: 'info',
             okText: 'Import',
-            onOk: function() { document.getElementById('<%= btnImportHidden.ClientID %>').click(); }
+            onOk: function() {
+                setTimeout(function(){
+                    document.getElementById('<%= btnImportHidden.ClientID %>').click();
+                }, 300);
+            }
         });
     } else {
         if (confirm('Import all new invoices? Already imported vouchers will be skipped.')) {
