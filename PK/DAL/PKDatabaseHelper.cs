@@ -847,12 +847,13 @@ namespace PKApp.DAL
         public static DataTable GetFGStockSummary()
         {
             // Stock Lifecycle:
+            //   Opening Stock (JAR/BOX + CASE) from PK_FGOpeningStock
             //   Primary Packing → SFG (PCS in PK_FGStock)
             //   JARs filled     → FG JARs = PK_FGStock PCS / UnitSize (pcs per jar)
             //   Case packing    → consumes JARs, creates Cases
             //
-            // FG Loose JARs  = Total JARs packed (FGStock/UnitSize) − JARs used in cases (SecondaryPacking.TotalUnits)
-            // FG Cases        = Cases packed (SecondaryPacking.QtyCartons) − Cases dispatched (FINALISED DCs)
+            // FG Loose JARs  = Opening JARs + (Total JARs packed − JARs used in cases)
+            // FG Cases        = Opening Cases + Cases packed − Cases dispatched (FINALISED DCs)
             // Reserved Cases  = Cases in DRAFT DCs
             // Avail for DC    = FG Cases − Reserved Cases
             return ExecuteQuery(
@@ -860,37 +861,56 @@ namespace PKApp.DAL
                 " p.ContainerType, IFNULL(p.ContainersPerCase,12) AS ContainersPerCase," +
                 " CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED) AS UnitSize," +
 
-                // Total JARs from primary packing (FGStock is in PCS, divide by UnitSize)
+                // Opening stock
+                " IFNULL(osJar.OpeningJars, 0) AS OpeningJars," +
+                " IFNULL(osCase.OpeningCases, 0) AS OpeningCases," +
+
+                // Total JARs from primary packing
                 " ROUND(IFNULL(fg.TotalPCS, 0), 0) AS TotalPCS," +
                 " FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
                 ") AS TotalJarsPacked," +
 
-                // JARs consumed by secondary packing (case packing)
+                // JARs consumed by secondary packing
                 " ROUND(IFNULL(sp.JarsUsedInCases, 0), 0) AS JarsUsedInCases," +
 
-                // FG Loose JARs = Total JARs − JARs in cases
-                " FLOOR(IFNULL(fg.TotalPCS, 0)" +
-                "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
-                "  - IFNULL(sp.JarsUsedInCases, 0)" +
-                ") AS FGLooseJars," +
+                // FG Loose JARs = Opening + Packed − Used in cases
+                " IFNULL(osJar.OpeningJars, 0)" +
+                " + FLOOR(IFNULL(fg.TotalPCS, 0)" +
+                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))" +
+                " - IFNULL(sp.JarsUsedInCases, 0)" +
+                " AS FGLooseJars," +
 
                 // Cases packed
                 " ROUND(IFNULL(sp.CasesPacked, 0), 0) AS CasesPacked," +
 
-                // Cases dispatched (FINALISED DCs only)
+                // Cases dispatched
                 " IFNULL(dcFinal.CasesDispatched, 0) AS CasesDispatched," +
 
-                // FG Cases = packed − dispatched
-                " ROUND(IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0), 0) AS FGCases," +
+                // FG Cases = Opening + Packed − Dispatched
+                " IFNULL(osCase.OpeningCases, 0) + IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0) AS FGCases," +
 
-                // Reserved (DRAFT DCs)
+                // Reserved
                 " IFNULL(dcDraft.CasesReserved, 0) AS CasesReserved," +
 
                 // Available for DC
-                " ROUND(IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0) - IFNULL(dcDraft.CasesReserved, 0), 0) AS AvailableForDC" +
+                " IFNULL(osCase.OpeningCases, 0) + IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0) - IFNULL(dcDraft.CasesReserved, 0) AS AvailableForDC" +
 
                 " FROM PP_Products p" +
+
+                // Opening stock JARs/BOXes
+                " LEFT JOIN (" +
+                "   SELECT ProductID, SUM(Quantity) AS OpeningJars" +
+                "   FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX')" +
+                "   GROUP BY ProductID" +
+                " ) osJar ON osJar.ProductID = p.ProductID" +
+
+                // Opening stock CASEs
+                " LEFT JOIN (" +
+                "   SELECT ProductID, SUM(Quantity) AS OpeningCases" +
+                "   FROM PK_FGOpeningStock WHERE StockForm = 'CASE'" +
+                "   GROUP BY ProductID" +
+                " ) osCase ON osCase.ProductID = p.ProductID" +
 
                 // Total PCS from primary packing
                 " LEFT JOIN (" +
@@ -898,7 +918,7 @@ namespace PKApp.DAL
                 "   FROM PK_FGStock GROUP BY ProductID" +
                 " ) fg ON fg.ProductID = p.ProductID" +
 
-                // Secondary packing: jars consumed + cases created
+                // Secondary packing
                 " LEFT JOIN (" +
                 "   SELECT ProductID," +
                 "     SUM(TotalUnits) AS JarsUsedInCases," +
@@ -915,7 +935,7 @@ namespace PKApp.DAL
                 "   GROUP BY dl.ProductID" +
                 " ) dcFinal ON dcFinal.ProductID = p.ProductID" +
 
-                // DRAFT DC cases (reserved)
+                // DRAFT DC cases
                 " LEFT JOIN (" +
                 "   SELECT dl.ProductID, SUM(dl.Cases) AS CasesReserved" +
                 "   FROM PK_DCLines dl" +
@@ -1384,14 +1404,11 @@ namespace PKApp.DAL
         /// FG = Secondary Packing output (in jars) minus already shipped DC lines (in jars).
         public static DataTable GetFGStockForShipment()
         {
-            // FG has two separate pools:
-            //   1. Loose JARs = Primary packed JARs − JARs consumed by case packing
-            //   2. Cases = Cases packed (SecondaryPacking) − Cases in DCs (DRAFT+FINALISED)
+            // FG has two separate pools + opening stock:
+            //   1. Loose JARs = Opening JAR/BOX + Primary packed JARs − JARs in cases − Loose in DCs
+            //   2. Cases = Opening CASE + Cases packed − Cases in DCs (DRAFT+FINALISED)
             // These are NOT interchangeable — loose JARs cannot become cases without
             // going through secondary packing (which consumes packing materials).
-            //
-            // For DC validation, AvailableFGJars = AvailableLooseJars + (AvailableCases × JarsPerCase)
-            // This lets the DC page know the max cases AND max loose jars available.
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductName, p.ProductCode," +
                 " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
@@ -1399,37 +1416,48 @@ namespace PKApp.DAL
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
                 " ou.Abbreviation AS Unit," +
 
-                // Loose JARs available (primary packed − case-packed − loose jars in DCs)
-                " FLOOR(IFNULL(fg.TotalPCS, 0)" +
-                "  / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
+                // Loose JARs available = Opening + (Primary/UnitSize − CasePacked) − Loose in DCs
+                " IFNULL(osJar.OpeningJars, 0)" +
+                " + FLOOR(IFNULL(fg.TotalPCS, 0)" +
+                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))" +
+                " - IFNULL(sp.JarsInCases, 0)" +
+                " - IFNULL(dcLoose.TotalLooseJars, 0)" +
+                " AS AvailableLooseJars," +
+
+                // Cases available = Opening + Packed − All DC Cases
+                " IFNULL(osCase.OpeningCases, 0)" +
+                " + IFNULL(sp.CasesPacked, 0)" +
+                " - IFNULL(dcCases.TotalCases, 0)" +
+                " AS AvailableCases," +
+
+                // Combined jar-equivalent for display
+                " (IFNULL(osJar.OpeningJars, 0)" +
+                "  + FLOOR(IFNULL(fg.TotalPCS, 0)" +
+                "    / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))" +
                 "  - IFNULL(sp.JarsInCases, 0)" +
-                "  - IFNULL(dcLoose.TotalLooseJars, 0)" +
-                ") AS AvailableLooseJars," +
-
-                // Cases available (cases packed − cases in DCs)
-                " ROUND(IFNULL(sp.CasesPacked, 0)" +
-                "  - IFNULL(dcCases.TotalCases, 0)" +
-                ", 0) AS AvailableCases," +
-
-                // Combined jar-equivalent for the dropdown display
-                // Available = AvailableLooseJars + (AvailableCases × JarsPerCase)
-                " ROUND(" +
-                "  (IFNULL(fg.TotalPCS, 0)" +
-                "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)" +
-                "   - IFNULL(sp.JarsInCases, 0)" +
-                "   - IFNULL(dcLoose.TotalLooseJars, 0))" +
-                "  + (IFNULL(sp.CasesPacked, 0) - IFNULL(dcCases.TotalCases, 0))" +
-                "    * IFNULL(p.ContainersPerCase, 12)" +
-                ", 0) AS AvailableFGJars" +
+                "  - IFNULL(dcLoose.TotalLooseJars, 0))" +
+                " + (IFNULL(osCase.OpeningCases, 0) + IFNULL(sp.CasesPacked, 0) - IFNULL(dcCases.TotalCases, 0))" +
+                "   * IFNULL(p.ContainersPerCase, 12)" +
+                " AS AvailableFGJars" +
 
                 " FROM PP_Products p" +
                 " JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID" +
+
+                // Opening stock JAR/BOX
+                " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS OpeningJars" +
+                "   FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX')" +
+                "   GROUP BY ProductID) osJar ON osJar.ProductID = p.ProductID" +
+
+                // Opening stock CASE
+                " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS OpeningCases" +
+                "   FROM PK_FGOpeningStock WHERE StockForm = 'CASE'" +
+                "   GROUP BY ProductID) osCase ON osCase.ProductID = p.ProductID" +
 
                 // Primary packing total PCS
                 " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPCS" +
                 "   FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID = p.ProductID" +
 
-                // Secondary packing: jars consumed + cases created
+                // Secondary packing
                 " LEFT JOIN (SELECT ProductID," +
                 "   SUM(TotalUnits) AS JarsInCases," +
                 "   SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked" +
@@ -1450,7 +1478,7 @@ namespace PKApp.DAL
                 "   GROUP BY dl.ProductID) dcLoose ON dcLoose.ProductID = p.ProductID" +
 
                 " WHERE p.IsActive=1 AND p.ProductType='Core'" +
-                " AND IFNULL(fg.TotalPCS, 0) > 0" +
+                " AND (IFNULL(fg.TotalPCS, 0) > 0 OR IFNULL(osJar.OpeningJars, 0) > 0 OR IFNULL(osCase.OpeningCases, 0) > 0)" +
                 " ORDER BY p.ProductName;");
         }
 

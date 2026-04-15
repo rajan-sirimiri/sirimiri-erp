@@ -101,6 +101,7 @@
     <!-- Customer Master -->
     <Content Include="PKCustomer.aspx" />
     <Content Include="PKMachineMaster.aspx" />
+    <Content Include="PKFGOpeningStock.aspx" />
     <Compile Include="PKCustomer.aspx.cs">
       <DependentUpon>PKCustomer.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -108,6 +109,13 @@
     <Compile Include="PKMachineMaster.aspx.cs">
       <DependentUpon>PKMachineMaster.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PKFGOpeningStock.aspx.cs">
+      <DependentUpon>PKFGOpeningStock.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PKFGOpeningStock.aspx.designer.cs">
+      <DependentUpon>PKFGOpeningStock.aspx</DependentUpon>
     </Compile>
     <!-- Primary Packing -->
     <Content Include="PKPrimaryPacking.aspx" />

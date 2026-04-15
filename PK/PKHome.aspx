@@ -182,6 +182,14 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
+        <a id="lnkFGOpening" runat="server" href="PKFGOpeningStock.aspx" class="menu-card cat-master">
+            <div class="menu-icon">&#x1F4CB;</div>
+            <div>
+                <div class="menu-title">FG Opening Stock</div>
+                <div class="menu-desc">Set opening stock for finished goods — JARs/BOXes and CASEs per product</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
     </div>
 
     <div class="section-head">Transactions</div>

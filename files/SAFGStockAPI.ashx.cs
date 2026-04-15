@@ -35,6 +35,15 @@ namespace StockApp
                     case "pdf":
                         ServePDF(context);
                         break;
+                    case "fgOpeningStock":
+                        context.Response.ContentType = "application/json";
+                        context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+                        context.Response.Write(GetFGOpeningStockJSON());
+                        break;
+                    case "saveFGOpening":
+                        context.Response.ContentType = "application/json";
+                        context.Response.Write(SaveFGOpeningStock(context));
+                        break;
                     default:
                         context.Response.ContentType = "application/json";
                         context.Response.Write("{\"error\":\"Unknown action\"}");
@@ -54,9 +63,9 @@ namespace StockApp
         /// </summary>
         private DataTable GetFGStockData()
         {
-            // FG = Loose JARs (not yet case-packed) + Cases
-            // Loose JARs = Total JARs from primary packing − JARs consumed by case packing
-            // FG Cases = Cases packed − Cases dispatched (FINALISED)
+            // FG = Opening Stock + Production − Dispatched
+            // Loose JARs = Opening JAR/BOX + (Primary packed JARs − JARs in cases) − Loose in DCs
+            // FG Cases = Opening CASE + Cases packed − Cases dispatched (FINALISED)
             // Reserved = DRAFT DC cases
             // Available for DC = FG Cases − Reserved
             string sql = @"
@@ -64,22 +73,36 @@ namespace StockApp
                        IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase,
                        CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED) AS UnitSize,
 
-                       ROUND(IFNULL(fg.TotalPCS, 0)
+                       FLOOR(IFNULL(fg.TotalPCS, 0)
                          / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)
-                       , 0) AS TotalJarsPacked,
+                       ) AS TotalJarsPacked,
 
                        ROUND(IFNULL(sp.JarsUsedInCases, 0), 0) AS JarsUsedInCases,
 
-                       ROUND(IFNULL(fg.TotalPCS, 0)
-                         / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1)
+                       IFNULL(osJar.OpeningJars, 0) AS OpeningJars,
+                       IFNULL(osCase.OpeningCases, 0) AS OpeningCases,
+
+                       IFNULL(osJar.OpeningJars, 0)
+                         + FLOOR(IFNULL(fg.TotalPCS, 0)
+                           / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))
                          - IFNULL(sp.JarsUsedInCases, 0)
-                       , 0) AS FGLooseJars,
+                         AS FGLooseJars,
 
                        ROUND(IFNULL(sp.CasesPacked, 0), 0) AS CasesPacked,
                        IFNULL(dcFinal.CasesDispatched, 0) AS CasesDispatched,
-                       ROUND(IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0), 0) AS FGCases,
+
+                       IFNULL(osCase.OpeningCases, 0)
+                         + IFNULL(sp.CasesPacked, 0)
+                         - IFNULL(dcFinal.CasesDispatched, 0)
+                         AS FGCases,
+
                        IFNULL(dcDraft.CasesReserved, 0) AS CasesReserved,
-                       ROUND(IFNULL(sp.CasesPacked, 0) - IFNULL(dcFinal.CasesDispatched, 0) - IFNULL(dcDraft.CasesReserved, 0), 0) AS AvailableForDC
+
+                       IFNULL(osCase.OpeningCases, 0)
+                         + IFNULL(sp.CasesPacked, 0)
+                         - IFNULL(dcFinal.CasesDispatched, 0)
+                         - IFNULL(dcDraft.CasesReserved, 0)
+                         AS AvailableForDC
 
                 FROM PP_Products p
 
@@ -94,6 +117,18 @@ namespace StockApp
                       SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked
                     FROM PK_SecondaryPacking GROUP BY ProductID
                 ) sp ON sp.ProductID = p.ProductID
+
+                LEFT JOIN (
+                    SELECT ProductID, SUM(Quantity) AS OpeningJars
+                    FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX')
+                    GROUP BY ProductID
+                ) osJar ON osJar.ProductID = p.ProductID
+
+                LEFT JOIN (
+                    SELECT ProductID, SUM(Quantity) AS OpeningCases
+                    FROM PK_FGOpeningStock WHERE StockForm = 'CASE'
+                    GROUP BY ProductID
+                ) osCase ON osCase.ProductID = p.ProductID
 
                 LEFT JOIN (
                     SELECT dl.ProductID, SUM(dl.Cases) AS CasesDispatched
@@ -114,7 +149,8 @@ namespace StockApp
                 WHERE p.ProductType = 'Core' AND p.IsActive = 1
                   AND p.ProductCode != 'FG-RETIRED'
                   AND p.ProductName NOT LIKE 'ZOHO %'
-                  AND (IFNULL(fg.TotalPCS, 0) > 0 OR IFNULL(sp.CasesPacked, 0) > 0)
+                  AND (IFNULL(fg.TotalPCS, 0) > 0 OR IFNULL(sp.CasesPacked, 0) > 0
+                       OR IFNULL(osJar.OpeningJars, 0) > 0 OR IFNULL(osCase.OpeningCases, 0) > 0)
                 ORDER BY p.ProductName";
 
             return DatabaseHelper.ExecuteQueryPublic(sql);
@@ -230,5 +266,119 @@ namespace StockApp
 
         private string Esc(string s) =>
             (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", "");
+
+        // ── FG OPENING STOCK ─────────────────────────────────────────────
+
+        private string GetFGOpeningStockJSON()
+        {
+            // Products
+            DataTable prods = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT p.ProductID, p.ProductCode, p.ProductName," +
+                " IFNULL(p.ContainerType,'JAR') AS ContainerType," +
+                " IFNULL(p.ContainersPerCase,12) AS ContainersPerCase" +
+                " FROM PP_Products p" +
+                " WHERE p.ProductType='Core' AND p.IsActive=1" +
+                " AND p.ProductCode != 'FG-RETIRED'" +
+                " AND p.ProductName NOT LIKE 'ZOHO %'" +
+                " ORDER BY p.ProductName");
+
+            // Existing opening stock
+            DataTable opening = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT ProductID, StockForm, Quantity FROM PK_FGOpeningStock");
+
+            // Build products JSON
+            var sb = new StringBuilder("{\"products\":[");
+            bool first = true;
+            foreach (DataRow r in prods.Rows)
+            {
+                if (!first) sb.Append(",");
+                sb.AppendFormat("{{\"id\":{0},\"code\":\"{1}\",\"name\":\"{2}\",\"ct\":\"{3}\",\"cpc\":{4}}}",
+                    r["ProductID"],
+                    Esc(r["ProductCode"].ToString()),
+                    Esc(r["ProductName"].ToString()),
+                    Esc(r["ContainerType"].ToString()),
+                    Convert.ToInt32(r["ContainersPerCase"]));
+                first = false;
+            }
+            sb.Append("],\"opening\":{");
+
+            // Build opening stock map: {pid: {jar:X, cs:Y}}
+            var openMap = new System.Collections.Generic.Dictionary<int, int[]>();
+            foreach (DataRow r in opening.Rows)
+            {
+                int pid = Convert.ToInt32(r["ProductID"]);
+                string form = r["StockForm"].ToString();
+                int qty = Convert.ToInt32(r["Quantity"]);
+                if (!openMap.ContainsKey(pid)) openMap[pid] = new int[2]; // [0]=jar, [1]=case
+                if (form == "CASE") openMap[pid][1] = qty;
+                else openMap[pid][0] = qty; // JAR or BOX
+            }
+            first = true;
+            foreach (var kv in openMap)
+            {
+                if (!first) sb.Append(",");
+                sb.AppendFormat("\"{0}\":{{\"jar\":{1},\"cs\":{2}}}", kv.Key, kv.Value[0], kv.Value[1]);
+                first = false;
+            }
+            sb.Append("}}");
+            return sb.ToString();
+        }
+
+        private string SaveFGOpeningStock(HttpContext context)
+        {
+            string raw = context.Request["data"] ?? "";
+            if (string.IsNullOrEmpty(raw)) return "{\"error\":\"No data\"}";
+
+            int userId = Convert.ToInt32(context.Session["UserID"]);
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
+            int updated = 0;
+
+            string[] pairs = raw.Split(';');
+            foreach (string pair in pairs)
+            {
+                // format: productId:jars:cases
+                string[] parts = pair.Split(':');
+                if (parts.Length != 3) continue;
+                int pid = 0, jars = 0, cases = 0;
+                if (!int.TryParse(parts[0], out pid) || pid <= 0) continue;
+                int.TryParse(parts[1], out jars);
+                int.TryParse(parts[2], out cases);
+
+                // Upsert JAR/BOX row
+                string containerType = "JAR";
+                try
+                {
+                    object ct = DatabaseHelper.ExecuteScalarPublic(
+                        "SELECT IFNULL(ContainerType,'JAR') FROM PP_Products WHERE ProductID=" + pid);
+                    if (ct != null) containerType = ct.ToString();
+                }
+                catch { }
+                string jarForm = (containerType == "BOX") ? "BOX" : "JAR";
+
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "INSERT INTO PK_FGOpeningStock (ProductID, StockForm, Quantity, AsOfDate, CreatedBy)" +
+                    " VALUES(?pid, ?form, ?qty, ?dt, ?by)" +
+                    " ON DUPLICATE KEY UPDATE Quantity=?qty, UpdatedAt=NOW()",
+                    new MySqlParameter("?pid", pid),
+                    new MySqlParameter("?form", jarForm),
+                    new MySqlParameter("?qty", jars),
+                    new MySqlParameter("?dt", today),
+                    new MySqlParameter("?by", userId));
+
+                // Upsert CASE row
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "INSERT INTO PK_FGOpeningStock (ProductID, StockForm, Quantity, AsOfDate, CreatedBy)" +
+                    " VALUES(?pid, 'CASE', ?qty, ?dt, ?by)" +
+                    " ON DUPLICATE KEY UPDATE Quantity=?qty, UpdatedAt=NOW()",
+                    new MySqlParameter("?pid", pid),
+                    new MySqlParameter("?qty", cases),
+                    new MySqlParameter("?dt", today),
+                    new MySqlParameter("?by", userId));
+
+                updated++;
+            }
+
+            return "{\"ok\":true,\"updated\":" + updated + "}";
+        }
     }
 }
