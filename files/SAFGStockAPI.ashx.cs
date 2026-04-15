@@ -15,7 +15,7 @@ namespace StockApp
 
         public void ProcessRequest(HttpContext context)
         {
-            if (context.Session["UserID"] == null)
+            if (context.Session["UserID"] == null && context.Session["PK_UserID"] == null)
             {
                 context.Response.StatusCode = 401;
                 context.Response.Write("Not authenticated");
@@ -329,7 +329,9 @@ namespace StockApp
             string raw = context.Request["data"] ?? "";
             if (string.IsNullOrEmpty(raw)) return "{\"error\":\"No data\"}";
 
-            int userId = Convert.ToInt32(context.Session["UserID"]);
+            int userId = context.Session["UserID"] != null
+                ? Convert.ToInt32(context.Session["UserID"])
+                : Convert.ToInt32(context.Session["PK_UserID"]);
             string today = DateTime.Now.ToString("yyyy-MM-dd");
             int updated = 0;
 
