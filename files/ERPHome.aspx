@@ -308,6 +308,10 @@
         .mod-finance .module-icon-wrap { background: rgba(16,185,129,0.12); color: #34d399; }
         .mod-finance::before           { background: radial-gradient(circle, rgba(16,185,129,0.08), transparent); }
         .mod-finance::after            { background: #10b981; }
+        /* 6b. Zoho Books — blue */
+        .mod-zoho .module-icon-wrap { background: rgba(0,120,212,0.12); color: #0078d4; }
+        .mod-zoho::before           { background: radial-gradient(circle, rgba(0,120,212,0.08), transparent); }
+        .mod-zoho::after            { background: #0078d4; }
 
         .mod-admin .module-icon-wrap { background: rgba(204,30,30,0.12); color: #cc1e1e; }
         .mod-admin::before           { background: radial-gradient(circle, rgba(204,30,30,0.08), transparent); }
@@ -451,6 +455,19 @@
                 </div>
                 <div class="module-arrow">&#x2197;</div>
             </a>
+
+            <!-- 6b. Zoho Books Integration — Super only -->
+            <asp:Panel ID="pnlZohoCard" runat="server" Visible="false">
+            <a href="ZohoSync.aspx" class="module-card mod-zoho" style="text-decoration:none;">
+                <span class="module-status status-live">New</span>
+                <div class="module-icon-wrap">&#x1F4DA;</div>
+                <div class="module-info">
+                    <div class="module-name">Zoho Books</div>
+                    <div class="module-desc">Sync products, customers &amp; suppliers. Push invoices &amp; bills to Zoho Books.</div>
+                </div>
+                <div class="module-arrow">&#x2197;</div>
+            </a>
+            </asp:Panel>
 
             <!-- 7. User Administration — Super only -->
             <asp:Panel ID="pnlUACard" runat="server" Visible="false">

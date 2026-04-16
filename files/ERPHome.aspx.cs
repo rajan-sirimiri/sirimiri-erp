@@ -7,6 +7,7 @@ namespace StockApp
     public partial class ERPHome : Page
     {
         protected System.Web.UI.WebControls.Panel pnlUACard;
+        protected System.Web.UI.WebControls.Panel pnlZohoCard;
         protected System.Web.UI.HtmlControls.HtmlAnchor lnkMM, lnkPP, lnkPK, lnkSA, lnkBI;
 
         protected void Page_Load(object sender, EventArgs e)
@@ -23,6 +24,7 @@ namespace StockApp
             // Show/hide module cards based on role access
             string userRole = Session["Role"]?.ToString() ?? "";
             pnlUACard.Visible = (userRole == "Super");
+            if (pnlZohoCard != null) pnlZohoCard.Visible = (userRole == "Super");
             if (lnkMM != null) lnkMM.Visible = DatabaseHelper.RoleHasAppAccess(userRole, "MM");
             if (lnkPP != null) lnkPP.Visible = DatabaseHelper.RoleHasAppAccess(userRole, "PP");
             if (lnkPK != null) lnkPK.Visible = DatabaseHelper.RoleHasAppAccess(userRole, "PK");

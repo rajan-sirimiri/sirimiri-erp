@@ -66,6 +66,7 @@
   <ItemGroup>
     <Content Include="Global.asax" />
     <Compile Include="DAL\DatabaseHelper.cs" />
+    <Compile Include="DAL\ZohoHelper.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -179,6 +180,14 @@
     </Compile>
     <Compile Include="ERPHome.aspx.designer.cs">
       <DependentUpon>ERPHome.aspx</DependentUpon>
+    </Compile>
+    <Content Include="ZohoSync.aspx" />
+    <Compile Include="ZohoSync.aspx.cs">
+      <DependentUpon>ZohoSync.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ZohoSync.aspx.designer.cs">
+      <DependentUpon>ZohoSync.aspx</DependentUpon>
     </Compile>
     <Content Include="Reports.aspx" />
     <Compile Include="Reports.aspx.cs">
