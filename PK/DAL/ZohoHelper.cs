@@ -917,14 +917,23 @@ namespace StockApp.DAL
                 string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
                 decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
 
+                // Get Zoho tax ID for this GST rate
+                string taxId = GetZohoTaxId(gstRate);
+
                 var lineItem = new Dictionary<string, object>
                 {
                     { "item_id", zohoItemId },
                     { "quantity", qty },
                     { "rate", rate },
-                    { "hsn_or_sac", hsn },
-                    { "tax_percentage", gstRate }
+                    { "hsn_or_sac", hsn }
                 };
+
+                if (!string.IsNullOrEmpty(taxId))
+                    lineItem["tax_id"] = taxId;
+                else if (gstRate > 0)
+                    lineItem["tax_percentage"] = gstRate;
+                else
+                    lineItem["tax_exemption_id"] = GetZohoTaxExemptionId();
 
                 // Determine tax type based on customer state vs org state
                 // If same state = intra-state (CGST+SGST), different = inter-state (IGST)
@@ -1021,6 +1030,76 @@ namespace StockApp.DAL
 
         /// <summary>Download invoice PDF from Zoho Books. Returns the PDF bytes.</summary>
         /// <summary>Map Indian state name to 2-letter GST state code for Zoho place_of_supply.</summary>
+        // ── TAX LOOKUP ─────────────────────────────────────────────────────
+
+        private static Dictionary<decimal, string> _taxCache = null;
+        private static string _taxExemptionId = null;
+
+        /// <summary>Get Zoho tax_id for a given GST rate. Fetches and caches tax list from Zoho.</summary>
+        private static string GetZohoTaxId(decimal gstRate)
+        {
+            if (gstRate <= 0) return null;
+            if (_taxCache == null) LoadZohoTaxes();
+            if (_taxCache != null && _taxCache.ContainsKey(gstRate)) return _taxCache[gstRate];
+            return null;
+        }
+
+        /// <summary>Get the tax exemption ID for zero-rated items.</summary>
+        private static string GetZohoTaxExemptionId()
+        {
+            if (_taxExemptionId != null) return _taxExemptionId;
+            try
+            {
+                var result = ZohoGet("settings/taxexemptions");
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0 && result.ContainsKey("tax_exemptions"))
+                {
+                    var exemptions = result["tax_exemptions"] as System.Collections.ArrayList;
+                    if (exemptions != null && exemptions.Count > 0)
+                    {
+                        var first = exemptions[0] as Dictionary<string, object>;
+                        _taxExemptionId = first?["tax_exemption_id"]?.ToString() ?? "";
+                        return _taxExemptionId;
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static void LoadZohoTaxes()
+        {
+            _taxCache = new Dictionary<decimal, string>();
+            try
+            {
+                var result = ZohoGet("settings/taxes");
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0 && result.ContainsKey("taxes"))
+                {
+                    var taxes = result["taxes"] as System.Collections.ArrayList;
+                    if (taxes != null)
+                    {
+                        foreach (var item in taxes)
+                        {
+                            var tax = item as Dictionary<string, object>;
+                            if (tax == null) continue;
+                            string taxId = tax["tax_id"]?.ToString() ?? "";
+                            decimal pct = 0;
+                            if (tax.ContainsKey("tax_percentage"))
+                                decimal.TryParse(tax["tax_percentage"].ToString(), out pct);
+                            if (pct > 0 && !_taxCache.ContainsKey(pct))
+                                _taxCache[pct] = taxId;
+                        }
+                    }
+                }
+                LogSync("LoadTaxes", null, null, null, "Success", "Loaded " + _taxCache.Count + " taxes");
+            }
+            catch (Exception ex)
+            {
+                LogSync("LoadTaxes", null, null, null, "Error", ex.Message);
+            }
+        }
+
         private static string GetStateCode(string stateName)
         {
             if (string.IsNullOrEmpty(stateName)) return "";
