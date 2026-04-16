@@ -13,13 +13,11 @@ namespace PKApp
         protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus, lblSAChannel, lblSATransport;
         protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
         protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
-        protected HiddenField hfDCID, hfLines, hfProductData, hfSAShipId, hfSAProductOptions;
+        protected HiddenField hfDCID, hfLines, hfProductData, hfCustomerData, hfOrgState, hfSAShipId, hfSAProductOptions;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
-        protected DropDownList ddlCustomer;
+        protected DropDownList ddlCustomer, ddlChannel;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
-        protected Button btnCreateInvoice;
-        protected Button btnDownloadInvoicePDF;
-        protected DropDownList ddlChannel;
+        protected Button btnCreateInvoice, btnDownloadInvoicePDF;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
         protected HyperLink lnkViewInZoho;
@@ -43,6 +41,7 @@ namespace PKApp
             {
                 BindCustomers();
                 BuildProductData();
+                BuildCustomerData();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (btnDeleteDC != null) btnDeleteDC.Visible = false;
                 BindDCList();
@@ -90,6 +89,12 @@ namespace PKApp
                 int.TryParse(firstUnitSize, out unitSize);
                 if (unitSize <= 0) unitSize = 1;
 
+                // Get MRP, HSN, GST from product
+                int productId = Convert.ToInt32(pid);
+                decimal mrpPcs = PKDatabaseHelper.GetProductMRP(productId, "PCS");
+                string hsn = r.Table.Columns.Contains("HSNCode") && r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                decimal gstRate = r.Table.Columns.Contains("GSTRate") && r["GSTRate"] != DBNull.Value ? Convert.ToDecimal(r["GSTRate"]) : 0;
+
                 if (!first) sb.Append(",");
                 sb.Append("\"" + pid + "\":{");
                 sb.Append("\"name\":\"" + Esc(r["ProductName"].ToString()) + "\",");
@@ -98,12 +103,46 @@ namespace PKApp
                 sb.Append("\"jarsPerCase\":" + jpc + ",");
                 sb.Append("\"availJars\":" + availJars + ",");
                 sb.Append("\"availCases\":" + availCases + ",");
-                sb.Append("\"availLoose\":" + availLoose);
+                sb.Append("\"availLoose\":" + availLoose + ",");
+                sb.Append("\"hsn\":\"" + Esc(hsn) + "\",");
+                sb.Append("\"gstRate\":" + gstRate.ToString("0.##") + ",");
+                sb.Append("\"mrpPcs\":" + mrpPcs.ToString("0.##"));
                 sb.Append("}");
                 first = false;
             }
             sb.Append("}");
             if (hfProductData != null) hfProductData.Value = sb.ToString();
+        }
+
+        void BuildCustomerData()
+        {
+            var dt = PKDatabaseHelper.GetActiveCustomers();
+            var sb = new System.Text.StringBuilder("{");
+            bool first = true;
+            foreach (DataRow r in dt.Rows)
+            {
+                int cid = Convert.ToInt32(r["CustomerID"]);
+                string gstin = r["GSTIN"] != DBNull.Value ? r["GSTIN"].ToString() : "";
+                string state = r["State"] != DBNull.Value ? r["State"].ToString() : "";
+                decimal smPct = 0, gtPct = 0;
+                var margins = PKDatabaseHelper.GetCustomerMargins(cid);
+                if (margins != null)
+                {
+                    smPct = Convert.ToDecimal(margins["SuperMarketPct"]);
+                    gtPct = Convert.ToDecimal(margins["GTPct"]);
+                }
+
+                if (!first) sb.Append(",");
+                sb.Append("\"" + cid + "\":{");
+                sb.Append("\"gstin\":\"" + Esc(gstin) + "\",");
+                sb.Append("\"state\":\"" + Esc(state) + "\",");
+                sb.Append("\"sm\":" + smPct.ToString("0.##") + ",");
+                sb.Append("\"gt\":" + gtPct.ToString("0.##"));
+                sb.Append("}");
+                first = false;
+            }
+            sb.Append("}");
+            if (hfCustomerData != null) hfCustomerData.Value = sb.ToString();
         }
 
         string Esc(string s)
@@ -129,6 +168,7 @@ namespace PKApp
             int customerId = Convert.ToInt32(ddlCustomer.SelectedValue);
             DateTime dcDate = DateTime.Parse(txtDCDate.Text);
             string remarks = txtRemarks.Text.Trim();
+            string channel = ddlChannel != null ? ddlChannel.SelectedValue : "GT";
             int dcId = Convert.ToInt32(hfDCID.Value);
 
             var lineData = ParseLines();
@@ -141,30 +181,50 @@ namespace PKApp
             {
                 DataRow stockRow = null;
                 foreach (DataRow r in fgStock.Rows)
-                    if (Convert.ToInt32(r["ProductID"]) == line[0]) { stockRow = r; break; }
+                    if (Convert.ToInt32(r["ProductID"]) == line.ProductID) { stockRow = r; break; }
                 if (stockRow == null)
-                { ShowAlert("Product ID " + line[0] + " has no FG stock.", false); return; }
+                { ShowAlert("Product ID " + line.ProductID + " has no FG stock.", false); return; }
 
                 int availCases = Convert.ToInt32(stockRow["AvailableCases"]);
                 int availLoose = Convert.ToInt32(stockRow["AvailableLooseJars"]);
-                int lineCases = line[1];
-                int lineLoose = line[2];
 
-                // If editing existing DC, add back this DC's own allocation
                 if (dcId > 0)
                 {
                     var existingLines = PKDatabaseHelper.GetDCLines(dcId);
                     foreach (DataRow el in existingLines.Rows)
-                        if (Convert.ToInt32(el["ProductID"]) == line[0])
+                        if (Convert.ToInt32(el["ProductID"]) == line.ProductID)
                         {
                             availCases += Convert.ToInt32(el["Cases"]);
                             availLoose += Convert.ToInt32(el["LooseJars"]);
                         }
                 }
-                if (lineCases > availCases)
-                { ShowAlert("Insufficient CASES for " + (stockRow["ProductName"] ?? "product") + ". Need " + lineCases + ", available " + availCases + ".", false); return; }
-                if (lineLoose > availLoose)
-                { ShowAlert("Insufficient loose JARS for " + (stockRow["ProductName"] ?? "product") + ". Need " + lineLoose + ", available " + availLoose + ".", false); return; }
+                if (line.Cases > availCases)
+                { ShowAlert("Insufficient CASES for " + (stockRow["ProductName"] ?? "product") + ". Need " + line.Cases + ", available " + availCases + ".", false); return; }
+                if (line.Loose > availLoose)
+                { ShowAlert("Insufficient loose JARS for " + (stockRow["ProductName"] ?? "product") + ". Need " + line.Loose + ", available " + availLoose + ".", false); return; }
+            }
+
+            // Get customer GSTIN
+            var custRow = PKDatabaseHelper.GetCustomerById(customerId);
+            string custGSTIN = custRow != null && custRow["GSTIN"] != DBNull.Value ? custRow["GSTIN"].ToString() : "";
+            string custState = custRow != null && custRow["State"] != DBNull.Value ? custRow["State"].ToString() : "";
+            string orgState = hfOrgState != null ? hfOrgState.Value : "Tamil Nadu";
+            bool isInterState = !string.IsNullOrEmpty(custState) &&
+                custState.Trim().ToLower() != orgState.Trim().ToLower();
+
+            // Calculate totals
+            decimal subTotal = 0, totalCGST = 0, totalSGST = 0, totalIGST = 0, grandTotal = 0;
+            foreach (var line in lineData)
+            {
+                subTotal += line.TaxableVal;
+                if (isInterState)
+                    totalIGST += line.GSTAmt;
+                else
+                {
+                    totalCGST += Math.Round(line.GSTAmt / 2, 2);
+                    totalSGST += Math.Round(line.GSTAmt / 2, 2);
+                }
+                grandTotal += line.LineTotal;
             }
 
             try
@@ -179,16 +239,28 @@ namespace PKApp
                     PKDatabaseHelper.DeleteDCLines(dcId);
                 }
 
+                // Update DC header with channel, GSTIN, and totals
+                PKDatabaseHelper.UpdateDCPricing(dcId, channel, custGSTIN, isInterState,
+                    subTotal, totalCGST, totalSGST, totalIGST, grandTotal);
+
+                // Save lines with pricing
                 foreach (var line in lineData)
-                    PKDatabaseHelper.AddDCLine(dcId, line[0], line[1], line[2], line[3], line[4]);
+                {
+                    decimal cgst = isInterState ? 0 : Math.Round(line.GSTAmt / 2, 2);
+                    decimal sgst = isInterState ? 0 : Math.Round(line.GSTAmt / 2, 2);
+                    decimal igst = isInterState ? line.GSTAmt : 0;
+                    PKDatabaseHelper.AddDCLineWithPricing(dcId, line.ProductID, line.Cases, line.Loose,
+                        line.JPC, line.TotalPcs, line.HSN, line.GSTRate, line.MRP, line.MarginPct,
+                        line.UnitRate, line.TaxableVal, cgst, sgst, igst, line.LineTotal);
+                }
 
                 hfDCID.Value = dcId.ToString();
-                // Reload DC number
                 var dc = PKDatabaseHelper.GetDCById(dcId);
                 if (dc != null) txtDCNumber.Text = dc["DCNumber"].ToString();
 
-                ShowAlert("Delivery Challan saved as Draft.", true);
+                ShowAlert("Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2"), true);
                 BuildProductData();
+                BuildCustomerData();
                 BindDCList();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -208,8 +280,29 @@ namespace PKApp
 
             try
             {
+                // Generate invoice number
+                string invoiceNo = PKDatabaseHelper.GenerateInvoiceNumber();
+                PKDatabaseHelper.SetDCInvoiceNumber(dcId, invoiceNo);
+
+                // Finalise the DC
                 PKDatabaseHelper.FinaliseDeliveryChallan(dcId, UserID);
-                ShowAlert("Delivery Challan finalised. No further changes allowed.", true);
+
+                // Auto-push invoice to Zoho Books
+                string channel = ddlChannel != null ? ddlChannel.SelectedValue : "GT";
+                string zohoResult = "";
+                try
+                {
+                    zohoResult = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
+                }
+                catch (Exception zex) { zohoResult = "Zoho error: " + zex.Message; }
+
+                string msg = "DC finalised. Invoice: " + invoiceNo + ".";
+                if (zohoResult.StartsWith("OK:"))
+                    msg += " Zoho invoice " + zohoResult.Substring(3) + " created.";
+                else if (!string.IsNullOrEmpty(zohoResult))
+                    msg += " Zoho: " + zohoResult;
+
+                ShowAlert(msg, true);
                 LoadDC(dcId);
                 BindDCList();
             }
@@ -247,7 +340,6 @@ namespace PKApp
             string zohoInvId = ViewState["ZohoInvoiceID"] as string;
             if (string.IsNullOrEmpty(zohoInvId))
             {
-                // Try to get from DB
                 int dcId = Convert.ToInt32(hfDCID.Value);
                 if (dcId > 0)
                 {
@@ -348,10 +440,16 @@ namespace PKApp
             txtRemarks.Text = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
             try { ddlCustomer.SelectedValue = dc["CustomerID"].ToString(); } catch { }
 
+            // Restore channel
+            if (ddlChannel != null && dc.Table.Columns.Contains("Channel") && dc["Channel"] != DBNull.Value)
+            {
+                try { ddlChannel.SelectedValue = dc["Channel"].ToString(); } catch { }
+            }
+
             string status = dc["Status"].ToString();
             bool isDraft = status == "DRAFT";
 
-            // Load lines into hfLines as JSON
+            // Load lines into hfLines as JSON — include pricing
             var lines = PKDatabaseHelper.GetDCLines(dcId);
             var sb = new System.Text.StringBuilder("[");
             bool first = true;
@@ -365,7 +463,27 @@ namespace PKApp
                 sb.Append("\"loose\":" + r["LooseJars"] + ",");
                 sb.Append("\"jpc\":" + r["JarsPerCase"] + ",");
                 sb.Append("\"unitSize\":1,");
-                sb.Append("\"totalPcs\":" + r["TotalPcs"] + "}");
+                sb.Append("\"totalPcs\":" + r["TotalPcs"] + ",");
+                // Pricing fields — use saved values or defaults
+                string hsn = r.Table.Columns.Contains("HSNCode") && r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
+                decimal gstRate = r.Table.Columns.Contains("GSTRate") && r["GSTRate"] != DBNull.Value ? Convert.ToDecimal(r["GSTRate"]) : 0;
+                decimal mrp = r.Table.Columns.Contains("MRP") && r["MRP"] != DBNull.Value ? Convert.ToDecimal(r["MRP"]) : 0;
+                decimal marginPct = r.Table.Columns.Contains("MarginPct") && r["MarginPct"] != DBNull.Value ? Convert.ToDecimal(r["MarginPct"]) : 0;
+                decimal unitRate = r.Table.Columns.Contains("UnitRate") && r["UnitRate"] != DBNull.Value ? Convert.ToDecimal(r["UnitRate"]) : 0;
+                decimal taxableVal = r.Table.Columns.Contains("TaxableValue") && r["TaxableValue"] != DBNull.Value ? Convert.ToDecimal(r["TaxableValue"]) : 0;
+                decimal gstAmt = 0;
+                if (r.Table.Columns.Contains("CGSTAmt")) gstAmt += r["CGSTAmt"] != DBNull.Value ? Convert.ToDecimal(r["CGSTAmt"]) : 0;
+                if (r.Table.Columns.Contains("SGSTAmt")) gstAmt += r["SGSTAmt"] != DBNull.Value ? Convert.ToDecimal(r["SGSTAmt"]) : 0;
+                if (r.Table.Columns.Contains("IGSTAmt")) gstAmt += r["IGSTAmt"] != DBNull.Value ? Convert.ToDecimal(r["IGSTAmt"]) : 0;
+                decimal lineTotal = r.Table.Columns.Contains("LineTotal") && r["LineTotal"] != DBNull.Value ? Convert.ToDecimal(r["LineTotal"]) : 0;
+                sb.Append("\"hsn\":\"" + Esc(hsn) + "\",");
+                sb.Append("\"gstRate\":" + gstRate.ToString("0.##") + ",");
+                sb.Append("\"mrp\":" + mrp.ToString("0.##") + ",");
+                sb.Append("\"marginPct\":" + marginPct.ToString("0.##") + ",");
+                sb.Append("\"rate\":" + unitRate.ToString("0.##") + ",");
+                sb.Append("\"taxableVal\":" + taxableVal.ToString("0.##") + ",");
+                sb.Append("\"gstAmt\":" + gstAmt.ToString("0.##") + ",");
+                sb.Append("\"lineTotal\":" + lineTotal.ToString("0.##") + "}");
                 first = false;
             }
             sb.Append("]");
@@ -386,10 +504,23 @@ namespace PKApp
                 pnlLocked.Visible = true;
 
                 // Populate read-only view
-                if (lblLockedTitle != null) lblLockedTitle.Text = "Delivery Challan — " + dc["DCNumber"];
+                if (lblLockedTitle != null)
+                {
+                    string invNo = dc.Table.Columns.Contains("InvoiceNumber") && dc["InvoiceNumber"] != DBNull.Value
+                        ? dc["InvoiceNumber"].ToString() : "";
+                    lblLockedTitle.Text = "Delivery Challan — " + dc["DCNumber"]
+                        + (!string.IsNullOrEmpty(invNo) ? " | Invoice: " + invNo : "");
+                }
                 if (lblViewDCNum != null) lblViewDCNum.Text = dc["DCNumber"].ToString();
                 if (lblViewDate != null) lblViewDate.Text = Convert.ToDateTime(dc["DCDate"]).ToString("dd-MMM-yyyy");
-                if (lblViewCustomer != null) lblViewCustomer.Text = dc["CustomerName"] + " (" + dc["CustomerCode"] + ")";
+                if (lblViewCustomer != null)
+                {
+                    string channel = dc.Table.Columns.Contains("Channel") && dc["Channel"] != DBNull.Value
+                        ? dc["Channel"].ToString() : "";
+                    string channelLabel = channel == "SM" ? "Super Market" : channel == "GT" ? "General Trade" : "";
+                    lblViewCustomer.Text = dc["CustomerName"] + " (" + dc["CustomerCode"] + ")"
+                        + (!string.IsNullOrEmpty(channelLabel) ? " — " + channelLabel : "");
+                }
 
                 string rem = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
                 if (pnlViewRemarks != null) { pnlViewRemarks.Visible = !string.IsNullOrEmpty(rem); }
@@ -398,7 +529,7 @@ namespace PKApp
                 if (rptViewLines != null) { rptViewLines.DataSource = lines; rptViewLines.DataBind(); }
 
                 // Zoho Invoice status
-                if (pnlCreateInvoice != null && pnlInvoiceStatus != null)
+                if (pnlCreateInvoice != null && pnlInvoiceStatus != null && pnlInvoiceError != null)
                 {
                     try
                     {
@@ -411,7 +542,7 @@ namespace PKApp
 
                             pnlCreateInvoice.Visible = false;
                             pnlInvoiceStatus.Visible = true;
-                            if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
+                            pnlInvoiceError.Visible = false;
 
                             if (lblInvoiceNo != null) lblInvoiceNo.Text = zohoInvNo;
                             if (lblInvoiceZohoStatus != null)
@@ -422,23 +553,27 @@ namespace PKApp
                                     : System.Drawing.Color.FromArgb(0, 120, 212);
                             }
 
-                            // Zoho Books URL — India domain
+                            // Grand total from DC header
+                            decimal gt = dc.Table.Columns.Contains("GrandTotal") && dc["GrandTotal"] != DBNull.Value
+                                ? Convert.ToDecimal(dc["GrandTotal"]) : 0;
+                            if (lblInvoiceAmount != null)
+                                lblInvoiceAmount.Text = "₹" + gt.ToString("N2");
+
                             string orgId = StockApp.DAL.ZohoHelper.GetOrgId();
                             if (lnkViewInZoho != null)
                                 lnkViewInZoho.NavigateUrl = "https://books.zoho.in/app/" + orgId + "/invoices/" + zohoInvId;
 
-                            // Store ZohoInvoiceID for PDF download
                             ViewState["ZohoInvoiceID"] = zohoInvId;
                         }
                         else
                         {
                             pnlCreateInvoice.Visible = true;
                             pnlInvoiceStatus.Visible = false;
-                            if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
+                            pnlInvoiceError.Visible = false;
 
                             if (invLog != null && invLog["PushStatus"].ToString() == "Error")
                             {
-                                if (pnlInvoiceError != null) pnlInvoiceError.Visible = true;
+                                pnlInvoiceError.Visible = true;
                                 if (lblInvoiceError != null)
                                     lblInvoiceError.Text = invLog["ErrorMessage"] != DBNull.Value ? invLog["ErrorMessage"].ToString() : "Unknown error";
                             }
@@ -448,12 +583,13 @@ namespace PKApp
                     {
                         pnlCreateInvoice.Visible = true;
                         pnlInvoiceStatus.Visible = false;
-                        if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
+                        pnlInvoiceError.Visible = false;
                     }
                 }
             }
 
             BuildProductData();
+            BuildCustomerData();
             if (pnlAlert != null) pnlAlert.Visible = false;
         }
 
@@ -692,46 +828,71 @@ namespace PKApp
             return true;
         }
 
-        int[][] ParseLines()
+        class DCLineData
+        {
+            public int ProductID, Cases, Loose, JPC, TotalPcs;
+            public string HSN;
+            public decimal GSTRate, MRP, MarginPct, UnitRate, TaxableVal, GSTAmt, LineTotal;
+        }
+
+        DCLineData[] ParseLines()
         {
             string raw = hfLines.Value;
             if (string.IsNullOrEmpty(raw) || raw == "[]") return null;
 
             try
             {
-                // Simple JSON array parse: [{pid,cases,loose,jpc,unitSize,totalPcs},...]
-                var list = new System.Collections.Generic.List<int[]>();
+                var list = new System.Collections.Generic.List<DCLineData>();
                 raw = raw.Trim(new char[] { '[', ']' });
                 if (string.IsNullOrEmpty(raw)) return null;
 
-                // Split by },{ pattern
                 string[] items = raw.Split(new string[] { "},{" }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (string item in items)
                 {
                     string clean = item.Trim(new char[] { '{', '}' });
-                    int pid = 0, cases = 0, loose = 0, jpc = 12, us = 1, totalPcs = 0;
+                    var ld = new DCLineData();
 
                     foreach (string pair in clean.Split(','))
                     {
-                        string[] kv = pair.Split(':');
+                        string[] kv = pair.Split(new char[] { ':' }, 2);
                         if (kv.Length < 2) continue;
                         string key = kv[0].Trim().Trim('"');
                         string val = kv[1].Trim().Trim('"');
 
-                        if (key == "pid") int.TryParse(val, out pid);
-                        else if (key == "cases") int.TryParse(val, out cases);
-                        else if (key == "loose") int.TryParse(val, out loose);
-                        else if (key == "jpc") int.TryParse(val, out jpc);
-                        else if (key == "unitSize") int.TryParse(val, out us);
-                        else if (key == "totalPcs") int.TryParse(val, out totalPcs);
+                        if (key == "pid") int.TryParse(val, out ld.ProductID);
+                        else if (key == "cases") int.TryParse(val, out ld.Cases);
+                        else if (key == "loose") int.TryParse(val, out ld.Loose);
+                        else if (key == "jpc") int.TryParse(val, out ld.JPC);
+                        else if (key == "totalPcs") int.TryParse(val, out ld.TotalPcs);
+                        else if (key == "hsn") ld.HSN = val;
+                        else if (key == "gstRate") decimal.TryParse(val, out ld.GSTRate);
+                        else if (key == "mrp") decimal.TryParse(val, out ld.MRP);
+                        else if (key == "marginPct") decimal.TryParse(val, out ld.MarginPct);
+                        else if (key == "rate") decimal.TryParse(val, out ld.UnitRate);
+                        else if (key == "taxableVal") decimal.TryParse(val, out ld.TaxableVal);
+                        else if (key == "gstAmt") decimal.TryParse(val, out ld.GSTAmt);
+                        else if (key == "lineTotal") decimal.TryParse(val, out ld.LineTotal);
                     }
 
-                    if (pid > 0 && totalPcs > 0)
-                        list.Add(new int[] { pid, cases, loose, jpc, totalPcs });
+                    if (ld.ProductID > 0 && ld.TotalPcs > 0)
+                        list.Add(ld);
                 }
                 return list.ToArray();
             }
             catch { return null; }
+        }
+
+        protected string GetGSTDisplay(object cgst, object sgst, object igst, object gstRate)
+        {
+            decimal c = cgst != null && cgst != DBNull.Value ? Convert.ToDecimal(cgst) : 0;
+            decimal s = sgst != null && sgst != DBNull.Value ? Convert.ToDecimal(sgst) : 0;
+            decimal i = igst != null && igst != DBNull.Value ? Convert.ToDecimal(igst) : 0;
+            decimal rate = gstRate != null && gstRate != DBNull.Value ? Convert.ToDecimal(gstRate) : 0;
+            decimal total = c + s + i;
+            if (total <= 0) return "—";
+            string label = i > 0 ? "IGST " + rate.ToString("0.#") + "%"
+                : "C+S " + (rate / 2).ToString("0.#") + "%+" + (rate / 2).ToString("0.#") + "%";
+            return string.Format("₹{0:N2}<div style=\"font-size:9px;color:#999;\">{1}</div>", total, label);
         }
 
         void ShowAlert(string m, bool ok)
