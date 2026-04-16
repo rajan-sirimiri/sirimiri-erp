@@ -22,7 +22,7 @@ namespace StockApp
             if (Session["UserID"] == null) { Response.Redirect("Login.aspx"); return; }
 
             // Only Super role can access Zoho integration
-            string role = Session["RoleCode"]?.ToString() ?? "";
+            string role = Session["Role"]?.ToString() ?? "";
             if (role != "Super") { Response.Redirect("ERPHome.aspx"); return; }
 
             if (!IsPostBack)
