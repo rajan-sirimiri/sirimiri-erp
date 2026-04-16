@@ -124,8 +124,15 @@
       <DependentUpon>PKPrimaryPacking.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="PKProductMRP.aspx" />
     <!-- Secondary Packing -->
     <Content Include="PKSecondaryPacking.aspx" />
+    <Compile Include="PKProductMRP.aspx.cs">
+      <DependentUpon>PKProductMRP.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="PKProductMRP.aspx.designer.cs">
+      <DependentUpon>PKProductMRP.aspx</DependentUpon>
+    </Compile>
     <Compile Include="PKSecondaryPacking.aspx.cs">
       <DependentUpon>PKSecondaryPacking.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
