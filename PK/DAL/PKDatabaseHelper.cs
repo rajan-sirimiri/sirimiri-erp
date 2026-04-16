@@ -99,7 +99,8 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT c.CustomerID, c.CustomerCode, c.CustomerType, c.CustomerName," +
-                " c.City, IFNULL(ct.TypeName,'') AS TypeName" +
+                " c.ContactPerson, c.Phone, c.Email, c.GSTIN, c.State, c.City," +
+                " IFNULL(ct.TypeName,'') AS TypeName" +
                 " FROM PK_Customers c" +
                 " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
                 " WHERE c.IsActive=1 ORDER BY c.CustomerName;");
