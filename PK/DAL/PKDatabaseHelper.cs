@@ -1414,6 +1414,7 @@ namespace PKApp.DAL
             // going through secondary packing (which consumes packing materials).
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductName, p.ProductCode," +
+                " p.HSNCode, IFNULL(p.GSTRate, 0) AS GSTRate," +
                 " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
                 " IFNULL(p.UnitsPerContainer, '1') AS UnitsPerContainer," +
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
