@@ -872,7 +872,9 @@ namespace StockApp.DAL
             // Get DC header
             var dc = GetDCForInvoice(dcId);
             if (dc == null) return "DC not found";
-            if (dc["Status"].ToString() != "FINALISED") return "DC must be finalised before creating invoice";
+            string dcStatus = dc["Status"].ToString();
+            if (dcStatus != "FINALISED" && dcStatus != "DRAFT")
+                return "DC status must be DRAFT or FINALISED to create invoice";
 
             int customerId = Convert.ToInt32(dc["CustomerID"]);
 

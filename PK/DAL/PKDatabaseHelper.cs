@@ -1639,6 +1639,8 @@ namespace PKApp.DAL
             return ExecuteQuery(
                 "SELECT dl.LineID, dl.ProductID, p.ProductName, p.ProductCode," +
                 " dl.Cases, dl.LooseJars, dl.JarsPerCase, dl.TotalPcs," +
+                " dl.HSNCode, dl.GSTRate, dl.MRP, dl.MarginPct, dl.UnitRate," +
+                " dl.TaxableValue, dl.CGSTAmt, dl.SGSTAmt, dl.IGSTAmt, dl.LineTotal," +
                 " ou.Abbreviation AS Unit" +
                 " FROM PK_DCLines dl" +
                 " JOIN PP_Products p ON p.ProductID = dl.ProductID" +

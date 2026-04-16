@@ -149,6 +149,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <div class="btn-row">
             <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" OnClientClick="syncLines();" CausesValidation="false"/>
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
+            <asp:Button ID="btnCreateInvoiceDraft" runat="server" Text="&#x1F4E8; Create Invoice in Zoho" CssClass="btn btn-zoho"
+                OnClick="btnCreateInvoiceDraft_Click" CausesValidation="false" Visible="false"
+                OnClientClick="syncLines(); return confirm('Save DC and create Zoho invoice?');"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return doDeleteDCConfirm();" CausesValidation="false"/>

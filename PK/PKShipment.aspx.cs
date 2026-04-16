@@ -17,7 +17,7 @@ namespace PKApp
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer, ddlChannel;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
-        protected Button btnCreateInvoice, btnDownloadInvoicePDF;
+        protected Button btnCreateInvoice, btnCreateInvoiceDraft, btnDownloadInvoicePDF;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
         protected HyperLink lnkViewInZoho;
@@ -309,6 +309,27 @@ namespace PKApp
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
 
+        // ── CREATE ZOHO INVOICE (from Draft) ──
+        protected void btnCreateInvoiceDraft_Click(object s, EventArgs e)
+        {
+            // Save draft first
+            btnDraftSave_Click(s, e);
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0) return;
+
+            string channel = ddlChannel != null ? ddlChannel.SelectedValue : "GT";
+            try
+            {
+                string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
+                if (result.StartsWith("OK:"))
+                    ShowAlert("Draft saved. Zoho Invoice " + result.Substring(3) + " created.", true);
+                else
+                    ShowAlert("Draft saved. Zoho: " + result, false);
+                LoadDC(dcId);
+            }
+            catch (Exception ex) { ShowAlert("Invoice error: " + ex.Message, false); }
+        }
+
         // ── CREATE ZOHO INVOICE ──
         protected void btnCreateInvoice_Click(object s, EventArgs e)
         {
@@ -497,6 +518,7 @@ namespace PKApp
                 btnDraftSave.Visible = true;
                 btnFinalise.Visible = true;
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
+                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = true;
             }
             else
             {
