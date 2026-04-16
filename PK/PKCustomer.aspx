@@ -113,6 +113,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     style="display:inline-block;margin-top:10px;margin-left:10px;font-size:12px;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer;">
                     &#x1F4E5; Download Template
                 </asp:LinkButton>
+                <asp:LinkButton ID="lnkExportAll" runat="server" OnClick="lnkExportAll_Click" CausesValidation="false"
+                    style="display:inline-block;margin-top:10px;margin-left:16px;font-size:12px;color:#27ae60;font-weight:600;text-decoration:underline;cursor:pointer;">
+                    &#x1F4CB; Export All Customers
+                </asp:LinkButton>
                 <div class="upload-hint">
                     Upload .xlsx file with columns: <strong>CustomerType</strong> (Stockist/Distributor/Retail or ST/DI/RT),
                     <strong>Name</strong>, ContactPerson, Phone, Email, Address, City, State, PinCode, GSTIN

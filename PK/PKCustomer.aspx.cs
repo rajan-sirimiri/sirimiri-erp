@@ -17,6 +17,7 @@ namespace PKApp
         protected TextBox txtGSTIN, txtCity, txtState, txtPinCode, txtAddress;
         protected Button btnSave, btnClear, btnToggle, btnUpload;
         protected LinkButton lnkTemplate;
+        protected LinkButton lnkExportAll;
         protected FileUpload fuExcel;
         protected Repeater rptList;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
@@ -272,6 +273,60 @@ namespace PKApp
             Response.Clear();
             Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             Response.AddHeader("Content-Disposition", "attachment; filename=Customer_Import_Template.xlsx");
+            using (var ms = new MemoryStream())
+            {
+                wb.SaveAs(ms);
+                ms.WriteTo(Response.OutputStream);
+            }
+            Response.End();
+        }
+
+        protected void lnkExportAll_Click(object s, EventArgs e)
+        {
+            var customers = PKDatabaseHelper.GetAllCustomers();
+            if (customers.Rows.Count == 0) { ShowAlert("No customers to export.", false); return; }
+
+            var wb = new ClosedXML.Excel.XLWorkbook();
+            var ws = wb.AddWorksheet("Customers");
+
+            // Headers
+            string[] headers = { "CustomerCode", "CustomerType", "CustomerName", "ContactPerson",
+                "Phone", "Email", "Address", "City", "State", "PinCode", "GSTIN", "IsActive" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(1, i + 1).Value = headers[i];
+                ws.Cell(1, i + 1).Style.Font.Bold = true;
+                ws.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#1a1a1a");
+                ws.Cell(1, i + 1).Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
+            }
+
+            // Data rows
+            int row = 2;
+            foreach (System.Data.DataRow r in customers.Rows)
+            {
+                ws.Cell(row, 1).Value = r["CustomerCode"]?.ToString() ?? "";
+                ws.Cell(row, 2).Value = r["CustomerType"]?.ToString() ?? "";
+                ws.Cell(row, 3).Value = r["CustomerName"]?.ToString() ?? "";
+                ws.Cell(row, 4).Value = r["ContactPerson"] != System.DBNull.Value ? r["ContactPerson"].ToString() : "";
+                ws.Cell(row, 5).Value = r["Phone"] != System.DBNull.Value ? r["Phone"].ToString() : "";
+                ws.Cell(row, 6).Value = r["Email"] != System.DBNull.Value ? r["Email"].ToString() : "";
+                ws.Cell(row, 7).Value = customers.Columns.Contains("Address") && r["Address"] != System.DBNull.Value ? r["Address"].ToString() : "";
+                ws.Cell(row, 8).Value = r["City"] != System.DBNull.Value ? r["City"].ToString() : "";
+                ws.Cell(row, 9).Value = r["State"] != System.DBNull.Value ? r["State"].ToString() : "";
+                ws.Cell(row, 10).Value = r["PinCode"] != System.DBNull.Value ? r["PinCode"].ToString() : "";
+                ws.Cell(row, 11).Value = r["GSTIN"] != System.DBNull.Value ? r["GSTIN"].ToString() : "";
+                ws.Cell(row, 12).Value = r["IsActive"] != System.DBNull.Value && Convert.ToInt32(r["IsActive"]) == 1 ? "Yes" : "No";
+                row++;
+            }
+
+            ws.Columns().AdjustToContents();
+
+            // Auto-filter
+            ws.RangeUsed().SetAutoFilter();
+
+            Response.Clear();
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("Content-Disposition", "attachment; filename=All_Customers_" + DateTime.Now.ToString("yyyyMMdd") + ".xlsx");
             using (var ms = new MemoryStream())
             {
                 wb.SaveAs(ms);
