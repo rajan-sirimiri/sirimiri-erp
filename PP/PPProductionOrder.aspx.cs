@@ -35,8 +35,10 @@ namespace PPApp
         protected Repeater  rptProgress;
         protected Panel     pnlProgressEmpty;
 
-        // Priority buttons
+        // Priority buttons and hidden fields
         protected global::System.Web.UI.WebControls.Button btnClearPriority1, btnClearPriority2;
+        protected global::System.Web.UI.WebControls.Button btnSavePriority1, btnSavePriority2;
+        protected HiddenField hfPriority1, hfPriority2;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -243,59 +245,38 @@ namespace PPApp
                 ShowAlert("Production resumed.", true);
                 LoadPage();
             }
-            else if (e.CommandName == "SetPriority")
-            {
-                int shift = Convert.ToInt32(hfActiveShift.Value);
-                DateTime today = PPDatabaseHelper.TodayIST();
-                var orders = PPDatabaseHelper.GetOrCreateProductionOrders(
-                    GetCurrentPlanId(), shift, today, UserID);
-
-                // Get this order's production line
-                DataRow thisOrder = PPDatabaseHelper.GetProductionOrder(orderId);
-                int thisLineId = thisOrder != null && thisOrder["ProductionLineID"] != DBNull.Value
-                    ? Convert.ToInt32(thisOrder["ProductionLineID"]) : 0;
-
-                // Find max priority WITHIN the same production line (only count > 0)
-                int maxPriority = 0;
-                foreach (DataRow r in orders.Rows)
-                {
-                    int rLineId = r["ProductionLineID"] != DBNull.Value ? Convert.ToInt32(r["ProductionLineID"]) : 0;
-                    if (rLineId != thisLineId) continue;
-                    if (r["ExecutionPriority"] != DBNull.Value)
-                    {
-                        int p = Convert.ToInt32(r["ExecutionPriority"]);
-                        if (p > 0 && p > maxPriority) maxPriority = p;
-                    }
-                }
-
-                if (thisOrder != null && thisOrder["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(thisOrder["ExecutionPriority"]) > 0)
-                {
-                    PPDatabaseHelper.ClearOrderPriority(orderId);
-                    ResequencePriorities(shift, today, thisLineId);
-                }
-                else
-                {
-                    PPDatabaseHelper.SetExecutionPriority(orderId, maxPriority + 1);
-                }
-                LoadPage();
-            }
         }
 
-        private void ResequencePriorities(int shift, DateTime date, int lineId = 0)
+        // ── SAVE PRIORITY (from number inputs) ──
+        private void SavePriorities(int shift, string raw)
         {
-            int planId = GetCurrentPlanId();
-            var orders = PPDatabaseHelper.GetOrCreateProductionOrders(planId, shift, date, UserID);
-            var prioritized = new System.Collections.Generic.List<int>();
-            foreach (DataRow r in orders.Rows)
+            if (string.IsNullOrEmpty(raw)) { LoadPage(); return; }
+
+            int saved = 0;
+            string[] pairs = raw.Split(',');
+            foreach (string pair in pairs)
             {
-                int rLineId = r["ProductionLineID"] != DBNull.Value ? Convert.ToInt32(r["ProductionLineID"]) : 0;
-                if (lineId > 0 && rLineId != lineId) continue;
-                if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) > 0)
-                    prioritized.Add(Convert.ToInt32(r["OrderID"]));
+                string[] parts = pair.Split(':');
+                if (parts.Length != 2) continue;
+                int oid, pri;
+                if (!int.TryParse(parts[0], out oid) || oid <= 0) continue;
+                if (!int.TryParse(parts[1], out pri)) continue;
+
+                if (pri > 0)
+                    PPDatabaseHelper.SetExecutionPriority(oid, pri);
+                else
+                    PPDatabaseHelper.ClearOrderPriority(oid);
+                saved++;
             }
-            for (int i = 0; i < prioritized.Count; i++)
-                PPDatabaseHelper.SetExecutionPriority(prioritized[i], i + 1);
+            ShowAlert("Priority saved for " + saved + " order(s).", true);
+            LoadPage();
         }
+
+        protected void btnSavePriority1_Click(object s, EventArgs e)
+        { SavePriorities(1, hfPriority1 != null ? hfPriority1.Value : ""); }
+
+        protected void btnSavePriority2_Click(object s, EventArgs e)
+        { SavePriorities(2, hfPriority2 != null ? hfPriority2.Value : ""); }
 
         private int GetCurrentPlanId()
         {

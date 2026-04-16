@@ -70,6 +70,15 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .priority-btn.set{background:var(--accent);border-color:var(--accent);color:#fff;animation:priorityPop .3s ease;}
 .priority-btn.completed{background:#ccc;border-color:#ccc;color:#fff;cursor:default;}
 @keyframes priorityPop{0%{transform:scale(1);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
+.priority-input{width:50px;padding:6px 4px;border:2px solid var(--border);border-radius:8px;
+    font-size:14px;font-weight:700;text-align:center;color:var(--text);font-family:'JetBrains Mono','DM Sans',sans-serif;background:#fff;}
+.priority-input:focus{outline:none;border-color:var(--accent);background:#eafaf1;}
+.priority-input:disabled{background:#f0f0f0;color:#ccc;cursor:not-allowed;}
+.priority-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.priority-input[type=number]{-moz-appearance:textfield;}
+.btn-save-priority{background:var(--accent);color:#fff;border:none;border-radius:8px;
+    padding:7px 18px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
+.btn-save-priority:hover{background:var(--accent-dark);}
 .btn-clear-priority{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:10px;
     font-weight:700;color:var(--text-dim);cursor:pointer;margin-left:10px;}
 .btn-clear-priority:hover{border-color:var(--accent);color:var(--accent);}
@@ -254,7 +263,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
             <!-- SHIFT 1 ORDERS -->
             <div id="divShift1" runat="server">
-                <div style="text-align:right;margin-bottom:8px;">
+                <asp:HiddenField ID="hfPriority1" runat="server" Value=""/>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
+                    <asp:Button ID="btnSavePriority1" runat="server" Text="Save Priority" CssClass="btn-save-priority"
+                        OnClientClick="return collectPriorities(1);" OnClick="btnSavePriority1_Click" CausesValidation="false"/>
                     <asp:Button ID="btnClearPriority1" runat="server" Text="Clear Priority" CssClass="btn-clear-priority"
                         OnClick="btnClearPriority1_Click" CausesValidation="false"/>
                 </div>
@@ -270,9 +282,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <HeaderTemplate>
                         <table class="order-table">
                         <tr>
-                            <th style="text-align:center;width:50px;">Priority</th>
+                            <th style="text-align:center;width:60px;">Priority</th>
                             <th>Sr</th>
                             <th>Product</th>
+                            <th>Line</th>
                             <th>Ordered</th>
                             <th>Revised ✓</th>
                             <th>Progress / Status</th>
@@ -282,16 +295,18 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <ItemTemplate>
                         <tr>
                             <td style="text-align:center;">
-                                <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
-                                    CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
-                                    Visible='<%# Eval("Status").ToString() != "Completed" %>'
-                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                                <input type="number" min="0" max="99" class="priority-input"
+                                    data-orderid='<%# Eval("OrderID") %>' data-shift="1"
+                                    value='<%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %>'
+                                    <%# Eval("Status").ToString() == "Completed" ? "disabled=\"disabled\"" : "" %>
+                                    placeholder="—"/>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>
                                 <div class="prod-name"><%# Eval("ProductName") %></div>
                                 <div class="prod-code"><%# Eval("ProductCode") %></div>
                             </td>
+                            <td style="font-size:10px;color:var(--text-muted);"><%# Eval("LineName") %></td>
                             <td>
                                 <div class="batch-num"><%# Eval("OrderedBatches") %></div>
                                 <div class="batch-uom"><%# Eval("ProdAbbr") %></div>
@@ -358,7 +373,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
             <!-- SHIFT 2 ORDERS -->
             <div id="divShift2" runat="server" style="display:none;">
-                <div style="text-align:right;margin-bottom:8px;">
+                <asp:HiddenField ID="hfPriority2" runat="server" Value=""/>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
+                    <asp:Button ID="btnSavePriority2" runat="server" Text="Save Priority" CssClass="btn-save-priority"
+                        OnClientClick="return collectPriorities(2);" OnClick="btnSavePriority2_Click" CausesValidation="false"/>
                     <asp:Button ID="btnClearPriority2" runat="server" Text="Clear Priority" CssClass="btn-clear-priority"
                         OnClick="btnClearPriority2_Click" CausesValidation="false"/>
                 </div>
@@ -374,9 +392,10 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <HeaderTemplate>
                         <table class="order-table">
                         <tr>
-                            <th style="text-align:center;width:50px;">Priority</th>
+                            <th style="text-align:center;width:60px;">Priority</th>
                             <th>Sr</th>
                             <th>Product</th>
+                            <th>Line</th>
                             <th>Ordered</th>
                             <th>Revised ✓</th>
                             <th>Progress / Status</th>
@@ -386,16 +405,18 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                     <ItemTemplate>
                         <tr>
                             <td style="text-align:center;">
-                                <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
-                                    CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
-                                    Visible='<%# Eval("Status").ToString() != "Completed" %>'
-                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                                <input type="number" min="0" max="99" class="priority-input"
+                                    data-orderid='<%# Eval("OrderID") %>' data-shift="2"
+                                    value='<%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %>'
+                                    <%# Eval("Status").ToString() == "Completed" ? "disabled=\"disabled\"" : "" %>
+                                    placeholder="—"/>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>
                                 <div class="prod-name"><%# Eval("ProductName") %></div>
                                 <div class="prod-code"><%# Eval("ProductCode") %></div>
                             </td>
+                            <td style="font-size:10px;color:var(--text-muted);"><%# Eval("LineName") %></td>
                             <td>
                                 <div class="batch-num"><%# Eval("OrderedBatches") %></div>
                                 <div class="batch-uom"><%# Eval("ProdAbbr") %></div>
@@ -672,6 +693,20 @@ function showShift(n) {
     var d2 = document.getElementById('<%= divShift2.ClientID %>');
     if (d1) d1.style.display = n == '2' ? 'none' : 'block';
     if (d2) d2.style.display = n == '2' ? 'block' : 'none';
+}
+</script>
+<script>
+function collectPriorities(shift) {
+    var inputs = document.querySelectorAll('.priority-input[data-shift="' + shift + '"]');
+    var pairs = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var oid = inputs[i].getAttribute('data-orderid');
+        var val = parseInt(inputs[i].value) || 0;
+        pairs.push(oid + ':' + val);
+    }
+    var hf = document.getElementById(shift === 1 ? '<%= hfPriority1.ClientID %>' : '<%= hfPriority2.ClientID %>');
+    if (hf) hf.value = pairs.join(',');
+    return true;
 }
 </script>
 <script src="/StockApp/erp-modal.js"></script>
