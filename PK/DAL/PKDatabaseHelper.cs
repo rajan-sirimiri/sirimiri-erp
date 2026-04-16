@@ -112,7 +112,7 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", id));
         }
 
-        public static void AddCustomer(string customerType, string name, string contact,
+        public static int AddCustomer(string customerType, string name, string contact,
             string phone, string email, string address, string city, string state,
             string pinCode, string gstin)
         {
@@ -132,6 +132,7 @@ namespace PKApp.DAL
                 new MySqlParameter("?state", state   ?? (object)DBNull.Value),
                 new MySqlParameter("?pin",   pinCode ?? (object)DBNull.Value),
                 new MySqlParameter("?gst",   gstin   ?? (object)DBNull.Value));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
         }
 
         public static void UpdateCustomer(int id, string code, string customerType,
@@ -2140,6 +2141,74 @@ namespace PKApp.DAL
                 " )" +
                 " ORDER BY po.OrderDate DESC;",
                 new MySqlParameter("?pid", productId));
+        }
+
+        // ── CUSTOMER MARGINS ─────────────────────────────────────────────────
+
+        public static void SaveCustomerMargins(int customerId, decimal smPct, decimal gtPct)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO PK_CustomerMargins (CustomerID, SuperMarketPct, GTPct) " +
+                "VALUES(?cid, ?sm, ?gt) " +
+                "ON DUPLICATE KEY UPDATE SuperMarketPct=?sm, GTPct=?gt;",
+                new MySqlParameter("?cid", customerId),
+                new MySqlParameter("?sm", smPct),
+                new MySqlParameter("?gt", gtPct));
+        }
+
+        public static DataRow GetCustomerMargins(int customerId)
+        {
+            var dt = ExecuteQuery(
+                "SELECT * FROM PK_CustomerMargins WHERE CustomerID=?cid;",
+                new MySqlParameter("?cid", customerId));
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        // ── PRODUCT MRP ──────────────────────────────────────────────────────
+
+        public static DataTable GetProductMRPList()
+        {
+            return ExecuteQuery(
+                "SELECT p.ProductID, p.ProductCode, p.ProductName, p.HSNCode, p.GSTRate, " +
+                "p.ContainerType, " +
+                "m_pcs.MRP AS MRP_PCS, m_jar.MRP AS MRP_JAR, m_box.MRP AS MRP_BOX, m_case.MRP AS MRP_CASE " +
+                "FROM PP_Products p " +
+                "LEFT JOIN PK_ProductMRP m_pcs  ON m_pcs.ProductID=p.ProductID  AND m_pcs.SellingForm='PCS' " +
+                "LEFT JOIN PK_ProductMRP m_jar  ON m_jar.ProductID=p.ProductID  AND m_jar.SellingForm='JAR' " +
+                "LEFT JOIN PK_ProductMRP m_box  ON m_box.ProductID=p.ProductID  AND m_box.SellingForm='BOX' " +
+                "LEFT JOIN PK_ProductMRP m_case ON m_case.ProductID=p.ProductID AND m_case.SellingForm='CASE' " +
+                "WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion') " +
+                "ORDER BY p.ProductName;");
+        }
+
+        public static void SaveProductMRP(int productId, string sellingForm, decimal mrp)
+        {
+            if (mrp > 0)
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_ProductMRP (ProductID, SellingForm, MRP) " +
+                    "VALUES(?pid, ?form, ?mrp) " +
+                    "ON DUPLICATE KEY UPDATE MRP=?mrp;",
+                    new MySqlParameter("?pid", productId),
+                    new MySqlParameter("?form", sellingForm),
+                    new MySqlParameter("?mrp", mrp));
+            }
+            else
+            {
+                ExecuteNonQuery(
+                    "DELETE FROM PK_ProductMRP WHERE ProductID=?pid AND SellingForm=?form;",
+                    new MySqlParameter("?pid", productId),
+                    new MySqlParameter("?form", sellingForm));
+            }
+        }
+
+        public static decimal GetProductMRP(int productId, string sellingForm)
+        {
+            var val = ExecuteScalar(
+                "SELECT MRP FROM PK_ProductMRP WHERE ProductID=?pid AND SellingForm=?form;",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?form", sellingForm));
+            return val != null && val != DBNull.Value ? Convert.ToDecimal(val) : 0;
         }
     }
 }

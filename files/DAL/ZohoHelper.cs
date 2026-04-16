@@ -829,10 +829,19 @@ namespace StockApp.DAL
             using (var conn = new MySqlConnection(ConnStr))
             using (var cmd = new MySqlCommand(
                 "SELECT l.LineID, l.ProductID, l.Cases, l.LooseJars, l.JarsPerCase, l.TotalPcs, " +
-                "p.ProductName, p.ProductCode, p.HSNCode, p.GSTRate, p.MRP, " +
-                "IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase " +
+                "p.ProductName, p.ProductCode, p.HSNCode, p.GSTRate, " +
+                "IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase, " +
+                "IFNULL(p.ContainerType, 'JAR') AS ContainerType, " +
+                "IFNULL(mrp_pcs.MRP, 0) AS MRP_PCS, " +
+                "IFNULL(mrp_jar.MRP, 0) AS MRP_JAR, " +
+                "IFNULL(mrp_box.MRP, 0) AS MRP_BOX, " +
+                "IFNULL(mrp_case.MRP, 0) AS MRP_CASE " +
                 "FROM PK_DCLines l " +
                 "JOIN PP_Products p ON p.ProductID = l.ProductID " +
+                "LEFT JOIN PK_ProductMRP mrp_pcs  ON mrp_pcs.ProductID=l.ProductID  AND mrp_pcs.SellingForm='PCS' " +
+                "LEFT JOIN PK_ProductMRP mrp_jar  ON mrp_jar.ProductID=l.ProductID  AND mrp_jar.SellingForm='JAR' " +
+                "LEFT JOIN PK_ProductMRP mrp_box  ON mrp_box.ProductID=l.ProductID  AND mrp_box.SellingForm='BOX' " +
+                "LEFT JOIN PK_ProductMRP mrp_case ON mrp_case.ProductID=l.ProductID AND mrp_case.SellingForm='CASE' " +
                 "WHERE l.DCID=?id;", conn))
             {
                 cmd.Parameters.AddWithValue("?id", dcId);
@@ -885,13 +894,24 @@ namespace StockApp.DAL
                 if (string.IsNullOrEmpty(zohoItemId))
                     return "Product '" + line["ProductName"] + "' not synced to Zoho. Sync products first.";
 
-                decimal mrp = line["MRP"] != DBNull.Value ? Convert.ToDecimal(line["MRP"]) : 0;
+                // Determine MRP based on selling form
+                int cases = Convert.ToInt32(line["Cases"]);
+                int looseJars = Convert.ToInt32(line["LooseJars"]);
+                string containerType = line["ContainerType"].ToString().ToUpper();
+                decimal mrpPcs = Convert.ToDecimal(line["MRP_PCS"]);
+                decimal mrpJarBox = containerType == "BOX" ? Convert.ToDecimal(line["MRP_BOX"]) : Convert.ToDecimal(line["MRP_JAR"]);
+                decimal mrpCase = Convert.ToDecimal(line["MRP_CASE"]);
+
+                // Use PCS MRP as the unit rate (most granular), fallback to JAR/BOX then CASE
+                decimal mrp = mrpPcs > 0 ? mrpPcs : (mrpJarBox > 0 ? mrpJarBox : mrpCase);
+                if (mrp <= 0)
+                    return "MRP not configured for '" + line["ProductName"] + "'. Set MRP in Product MRP page first.";
+
                 decimal marginPct = GetEffectiveMargin(customerId, productId, channel);
                 decimal rate = CalculateRate(mrp, marginPct);
 
-                // Quantity = TotalPcs (total units shipped)
+                // Quantity = TotalPcs
                 int qty = Convert.ToInt32(line["TotalPcs"]);
-                decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
                 string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
 
                 var lineItem = new Dictionary<string, object>

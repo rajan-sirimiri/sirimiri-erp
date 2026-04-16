@@ -97,6 +97,18 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     <div class="gst-status" id="gstStatus"></div>
                     <span class="field-hint">15-character GST Identification Number</span></div>
             </div>
+            <!-- MARGIN FIELDS — visible for Stockist/Distributor only -->
+            <div id="divMargins" style="display:none;margin-top:16px;padding:16px 18px;background:#f0f7ff;border:1px solid #b3d7ff;border-radius:10px;">
+                <div style="font-size:12px;font-weight:700;color:#0078d4;margin-bottom:10px;">&#x1F4CA; Distributor Margins</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Super Market Margin %</label>
+                        <asp:TextBox ID="txtSMMargin" runat="server" MaxLength="5" placeholder="e.g. 40" style="background:#fff;"/>
+                        <span class="field-hint">Margin for Super Market channel</span></div>
+                    <div class="form-group"><label>General Trade Margin %</label>
+                        <asp:TextBox ID="txtGTMargin" runat="server" MaxLength="5" placeholder="e.g. 35" style="background:#fff;"/>
+                        <span class="field-hint">Margin for GT channel</span></div>
+                </div>
+            </div>
             <div class="btn-row">
                 <asp:Button ID="btnSave" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" CausesValidation="false"/>
                 <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false"/>
@@ -158,6 +170,8 @@ function onTypeChange(sel){
     else if(sel.value==='DI')lbl.innerText='Distributor Name';
     else if(sel.value==='RT')lbl.innerText='Customer Name';
     else lbl.innerText='Name';
+    var mg=document.getElementById('divMargins');
+    if(mg) mg.style.display=(sel.value==='ST'||sel.value==='DI')?'block':'none';
 }
 function validateGST(g){
     var el=document.getElementById('gstStatus');if(!el)return;

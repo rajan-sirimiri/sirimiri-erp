@@ -15,6 +15,7 @@ namespace PKApp
         protected DropDownList ddlCustomerType;
         protected TextBox txtCode, txtName, txtContact, txtPhone, txtEmail;
         protected TextBox txtGSTIN, txtCity, txtState, txtPinCode, txtAddress;
+        protected TextBox txtSMMargin, txtGTMargin;
         protected Button btnSave, btnClear, btnToggle, btnUpload;
         protected LinkButton lnkTemplate;
         protected LinkButton lnkExportAll;
@@ -74,9 +75,10 @@ namespace PKApp
 
             try
             {
+                int custId = id;
                 if (id == 0)
                 {
-                    PKDatabaseHelper.AddCustomer(customerType, name, contact, phone,
+                    custId = PKDatabaseHelper.AddCustomer(customerType, name, contact, phone,
                         email, address, city, state, pinCode, gstin);
                     ShowAlert("Customer '" + name + "' added.", true);
                 }
@@ -84,8 +86,19 @@ namespace PKApp
                 {
                     PKDatabaseHelper.UpdateCustomer(id, txtCode.Text.Trim(), customerType,
                         name, contact, phone, email, address, city, state, pinCode, gstin);
+                    custId = id;
                     ShowAlert("Customer updated.", true);
                 }
+
+                // Save margins for Stockist/Distributor
+                if (custId > 0 && (customerType == "ST" || customerType == "DI"))
+                {
+                    decimal smPct = 0, gtPct = 0;
+                    decimal.TryParse(txtSMMargin != null ? txtSMMargin.Text.Trim() : "", out smPct);
+                    decimal.TryParse(txtGTMargin != null ? txtGTMargin.Text.Trim() : "", out gtPct);
+                    PKDatabaseHelper.SaveCustomerMargins(custId, smPct, gtPct);
+                }
+
                 ClearForm(); BindList();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -131,6 +144,19 @@ namespace PKApp
             lblFormTitle.Text = "Edit Customer";
             btnToggle.Text = Convert.ToBoolean(row["IsActive"]) ? "Deactivate" : "Activate";
             btnToggle.Visible = true;
+
+            // Load margins
+            if (txtSMMargin != null && txtGTMargin != null)
+            {
+                var margins = PKDatabaseHelper.GetCustomerMargins(id);
+                if (margins != null)
+                {
+                    txtSMMargin.Text = Convert.ToDecimal(margins["SuperMarketPct"]).ToString("0.##");
+                    txtGTMargin.Text = Convert.ToDecimal(margins["GTPct"]).ToString("0.##");
+                }
+                else { txtSMMargin.Text = ""; txtGTMargin.Text = ""; }
+            }
+
             if (pnlAlert != null) pnlAlert.Visible = false;
         }
 
@@ -342,6 +368,8 @@ namespace PKApp
             txtPhone.Text = txtEmail.Text = txtGSTIN.Text = txtCity.Text = "";
             txtState.Text = txtAddress.Text = "";
             if (txtPinCode != null) txtPinCode.Text = "";
+            if (txtSMMargin != null) txtSMMargin.Text = "";
+            if (txtGTMargin != null) txtGTMargin.Text = "";
             if (ddlCustomerType != null) ddlCustomerType.SelectedIndex = 0;
             btnToggle.Visible = false;
             lblFormTitle.Text = "New Customer";

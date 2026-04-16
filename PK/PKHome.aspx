@@ -190,6 +190,14 @@ main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:48px 28p
             </div>
             <div class="menu-arrow">&#x2197;</div>
         </a>
+        <a href="PKProductMRP.aspx" class="menu-card cat-master">
+            <div class="menu-icon">&#x1F4B0;</div>
+            <div>
+                <div class="menu-title">Product MRP</div>
+                <div class="menu-desc">Set MRP per product for PCS, JAR/BOX and CASE selling forms</div>
+            </div>
+            <div class="menu-arrow">&#x2197;</div>
+        </a>
     </div>
 
     <div class="section-head">Transactions</div>
