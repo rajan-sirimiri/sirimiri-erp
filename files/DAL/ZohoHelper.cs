@@ -913,14 +913,20 @@ namespace StockApp.DAL
                 // Quantity = TotalPcs
                 int qty = Convert.ToInt32(line["TotalPcs"]);
                 string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
+                decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
 
                 var lineItem = new Dictionary<string, object>
                 {
                     { "item_id", zohoItemId },
                     { "quantity", qty },
                     { "rate", rate },
-                    { "hsn_or_sac", hsn }
+                    { "hsn_or_sac", hsn },
+                    { "tax_percentage", gstRate }
                 };
+
+                // Determine tax type based on customer state vs org state
+                // If same state = intra-state (CGST+SGST), different = inter-state (IGST)
+                // Zoho handles this automatically based on place_of_supply
 
                 // Add description with DC details
                 string desc = "DC: " + dc["DCNumber"] + " | Cases: " + line["Cases"] + " Loose: " + line["LooseJars"];
@@ -929,7 +935,10 @@ namespace StockApp.DAL
                 lineItems.Add(lineItem);
             }
 
-            // Build invoice
+            // Build invoice — determine place_of_supply from customer state
+            string custState = dc["State"] != DBNull.Value ? dc["State"].ToString().Trim() : "";
+            string placeOfSupply = GetStateCode(custState);
+
             var invoice = new Dictionary<string, object>
             {
                 { "customer_id", zohoCustomerId },
@@ -939,6 +948,8 @@ namespace StockApp.DAL
                 { "is_inclusive_tax", true },
                 { "line_items", lineItems }
             };
+            if (!string.IsNullOrEmpty(placeOfSupply))
+                invoice["place_of_supply"] = placeOfSupply;
 
             try
             {
@@ -1007,6 +1018,53 @@ namespace StockApp.DAL
         }
 
         /// <summary>Download invoice PDF from Zoho Books. Returns the PDF bytes.</summary>
+        /// <summary>Map Indian state name to 2-letter GST state code for Zoho place_of_supply.</summary>
+        private static string GetStateCode(string stateName)
+        {
+            if (string.IsNullOrEmpty(stateName)) return "";
+            string s = stateName.Trim().ToLower();
+            // Map common state names to Zoho place_of_supply codes
+            if (s.Contains("andhra"))    return "AP";
+            if (s.Contains("arunachal")) return "AR";
+            if (s.Contains("assam"))     return "AS";
+            if (s.Contains("bihar"))     return "BR";
+            if (s.Contains("chhattisgarh")) return "CG";
+            if (s.Contains("goa"))       return "GA";
+            if (s.Contains("gujarat"))   return "GJ";
+            if (s.Contains("haryana"))   return "HR";
+            if (s.Contains("himachal"))  return "HP";
+            if (s.Contains("jharkhand")) return "JH";
+            if (s.Contains("karnataka")) return "KA";
+            if (s.Contains("kerala"))    return "KL";
+            if (s.Contains("madhya"))    return "MP";
+            if (s.Contains("maharashtra")) return "MH";
+            if (s.Contains("manipur"))   return "MN";
+            if (s.Contains("meghalaya")) return "ML";
+            if (s.Contains("mizoram"))   return "MZ";
+            if (s.Contains("nagaland"))  return "NL";
+            if (s.Contains("odisha") || s.Contains("orissa")) return "OD";
+            if (s.Contains("punjab"))    return "PB";
+            if (s.Contains("rajasthan")) return "RJ";
+            if (s.Contains("sikkim"))    return "SK";
+            if (s.Contains("tamil"))     return "TN";
+            if (s.Contains("telangana")) return "TS";
+            if (s.Contains("tripura"))   return "TR";
+            if (s.Contains("uttar pradesh")) return "UP";
+            if (s.Contains("uttarakhand") || s.Contains("uttaranchal")) return "UK";
+            if (s.Contains("west bengal")) return "WB";
+            if (s.Contains("delhi"))     return "DL";
+            if (s.Contains("jammu"))     return "JK";
+            if (s.Contains("ladakh"))    return "LA";
+            if (s.Contains("chandigarh")) return "CH";
+            if (s.Contains("puducherry") || s.Contains("pondicherry")) return "PY";
+            if (s.Contains("lakshadweep")) return "LD";
+            if (s.Contains("daman") || s.Contains("dadra") || s.Contains("silvassa")) return "DN";
+            if (s.Contains("andaman"))   return "AN";
+            // If already a 2-letter code
+            if (stateName.Trim().Length == 2) return stateName.Trim().ToUpper();
+            return "";
+        }
+
         public static byte[] GetInvoicePDF(string zohoInvoiceId)
         {
             string token = GetAccessToken();
