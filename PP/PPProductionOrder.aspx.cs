@@ -250,16 +250,25 @@ namespace PPApp
                 var orders = PPDatabaseHelper.GetOrCreateProductionOrders(
                     GetCurrentPlanId(), shift, today, UserID);
 
+                // Get this order's production line
+                DataRow thisOrder = PPDatabaseHelper.GetProductionOrder(orderId);
+                int thisLineId = thisOrder != null && thisOrder["ProductionLineID"] != DBNull.Value
+                    ? Convert.ToInt32(thisOrder["ProductionLineID"]) : 0;
+
+                // Find max priority WITHIN the same production line
                 int maxPriority = 0;
                 foreach (DataRow r in orders.Rows)
+                {
+                    int rLineId = r["ProductionLineID"] != DBNull.Value ? Convert.ToInt32(r["ProductionLineID"]) : 0;
+                    if (rLineId != thisLineId) continue;
                     if (r["ExecutionPriority"] != DBNull.Value)
                     { int p = Convert.ToInt32(r["ExecutionPriority"]); if (p > maxPriority) maxPriority = p; }
+                }
 
-                DataRow thisOrder = PPDatabaseHelper.GetProductionOrder(orderId);
                 if (thisOrder != null && thisOrder["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(thisOrder["ExecutionPriority"]) > 0)
                 {
                     PPDatabaseHelper.SetExecutionPriority(orderId, 0);
-                    ResequencePriorities(shift, today);
+                    ResequencePriorities(shift, today, thisLineId);
                 }
                 else
                 {
@@ -269,14 +278,18 @@ namespace PPApp
             }
         }
 
-        private void ResequencePriorities(int shift, DateTime date)
+        private void ResequencePriorities(int shift, DateTime date, int lineId = 0)
         {
             int planId = GetCurrentPlanId();
             var orders = PPDatabaseHelper.GetOrCreateProductionOrders(planId, shift, date, UserID);
             var prioritized = new System.Collections.Generic.List<int>();
             foreach (DataRow r in orders.Rows)
+            {
+                int rLineId = r["ProductionLineID"] != DBNull.Value ? Convert.ToInt32(r["ProductionLineID"]) : 0;
+                if (lineId > 0 && rLineId != lineId) continue;
                 if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) > 0)
                     prioritized.Add(Convert.ToInt32(r["OrderID"]));
+            }
             for (int i = 0; i < prioritized.Count; i++)
                 PPDatabaseHelper.SetExecutionPriority(prioritized[i], i + 1);
         }

@@ -1695,6 +1695,8 @@ namespace PPApp.DAL
                 "SELECT o.OrderID, o.PlanRowID, o.Shift, o.ProductID, " +
                 "o.OrderedBatches, o.RevisedBatches, o.Status, o.InitiatedAt, o.ExecutionPriority, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, " +
+                "IFNULL(p.ProductionLineID, 0) AS ProductionLineID, " +
+                "IFNULL(pl.LineName, '—') AS LineName, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
                 "IFNULL((SELECT COUNT(*) FROM PP_BatchExecution be " +
@@ -1703,8 +1705,9 @@ namespace PPApp.DAL
                 "JOIN PP_Products p  ON p.ProductID  = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "JOIN MM_UOM pu ON pu.UOMID = p.ProdUOMID " +
+                "LEFT JOIN PP_ProductionLines pl ON pl.LineID = p.ProductionLineID " +
                 "WHERE o.PlanID = ?pid AND o.Shift = ?sh " +
-                "ORDER BY CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, o.OrderID;",
+                "ORDER BY IFNULL(pl.SortOrder, 999), CASE WHEN o.ExecutionPriority IS NULL OR o.ExecutionPriority=0 THEN 1 ELSE 0 END, o.ExecutionPriority, o.OrderID;",
                 new MySqlParameter("?pid", planId),
                 new MySqlParameter("?sh",  shift));
         }
@@ -1713,6 +1716,7 @@ namespace PPApp.DAL
         {
             return ExecuteQueryRow(
                 "SELECT o.*, p.ProductName, p.ProductCode, p.BatchSize, " +
+                "IFNULL(p.ProductionLineID, 0) AS ProductionLineID, " +
                 "ou.Abbreviation AS OutputAbbr " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
@@ -1876,10 +1880,25 @@ namespace PPApp.DAL
                 new MySqlParameter("?p", priority), new MySqlParameter("?id", orderId));
         }
 
-        public static void ClearExecutionPriorities(int shift, DateTime orderDate)
+        public static void ClearExecutionPriorities(int shift, DateTime orderDate, int lineId = 0)
         {
-            ExecuteNonQuery("UPDATE PP_ProductionOrder SET ExecutionPriority=NULL WHERE Shift=?sh AND OrderDate=?dt AND Status IN ('Initiated','InProgress','Stopped');",
-                new MySqlParameter("?sh", shift), new MySqlParameter("?dt", orderDate.Date));
+            if (lineId > 0)
+            {
+                ExecuteNonQuery(
+                    "UPDATE PP_ProductionOrder o " +
+                    "JOIN PP_Products p ON p.ProductID = o.ProductID " +
+                    "SET o.ExecutionPriority=NULL " +
+                    "WHERE o.Shift=?sh AND o.OrderDate=?dt AND o.Status IN ('Initiated','InProgress','Stopped') " +
+                    "AND IFNULL(p.ProductionLineID, 0)=?lid;",
+                    new MySqlParameter("?sh", shift),
+                    new MySqlParameter("?dt", orderDate.Date),
+                    new MySqlParameter("?lid", lineId));
+            }
+            else
+            {
+                ExecuteNonQuery("UPDATE PP_ProductionOrder SET ExecutionPriority=NULL WHERE Shift=?sh AND OrderDate=?dt AND Status IN ('Initiated','InProgress','Stopped');",
+                    new MySqlParameter("?sh", shift), new MySqlParameter("?dt", orderDate.Date));
+            }
         }
 
         // ── PRODUCTION LINES ─────────────────────────────────────────────
