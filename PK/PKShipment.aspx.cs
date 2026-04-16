@@ -18,9 +18,11 @@ namespace PKApp
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice;
+        protected Button btnDownloadInvoicePDF;
         protected DropDownList ddlChannel;
-        protected Panel pnlCreateInvoice, pnlInvoiceStatus;
-        protected Label lblInvoiceStatus;
+        protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
+        protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
+        protected HyperLink lnkViewInZoho;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
         protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
         protected Panel pnlProjEmpty;
@@ -239,6 +241,41 @@ namespace PKApp
             catch (Exception ex) { ShowAlert("Invoice creation error: " + ex.Message, false); }
         }
 
+        // ── DOWNLOAD INVOICE PDF ──
+        protected void btnDownloadInvoicePDF_Click(object s, EventArgs e)
+        {
+            string zohoInvId = ViewState["ZohoInvoiceID"] as string;
+            if (string.IsNullOrEmpty(zohoInvId))
+            {
+                // Try to get from DB
+                int dcId = Convert.ToInt32(hfDCID.Value);
+                if (dcId > 0)
+                {
+                    var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
+                    if (invLog != null && invLog["ZohoInvoiceID"] != DBNull.Value)
+                        zohoInvId = invLog["ZohoInvoiceID"].ToString();
+                }
+            }
+
+            if (string.IsNullOrEmpty(zohoInvId))
+            { ShowAlert("No Zoho invoice found for this DC.", false); return; }
+
+            try
+            {
+                byte[] pdfBytes = StockApp.DAL.ZohoHelper.GetInvoicePDF(zohoInvId);
+                Response.Clear();
+                Response.ContentType = "application/pdf";
+                string dcNum = hfDCID.Value;
+                Response.AddHeader("Content-Disposition", "attachment; filename=Invoice_DC" + dcNum + ".pdf");
+                Response.BinaryWrite(pdfBytes);
+                Response.End();
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("PDF download error: " + ex.Message, false);
+            }
+        }
+
         // ── NEW ──
         protected void btnNew_Click(object s, EventArgs e)
         {
@@ -368,20 +405,42 @@ namespace PKApp
                         var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
                         if (invLog != null && invLog["PushStatus"].ToString() == "Pushed")
                         {
+                            string zohoInvId = invLog["ZohoInvoiceID"].ToString();
+                            string zohoInvNo = invLog["ZohoInvoiceNo"] != DBNull.Value ? invLog["ZohoInvoiceNo"].ToString() : "";
+                            string zohoStatus = invLog["ZohoStatus"] != DBNull.Value ? invLog["ZohoStatus"].ToString() : "draft";
+
                             pnlCreateInvoice.Visible = false;
                             pnlInvoiceStatus.Visible = true;
-                            if (lblInvoiceStatus != null)
-                                lblInvoiceStatus.Text = "&#x2705; " + invLog["ZohoInvoiceNo"] + " (Status: " + invLog["ZohoStatus"] + ")";
+                            if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
+
+                            if (lblInvoiceNo != null) lblInvoiceNo.Text = zohoInvNo;
+                            if (lblInvoiceZohoStatus != null)
+                            {
+                                lblInvoiceZohoStatus.Text = zohoStatus.ToUpper();
+                                lblInvoiceZohoStatus.ForeColor = zohoStatus == "paid" ? System.Drawing.Color.Green
+                                    : zohoStatus == "overdue" ? System.Drawing.Color.Red
+                                    : System.Drawing.Color.FromArgb(0, 120, 212);
+                            }
+
+                            // Zoho Books URL — India domain
+                            string orgId = StockApp.DAL.ZohoHelper.GetOrgId();
+                            if (lnkViewInZoho != null)
+                                lnkViewInZoho.NavigateUrl = "https://books.zoho.in/app/" + orgId + "/invoices/" + zohoInvId;
+
+                            // Store ZohoInvoiceID for PDF download
+                            ViewState["ZohoInvoiceID"] = zohoInvId;
                         }
                         else
                         {
                             pnlCreateInvoice.Visible = true;
                             pnlInvoiceStatus.Visible = false;
+                            if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
+
                             if (invLog != null && invLog["PushStatus"].ToString() == "Error")
                             {
-                                pnlInvoiceStatus.Visible = true;
-                                if (lblInvoiceStatus != null)
-                                    lblInvoiceStatus.Text = "&#x26A0; Last attempt failed: " + invLog["ErrorMessage"];
+                                if (pnlInvoiceError != null) pnlInvoiceError.Visible = true;
+                                if (lblInvoiceError != null)
+                                    lblInvoiceError.Text = invLog["ErrorMessage"] != DBNull.Value ? invLog["ErrorMessage"].ToString() : "Unknown error";
                             }
                         }
                     }
@@ -389,6 +448,7 @@ namespace PKApp
                     {
                         pnlCreateInvoice.Visible = true;
                         pnlInvoiceStatus.Visible = false;
+                        if (pnlInvoiceError != null) pnlInvoiceError.Visible = false;
                     }
                 }
             }

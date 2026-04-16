@@ -1005,5 +1005,26 @@ namespace StockApp.DAL
             }
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
+
+        /// <summary>Download invoice PDF from Zoho Books. Returns the PDF bytes.</summary>
+        public static byte[] GetInvoicePDF(string zohoInvoiceId)
+        {
+            string token = GetAccessToken();
+            string url = GetApiDomain() + "/books/v3/invoices/" + zohoInvoiceId
+                + "?organization_id=" + GetOrgId() + "&accept=pdf";
+
+            var request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = "GET";
+            request.Timeout = 30000;
+            request.Headers.Add("Authorization", "Zoho-oauthtoken " + token);
+
+            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var stream = response.GetResponseStream())
+            using (var ms = new MemoryStream())
+            {
+                stream.CopyTo(ms);
+                return ms.ToArray();
+            }
+        }
     }
 }

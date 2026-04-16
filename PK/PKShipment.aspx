@@ -168,10 +168,35 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </tr></ItemTemplate>
             <FooterTemplate></tbody></table></FooterTemplate>
         </asp:Repeater>
-        <!-- Invoice Status -->
+        <!-- Invoice Status — shown after invoice is created -->
         <asp:Panel ID="pnlInvoiceStatus" runat="server" Visible="false">
-            <div style="margin-top:12px;padding:12px 18px;border-radius:10px;border:1px solid #b3d7ff;background:#e6f2ff;font-size:12px;">
-                <strong>Zoho Invoice:</strong> <asp:Label ID="lblInvoiceStatus" runat="server"/>
+            <div style="margin-top:12px;padding:16px 20px;border-radius:10px;border:1px solid #b3d7ff;background:#e6f2ff;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#0078d4;text-transform:uppercase;letter-spacing:.06em;">Zoho Books Invoice</div>
+                        <div style="font-size:16px;font-weight:800;margin-top:2px;"><asp:Label ID="lblInvoiceNo" runat="server"/></div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">
+                            Status: <asp:Label ID="lblInvoiceZohoStatus" runat="server" style="font-weight:700;"/>
+                            &nbsp;&bull;&nbsp; <asp:Label ID="lblInvoiceAmount" runat="server" style="font-weight:600;"/>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <asp:HyperLink ID="lnkViewInZoho" runat="server" Target="_blank"
+                            CssClass="btn btn-zoho" style="font-size:11px;padding:7px 14px;text-decoration:none;">
+                            &#x1F517; View / Edit in Zoho
+                        </asp:HyperLink>
+                        <asp:Button ID="btnDownloadInvoicePDF" runat="server" Text="&#x1F4C4; Download Invoice PDF"
+                            CssClass="btn btn-primary" style="font-size:11px;padding:7px 14px;"
+                            OnClick="btnDownloadInvoicePDF_Click" CausesValidation="false"/>
+                    </div>
+                </div>
+            </div>
+        </asp:Panel>
+
+        <!-- Invoice Error — shown if last attempt failed -->
+        <asp:Panel ID="pnlInvoiceError" runat="server" Visible="false">
+            <div style="margin-top:12px;padding:12px 18px;border-radius:10px;border:1px solid #f5c6cb;background:#fdf3f2;font-size:12px;">
+                <strong style="color:#e74c3c;">&#x26A0; Invoice Error:</strong> <asp:Label ID="lblInvoiceError" runat="server" style="color:#c0392b;"/>
             </div>
         </asp:Panel>
 
@@ -179,7 +204,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:Button ID="btnDownloadFromView" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-primary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnNewFromLocked" runat="server" Text="+ Create New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
 
-            <!-- Zoho Invoice Creation -->
+            <!-- Zoho Invoice Creation — only shown when no invoice exists -->
             <asp:Panel ID="pnlCreateInvoice" runat="server" Visible="false">
                 <span style="margin-left:12px;font-size:11px;font-weight:600;color:#666;">Channel:</span>
                 <asp:DropDownList ID="ddlChannel" runat="server" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;margin-left:4px;">
