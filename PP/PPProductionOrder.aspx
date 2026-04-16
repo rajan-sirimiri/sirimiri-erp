@@ -285,7 +285,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
                                     Visible='<%# Eval("Status").ToString() != "Completed" %>'
-                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>
@@ -389,7 +389,7 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
                                 <asp:LinkButton runat="server" CommandName="SetPriority" CommandArgument='<%# Eval("OrderID") %>'
                                     CssClass='<%# GetPriorityBtnClass(Eval("Status"), Eval("ExecutionPriority")) %>'
                                     Visible='<%# Eval("Status").ToString() != "Completed" %>'
-                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
+                                    CausesValidation="false"><%# Eval("ExecutionPriority") != DBNull.Value && Convert.ToInt32(Eval("ExecutionPriority")) > 0 ? Eval("ExecutionPriority").ToString() : "" %></asp:LinkButton>
                             </td>
                             <td><span class="sr-num"><%# Container.ItemIndex + 1 %></span></td>
                             <td>

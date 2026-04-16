@@ -1882,6 +1882,12 @@ namespace PPApp.DAL
                 new MySqlParameter("?p", priority), new MySqlParameter("?id", orderId));
         }
 
+        public static void ClearOrderPriority(int orderId)
+        {
+            ExecuteNonQuery("UPDATE PP_ProductionOrder SET ExecutionPriority=NULL WHERE OrderID=?id;",
+                new MySqlParameter("?id", orderId));
+        }
+
         public static void ClearExecutionPriorities(int shift, DateTime orderDate, int lineId = 0)
         {
             if (lineId > 0)
