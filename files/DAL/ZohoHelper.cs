@@ -810,8 +810,10 @@ namespace StockApp.DAL
             var dt = new DataTable();
             using (var conn = new MySqlConnection(ConnStr))
             using (var cmd = new MySqlCommand(
-                "SELECT dc.DCID, dc.DCNumber, dc.DCDate, dc.CustomerID, dc.Status, dc.Remarks, " +
-                "c.CustomerName, c.CustomerCode, c.GSTIN, c.State, c.City, c.Address, c.PinCode, c.CustomerType " +
+                "SELECT dc.DCID, dc.DCNumber, dc.DCDate, dc.CustomerID, dc.Status, dc.Remarks, dc.Channel, " +
+                "c.CustomerName, c.CustomerCode, c.GSTIN, c.State, c.City, c.Address, c.PinCode, c.CustomerType, " +
+                "c.ContactPerson, c.Phone, c.Email, " +
+                "c.ShipToAddress, c.ShipToCity, c.ShipToState, c.ShipToPinCode " +
                 "FROM PK_DeliveryChallans dc " +
                 "JOIN PK_Customers c ON c.CustomerID = dc.CustomerID " +
                 "WHERE dc.DCID=?id;", conn))
@@ -887,7 +889,7 @@ namespace StockApp.DAL
             var lines = GetDCLinesForInvoice(dcId);
             if (lines.Rows.Count == 0) return "DC has no line items";
 
-            // Build Zoho invoice line items
+            // Build Zoho invoice line items — bill in JARs/BOXes, not PCS
             var lineItems = new List<Dictionary<string, object>>();
             foreach (DataRow line in lines.Rows)
             {
@@ -896,62 +898,111 @@ namespace StockApp.DAL
                 if (string.IsNullOrEmpty(zohoItemId))
                     return "Product '" + line["ProductName"] + "' not synced to Zoho. Sync products first.";
 
-                // Determine MRP based on selling form
                 int cases = Convert.ToInt32(line["Cases"]);
                 int looseJars = Convert.ToInt32(line["LooseJars"]);
+                int jarsPerCase = Convert.ToInt32(line["JarsPerCase"]);
                 string containerType = line["ContainerType"].ToString().ToUpper();
-                decimal mrpPcs = Convert.ToDecimal(line["MRP_PCS"]);
-                decimal mrpJarBox = containerType == "BOX" ? Convert.ToDecimal(line["MRP_BOX"]) : Convert.ToDecimal(line["MRP_JAR"]);
-                decimal mrpCase = Convert.ToDecimal(line["MRP_CASE"]);
+                string unitLabel = containerType == "BOX" ? "BOX" : "JAR";
 
-                // Use PCS MRP as the unit rate (most granular), fallback to JAR/BOX then CASE
-                decimal mrp = mrpPcs > 0 ? mrpPcs : (mrpJarBox > 0 ? mrpJarBox : mrpCase);
+                // Quantity in JARs/BOXes = (cases × jarsPerCase) + looseJars
+                int qtyJars = (cases * jarsPerCase) + looseJars;
+
+                // MRP per JAR/BOX
+                decimal mrpJarBox = containerType == "BOX" ? Convert.ToDecimal(line["MRP_BOX"]) : Convert.ToDecimal(line["MRP_JAR"]);
+                decimal mrpPcs = Convert.ToDecimal(line["MRP_PCS"]);
+                // Prefer JAR/BOX MRP, fallback to PCS
+                decimal mrp = mrpJarBox > 0 ? mrpJarBox : mrpPcs;
                 if (mrp <= 0)
                     return "MRP not configured for '" + line["ProductName"] + "'. Set MRP in Product MRP page first.";
 
                 decimal marginPct = GetEffectiveMargin(customerId, productId, channel);
                 decimal rate = CalculateRate(mrp, marginPct);
 
-                // Quantity = TotalPcs
-                int qty = Convert.ToInt32(line["TotalPcs"]);
                 string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
                 decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
+
+                string taxId = GetZohoTaxId(gstRate);
 
                 var lineItem = new Dictionary<string, object>
                 {
                     { "item_id", zohoItemId },
-                    { "quantity", qty },
+                    { "quantity", qtyJars },
                     { "rate", rate },
-                    { "hsn_or_sac", hsn },
-                    { "tax_percentage", gstRate }
+                    { "unit", unitLabel },
+                    { "hsn_or_sac", hsn }
                 };
 
-                // Determine tax type based on customer state vs org state
-                // If same state = intra-state (CGST+SGST), different = inter-state (IGST)
-                // Zoho handles this automatically based on place_of_supply
+                if (!string.IsNullOrEmpty(taxId))
+                    lineItem["tax_id"] = taxId;
+                else if (gstRate > 0)
+                    lineItem["tax_percentage"] = gstRate;
+                else
+                    lineItem["tax_exemption_id"] = GetZohoTaxExemptionId();
 
-                // Add description with DC details
-                string desc = "DC: " + dc["DCNumber"] + " | Cases: " + line["Cases"] + " Loose: " + line["LooseJars"];
+                string desc = "DC: " + dc["DCNumber"] + " | Cases: " + cases + " × " + jarsPerCase + " + Loose: " + looseJars;
                 lineItem["description"] = desc;
 
                 lineItems.Add(lineItem);
             }
 
-            // Build invoice — determine place_of_supply from customer state
+            // Build invoice
             string custState = dc["State"] != DBNull.Value ? dc["State"].ToString().Trim() : "";
             string placeOfSupply = GetStateCode(custState);
+
+            // Shipping address
+            string shipAddr = dc.Table.Columns.Contains("ShipToAddress") && dc["ShipToAddress"] != DBNull.Value
+                ? dc["ShipToAddress"].ToString() : "";
+            string shipCity = dc.Table.Columns.Contains("ShipToCity") && dc["ShipToCity"] != DBNull.Value
+                ? dc["ShipToCity"].ToString() : "";
+            string shipState = dc.Table.Columns.Contains("ShipToState") && dc["ShipToState"] != DBNull.Value
+                ? dc["ShipToState"].ToString() : "";
+            string shipPin = dc.Table.Columns.Contains("ShipToPinCode") && dc["ShipToPinCode"] != DBNull.Value
+                ? dc["ShipToPinCode"].ToString() : "";
+            // Fallback to billing address if no shipping address
+            if (string.IsNullOrEmpty(shipAddr))
+            {
+                shipAddr = dc["Address"] != DBNull.Value ? dc["Address"].ToString() : "";
+                shipCity = dc["City"] != DBNull.Value ? dc["City"].ToString() : "";
+                shipState = custState;
+                shipPin = dc["PinCode"] != DBNull.Value ? dc["PinCode"].ToString() : "";
+            }
+
+            // Contact person
+            string contactPerson = dc["ContactPerson"] != DBNull.Value ? dc["ContactPerson"].ToString() : "";
+            string phone = dc["Phone"] != DBNull.Value ? dc["Phone"].ToString() : "";
+
+            string channel2 = dc.Table.Columns.Contains("Channel") && dc["Channel"] != DBNull.Value
+                ? dc["Channel"].ToString() : channel;
 
             var invoice = new Dictionary<string, object>
             {
                 { "customer_id", zohoCustomerId },
                 { "date", Convert.ToDateTime(dc["DCDate"]).ToString("yyyy-MM-dd") },
                 { "reference_number", dc["DCNumber"].ToString() },
-                { "notes", "Delivery Challan: " + dc["DCNumber"] + " | Channel: " + (channel == "SM" ? "Super Market" : "General Trade") },
+                { "notes", "DC: " + dc["DCNumber"] + " | Channel: " + (channel2 == "SM" ? "Super Market" : "General Trade")
+                    + (!string.IsNullOrEmpty(contactPerson) ? " | Contact: " + contactPerson : "")
+                    + (!string.IsNullOrEmpty(phone) ? " | Ph: " + phone : "") },
                 { "is_inclusive_tax", true },
                 { "line_items", lineItems }
             };
+
+            // Shipping address
+            var shipTo = new Dictionary<string, object>
+            {
+                { "address", shipAddr },
+                { "city", shipCity },
+                { "state", shipState },
+                { "zip", shipPin },
+                { "country", "India" }
+            };
+            invoice["shipping_address"] = shipTo;
+
             if (!string.IsNullOrEmpty(placeOfSupply))
                 invoice["place_of_supply"] = placeOfSupply;
+
+            // Salesperson / contact info in custom fields or notes
+            if (!string.IsNullOrEmpty(contactPerson))
+                invoice["salesperson_name"] = contactPerson;
 
             try
             {
@@ -1021,6 +1072,76 @@ namespace StockApp.DAL
 
         /// <summary>Download invoice PDF from Zoho Books. Returns the PDF bytes.</summary>
         /// <summary>Map Indian state name to 2-letter GST state code for Zoho place_of_supply.</summary>
+        // ── TAX LOOKUP ─────────────────────────────────────────────────────
+
+        private static Dictionary<decimal, string> _taxCache = null;
+        private static string _taxExemptionId = null;
+
+        /// <summary>Get Zoho tax_id for a given GST rate. Fetches and caches tax list from Zoho.</summary>
+        private static string GetZohoTaxId(decimal gstRate)
+        {
+            if (gstRate <= 0) return null;
+            if (_taxCache == null) LoadZohoTaxes();
+            if (_taxCache != null && _taxCache.ContainsKey(gstRate)) return _taxCache[gstRate];
+            return null;
+        }
+
+        /// <summary>Get the tax exemption ID for zero-rated items.</summary>
+        private static string GetZohoTaxExemptionId()
+        {
+            if (_taxExemptionId != null) return _taxExemptionId;
+            try
+            {
+                var result = ZohoGet("settings/taxexemptions");
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0 && result.ContainsKey("tax_exemptions"))
+                {
+                    var exemptions = result["tax_exemptions"] as System.Collections.ArrayList;
+                    if (exemptions != null && exemptions.Count > 0)
+                    {
+                        var first = exemptions[0] as Dictionary<string, object>;
+                        _taxExemptionId = first?["tax_exemption_id"]?.ToString() ?? "";
+                        return _taxExemptionId;
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static void LoadZohoTaxes()
+        {
+            _taxCache = new Dictionary<decimal, string>();
+            try
+            {
+                var result = ZohoGet("settings/taxes");
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0 && result.ContainsKey("taxes"))
+                {
+                    var taxes = result["taxes"] as System.Collections.ArrayList;
+                    if (taxes != null)
+                    {
+                        foreach (var item in taxes)
+                        {
+                            var tax = item as Dictionary<string, object>;
+                            if (tax == null) continue;
+                            string taxId = tax["tax_id"]?.ToString() ?? "";
+                            decimal pct = 0;
+                            if (tax.ContainsKey("tax_percentage"))
+                                decimal.TryParse(tax["tax_percentage"].ToString(), out pct);
+                            if (pct > 0 && !_taxCache.ContainsKey(pct))
+                                _taxCache[pct] = taxId;
+                        }
+                    }
+                }
+                LogSync("LoadTaxes", null, null, null, "Success", "Loaded " + _taxCache.Count + " taxes");
+            }
+            catch (Exception ex)
+            {
+                LogSync("LoadTaxes", null, null, null, "Error", ex.Message);
+            }
+        }
+
         private static string GetStateCode(string stateName)
         {
             if (string.IsNullOrEmpty(stateName)) return "";

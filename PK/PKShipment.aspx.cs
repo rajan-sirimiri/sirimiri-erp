@@ -262,6 +262,9 @@ namespace PKApp
                 BuildProductData();
                 BuildCustomerData();
                 BindDCList();
+                // Show invoice button after save
+                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = true;
+                if (btnDeleteDC != null) btnDeleteDC.Visible = true;
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }

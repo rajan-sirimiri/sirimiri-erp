@@ -16,6 +16,7 @@ namespace PKApp
         protected TextBox txtCode, txtName, txtContact, txtPhone, txtEmail;
         protected TextBox txtGSTIN, txtCity, txtState, txtPinCode, txtAddress;
         protected TextBox txtSMMargin, txtGTMargin;
+        protected TextBox txtShipAddress, txtShipCity, txtShipState, txtShipPinCode;
         protected Button btnSave, btnClear, btnToggle, btnUpload;
         protected LinkButton lnkTemplate;
         protected LinkButton lnkExportAll;
@@ -99,6 +100,16 @@ namespace PKApp
                     PKDatabaseHelper.SaveCustomerMargins(custId, smPct, gtPct);
                 }
 
+                // Save ShipTo address
+                if (custId > 0)
+                {
+                    PKDatabaseHelper.SaveCustomerShipTo(custId,
+                        txtShipAddress != null ? txtShipAddress.Text.Trim() : "",
+                        txtShipCity != null ? txtShipCity.Text.Trim() : "",
+                        txtShipState != null ? txtShipState.Text.Trim() : "",
+                        txtShipPinCode != null ? txtShipPinCode.Text.Trim() : "");
+                }
+
                 ClearForm(); BindList();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -155,6 +166,15 @@ namespace PKApp
                     txtGTMargin.Text = Convert.ToDecimal(margins["GTPct"]).ToString("0.##");
                 }
                 else { txtSMMargin.Text = ""; txtGTMargin.Text = ""; }
+            }
+
+            // Load ShipTo address
+            if (txtShipAddress != null)
+            {
+                txtShipAddress.Text = row.Table.Columns.Contains("ShipToAddress") && row["ShipToAddress"] != DBNull.Value ? row["ShipToAddress"].ToString() : "";
+                if (txtShipCity != null) txtShipCity.Text = row.Table.Columns.Contains("ShipToCity") && row["ShipToCity"] != DBNull.Value ? row["ShipToCity"].ToString() : "";
+                if (txtShipState != null) txtShipState.Text = row.Table.Columns.Contains("ShipToState") && row["ShipToState"] != DBNull.Value ? row["ShipToState"].ToString() : "";
+                if (txtShipPinCode != null) txtShipPinCode.Text = row.Table.Columns.Contains("ShipToPinCode") && row["ShipToPinCode"] != DBNull.Value ? row["ShipToPinCode"].ToString() : "";
             }
 
             if (pnlAlert != null) pnlAlert.Visible = false;
@@ -370,6 +390,10 @@ namespace PKApp
             if (txtPinCode != null) txtPinCode.Text = "";
             if (txtSMMargin != null) txtSMMargin.Text = "";
             if (txtGTMargin != null) txtGTMargin.Text = "";
+            if (txtShipAddress != null) txtShipAddress.Text = "";
+            if (txtShipCity != null) txtShipCity.Text = "";
+            if (txtShipState != null) txtShipState.Text = "";
+            if (txtShipPinCode != null) txtShipPinCode.Text = "";
             if (ddlCustomerType != null) ddlCustomerType.SelectedIndex = 0;
             btnToggle.Visible = false;
             lblFormTitle.Text = "New Customer";

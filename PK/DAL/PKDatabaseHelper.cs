@@ -2247,6 +2247,17 @@ namespace PKApp.DAL
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
 
+        public static void SaveCustomerShipTo(int customerId, string shipAddr, string shipCity, string shipState, string shipPin)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Customers SET ShipToAddress=?addr, ShipToCity=?city, ShipToState=?st, ShipToPinCode=?pin WHERE CustomerID=?cid;",
+                new MySqlParameter("?addr", string.IsNullOrEmpty(shipAddr) ? (object)DBNull.Value : shipAddr),
+                new MySqlParameter("?city", string.IsNullOrEmpty(shipCity) ? (object)DBNull.Value : shipCity),
+                new MySqlParameter("?st", string.IsNullOrEmpty(shipState) ? (object)DBNull.Value : shipState),
+                new MySqlParameter("?pin", string.IsNullOrEmpty(shipPin) ? (object)DBNull.Value : shipPin),
+                new MySqlParameter("?cid", customerId));
+        }
+
         // ── PRODUCT MRP ──────────────────────────────────────────────────────
 
         public static DataTable GetProductMRPList()

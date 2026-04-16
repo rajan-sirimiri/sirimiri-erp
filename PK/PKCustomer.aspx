@@ -109,6 +109,17 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                         <span class="field-hint">Margin for GT channel</span></div>
                 </div>
             </div>
+            <!-- SHIPPING ADDRESS -->
+            <div style="margin-top:16px;padding:16px 18px;background:#f5f5f0;border:1px solid #e0ddd5;border-radius:10px;">
+                <div style="font-size:12px;font-weight:700;color:#666;margin-bottom:10px;">&#x1F4E6; Shipping Address <span style="font-weight:400;color:#999;">(leave blank if same as billing)</span></div>
+                <div class="form-grid">
+                    <div class="form-group full"><label>Ship To Address</label>
+                        <asp:TextBox ID="txtShipAddress" runat="server" TextMode="MultiLine" Rows="2" MaxLength="500" placeholder="Shipping address"/></div>
+                    <div class="form-group"><label>Ship To City</label><asp:TextBox ID="txtShipCity" runat="server" MaxLength="100" placeholder="City"/></div>
+                    <div class="form-group"><label>Ship To State</label><asp:TextBox ID="txtShipState" runat="server" MaxLength="100" placeholder="State"/></div>
+                    <div class="form-group"><label>Ship To PIN Code</label><asp:TextBox ID="txtShipPinCode" runat="server" MaxLength="10" placeholder="PIN Code"/></div>
+                </div>
+            </div>
             <div class="btn-row">
                 <asp:Button ID="btnSave" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" CausesValidation="false"/>
                 <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false"/>
