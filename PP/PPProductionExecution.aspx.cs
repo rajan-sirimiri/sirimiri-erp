@@ -140,6 +140,22 @@ namespace PPApp
                 if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) > 0)
                 { anyPrioritySet = true; break; }
 
+            // Build set of which production lines have priority #1
+            var lineWithPriority1 = new System.Collections.Generic.HashSet<int>();
+            if (anyPrioritySet)
+            {
+                foreach (DataRow r in dt.Rows)
+                {
+                    if (r["ExecutionPriority"] != DBNull.Value && Convert.ToInt32(r["ExecutionPriority"]) == 1)
+                    {
+                        // Get the line for this order — need ProductionLineID
+                        DataRow orderDetail = PPDatabaseHelper.GetProductionOrder(Convert.ToInt32(r["OrderID"]));
+                        if (orderDetail != null && orderDetail["ProductionLineID"] != DBNull.Value)
+                            lineWithPriority1.Add(Convert.ToInt32(orderDetail["ProductionLineID"]));
+                    }
+                }
+            }
+
             foreach (DataRow r in dt.Rows)
             {
                 string priority = r["ExecutionPriority"] != DBNull.Value ? Convert.ToInt32(r["ExecutionPriority"]).ToString() : "";
@@ -147,9 +163,10 @@ namespace PPApp
                     ? "[#" + priority + "] " : "";
                 string status = r["Status"].ToString();
 
+                // Each production line's #1 priority is executable independently
                 bool isActive = !anyPrioritySet
                     || status == "InProgress"
-                    || (priority == "1");
+                    || (!string.IsNullOrEmpty(priority) && Convert.ToInt32(priority) == 1);
 
                 var item = new System.Web.UI.WebControls.ListItem(
                     prefix + r["ProductName"].ToString() + " (" + r["EffectiveBatches"] + " batches)",

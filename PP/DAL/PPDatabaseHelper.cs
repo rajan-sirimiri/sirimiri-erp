@@ -1841,14 +1841,15 @@ namespace PPApp.DAL
             return ExecuteQuery(
                 "SELECT o.OrderID, o.ProductID, p.ProductName, p.ProductCode, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority " +
+                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority, " +
+                "IFNULL(p.ProductionLineID, 0) AS ProductionLineID " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
                 "WHERE o.Shift = ?sh AND o.OrderDate = ?dt " +
                 "AND o.Status IN ('Initiated','InProgress','Stopped') " +
                 "AND p.ProductType != 'Prefilled Conversion' " +
-                "ORDER BY CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, p.ProductName;",
+                "ORDER BY IFNULL(p.ProductionLineID, 999), CASE WHEN o.ExecutionPriority IS NULL THEN 1 ELSE 0 END, o.ExecutionPriority, p.ProductName;",
                 new MySqlParameter("?sh", shift),
                 new MySqlParameter("?dt", orderDate.Date));
         }
@@ -1859,7 +1860,8 @@ namespace PPApp.DAL
             return ExecuteQuery(
                 "SELECT o.OrderID, o.ProductID, p.ProductName, p.ProductCode, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
-                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority " +
+                "p.BatchSize, ou.Abbreviation AS OutputAbbr, o.Status, o.ExecutionPriority, " +
+                "IFNULL(p.ProductionLineID, 0) AS ProductionLineID " +
                 "FROM PP_ProductionOrder o " +
                 "JOIN PP_Products p  ON p.ProductID = o.ProductID " +
                 "JOIN MM_UOM ou ON ou.UOMID = p.OutputUOMID " +
