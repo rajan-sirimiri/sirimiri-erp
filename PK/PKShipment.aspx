@@ -30,6 +30,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .btn{border:none;border-radius:8px;padding:10px 22px;font-size:12px;font-weight:700;cursor:pointer;}
 .btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:var(--accent-dark);}
 .btn-success{background:var(--teal);color:#fff;}.btn-success:hover{background:#148a5b;}
+.btn-zoho{background:#0078d4;color:#fff;margin-left:6px;}.btn-zoho:hover{background:#005a9e;}
 .btn-secondary{background:#f0f0f0;color:#333;border:1px solid var(--border);}
 .btn-danger{background:#fdf3f2;color:#e74c3c;border:1px solid #f5c6cb;}
 .btn-add{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;}
@@ -167,9 +168,28 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </tr></ItemTemplate>
             <FooterTemplate></tbody></table></FooterTemplate>
         </asp:Repeater>
+        <!-- Invoice Status -->
+        <asp:Panel ID="pnlInvoiceStatus" runat="server" Visible="false">
+            <div style="margin-top:12px;padding:12px 18px;border-radius:10px;border:1px solid #b3d7ff;background:#e6f2ff;font-size:12px;">
+                <strong>Zoho Invoice:</strong> <asp:Label ID="lblInvoiceStatus" runat="server"/>
+            </div>
+        </asp:Panel>
+
         <div class="btn-row" style="margin-top:14px;">
             <asp:Button ID="btnDownloadFromView" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-primary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnNewFromLocked" runat="server" Text="+ Create New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
+
+            <!-- Zoho Invoice Creation -->
+            <asp:Panel ID="pnlCreateInvoice" runat="server" Visible="false">
+                <span style="margin-left:12px;font-size:11px;font-weight:600;color:#666;">Channel:</span>
+                <asp:DropDownList ID="ddlChannel" runat="server" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;margin-left:4px;">
+                    <asp:ListItem Text="Super Market" Value="SM"/>
+                    <asp:ListItem Text="General Trade" Value="GT"/>
+                </asp:DropDownList>
+                <asp:Button ID="btnCreateInvoice" runat="server" Text="&#x1F4E8; Create Invoice" CssClass="btn btn-zoho"
+                    OnClick="btnCreateInvoice_Click" CausesValidation="false"
+                    OnClientClick="return confirm('Create Zoho Books invoice for this DC?');"/>
+            </asp:Panel>
         </div>
     </div>
     </asp:Panel>

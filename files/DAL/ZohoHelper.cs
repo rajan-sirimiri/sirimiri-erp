@@ -737,5 +737,253 @@ namespace StockApp.DAL
             }
             return dt;
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  PRICING — MRP + Margin Calculation
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Get the effective margin % for a customer + product + channel.
+        /// Checks product-specific override first, falls back to customer default.
+        /// channel: "SM" (SuperMarket) or "GT" (General Trade)
+        /// </summary>
+        public static decimal GetEffectiveMargin(int customerId, int productId, string channel)
+        {
+            // Check product-specific override first
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT SuperMarketPct, GTPct FROM PK_CustomerProductMargins " +
+                "WHERE CustomerID=?cid AND ProductID=?pid;", conn))
+            {
+                cmd.Parameters.AddWithValue("?cid", customerId);
+                cmd.Parameters.AddWithValue("?pid", productId);
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                {
+                    if (rdr.Read())
+                    {
+                        decimal? smOverride = rdr["SuperMarketPct"] != DBNull.Value ? (decimal?)Convert.ToDecimal(rdr["SuperMarketPct"]) : null;
+                        decimal? gtOverride = rdr["GTPct"] != DBNull.Value ? (decimal?)Convert.ToDecimal(rdr["GTPct"]) : null;
+                        if (channel == "SM" && smOverride.HasValue) return smOverride.Value;
+                        if (channel == "GT" && gtOverride.HasValue) return gtOverride.Value;
+                    }
+                }
+            }
+
+            // Fall back to customer default
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT SuperMarketPct, GTPct FROM PK_CustomerMargins WHERE CustomerID=?cid;", conn))
+            {
+                cmd.Parameters.AddWithValue("?cid", customerId);
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                {
+                    if (rdr.Read())
+                    {
+                        if (channel == "SM") return Convert.ToDecimal(rdr["SuperMarketPct"]);
+                        return Convert.ToDecimal(rdr["GTPct"]);
+                    }
+                }
+            }
+
+            return 0; // No margin configured
+        }
+
+        /// <summary>
+        /// Calculate invoice rate from MRP and margin.
+        /// Rate = MRP × (1 - margin/100). Rate is inclusive of GST.
+        /// </summary>
+        public static decimal CalculateRate(decimal mrp, decimal marginPct)
+        {
+            if (mrp <= 0 || marginPct <= 0) return mrp;
+            return Math.Round(mrp * (1 - marginPct / 100m), 2);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  DC → ZOHO INVOICE
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Get DC details for invoice creation.</summary>
+        public static DataRow GetDCForInvoice(int dcId)
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT dc.DCID, dc.DCNumber, dc.DCDate, dc.CustomerID, dc.Status, dc.Remarks, " +
+                "c.CustomerName, c.CustomerCode, c.GSTIN, c.State, c.City, c.Address, c.PinCode, c.CustomerType " +
+                "FROM PK_DeliveryChallans dc " +
+                "JOIN PK_Customers c ON c.CustomerID = dc.CustomerID " +
+                "WHERE dc.DCID=?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", dcId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        /// <summary>Get DC lines with product details and MRP.</summary>
+        public static DataTable GetDCLinesForInvoice(int dcId)
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT l.LineID, l.ProductID, l.Cases, l.LooseJars, l.JarsPerCase, l.TotalPcs, " +
+                "p.ProductName, p.ProductCode, p.HSNCode, p.GSTRate, p.MRP, " +
+                "IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase " +
+                "FROM PK_DCLines l " +
+                "JOIN PP_Products p ON p.ProductID = l.ProductID " +
+                "WHERE l.DCID=?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", dcId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Create a Zoho Books invoice from a finalised DC.
+        /// channel: "SM" or "GT" — determines which margin to use.
+        /// Returns "OK" or error message.
+        /// </summary>
+        public static string CreateInvoiceFromDC(int dcId, string channel, int userId)
+        {
+            // Check if already pushed
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT ZohoInvoiceID FROM Zoho_InvoiceLog WHERE DCID=?id AND PushStatus='Pushed';", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", dcId);
+                conn.Open();
+                var existing = cmd.ExecuteScalar();
+                if (existing != null && existing != DBNull.Value)
+                    return "Invoice already created in Zoho (ID: " + existing + ")";
+            }
+
+            // Get DC header
+            var dc = GetDCForInvoice(dcId);
+            if (dc == null) return "DC not found";
+            if (dc["Status"].ToString() != "FINALISED") return "DC must be finalised before creating invoice";
+
+            int customerId = Convert.ToInt32(dc["CustomerID"]);
+
+            // Get Zoho customer ID
+            string zohoCustomerId = GetZohoCustomerId(customerId);
+            if (string.IsNullOrEmpty(zohoCustomerId))
+                return "Customer not synced to Zoho. Please sync customer first.";
+
+            // Get DC lines
+            var lines = GetDCLinesForInvoice(dcId);
+            if (lines.Rows.Count == 0) return "DC has no line items";
+
+            // Build Zoho invoice line items
+            var lineItems = new List<Dictionary<string, object>>();
+            foreach (DataRow line in lines.Rows)
+            {
+                int productId = Convert.ToInt32(line["ProductID"]);
+                string zohoItemId = GetZohoItemId(productId);
+                if (string.IsNullOrEmpty(zohoItemId))
+                    return "Product '" + line["ProductName"] + "' not synced to Zoho. Sync products first.";
+
+                decimal mrp = line["MRP"] != DBNull.Value ? Convert.ToDecimal(line["MRP"]) : 0;
+                decimal marginPct = GetEffectiveMargin(customerId, productId, channel);
+                decimal rate = CalculateRate(mrp, marginPct);
+
+                // Quantity = TotalPcs (total units shipped)
+                int qty = Convert.ToInt32(line["TotalPcs"]);
+                decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
+                string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
+
+                var lineItem = new Dictionary<string, object>
+                {
+                    { "item_id", zohoItemId },
+                    { "quantity", qty },
+                    { "rate", rate },
+                    { "hsn_or_sac", hsn }
+                };
+
+                // Add description with DC details
+                string desc = "DC: " + dc["DCNumber"] + " | Cases: " + line["Cases"] + " Loose: " + line["LooseJars"];
+                lineItem["description"] = desc;
+
+                lineItems.Add(lineItem);
+            }
+
+            // Build invoice
+            var invoice = new Dictionary<string, object>
+            {
+                { "customer_id", zohoCustomerId },
+                { "date", Convert.ToDateTime(dc["DCDate"]).ToString("yyyy-MM-dd") },
+                { "reference_number", dc["DCNumber"].ToString() },
+                { "notes", "Delivery Challan: " + dc["DCNumber"] + " | Channel: " + (channel == "SM" ? "Super Market" : "General Trade") },
+                { "is_inclusive_tax", true },
+                { "line_items", lineItems }
+            };
+
+            try
+            {
+                var result = ZohoPost("invoices", invoice);
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0)
+                {
+                    var zohoInv = result["invoice"] as Dictionary<string, object>;
+                    string zohoInvId = zohoInv["invoice_id"].ToString();
+                    string zohoInvNo = zohoInv["invoice_number"].ToString();
+                    string zohoStatus = zohoInv.ContainsKey("status") ? zohoInv["status"].ToString() : "draft";
+
+                    // Log success
+                    SaveInvoiceLog(dcId, zohoInvId, zohoInvNo, zohoStatus, "Pushed", null);
+                    LogSync("CreateInvoice", "Invoice", dcId.ToString(), zohoInvId, "Success",
+                        "Invoice " + zohoInvNo + " created for DC " + dc["DCNumber"] + " (" + channel + ")");
+                    return "OK:" + zohoInvNo;
+                }
+                else
+                {
+                    string msg = result.ContainsKey("message") ? result["message"].ToString() : "Unknown error";
+                    SaveInvoiceLog(dcId, null, null, null, "Error", msg);
+                    LogSync("CreateInvoice", "Invoice", dcId.ToString(), null, "Error", msg);
+                    return "Error: " + msg;
+                }
+            }
+            catch (Exception ex)
+            {
+                SaveInvoiceLog(dcId, null, null, null, "Error", ex.Message);
+                LogSync("CreateInvoice", "Invoice", dcId.ToString(), null, "Error", ex.Message);
+                return "Error: " + ex.Message;
+            }
+        }
+
+        private static void SaveInvoiceLog(int dcId, string zohoInvId, string zohoInvNo, string zohoStatus, string pushStatus, string error)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO Zoho_InvoiceLog (DCID, ZohoInvoiceID, ZohoInvoiceNo, ZohoStatus, PushStatus, ErrorMessage, PushedAt) " +
+                "VALUES(?dcid, ?zid, ?zno, ?zst, ?ps, ?err, NOW()) " +
+                "ON DUPLICATE KEY UPDATE ZohoInvoiceID=IFNULL(?zid, ZohoInvoiceID), ZohoInvoiceNo=IFNULL(?zno, ZohoInvoiceNo), " +
+                "ZohoStatus=IFNULL(?zst, ZohoStatus), PushStatus=?ps, ErrorMessage=?err, PushedAt=NOW();", conn))
+            {
+                cmd.Parameters.AddWithValue("?dcid", dcId);
+                cmd.Parameters.AddWithValue("?zid", (object)zohoInvId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?zno", (object)zohoInvNo ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?zst", (object)zohoStatus ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?ps", pushStatus);
+                cmd.Parameters.AddWithValue("?err", (object)error ?? DBNull.Value);
+                conn.Open(); cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>Check if a DC already has an invoice in Zoho.</summary>
+        public static DataRow GetInvoiceLogForDC(int dcId)
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT * FROM Zoho_InvoiceLog WHERE DCID=?id ORDER BY LogID DESC LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", dcId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
     }
 }

@@ -17,6 +17,10 @@ namespace PKApp
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
+        protected Button btnCreateInvoice;
+        protected DropDownList ddlChannel;
+        protected Panel pnlCreateInvoice, pnlInvoiceStatus;
+        protected Label lblInvoiceStatus;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
         protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
         protected Panel pnlProjEmpty;
@@ -210,6 +214,31 @@ namespace PKApp
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
         }
 
+        // ── CREATE ZOHO INVOICE ──
+        protected void btnCreateInvoice_Click(object s, EventArgs e)
+        {
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0) { ShowAlert("No DC selected.", false); return; }
+
+            string channel = ddlChannel != null ? ddlChannel.SelectedValue : "GT";
+
+            try
+            {
+                string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
+                if (result.StartsWith("OK:"))
+                {
+                    string invNo = result.Substring(3);
+                    ShowAlert("Zoho Invoice " + invNo + " created successfully.", true);
+                }
+                else
+                {
+                    ShowAlert(result, false);
+                }
+                LoadDC(dcId);
+            }
+            catch (Exception ex) { ShowAlert("Invoice creation error: " + ex.Message, false); }
+        }
+
         // ── NEW ──
         protected void btnNew_Click(object s, EventArgs e)
         {
@@ -330,6 +359,38 @@ namespace PKApp
                 if (lblViewRemarks != null) lblViewRemarks.Text = rem;
 
                 if (rptViewLines != null) { rptViewLines.DataSource = lines; rptViewLines.DataBind(); }
+
+                // Zoho Invoice status
+                if (pnlCreateInvoice != null && pnlInvoiceStatus != null)
+                {
+                    try
+                    {
+                        var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
+                        if (invLog != null && invLog["PushStatus"].ToString() == "Pushed")
+                        {
+                            pnlCreateInvoice.Visible = false;
+                            pnlInvoiceStatus.Visible = true;
+                            if (lblInvoiceStatus != null)
+                                lblInvoiceStatus.Text = "&#x2705; " + invLog["ZohoInvoiceNo"] + " (Status: " + invLog["ZohoStatus"] + ")";
+                        }
+                        else
+                        {
+                            pnlCreateInvoice.Visible = true;
+                            pnlInvoiceStatus.Visible = false;
+                            if (invLog != null && invLog["PushStatus"].ToString() == "Error")
+                            {
+                                pnlInvoiceStatus.Visible = true;
+                                if (lblInvoiceStatus != null)
+                                    lblInvoiceStatus.Text = "&#x26A0; Last attempt failed: " + invLog["ErrorMessage"];
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        pnlCreateInvoice.Visible = true;
+                        pnlInvoiceStatus.Visible = false;
+                    }
+                }
             }
 
             BuildProductData();
