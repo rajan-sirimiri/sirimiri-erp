@@ -244,7 +244,17 @@ namespace PKApp
                 BuildCustomerData();
                 BindDCList();
                 // Show invoice button after save
-                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = true;
+                if (btnCreateInvoiceDraft != null)
+                {
+                    btnCreateInvoiceDraft.Visible = true;
+                    try
+                    {
+                        var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
+                        bool hasInv = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
+                        btnCreateInvoiceDraft.Text = hasInv ? "&#x1F4E8; Update Invoice in Zoho" : "&#x1F4E8; Create Invoice in Zoho";
+                    }
+                    catch { }
+                }
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -307,6 +317,8 @@ namespace PKApp
                 string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
                 if (result.StartsWith("OK:"))
                     ShowAlert("Draft saved. Zoho Invoice " + result.Substring(3) + " created.", true);
+                else if (result.StartsWith("UPDATED:"))
+                    ShowAlert("Draft saved. Zoho Invoice " + result.Substring(8) + " updated.", true);
                 else
                     ShowAlert("Draft saved. Zoho: " + result, false);
                 LoadDC(dcId);
@@ -314,7 +326,7 @@ namespace PKApp
             catch (Exception ex) { ShowAlert("Invoice error: " + ex.Message, false); }
         }
 
-        // ── CREATE ZOHO INVOICE ──
+        // ── CREATE/UPDATE ZOHO INVOICE ──
         protected void btnCreateInvoice_Click(object s, EventArgs e)
         {
             int dcId = Convert.ToInt32(hfDCID.Value);
@@ -326,17 +338,14 @@ namespace PKApp
             {
                 string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
                 if (result.StartsWith("OK:"))
-                {
-                    string invNo = result.Substring(3);
-                    ShowAlert("Zoho Invoice " + invNo + " created successfully.", true);
-                }
+                    ShowAlert("Zoho Invoice " + result.Substring(3) + " created successfully.", true);
+                else if (result.StartsWith("UPDATED:"))
+                    ShowAlert("Zoho Invoice " + result.Substring(8) + " updated successfully.", true);
                 else
-                {
                     ShowAlert(result, false);
-                }
                 LoadDC(dcId);
             }
-            catch (Exception ex) { ShowAlert("Invoice creation error: " + ex.Message, false); }
+            catch (Exception ex) { ShowAlert("Invoice error: " + ex.Message, false); }
         }
 
         // ── DOWNLOAD INVOICE PDF ──
@@ -502,7 +511,13 @@ namespace PKApp
                 btnDraftSave.Visible = true;
                 btnFinalise.Visible = true;
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
-                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = true;
+                if (btnCreateInvoiceDraft != null)
+                {
+                    btnCreateInvoiceDraft.Visible = true;
+                    var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
+                    bool hasInvoice = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
+                    btnCreateInvoiceDraft.Text = hasInvoice ? "&#x1F4E8; Update Invoice in Zoho" : "&#x1F4E8; Create Invoice in Zoho";
+                }
             }
             else
             {

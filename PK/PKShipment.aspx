@@ -723,18 +723,26 @@ function addSAEditLine(){
 <script>
 function doCreateInvoiceDraftConfirm(){
     syncLines();
-    erpConfirm('Save this Delivery Challan and create a Zoho Books invoice?', {
-        title: 'Create Invoice',
+    var btn = document.getElementById('<%= btnCreateInvoiceDraft.ClientID %>');
+    var isUpdate = btn && btn.value.indexOf('Update') >= 0;
+    erpConfirm(isUpdate
+        ? 'Save this DC and update the existing Zoho Books invoice?'
+        : 'Save this DC and create a new Zoho Books invoice?', {
+        title: isUpdate ? 'Update Invoice' : 'Create Invoice',
         type: 'info',
-        okText: 'Create Invoice',
+        okText: isUpdate ? 'Update Invoice' : 'Create Invoice',
         onOk: function(){ setTimeout(function(){ document.getElementById('<%= btnCreateInvoiceDraftHidden.ClientID %>').click(); }, 300); }
     });
 }
 function doCreateInvoiceConfirm(){
-    erpConfirm('Create a Zoho Books invoice for this finalised Delivery Challan?', {
-        title: 'Create Invoice',
+    var btn = document.getElementById('<%= btnCreateInvoice.ClientID %>');
+    var isUpdate = btn && btn.value.indexOf('Update') >= 0;
+    erpConfirm(isUpdate
+        ? 'Update the Zoho Books invoice for this DC?'
+        : 'Create a Zoho Books invoice for this DC?', {
+        title: isUpdate ? 'Update Invoice' : 'Create Invoice',
         type: 'info',
-        okText: 'Create Invoice',
+        okText: isUpdate ? 'Update Invoice' : 'Create Invoice',
         onOk: function(){ setTimeout(function(){ document.getElementById('<%= btnCreateInvoiceHidden.ClientID %>').click(); }, 300); }
     });
 }

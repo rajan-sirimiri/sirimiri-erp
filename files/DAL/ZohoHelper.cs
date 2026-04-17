@@ -895,7 +895,8 @@ namespace StockApp.DAL
         /// </summary>
         public static string CreateInvoiceFromDC(int dcId, string channel, int userId)
         {
-            // Check if already pushed
+            // Check if already pushed — if so, we UPDATE instead of CREATE
+            string existingZohoInvId = null;
             using (var conn = new MySqlConnection(ConnStr))
             using (var cmd = new MySqlCommand(
                 "SELECT ZohoInvoiceID FROM Zoho_InvoiceLog WHERE DCID=?id AND PushStatus='Pushed';", conn))
@@ -904,8 +905,10 @@ namespace StockApp.DAL
                 conn.Open();
                 var existing = cmd.ExecuteScalar();
                 if (existing != null && existing != DBNull.Value)
-                    return "Invoice already created in Zoho (ID: " + existing + ")";
+                    existingZohoInvId = existing.ToString();
             }
+
+            bool isUpdate = !string.IsNullOrEmpty(existingZohoInvId);
 
             // Get DC header
             var dc = GetDCForInvoice(dcId);
@@ -1022,10 +1025,15 @@ namespace StockApp.DAL
                 // Log the invoice JSON for debugging
                 var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
                 string invoiceJson = serializer.Serialize(invoice);
-                LogSync("CreateInvoice_Debug", "Invoice", dcId.ToString(), null, "Debug",
+                LogSync(isUpdate ? "UpdateInvoice_Debug" : "CreateInvoice_Debug", "Invoice", dcId.ToString(), null, "Debug",
                     invoiceJson.Length > 4000 ? invoiceJson.Substring(0, 4000) : invoiceJson);
 
-                var result = ZohoPost("invoices", invoice);
+                Dictionary<string, object> result;
+                if (isUpdate)
+                    result = ZohoPut("invoices/" + existingZohoInvId, invoice);
+                else
+                    result = ZohoPost("invoices", invoice);
+
                 int code = Convert.ToInt32(result["code"]);
                 if (code == 0)
                 {
@@ -1036,22 +1044,23 @@ namespace StockApp.DAL
 
                     // Log success
                     SaveInvoiceLog(dcId, zohoInvId, zohoInvNo, zohoStatus, "Pushed", null);
-                    LogSync("CreateInvoice", "Invoice", dcId.ToString(), zohoInvId, "Success",
-                        "Invoice " + zohoInvNo + " created for DC " + dc["DCNumber"] + " (" + channel + ")");
-                    return "OK:" + zohoInvNo;
+                    string action = isUpdate ? "updated" : "created";
+                    LogSync(isUpdate ? "UpdateInvoice" : "CreateInvoice", "Invoice", dcId.ToString(), zohoInvId, "Success",
+                        "Invoice " + zohoInvNo + " " + action + " for DC " + dc["DCNumber"] + " (" + channel + ")");
+                    return (isUpdate ? "UPDATED:" : "OK:") + zohoInvNo;
                 }
                 else
                 {
                     string msg = result.ContainsKey("message") ? result["message"].ToString() : "Unknown error";
                     SaveInvoiceLog(dcId, null, null, null, "Error", msg);
-                    LogSync("CreateInvoice", "Invoice", dcId.ToString(), null, "Error", msg);
+                    LogSync(isUpdate ? "UpdateInvoice" : "CreateInvoice", "Invoice", dcId.ToString(), null, "Error", msg);
                     return "Error: " + msg;
                 }
             }
             catch (Exception ex)
             {
                 SaveInvoiceLog(dcId, null, null, null, "Error", ex.Message);
-                LogSync("CreateInvoice", "Invoice", dcId.ToString(), null, "Error", ex.Message);
+                LogSync(isUpdate ? "UpdateInvoice" : "CreateInvoice", "Invoice", dcId.ToString(), null, "Error", ex.Message);
                 return "Error: " + ex.Message;
             }
         }
