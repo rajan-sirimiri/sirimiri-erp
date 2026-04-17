@@ -1757,13 +1757,34 @@ namespace PKApp.DAL
         /// <summary>Check FG stock availability for all line items in a SA shipment</summary>
         public static DataTable CheckFGStockForSAOrder(int shipmentId)
         {
-            return ExecuteQuery(
-                "SELECT sl.ProductID, p.ProductName, p.ProductCode, sl.ShippedQty AS RequiredQty," +
-                " IFNULL((SELECT SUM(f.QtyPacked) FROM PK_FGStock f WHERE f.ProductID=sl.ProductID),0) AS AvailableQty" +
+            // Use GetFGStockForShipment as the SINGLE SOURCE OF TRUTH for FG stock
+            var fgStock = GetFGStockForShipment();
+
+            // Get SA order lines
+            var saLines = ExecuteQuery(
+                "SELECT sl.ProductID, p.ProductName, p.ProductCode, sl.ShippedQty AS RequiredQty" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID=sl.ProductID" +
                 " WHERE sl.ShipmentID=?sid ORDER BY p.ProductName;",
                 new MySqlParameter("?sid", shipmentId));
+
+            // Add AvailableQty column from FG stock
+            saLines.Columns.Add("AvailableQty", typeof(decimal));
+            foreach (DataRow sl in saLines.Rows)
+            {
+                int pid = Convert.ToInt32(sl["ProductID"]);
+                decimal avail = 0;
+                foreach (DataRow fg in fgStock.Rows)
+                {
+                    if (Convert.ToInt32(fg["ProductID"]) == pid)
+                    {
+                        avail = Convert.ToDecimal(fg["AvailableFGJars"]);
+                        break;
+                    }
+                }
+                sl["AvailableQty"] = avail;
+            }
+            return saLines;
         }
 
         /// <summary>Convert SA shipment to DC status</summary>
@@ -1797,7 +1818,7 @@ namespace PKApp.DAL
             // Get shipment lines and create DC lines
             var lines = ExecuteQuery(
                 "SELECT sl.ProductID, sl.ShippedQty, IFNULL(p.ContainersPerCase, 12) AS JPC," +
-                " IFNULL(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1) AS UnitSize" +
+                " IFNULL(p.ContainerType, 'JAR') AS ContainerType" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID = sl.ProductID" +
                 " WHERE sl.ShipmentID=?sid AND sl.ShippedQty > 0;",
@@ -1808,22 +1829,25 @@ namespace PKApp.DAL
                 int productId = Convert.ToInt32(r["ProductID"]);
                 int shippedQty = Convert.ToInt32(r["ShippedQty"]); // in jars/containers
                 int jpc = Convert.ToInt32(r["JPC"]);
-                int unitSize = Convert.ToInt32(r["UnitSize"]);
-                if (unitSize <= 0) unitSize = 1;
 
-                int cases = shippedQty / jpc;
-                int looseJars = shippedQty % jpc;
-                int totalPcs = shippedQty * unitSize;
+                // Determine selling form from container type
+                string containerType = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
+                    ? r["ContainerType"].ToString() : "JAR";
+                string sellingForm = containerType == "BOX" ? "BOX" : containerType == "DIRECT" ? "PCS" : "JAR";
+
+                // TotalPcs = shippedQty in the selling form (JARs/BOXes)
+                // Source = CASE by default (shipped from cases)
+                string source = "CASE";
 
                 ExecuteNonQuery(
-                    "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs)" +
-                    " VALUES(?dcid, ?pid, ?cs, ?lj, ?jpc, ?tp);",
+                    "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs, SellingForm, Source)" +
+                    " VALUES(?dcid, ?pid, 0, 0, ?jpc, ?tp, ?form, ?src);",
                     new MySqlParameter("?dcid", dcId),
                     new MySqlParameter("?pid", productId),
-                    new MySqlParameter("?cs", cases),
-                    new MySqlParameter("?lj", looseJars),
                     new MySqlParameter("?jpc", jpc),
-                    new MySqlParameter("?tp", totalPcs));
+                    new MySqlParameter("?tp", shippedQty),
+                    new MySqlParameter("?form", sellingForm),
+                    new MySqlParameter("?src", source));
             }
 
             // Mark SA shipment as converted
