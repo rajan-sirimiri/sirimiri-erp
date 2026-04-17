@@ -1420,18 +1420,18 @@ namespace PKApp.DAL
                 " IFNULL(p.ContainerType, 'DIRECT') AS ContainerType," +
                 " ou.Abbreviation AS Unit," +
 
-                // Loose JARs available = Opening + (Primary/UnitSize − CasePacked) − Loose in DCs
+                // Loose JARs available = Opening + (Primary/UnitSize − CasePacked) − DC Loose allocation
                 " IFNULL(osJar.OpeningJars, 0)" +
                 " + FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "   / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))" +
                 " - IFNULL(sp.JarsInCases, 0)" +
-                " - IFNULL(dcLoose.TotalLooseJars, 0)" +
+                " - IFNULL(dcAlloc.TotalLooseJars, 0)" +
                 " AS AvailableLooseJars," +
 
-                // Cases available = Opening + Packed − All DC Cases
+                // Cases available = Opening + Packed − DC Cases allocation
                 " IFNULL(osCase.OpeningCases, 0)" +
                 " + IFNULL(sp.CasesPacked, 0)" +
-                " - IFNULL(dcCases.TotalCases, 0)" +
+                " - IFNULL(dcAlloc.TotalCases, 0)" +
                 " AS AvailableCases," +
 
                 // Combined jar-equivalent for display
@@ -1439,8 +1439,8 @@ namespace PKApp.DAL
                 "  + FLOOR(IFNULL(fg.TotalPCS, 0)" +
                 "    / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED), 1))" +
                 "  - IFNULL(sp.JarsInCases, 0)" +
-                "  - IFNULL(dcLoose.TotalLooseJars, 0))" +
-                " + (IFNULL(osCase.OpeningCases, 0) + IFNULL(sp.CasesPacked, 0) - IFNULL(dcCases.TotalCases, 0))" +
+                "  - IFNULL(dcAlloc.TotalLooseJars, 0))" +
+                " + (IFNULL(osCase.OpeningCases, 0) + IFNULL(sp.CasesPacked, 0) - IFNULL(dcAlloc.TotalCases, 0))" +
                 "   * IFNULL(p.ContainersPerCase, 12)" +
                 " AS AvailableFGJars" +
 
@@ -1467,21 +1467,27 @@ namespace PKApp.DAL
                 "   SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
 
-                // DC cases allocated (DRAFT + FINALISED)
-                " LEFT JOIN (SELECT dl.ProductID, SUM(dl.Cases) AS TotalCases" +
+                // DC CASES consumed (DRAFT + FINALISED)
+                // SellingForm=CASE → TotalPcs is direct case count
+                // SellingForm=JAR/BOX → FLOOR(TotalPcs / ContainersPerCase) cases used
+                // SellingForm=PCS → FLOOR(TotalPcs / UnitsPerContainer / ContainersPerCase) cases used
+                " LEFT JOIN (SELECT dl.ProductID," +
+                "   SUM(CASE" +
+                "     WHEN dl.SellingForm = 'CASE' THEN dl.TotalPcs" +
+                "     WHEN dl.SellingForm IN ('JAR','BOX') THEN FLOOR(dl.TotalPcs / GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
+                "     WHEN dl.SellingForm = 'PCS' THEN FLOOR(dl.TotalPcs / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(pp.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1) / GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
+                "     ELSE 0 END) AS TotalCases," +
+                "   SUM(CASE" +
+                "     WHEN dl.SellingForm IN ('JAR','BOX') THEN MOD(dl.TotalPcs, GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
+                "     WHEN dl.SellingForm = 'PCS' THEN MOD(FLOOR(dl.TotalPcs / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(pp.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1)), GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
+                "     ELSE 0 END) AS TotalLooseJars" +
                 "   FROM PK_DCLines dl" +
                 "   JOIN PK_DeliveryChallans dch ON dch.DCID = dl.DCID" +
+                "   JOIN PP_Products pp ON pp.ProductID = dl.ProductID" +
                 "   WHERE dch.Status IN ('DRAFT','FINALISED')" +
-                "   GROUP BY dl.ProductID) dcCases ON dcCases.ProductID = p.ProductID" +
+                "   GROUP BY dl.ProductID) dcAlloc ON dcAlloc.ProductID = p.ProductID" +
 
-                // DC loose jars allocated (DRAFT + FINALISED)
-                " LEFT JOIN (SELECT dl.ProductID, SUM(dl.LooseJars) AS TotalLooseJars" +
-                "   FROM PK_DCLines dl" +
-                "   JOIN PK_DeliveryChallans dch ON dch.DCID = dl.DCID" +
-                "   WHERE dch.Status IN ('DRAFT','FINALISED')" +
-                "   GROUP BY dl.ProductID) dcLoose ON dcLoose.ProductID = p.ProductID" +
-
-                " WHERE p.IsActive=1 AND p.ProductType='Core'" +
+                " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
                 " AND (IFNULL(fg.TotalPCS, 0) > 0 OR IFNULL(osJar.OpeningJars, 0) > 0 OR IFNULL(osCase.OpeningCases, 0) > 0)" +
                 " ORDER BY p.ProductName;");
         }

@@ -571,6 +571,11 @@ function onChannelChange(){showCustInfo();renderLines();}
 // Override customer modal selection callback
 var _origSelectCust = null;
 window.addEventListener('load',function(){
+    // Restore customer search text from dropdown selection
+    var ddlCust = document.getElementById('<%= ddlCustomer.ClientID %>');
+    if (ddlCust && ddlCust.selectedIndex > 0) {
+        document.getElementById('txtCustomerSearch').value = ddlCust.options[ddlCust.selectedIndex].text;
+    }
     showCustInfo();
     var sel=document.getElementById('selProduct');
     for(var pid in productData){
