@@ -275,15 +275,17 @@ namespace StockApp.DAL
         }
 
         // ── STOCK ENTRY ───────────────────────────────────────────────
-        public static int SaveStockPosition(int customerId, int currentStock)
+        public static int SaveStockPosition(int customerId, int currentStock, int stateId = 0, int cityId = 0)
         {
             ExecuteNonQuery(
-                "INSERT INTO StockPositions (DistributorID, CurrentStock, EntryDate)" +
-                " VALUES (?cid, ?stock, NOW());",
+                "INSERT INTO StockPositions (DistributorID, CurrentStock, StateID, CityID, EntryDate)" +
+                " VALUES (?cid, ?stock, ?sid, ?cty, NOW());",
                 new MySqlParameter("?cid", customerId),
-                new MySqlParameter("?stock", currentStock));
+                new MySqlParameter("?stock", currentStock),
+                new MySqlParameter("?sid", stateId),
+                new MySqlParameter("?cty", cityId));
             object id = ExecuteScalar("SELECT LAST_INSERT_ID();");
-            return id != null && id != DBNull.Value ? Convert.ToInt32(Convert.ToString(id)) : -1;
+            return id != null && id != DBNull.Value ? Convert.ToInt32(Convert.ToInt64(id)) : -1;
         }
 
         // ── LAST STOCK ENTRY ─────────────────────────────────────────

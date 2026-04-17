@@ -1,0 +1,35 @@
+ProductCode,ProductName,ContainerType,OpeningJars,OpeningCases,PrimaryPackedPCS,JarsPackedIntoCases,CasesPacked,DCAllocatedJars,DCAllocatedCases
+FG-0022,"Ganji Box - Barley Millet Ganji",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0024,"Ganji Box - Black Rice Ganji",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0020,"Ganji Box - Pearl Millet Ganji",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0021,"Ganji Box - Ragi Millet Ganji",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0013,"Grated Banana",NULL,0,0,0.000,0.000,0.000,0,0
+FG-0014,"Grated Coconut",NULL,0,0,0.000,0.000,0.000,0,0
+FG-0023,"Instant Barley Millet Powder",NULL,0,0,0.000,0.000,0.000,0,0
+FG-C001,"Liquid Jaggery",NULL,0,0,0.000,0.000,0.000,0,0
+FG-0026,"MRP10 Black Sesame Barfi 30g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0029,"MRP10 Chocolate Peanut Barfi 30g",JAR,12,12,0.000,0.000,0.000,0,0
+FG-0028,"MRP10 Nice Peanut Barfi 37g",JAR,12,12,0.000,0.000,0.000,0,0
+FG-0027,"MRP10 Peanut Barfi 37g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0007,"MRP40 Black Sesame Barfi 100g",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0009,"MRP40 Nice Peanut Barfi 110g",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0008,"MRP40 Peanut Barfi 110g",BOX,12,15,0.000,0.000,0.000,0,0
+FG-0011,"MRP5 Banana Barfi 10g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0003,"MRP5 Black Sesame Barfi 12g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0004,"MRP5 Coconut Laddu 12g",JAR,12,10,0.000,0.000,0.000,0,0
+FG-0006,"MRP5 Ginger Candy 10g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0002,"MRP5 Nice Peanut Barfi 14g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0005,"MRP5 Orange Delight 12g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0001,"MRP5 Peanut Barfi 14g",JAR,0,0,0.000,0.000,0.000,0,0
+FG-0012,"MRP50 Banana Barfi Tray Pack",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0010,"MRP50 Coconut Laddu Tray Pack",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0033,"MRP70 Black Sesame Barfi 100g",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0032,"MRP70 Nice Peanut Barfi 110g",DIRECT,0,0,0.000,0.000,0.000,0,0
+FG-0031,"MRP70 Peanut Barfi 110g",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0019,"Premium HealthMix",JAR,0,0,0.000,0.000,0.000,0,0
+FG-RETIRED,"Retired / Discontinued Products",NULL,0,0,0.000,0.000,0.000,0,0
+FG-0037,"Wedding Return Gift Pack",BOX,0,0,0.000,0.000,0.000,0,0
+FG-0034,"ZOHO Bite Size Black Sesame  - 1KG Bag",DIRECT,0,0,0.000,0.000,0.000,0,0
+FG-0038,"ZOHO Bite Size Giner Candy  - 1KG Bag",DIRECT,0,0,0.000,0.000,0.000,0,0
+FG-0036,"ZOHO Bite Size Nice Peanut Barfi - 1KG Bag",DIRECT,0,0,0.000,0.000,0.000,0,0
+FG-0035,"ZOHO Bite Size Peanut Barfi - 1KG Bag",DIRECT,0,0,0.000,0.000,0.000,0,0

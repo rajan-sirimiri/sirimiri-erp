@@ -604,11 +604,28 @@ function onProductSelect(){
     var opt=sel.options[sel.selectedIndex];
     var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
     var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
-    lines.forEach(function(l){if(l.pid===sel.value){avCases-=l.cases;avLoose-=l.loose;}});
+    var p=productData[sel.value];
+    var jpc=p?parseInt(p.jarsPerCase)||12:12;
+    var us=p?parseInt(p.unitSize)||1:1;
+    // Subtract already-added lines for same product
+    lines.forEach(function(l){
+        if(l.pid!==sel.value) return;
+        if(l.form==='CASE'){avCases-=l.qty;}
+        else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
+        else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
+    });
     if(avCases<0)avCases=0; if(avLoose<0)avLoose=0;
     var total=avCases+avLoose;
-    var p=productData[sel.value];
-    var mrpInfo=p?' | MRP: ₹'+(p.mrpPcs||0):'';
+    // Show MRP for selected selling form
+    var form=document.getElementById('selForm').value;
+    var mrp=0;
+    if(p){
+        if(form==='PCS') mrp=parseFloat(p.mrpPcs)||0;
+        else if(form==='JAR') mrp=parseFloat(p.mrpJar)||0;
+        else if(form==='BOX') mrp=parseFloat(p.mrpBox)||0;
+        else if(form==='CASE') mrp=parseFloat(p.mrpCase)||0;
+    }
+    var mrpInfo=mrp>0?' | MRP: ₹'+mrp:'';
     info.innerHTML='<span class="stock-badge'+(total<=0?' stock-zero':'')+'">FG Stock: '+avCases+' cases'+(avLoose>0?' + '+avLoose+' loose jars':'')+mrpInfo+'</span>';
 }
 
@@ -622,6 +639,32 @@ function addLine(){
 
     var p=productData[pid];
     if(!p){erpAlert('Product data not found.', {title:'Error', type:'danger'});return;}
+
+    // Stock validation — convert qty to cases + loose needed
+    var jpc=parseInt(p.jarsPerCase)||12;
+    var us=parseInt(p.unitSize)||1;
+    var casesNeeded=0, looseNeeded=0;
+    if(form==='CASE'){casesNeeded=qty;}
+    else if(form==='JAR'||form==='BOX'){casesNeeded=Math.floor(qty/jpc);looseNeeded=qty%jpc;}
+    else if(form==='PCS'){var jars=Math.floor(qty/us);casesNeeded=Math.floor(jars/jpc);looseNeeded=jars%jpc;}
+
+    // Account for already-added lines for same product
+    var usedCases=0, usedLoose=0;
+    lines.forEach(function(l){
+        if(l.pid!==pid) return;
+        var ljpc=parseInt(p.jarsPerCase)||12;
+        if(l.form==='CASE'){usedCases+=l.qty;}
+        else if(l.form==='JAR'||l.form==='BOX'){usedCases+=Math.floor(l.qty/ljpc);usedLoose+=l.qty%ljpc;}
+        else if(l.form==='PCS'){var lj=Math.floor(l.qty/us);usedCases+=Math.floor(lj/ljpc);usedLoose+=lj%ljpc;}
+    });
+    var avCases=(parseInt(p.availCases)||0)-usedCases;
+    var avLoose=(parseInt(p.availLoose)||0)-usedLoose;
+    if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
+
+    if(casesNeeded>avCases){
+        erpAlert('Insufficient CASES for '+p.name+'. Need '+casesNeeded+', available '+avCases+'.', {title:'Stock Insufficient', type:'danger'});return;}
+    if(looseNeeded>avLoose){
+        erpAlert('Insufficient loose JARs/BOXes for '+p.name+'. Need '+looseNeeded+', available '+avLoose+'.', {title:'Stock Insufficient', type:'danger'});return;}
 
     // Get MRP for selected selling form
     var mrp=0;

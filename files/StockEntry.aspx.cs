@@ -109,7 +109,11 @@ namespace StockApp
                 if (!int.TryParse(txtCurrentStock.Text.Trim(),  out int currentStock)  || currentStock < 0)
                     throw new InvalidOperationException("Please enter a valid non-negative stock value.");
 
-                int newId = DatabaseHelper.SaveStockPosition(distributorId, currentStock);
+                int stateId = 0, cityId = 0;
+                int.TryParse(ddlState.SelectedValue, out stateId);
+                int.TryParse(ddlCity.SelectedValue, out cityId);
+
+                int newId = DatabaseHelper.SaveStockPosition(distributorId, currentStock, stateId, cityId);
                 if (newId > 0)
                 {
                     lblSuccess.Text = string.Format(

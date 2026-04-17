@@ -181,7 +181,91 @@ namespace PKApp
             if (lineData == null || lineData.Length == 0)
             { ShowAlert("Please add at least one product line.", false); return; }
 
-            // Stock validation skipped for selling form — will add detailed validation later
+            // Stock validation — convert selling form qty to cases + loose, then validate
+            var fgStock = PKDatabaseHelper.GetFGStockForShipment();
+            // Aggregate all lines per product (a product may appear in multiple lines)
+            var productTotals = new System.Collections.Generic.Dictionary<int, int[]>(); // pid → [casesNeeded, looseNeeded]
+            foreach (var line in lineData)
+            {
+                DataRow stockRow = null;
+                foreach (DataRow r in fgStock.Rows)
+                    if (Convert.ToInt32(r["ProductID"]) == line.ProductID) { stockRow = r; break; }
+                if (stockRow == null)
+                { ShowAlert("Product ID " + line.ProductID + " has no FG stock.", false); return; }
+
+                int jpc = Convert.ToInt32(stockRow["ContainersPerCase"]);
+                if (jpc <= 0) jpc = 12;
+                int unitSize = 1;
+                string upc = stockRow["UnitsPerContainer"] != DBNull.Value ? stockRow["UnitsPerContainer"].ToString() : "1";
+                int.TryParse(upc.Split(',')[0].Trim(), out unitSize);
+                if (unitSize <= 0) unitSize = 1;
+
+                int casesNeeded = 0, looseNeeded = 0;
+                if (line.SellingForm == "CASE")
+                {
+                    casesNeeded = line.Qty;
+                }
+                else if (line.SellingForm == "JAR" || line.SellingForm == "BOX")
+                {
+                    casesNeeded = line.Qty / jpc;
+                    looseNeeded = line.Qty % jpc;
+                }
+                else if (line.SellingForm == "PCS")
+                {
+                    int jarsNeeded = line.Qty / unitSize;
+                    casesNeeded = jarsNeeded / jpc;
+                    looseNeeded = jarsNeeded % jpc;
+                }
+
+                if (!productTotals.ContainsKey(line.ProductID))
+                    productTotals[line.ProductID] = new int[] { 0, 0 };
+                productTotals[line.ProductID][0] += casesNeeded;
+                productTotals[line.ProductID][1] += looseNeeded;
+            }
+
+            foreach (var kvp in productTotals)
+            {
+                int pid = kvp.Key;
+                int totalCasesNeeded = kvp.Value[0];
+                int totalLooseNeeded = kvp.Value[1];
+
+                DataRow stockRow = null;
+                foreach (DataRow r in fgStock.Rows)
+                    if (Convert.ToInt32(r["ProductID"]) == pid) { stockRow = r; break; }
+                if (stockRow == null) continue;
+
+                int availCases = Convert.ToInt32(stockRow["AvailableCases"]);
+                int availLoose = Convert.ToInt32(stockRow["AvailableLooseJars"]);
+                string prodName = stockRow["ProductName"].ToString();
+
+                // If editing an existing DC, add back this DC's own allocation
+                if (dcId > 0)
+                {
+                    var existingLines = PKDatabaseHelper.GetDCLines(dcId);
+                    foreach (DataRow el in existingLines.Rows)
+                    {
+                        if (Convert.ToInt32(el["ProductID"]) != pid) continue;
+                        string elForm = el.Table.Columns.Contains("SellingForm") && el["SellingForm"] != DBNull.Value
+                            ? el["SellingForm"].ToString() : "JAR";
+                        int elQty = Convert.ToInt32(el["TotalPcs"]);
+                        int jpc2 = Convert.ToInt32(stockRow["ContainersPerCase"]);
+                        if (jpc2 <= 0) jpc2 = 12;
+                        if (elForm == "CASE") availCases += elQty;
+                        else { availCases += elQty / jpc2; availLoose += elQty % jpc2; }
+                    }
+                }
+
+                if (totalCasesNeeded > availCases)
+                {
+                    ShowAlert("Insufficient CASES for " + prodName + ". Need " + totalCasesNeeded + ", available " + availCases + ".", false);
+                    return;
+                }
+                if (totalLooseNeeded > availLoose)
+                {
+                    ShowAlert("Insufficient loose JARs for " + prodName + ". Need " + totalLooseNeeded + ", available " + availLoose + ".", false);
+                    return;
+                }
+            }
 
             // Get customer GSTIN
             var custRow = PKDatabaseHelper.GetCustomerById(customerId);
