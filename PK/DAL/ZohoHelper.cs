@@ -981,7 +981,12 @@ namespace StockApp.DAL
                 if (gstRate <= 0)
                     gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
 
-                string taxId = GetZohoTaxId(gstRate);
+                // Determine if interstate based on customer state vs org state (Tamil Nadu)
+                string custSt = dc["State"] != DBNull.Value ? dc["State"].ToString().Trim().ToLower() : "";
+                bool isInterState = !string.IsNullOrEmpty(custSt) && custSt != "tamil nadu";
+
+                // Get the correct tax_id — IGST for interstate, GST for intrastate
+                string taxId = isInterState ? GetZohoTaxId(gstRate, "IGST") : GetZohoTaxId(gstRate, "GST");
 
                 var lineItem = new Dictionary<string, object>
                 {
@@ -1117,15 +1122,19 @@ namespace StockApp.DAL
         /// <summary>Map Indian state name to 2-letter GST state code for Zoho place_of_supply.</summary>
         // ── TAX LOOKUP ─────────────────────────────────────────────────────
 
-        private static Dictionary<decimal, string> _taxCache = null;
+        private static Dictionary<string, string> _taxCache = null; // key: "GST_5" or "IGST_5" → tax_id
         private static string _taxExemptionId = null;
 
-        /// <summary>Get Zoho tax_id for a given GST rate. Fetches and caches tax list from Zoho.</summary>
-        private static string GetZohoTaxId(decimal gstRate)
+        /// <summary>Get Zoho tax_id for a given GST rate and type (GST or IGST).</summary>
+        private static string GetZohoTaxId(decimal gstRate, string taxType = "GST")
         {
             if (gstRate <= 0) return null;
             if (_taxCache == null) LoadZohoTaxes();
-            if (_taxCache != null && _taxCache.ContainsKey(gstRate)) return _taxCache[gstRate];
+            string key = taxType + "_" + gstRate.ToString("0.##");
+            if (_taxCache != null && _taxCache.ContainsKey(key)) return _taxCache[key];
+            // Fallback: try the other type
+            string altKey = (taxType == "GST" ? "IGST" : "GST") + "_" + gstRate.ToString("0.##");
+            if (_taxCache != null && _taxCache.ContainsKey(altKey)) return _taxCache[altKey];
             return null;
         }
 
@@ -1154,7 +1163,7 @@ namespace StockApp.DAL
 
         private static void LoadZohoTaxes()
         {
-            _taxCache = new Dictionary<decimal, string>();
+            _taxCache = new Dictionary<string, string>();
             try
             {
                 var result = ZohoGet("settings/taxes");
@@ -1168,16 +1177,29 @@ namespace StockApp.DAL
                         {
                             var tax = item as Dictionary<string, object>;
                             if (tax == null) continue;
-                            string taxId = tax["tax_id"]?.ToString() ?? "";
+                            string taxId = tax.ContainsKey("tax_id") ? tax["tax_id"]?.ToString() ?? "" : "";
+                            string taxName = tax.ContainsKey("tax_name") ? tax["tax_name"].ToString().ToUpper() : "";
+                            string taxType = tax.ContainsKey("tax_type") ? tax["tax_type"].ToString().ToUpper() : "";
                             decimal pct = 0;
                             if (tax.ContainsKey("tax_percentage"))
                                 decimal.TryParse(tax["tax_percentage"].ToString(), out pct);
-                            if (pct > 0 && !_taxCache.ContainsKey(pct))
-                                _taxCache[pct] = taxId;
+                            if (string.IsNullOrEmpty(taxId)) continue;
+
+                            // Determine if IGST or GST (intra-state)
+                            string cacheType;
+                            if (taxName.Contains("IGST") || taxType == "IGST")
+                                cacheType = "IGST";
+                            else
+                                cacheType = "GST";
+
+                            string key = cacheType + "_" + pct.ToString("0.##");
+                            if (!_taxCache.ContainsKey(key))
+                                _taxCache[key] = taxId;
                         }
                     }
                 }
-                LogSync("LoadTaxes", null, null, null, "Success", "Loaded " + _taxCache.Count + " taxes");
+                LogSync("LoadTaxes", null, null, null, "Success",
+                    "Loaded " + _taxCache.Count + " taxes: " + string.Join(", ", _taxCache.Keys));
             }
             catch (Exception ex)
             {

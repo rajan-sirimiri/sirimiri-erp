@@ -607,13 +607,17 @@ function onProductSelect(){
     var p=productData[sel.value];
     var jpc=p?parseInt(p.jarsPerCase)||12:12;
     var us=p?parseInt(p.unitSize)||1:1;
-    // Subtract already-added lines for same product
-    lines.forEach(function(l){
-        if(l.pid!==sel.value) return;
-        if(l.form==='CASE'){avCases-=l.qty;}
-        else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
-        else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
-    });
+    // Subtract already-added lines for same product (only for new unsaved DCs)
+    var dcId = document.getElementById('<%= hfDCID.ClientID %>').value;
+    var isSaved = dcId && dcId !== '0';
+    if (!isSaved) {
+        lines.forEach(function(l){
+            if(l.pid!==sel.value) return;
+            if(l.form==='CASE'){avCases-=l.qty;}
+            else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
+            else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
+        });
+    }
     if(avCases<0)avCases=0; if(avLoose<0)avLoose=0;
     var total=avCases+avLoose;
     // Show MRP for selected selling form
@@ -649,14 +653,20 @@ function addLine(){
     else if(form==='PCS'){var jars=Math.floor(qty/us);casesNeeded=Math.floor(jars/jpc);looseNeeded=jars%jpc;}
 
     // Account for already-added lines for same product
+    // Only subtract if this is a NEW DC (not yet saved) — for saved DCs, the server
+    // query already deducted the existing lines from available stock
+    var dcId = document.getElementById('<%= hfDCID.ClientID %>').value;
+    var isSaved = dcId && dcId !== '0';
     var usedCases=0, usedLoose=0;
-    lines.forEach(function(l){
-        if(l.pid!==pid) return;
-        var ljpc=parseInt(p.jarsPerCase)||12;
-        if(l.form==='CASE'){usedCases+=l.qty;}
-        else if(l.form==='JAR'||l.form==='BOX'){usedCases+=Math.floor(l.qty/ljpc);usedLoose+=l.qty%ljpc;}
-        else if(l.form==='PCS'){var lj=Math.floor(l.qty/us);usedCases+=Math.floor(lj/ljpc);usedLoose+=lj%ljpc;}
-    });
+    if (!isSaved) {
+        lines.forEach(function(l){
+            if(l.pid!==pid) return;
+            var ljpc=parseInt(p.jarsPerCase)||12;
+            if(l.form==='CASE'){usedCases+=l.qty;}
+            else if(l.form==='JAR'||l.form==='BOX'){usedCases+=Math.floor(l.qty/ljpc);usedLoose+=l.qty%ljpc;}
+            else if(l.form==='PCS'){var lj=Math.floor(l.qty/us);usedCases+=Math.floor(lj/ljpc);usedLoose+=lj%ljpc;}
+        });
+    }
     var avCases=(parseInt(p.availCases)||0)-usedCases;
     var avLoose=(parseInt(p.availLoose)||0)-usedLoose;
     if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
@@ -696,10 +706,29 @@ function removeLine(idx){lines.splice(idx,1);renderLines();}
 
 function updateDropdownStock(){
     var sel=document.getElementById('selProduct');
+    var dcId=document.getElementById('<%= hfDCID.ClientID %>').value;
+    var isSaved=dcId&&dcId!=='0';
     for(var i=1;i<sel.options.length;i++){
         var opt=sel.options[i];var pid=opt.value;
         var p=productData[pid];
-        if(p) opt.text=p.name+' ('+p.code+')';
+        if(!p) continue;
+        var avCases=parseInt(p.availCases)||0;
+        var avLoose=parseInt(p.availLoose)||0;
+        // For unsaved DCs, subtract lines already added
+        if(!isSaved){
+            var jpc=parseInt(p.jarsPerCase)||12;
+            var us=parseInt(p.unitSize)||1;
+            lines.forEach(function(l){
+                if(l.pid!==pid) return;
+                if(l.form==='CASE'){avCases-=l.qty;}
+                else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
+                else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
+            });
+        }
+        if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
+        opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' jars':'');
+        opt.setAttribute('data-avcases',avCases);
+        opt.setAttribute('data-avloose',avLoose);
     }
 }
 
@@ -709,7 +738,7 @@ function renderLines(){
     var body=document.getElementById('lineBody');
     var tbl=document.getElementById('lineTable');
     body.innerHTML='';
-    if(lines.length===0){tbl.style.display='none';syncLines();return;}
+    if(lines.length===0){tbl.style.display='none';syncLines();updateDropdownStock();return;}
     tbl.style.display='table';
     var sumTax=0,sumGST=0,sumTotal=0;
     var inter=isInterState();
@@ -751,6 +780,7 @@ function renderLines(){
     document.getElementById('ftGST').innerText=fmt(sumGST);
     document.getElementById('ftTotal').innerText=fmt(sumTotal);
     syncLines();
+    updateDropdownStock();
 }
 
 function syncLines(){
