@@ -389,15 +389,37 @@ namespace StockApp.DAL
                 };
             }
 
-            // Billing address
+            // Billing address — Zoho India uses "street" for address field
+            string addrStr = c["Address"] != DBNull.Value ? c["Address"].ToString() : "";
+            if (addrStr.Length > 100) addrStr = addrStr.Substring(0, 100);
             var billing = new Dictionary<string, object>();
-            if (c["Address"] != DBNull.Value && !string.IsNullOrEmpty(c["Address"].ToString()))
-                billing["address"] = c["Address"].ToString();
+            if (!string.IsNullOrEmpty(addrStr))
+                billing["street"] = addrStr;
             if (c["City"] != DBNull.Value) billing["city"] = c["City"].ToString();
             if (c["State"] != DBNull.Value) billing["state"] = c["State"].ToString();
             if (c["PinCode"] != DBNull.Value) billing["zip"] = c["PinCode"].ToString();
             billing["country"] = "India";
             if (billing.Count > 1) contact["billing_address"] = billing;
+
+            // Shipping address — use ShipTo if set, otherwise same as billing
+            string shipStr = c.Table.Columns.Contains("ShipToAddress") && c["ShipToAddress"] != DBNull.Value
+                ? c["ShipToAddress"].ToString().Trim() : "";
+            if (!string.IsNullOrEmpty(shipStr))
+            {
+                if (shipStr.Length > 100) shipStr = shipStr.Substring(0, 100);
+                var shipping = new Dictionary<string, object>();
+                shipping["street"] = shipStr;
+                if (c["ShipToCity"] != DBNull.Value) shipping["city"] = c["ShipToCity"].ToString();
+                if (c["ShipToState"] != DBNull.Value) shipping["state"] = c["ShipToState"].ToString();
+                if (c["ShipToPinCode"] != DBNull.Value) shipping["zip"] = c["ShipToPinCode"].ToString();
+                shipping["country"] = "India";
+                contact["shipping_address"] = shipping;
+            }
+            else if (billing.Count > 1)
+            {
+                // No separate shipping — use billing as shipping
+                contact["shipping_address"] = billing;
+            }
 
             try
             {
@@ -519,7 +541,9 @@ namespace StockApp.DAL
             }
 
             var billing = new Dictionary<string, object>();
-            if (s["Address"] != DBNull.Value) billing["address"] = s["Address"].ToString();
+            string sAddr = s["Address"] != DBNull.Value ? s["Address"].ToString() : "";
+            if (sAddr.Length > 100) sAddr = sAddr.Substring(0, 100);
+            if (!string.IsNullOrEmpty(sAddr)) billing["street"] = sAddr;
             if (s["City"] != DBNull.Value) billing["city"] = s["City"].ToString();
             if (s["State"] != DBNull.Value) billing["state"] = s["State"].ToString();
             if (s["PinCode"] != DBNull.Value) billing["zip"] = s["PinCode"].ToString();
@@ -956,24 +980,6 @@ namespace StockApp.DAL
             string custState = dc["State"] != DBNull.Value ? dc["State"].ToString().Trim() : "";
             string placeOfSupply = GetStateCode(custState);
 
-            // Shipping address
-            string shipAddr = dc.Table.Columns.Contains("ShipToAddress") && dc["ShipToAddress"] != DBNull.Value
-                ? dc["ShipToAddress"].ToString() : "";
-            string shipCity = dc.Table.Columns.Contains("ShipToCity") && dc["ShipToCity"] != DBNull.Value
-                ? dc["ShipToCity"].ToString() : "";
-            string shipState = dc.Table.Columns.Contains("ShipToState") && dc["ShipToState"] != DBNull.Value
-                ? dc["ShipToState"].ToString() : "";
-            string shipPin = dc.Table.Columns.Contains("ShipToPinCode") && dc["ShipToPinCode"] != DBNull.Value
-                ? dc["ShipToPinCode"].ToString() : "";
-            // Fallback to billing address if no shipping address
-            if (string.IsNullOrEmpty(shipAddr))
-            {
-                shipAddr = dc["Address"] != DBNull.Value ? dc["Address"].ToString() : "";
-                shipCity = dc["City"] != DBNull.Value ? dc["City"].ToString() : "";
-                shipState = custState;
-                shipPin = dc["PinCode"] != DBNull.Value ? dc["PinCode"].ToString() : "";
-            }
-
             // Contact person
             string contactPerson = dc["ContactPerson"] != DBNull.Value ? dc["ContactPerson"].ToString() : "";
             string phone = dc["Phone"] != DBNull.Value ? dc["Phone"].ToString() : "";
@@ -993,19 +999,6 @@ namespace StockApp.DAL
                 { "line_items", lineItems }
             };
 
-            // Shipping address — Zoho limits: address=100, city=100, state=100, zip=10
-            if (shipAddr.Length > 100) shipAddr = shipAddr.Substring(0, 100);
-            if (shipCity.Length > 100) shipCity = shipCity.Substring(0, 100);
-            var shipTo = new Dictionary<string, object>
-            {
-                { "address", shipAddr },
-                { "city", shipCity },
-                { "state", shipState },
-                { "zip", shipPin },
-                { "country", "India" }
-            };
-            invoice["shipping_address"] = shipTo;
-
             if (!string.IsNullOrEmpty(placeOfSupply))
                 invoice["place_of_supply"] = placeOfSupply;
 
@@ -1015,6 +1008,12 @@ namespace StockApp.DAL
 
             try
             {
+                // Log the invoice JSON for debugging
+                var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                string invoiceJson = serializer.Serialize(invoice);
+                LogSync("CreateInvoice_Debug", "Invoice", dcId.ToString(), null, "Debug",
+                    invoiceJson.Length > 4000 ? invoiceJson.Substring(0, 4000) : invoiceJson);
+
                 var result = ZohoPost("invoices", invoice);
                 int code = Convert.ToInt32(result["code"]);
                 if (code == 0)
