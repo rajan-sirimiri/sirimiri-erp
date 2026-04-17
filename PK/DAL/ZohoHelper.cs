@@ -402,33 +402,48 @@ namespace StockApp.DAL
             if (billing.Count > 1) contact["billing_address"] = billing;
 
             // Shipping address — use ShipTo if set, otherwise same as billing
+            // Include customer name, contact person and phone directly in address field
+            string custName = c["CustomerName"] != DBNull.Value ? c["CustomerName"].ToString() : "";
+            string contactName = c["ContactPerson"] != DBNull.Value ? c["ContactPerson"].ToString() : "";
+            string contactPhone = c["Phone"] != DBNull.Value ? c["Phone"].ToString() : "";
+
+            // Build contact header for Ship To
+            string shipHeader = custName;
+            if (!string.IsNullOrEmpty(contactName)) shipHeader += ", Attn: " + contactName;
+            if (!string.IsNullOrEmpty(contactPhone)) shipHeader += ", Ph: " + contactPhone;
+
             string shipStr = c.Table.Columns.Contains("ShipToAddress") && c["ShipToAddress"] != DBNull.Value
                 ? c["ShipToAddress"].ToString().Trim() : "";
             if (!string.IsNullOrEmpty(shipStr))
             {
-                if (shipStr.Length > 100) shipStr = shipStr.Substring(0, 100);
+                string fullShipAddr = shipHeader + "\n" + shipStr;
+                if (fullShipAddr.Length > 200) fullShipAddr = fullShipAddr.Substring(0, 200);
                 var shipping = new Dictionary<string, object>();
-                shipping["street"] = shipStr;
-                shipping["address"] = shipStr;
+                shipping["attention"] = custName;
+                shipping["street"] = fullShipAddr;
+                shipping["address"] = fullShipAddr;
                 if (c["ShipToCity"] != DBNull.Value) shipping["city"] = c["ShipToCity"].ToString();
                 if (c["ShipToState"] != DBNull.Value) shipping["state"] = c["ShipToState"].ToString();
                 if (c["ShipToPinCode"] != DBNull.Value) shipping["zip"] = c["ShipToPinCode"].ToString();
                 shipping["country"] = "India";
+                if (!string.IsNullOrEmpty(contactPhone)) shipping["phone"] = contactPhone;
                 contact["shipping_address"] = shipping;
             }
             else if (billing.Count > 1)
             {
-                // No separate shipping — copy billing to shipping
+                // No separate shipping — copy billing to shipping with contact info
+                string billingStr = billing.ContainsKey("street") ? billing["street"].ToString() : "";
+                string fullShipAddr = shipHeader + "\n" + billingStr;
+                if (fullShipAddr.Length > 200) fullShipAddr = fullShipAddr.Substring(0, 200);
                 var shipCopy = new Dictionary<string, object>();
-                if (billing.ContainsKey("street"))
-                {
-                    shipCopy["street"] = billing["street"];
-                    shipCopy["address"] = billing["street"];
-                }
+                shipCopy["attention"] = custName;
+                shipCopy["street"] = fullShipAddr;
+                shipCopy["address"] = fullShipAddr;
                 if (billing.ContainsKey("city")) shipCopy["city"] = billing["city"];
                 if (billing.ContainsKey("state")) shipCopy["state"] = billing["state"];
                 if (billing.ContainsKey("zip")) shipCopy["zip"] = billing["zip"];
                 shipCopy["country"] = "India";
+                if (!string.IsNullOrEmpty(contactPhone)) shipCopy["phone"] = contactPhone;
                 contact["shipping_address"] = shipCopy;
             }
 

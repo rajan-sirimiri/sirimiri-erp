@@ -251,7 +251,7 @@ namespace PKApp
                     {
                         var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
                         bool hasInv = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
-                        btnCreateInvoiceDraft.Text = hasInv ? "&#x1F4E8; Update Invoice in Zoho" : "&#x1F4E8; Create Invoice in Zoho";
+                        btnCreateInvoiceDraft.Text = hasInv ? "Update Invoice in Zoho" : "Create Invoice in Zoho";
                     }
                     catch { }
                 }
@@ -516,7 +516,7 @@ namespace PKApp
                     btnCreateInvoiceDraft.Visible = true;
                     var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
                     bool hasInvoice = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
-                    btnCreateInvoiceDraft.Text = hasInvoice ? "&#x1F4E8; Update Invoice in Zoho" : "&#x1F4E8; Create Invoice in Zoho";
+                    btnCreateInvoiceDraft.Text = hasInvoice ? "Update Invoice in Zoho" : "Create Invoice in Zoho";
                 }
             }
             else
