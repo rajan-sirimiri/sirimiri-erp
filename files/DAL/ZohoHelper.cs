@@ -417,8 +417,14 @@ namespace StockApp.DAL
             }
             else if (billing.Count > 1)
             {
-                // No separate shipping — use billing as shipping
-                contact["shipping_address"] = billing;
+                // No separate shipping — copy billing fields to a new shipping dict
+                var shipCopy = new Dictionary<string, object>();
+                if (billing.ContainsKey("street")) shipCopy["street"] = billing["street"];
+                if (billing.ContainsKey("city")) shipCopy["city"] = billing["city"];
+                if (billing.ContainsKey("state")) shipCopy["state"] = billing["state"];
+                if (billing.ContainsKey("zip")) shipCopy["zip"] = billing["zip"];
+                shipCopy["country"] = "India";
+                contact["shipping_address"] = shipCopy;
             }
 
             try

@@ -111,7 +111,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </div>
             <!-- SHIPPING ADDRESS -->
             <div style="margin-top:16px;padding:16px 18px;background:#f5f5f0;border:1px solid #e0ddd5;border-radius:10px;">
-                <div style="font-size:12px;font-weight:700;color:#666;margin-bottom:10px;">&#x1F4E6; Shipping Address <span style="font-weight:400;color:#999;">(leave blank if same as billing)</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:12px;font-weight:700;color:#666;">&#x1F4E6; Shipping Address</div>
+                    <label style="font-size:12px;color:#0078d4;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" id="chkSameAsBilling" onchange="copyBillingToShipping(this.checked);" style="width:16px;height:16px;cursor:pointer;"/>
+                        Same as Billing Address
+                    </label>
+                </div>
                 <div class="form-grid">
                     <div class="form-group full"><label>Ship To Address</label>
                         <asp:TextBox ID="txtShipAddress" runat="server" TextMode="MultiLine" Rows="2" MaxLength="500" placeholder="Shipping address"/></div>
@@ -175,6 +181,25 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 </div>
 </form>
 <script>
+function copyBillingToShipping(checked){
+    var shipAddr = document.getElementById('<%= txtShipAddress.ClientID %>');
+    var shipCity = document.getElementById('<%= txtShipCity.ClientID %>');
+    var shipState = document.getElementById('<%= txtShipState.ClientID %>');
+    var shipPin = document.getElementById('<%= txtShipPinCode.ClientID %>');
+    if(checked){
+        shipAddr.value = document.getElementById('<%= txtAddress.ClientID %>').value;
+        shipCity.value = document.getElementById('<%= txtCity.ClientID %>').value;
+        shipState.value = document.getElementById('<%= txtState.ClientID %>').value;
+        shipPin.value = document.getElementById('<%= txtPinCode.ClientID %>').value;
+        shipAddr.readOnly=true; shipCity.readOnly=true; shipState.readOnly=true; shipPin.readOnly=true;
+        shipAddr.style.background='#f0f0f0'; shipCity.style.background='#f0f0f0';
+        shipState.style.background='#f0f0f0'; shipPin.style.background='#f0f0f0';
+    } else {
+        shipAddr.readOnly=false; shipCity.readOnly=false; shipState.readOnly=false; shipPin.readOnly=false;
+        shipAddr.style.background=''; shipCity.style.background='';
+        shipState.style.background=''; shipPin.style.background='';
+    }
+}
 function onTypeChange(sel){
     var lbl=document.getElementById('lblNameLabel');if(!lbl)return;
     if(sel.value==='ST')lbl.innerText='Stockist Name';
