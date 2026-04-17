@@ -18,13 +18,15 @@ namespace PKApp
         protected DropDownList ddlCustomer, ddlChannel;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
+        protected Button btnCreateConsignment;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
         protected HyperLink lnkViewInZoho;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
         protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
         protected Panel pnlProjEmpty;
-        protected DropDownList ddlProjMonth, ddlProjYear;
+        protected DropDownList ddlProjMonth, ddlProjYear, ddlConsignment;
+        protected TextBox txtConsigDate, txtConsigText;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -42,7 +44,9 @@ namespace PKApp
                 BindCustomers();
                 BuildProductData();
                 BuildCustomerData();
+                BindConsignments();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                if (txtConsigDate != null) txtConsigDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (btnDeleteDC != null) btnDeleteDC.Visible = false;
                 BindDCList();
                 LoadProjDropdowns();
@@ -64,6 +68,38 @@ namespace PKApp
                 if (!string.IsNullOrEmpty(typeName)) label += " — " + typeName;
                 ddlCustomer.Items.Add(new ListItem(label, r["CustomerID"].ToString()));
             }
+        }
+
+        void BindConsignments()
+        {
+            if (ddlConsignment == null) return;
+            var dt = PKDatabaseHelper.GetOpenConsignments();
+            ddlConsignment.Items.Clear();
+            ddlConsignment.Items.Add(new ListItem("-- Select Consignment --", "0"));
+            foreach (DataRow r in dt.Rows)
+            {
+                int dcCount = Convert.ToInt32(r["DCCount"]);
+                string label = r["ConsignmentCode"] + " (" + dcCount + " DCs)";
+                ddlConsignment.Items.Add(new ListItem(label, r["ConsignmentID"].ToString()));
+            }
+        }
+
+        protected void btnCreateConsignment_Click(object s, EventArgs e)
+        {
+            try
+            {
+                DateTime dt = DateTime.Parse(txtConsigDate.Text);
+                string userText = txtConsigText.Text.Trim();
+                if (string.IsNullOrEmpty(userText))
+                { ShowAlert("Please enter a consignment identifier (e.g. ROTN, BLORE).", false); return; }
+
+                int newId = PKDatabaseHelper.CreateConsignment(dt, userText, "", UserID);
+                BindConsignments();
+                ddlConsignment.SelectedValue = newId.ToString();
+                txtConsigText.Text = "";
+                ShowAlert("Consignment created: " + ddlConsignment.SelectedItem.Text, true);
+            }
+            catch (Exception ex) { ShowAlert("Error creating consignment: " + ex.Message, false); }
         }
 
         void BuildProductData()
@@ -184,10 +220,14 @@ namespace PKApp
             if (lineData == null || lineData.Length == 0)
             { ShowAlert("Please add at least one product line.", false); return; }
 
-            // Stock validation — convert selling form qty to cases + loose, then validate
+            // Consignment validation — mandatory
+            int consignmentId = ddlConsignment != null ? Convert.ToInt32(ddlConsignment.SelectedValue) : 0;
+            if (consignmentId <= 0 && dcId <= 0)
+            { ShowAlert("Please select a Consignment before saving.", false); return; }
+
+            // Stock validation — source-based (CASE or LOOSE)
             var fgStock = PKDatabaseHelper.GetFGStockForShipment();
-            // Aggregate all lines per product (a product may appear in multiple lines)
-            var productTotals = new System.Collections.Generic.Dictionary<int, int[]>(); // pid → [casesNeeded, looseNeeded]
+            var productNeeds = new System.Collections.Generic.Dictionary<int, int[]>(); // pid → [casesNeeded, looseNeeded]
             foreach (var line in lineData)
             {
                 DataRow stockRow = null;
@@ -198,39 +238,27 @@ namespace PKApp
 
                 int jpc = Convert.ToInt32(stockRow["ContainersPerCase"]);
                 if (jpc <= 0) jpc = 12;
-                int unitSize = 1;
-                string upc = stockRow["UnitsPerContainer"] != DBNull.Value ? stockRow["UnitsPerContainer"].ToString() : "1";
-                int.TryParse(upc.Split(',')[0].Trim(), out unitSize);
-                if (unitSize <= 0) unitSize = 1;
 
-                int casesNeeded = 0, looseNeeded = 0;
-                if (line.SellingForm == "CASE")
-                {
-                    casesNeeded = line.Qty;
-                }
-                else if (line.SellingForm == "JAR" || line.SellingForm == "BOX")
-                {
-                    casesNeeded = line.Qty / jpc;
-                    looseNeeded = line.Qty % jpc;
-                }
-                else if (line.SellingForm == "PCS")
-                {
-                    int jarsNeeded = line.Qty / unitSize;
-                    casesNeeded = jarsNeeded / jpc;
-                    looseNeeded = jarsNeeded % jpc;
-                }
+                if (!productNeeds.ContainsKey(line.ProductID))
+                    productNeeds[line.ProductID] = new int[] { 0, 0 };
 
-                if (!productTotals.ContainsKey(line.ProductID))
-                    productTotals[line.ProductID] = new int[] { 0, 0 };
-                productTotals[line.ProductID][0] += casesNeeded;
-                productTotals[line.ProductID][1] += looseNeeded;
+                string src = string.IsNullOrEmpty(line.Source) ? "CASE" : line.Source;
+                if (src == "CASE")
+                {
+                    int cases = line.SellingForm == "CASE" ? line.Qty : (int)Math.Ceiling((double)line.Qty / jpc);
+                    productNeeds[line.ProductID][0] += cases;
+                }
+                else
+                {
+                    productNeeds[line.ProductID][1] += line.Qty;
+                }
             }
 
-            foreach (var kvp in productTotals)
+            foreach (var kvp in productNeeds)
             {
                 int pid = kvp.Key;
-                int totalCasesNeeded = kvp.Value[0];
-                int totalLooseNeeded = kvp.Value[1];
+                int casesNeeded = kvp.Value[0];
+                int looseNeeded = kvp.Value[1];
 
                 DataRow stockRow = null;
                 foreach (DataRow r in fgStock.Rows)
@@ -241,31 +269,31 @@ namespace PKApp
                 int availLoose = Convert.ToInt32(stockRow["AvailableLooseJars"]);
                 string prodName = stockRow["ProductName"].ToString();
 
-                // If editing an existing DC, add back this DC's own allocation
+                // If editing existing DC, add back this DC's allocation
                 if (dcId > 0)
                 {
                     var existingLines = PKDatabaseHelper.GetDCLines(dcId);
                     foreach (DataRow el in existingLines.Rows)
                     {
                         if (Convert.ToInt32(el["ProductID"]) != pid) continue;
-                        string elForm = el.Table.Columns.Contains("SellingForm") && el["SellingForm"] != DBNull.Value
-                            ? el["SellingForm"].ToString() : "JAR";
+                        string elSrc = el.Table.Columns.Contains("Source") && el["Source"] != DBNull.Value
+                            ? el["Source"].ToString() : "CASE";
                         int elQty = Convert.ToInt32(el["TotalPcs"]);
                         int jpc2 = Convert.ToInt32(stockRow["ContainersPerCase"]);
                         if (jpc2 <= 0) jpc2 = 12;
-                        if (elForm == "CASE") availCases += elQty;
-                        else { availCases += elQty / jpc2; availLoose += elQty % jpc2; }
+                        if (elSrc == "CASE") availCases += (int)Math.Ceiling((double)elQty / jpc2);
+                        else availLoose += elQty;
                     }
                 }
 
-                if (totalCasesNeeded > availCases)
+                if (casesNeeded > availCases)
                 {
-                    ShowAlert("Insufficient CASES for " + prodName + ". Need " + totalCasesNeeded + ", available " + availCases + ".", false);
+                    ShowAlert("Insufficient CASES for " + prodName + ". Need " + casesNeeded + ", available " + availCases + ".", false);
                     return;
                 }
-                if (totalLooseNeeded > availLoose)
+                if (looseNeeded > availLoose)
                 {
-                    ShowAlert("Insufficient loose JARs for " + prodName + ". Need " + totalLooseNeeded + ", available " + availLoose + ".", false);
+                    ShowAlert("Insufficient loose stock for " + prodName + ". Need " + looseNeeded + ", available " + availLoose + ".", false);
                     return;
                 }
             }
@@ -297,7 +325,7 @@ namespace PKApp
             {
                 if (dcId == 0)
                 {
-                    dcId = PKDatabaseHelper.CreateDeliveryChallan(customerId, dcDate, remarks, UserID);
+                    dcId = PKDatabaseHelper.CreateDeliveryChallan(customerId, dcDate, remarks, UserID, consignmentId);
                 }
                 else
                 {
@@ -601,6 +629,15 @@ namespace PKApp
                 btnDraftSave.Visible = true;
                 btnFinalise.Visible = true;
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
+
+                // Restore consignment selection
+                if (ddlConsignment != null && dc.Table.Columns.Contains("ConsignmentID") && dc["ConsignmentID"] != DBNull.Value)
+                {
+                    string csgId = dc["ConsignmentID"].ToString();
+                    if (ddlConsignment.Items.FindByValue(csgId) != null)
+                        ddlConsignment.SelectedValue = csgId;
+                }
+
                 if (btnCreateInvoiceDraft != null)
                 {
                     btnCreateInvoiceDraft.Visible = true;

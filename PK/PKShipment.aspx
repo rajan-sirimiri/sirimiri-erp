@@ -98,6 +98,29 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     <asp:Panel ID="pnlForm" runat="server">
     <div class="card">
         <div class="card-title"><asp:Label ID="lblFormTitle" runat="server">New Delivery Challan</asp:Label></div>
+
+        <!-- CONSIGNMENT SELECTOR -->
+        <div class="form-row" style="margin-bottom:12px;">
+            <div class="form-group" style="flex:2;"><label>Consignment <span class="req">*</span></label>
+                <asp:DropDownList ID="ddlConsignment" runat="server" /></div>
+            <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('pnlNewConsig').style.display=document.getElementById('pnlNewConsig').style.display==='none'?'block':'none';" style="font-size:11px;padding:8px 14px;">+ New Consignment</button></div>
+        </div>
+        <!-- Inline new consignment form (hidden by default) -->
+        <div id="pnlNewConsig" style="display:none;background:#f8f7f5;border-radius:8px;padding:14px;margin-bottom:14px;border:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">CREATE NEW CONSIGNMENT</div>
+            <div class="form-row" style="align-items:flex-end;">
+                <div class="form-group" style="flex:1;"><label>Date</label>
+                    <asp:TextBox ID="txtConsigDate" runat="server" TextMode="Date" /></div>
+                <div class="form-group" style="flex:1;"><label>Identifier (e.g. ROTN, BLORE)</label>
+                    <asp:TextBox ID="txtConsigText" runat="server" placeholder="ROTN" MaxLength="30" style="text-transform:uppercase;"/></div>
+                <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+                    <asp:Button ID="btnCreateConsignment" runat="server" Text="Create" CssClass="btn btn-primary"
+                        OnClick="btnCreateConsignment_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Format: CONSIG-DDMMYYYY-NN-TEXT (date + sequence auto-generated)</div>
+        </div>
+
         <div class="form-row">
             <div class="form-group"><label>DC Number</label>
                 <asp:TextBox ID="txtDCNumber" runat="server" ReadOnly="true" placeholder="Auto-generated"/></div>
@@ -416,15 +439,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No delivery challans yet</div></asp:Panel>
         <asp:Panel ID="pnlList" runat="server" Visible="false">
         <table class="data-table">
-            <thead><tr><th>DC No.</th><th>Date</th><th>Customer</th><th class="num">Lines</th><th class="num">Cases</th><th class="num">Total Pcs</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>DC No.</th><th>Date</th><th>Customer</th><th>Consignment</th><th class="num">Lines</th><th class="num">Total Pcs</th><th>Status</th><th></th></tr></thead>
             <tbody>
                 <asp:Repeater ID="rptDCs" runat="server" OnItemCommand="rptDCs_ItemCommand">
                     <ItemTemplate><tr>
                         <td style="font-weight:700;"><%# Eval("DCNumber") %></td>
                         <td style="font-size:12px;"><%# Convert.ToDateTime(Eval("DCDate")).ToString("dd-MMM-yyyy") %></td>
                         <td><strong><%# Eval("CustomerName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
+                        <td style="font-size:10px;color:var(--text-muted);"><%# Eval("ConsignmentCode") %></td>
                         <td class="num"><%# Eval("LineCount") %></td>
-                        <td class="num" style="font-weight:600;"><%# Eval("TotalCases") == DBNull.Value ? "0" : string.Format("{0:N0}", Eval("TotalCases")) %></td>
                         <td class="num" style="font-weight:700;color:var(--teal);"><%# Eval("TotalPcs") == DBNull.Value ? "0" : string.Format("{0:N0}", Eval("TotalPcs")) %></td>
                         <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
                         <td><asp:LinkButton runat="server" CommandName="EditDC" CommandArgument='<%# Eval("DCID") %>' CssClass="act-link" CausesValidation="false"><%# Eval("Status").ToString()=="DRAFT" ? "Edit" : "View" %></asp:LinkButton></td>

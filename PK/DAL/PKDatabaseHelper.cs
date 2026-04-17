@@ -1488,19 +1488,35 @@ namespace PKApp.DAL
         }
 
         /// Create a new DC (DRAFT)
-        public static int CreateDeliveryChallan(int customerId, DateTime dcDate, string remarks, int userId)
+        public static int CreateDeliveryChallan(int customerId, DateTime dcDate, string remarks, int userId, int consignmentId = 0)
         {
             string dcNumber = GenerateDCNumber();
-            ExecuteNonQuery(
-                "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
-                " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
-                new MySqlParameter("?num", dcNumber),
-                new MySqlParameter("?cid", customerId),
-                new MySqlParameter("?dt",  dcDate),
-                new MySqlParameter("?rem", remarks ?? (object)DBNull.Value),
-                new MySqlParameter("?by",  userId),
-                new MySqlParameter("?now", NowIST()));
-            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+            if (consignmentId > 0)
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_DeliveryChallans (DCNumber, ConsignmentID, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                    " VALUES(?num, ?csg, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                    new MySqlParameter("?num", dcNumber),
+                    new MySqlParameter("?csg", consignmentId),
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?dt",  dcDate),
+                    new MySqlParameter("?rem", remarks ?? (object)DBNull.Value),
+                    new MySqlParameter("?by",  userId),
+                    new MySqlParameter("?now", NowIST()));
+            }
+            else
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                    " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                    new MySqlParameter("?num", dcNumber),
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?dt",  dcDate),
+                    new MySqlParameter("?rem", remarks ?? (object)DBNull.Value),
+                    new MySqlParameter("?by",  userId),
+                    new MySqlParameter("?now", NowIST()));
+            }
+            return Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
         }
 
         /// Add a line item to a DC
@@ -1667,12 +1683,14 @@ namespace PKApp.DAL
                 "SELECT dc.DCID, dc.DCNumber, dc.DCDate, dc.Status, dc.Remarks," +
                 " c.CustomerName, c.CustomerCode," +
                 " IFNULL(ct.TypeName,'') AS TypeName," +
+                " IFNULL(csg.ConsignmentCode,'') AS ConsignmentCode," +
                 " COUNT(dl.LineID) AS LineCount," +
                 " SUM(dl.Cases) AS TotalCases," +
                 " SUM(dl.TotalPcs) AS TotalPcs" +
                 " FROM PK_DeliveryChallans dc" +
                 " JOIN PK_Customers c ON c.CustomerID = dc.CustomerID" +
                 " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
+                " LEFT JOIN PK_Consignments csg ON csg.ConsignmentID = dc.ConsignmentID" +
                 " LEFT JOIN PK_DCLines dl ON dl.DCID = dc.DCID" +
                 " GROUP BY dc.DCID" +
                 " ORDER BY dc.DCID DESC LIMIT ?lim;",
@@ -1789,7 +1807,7 @@ namespace PKApp.DAL
 
         /// <summary>Convert SA shipment to DC status</summary>
         /// <summary>Convert SA shipment to a real Delivery Challan with line items</summary>
-        public static int ConvertSAShipmentToDC(int shipmentId)
+        public static int ConvertSAShipmentToDC(int shipmentId, int consignmentId = 0)
         {
             // Get shipment header
             var sh = ExecuteQueryRow(
@@ -1802,18 +1820,35 @@ namespace PKApp.DAL
             string remarks = sh["Remarks"] != DBNull.Value ? sh["Remarks"].ToString() : "";
             string saRef = "SH-" + shipmentId.ToString("D5");
 
-            // Create DC
+            // Create DC (with consignment if provided)
             string dcNumber = GenerateDCNumber();
-            ExecuteNonQuery(
-                "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
-                " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
-                new MySqlParameter("?num", dcNumber),
-                new MySqlParameter("?cid", customerId),
-                new MySqlParameter("?dt", dcDate),
-                new MySqlParameter("?rem", string.IsNullOrEmpty(remarks) ? saRef : saRef + " — " + remarks),
-                new MySqlParameter("?by", 1), // system
-                new MySqlParameter("?now", NowIST()));
-            int dcId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+            string remText = string.IsNullOrEmpty(remarks) ? saRef : saRef + " — " + remarks;
+            if (consignmentId > 0)
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_DeliveryChallans (DCNumber, ConsignmentID, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                    " VALUES(?num, ?csg, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                    new MySqlParameter("?num", dcNumber),
+                    new MySqlParameter("?csg", consignmentId),
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?dt", dcDate),
+                    new MySqlParameter("?rem", remText),
+                    new MySqlParameter("?by", 1),
+                    new MySqlParameter("?now", NowIST()));
+            }
+            else
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO PK_DeliveryChallans (DCNumber, CustomerID, DCDate, Status, Remarks, CreatedBy, CreatedAt)" +
+                    " VALUES(?num, ?cid, ?dt, 'DRAFT', ?rem, ?by, ?now);",
+                    new MySqlParameter("?num", dcNumber),
+                    new MySqlParameter("?cid", customerId),
+                    new MySqlParameter("?dt", dcDate),
+                    new MySqlParameter("?rem", remText),
+                    new MySqlParameter("?by", 1),
+                    new MySqlParameter("?now", NowIST()));
+            }
+            int dcId = Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
 
             // Get shipment lines and create DC lines
             var lines = ExecuteQuery(
@@ -2338,6 +2373,95 @@ namespace PKApp.DAL
                 new MySqlParameter("?pid", productId),
                 new MySqlParameter("?form", sellingForm));
             return val != null && val != DBNull.Value ? Convert.ToDecimal(val) : 0;
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // CONSIGNMENT MANAGEMENT
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Create a new consignment. Auto-generates ConsignmentCode from date + sequence + userText.</summary>
+        public static int CreateConsignment(DateTime consigDate, string userText, string remarks, int userId)
+        {
+            userText = (userText ?? "").Trim().ToUpper().Replace(" ", "-");
+            if (string.IsNullOrEmpty(userText))
+                throw new Exception("User text for consignment is required.");
+
+            // Get next sequence for this date
+            object seqObj = ExecuteScalar(
+                "SELECT IFNULL(MAX(SequenceNo), 0) + 1 FROM PK_Consignments WHERE ConsignmentDate=?dt;",
+                new MySqlParameter("?dt", consigDate.ToString("yyyy-MM-dd")));
+            int seq = seqObj != null && seqObj != DBNull.Value ? Convert.ToInt32(Convert.ToInt64(seqObj)) : 1;
+
+            string code = "CONSIG-" + consigDate.ToString("ddMMyyyy") + "-" + seq.ToString("D2") + "-" + userText;
+
+            ExecuteNonQuery(
+                "INSERT INTO PK_Consignments (ConsignmentCode, ConsignmentDate, SequenceNo, UserText, Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?code, ?dt, ?seq, ?txt, 'OPEN', ?rem, ?by, ?now);",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?dt", consigDate.ToString("yyyy-MM-dd")),
+                new MySqlParameter("?seq", seq),
+                new MySqlParameter("?txt", userText),
+                new MySqlParameter("?rem", remarks ?? ""),
+                new MySqlParameter("?by", userId),
+                new MySqlParameter("?now", NowIST()));
+
+            return Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
+        }
+
+        /// <summary>Get all open consignments for dropdown.</summary>
+        public static DataTable GetOpenConsignments()
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status," +
+                " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount" +
+                " FROM PK_Consignments c WHERE c.Status='OPEN' ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC;");
+        }
+
+        /// <summary>Get all consignments (open + closed) for listing.</summary>
+        public static DataTable GetAllConsignments(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status, c.Remarks," +
+                " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount," +
+                " (SELECT IFNULL(SUM(d2.GrandTotal),0) FROM PK_DeliveryChallans d2 WHERE d2.ConsignmentID=c.ConsignmentID) AS TotalAmount" +
+                " FROM PK_Consignments c ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
+        /// <summary>Get consignment by ID.</summary>
+        public static DataRow GetConsignmentById(int consignmentId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM PK_Consignments WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Get all DCs for a consignment.</summary>
+        public static DataTable GetDCsByConsignment(int consignmentId)
+        {
+            return ExecuteQuery(
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber," +
+                " c.CustomerName, c.CustomerCode, c.CustomerType," +
+                " (SELECT COUNT(*) FROM PK_DCLines dl WHERE dl.DCID=d.DCID) AS LineCount," +
+                " (SELECT IFNULL(SUM(dl2.TotalPcs),0) FROM PK_DCLines dl2 WHERE dl2.DCID=d.DCID) AS TotalPcs" +
+                " FROM PK_DeliveryChallans d" +
+                " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
+                " WHERE d.ConsignmentID=?cid ORDER BY d.DCNumber;",
+                new MySqlParameter("?cid", consignmentId));
+        }
+
+        /// <summary>Close a consignment (no more DCs can be added).</summary>
+        public static void CloseConsignment(int consignmentId)
+        {
+            ExecuteNonQuery("UPDATE PK_Consignments SET Status='CLOSED' WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Reopen a closed consignment.</summary>
+        public static void ReopenConsignment(int consignmentId)
+        {
+            ExecuteNonQuery("UPDATE PK_Consignments SET Status='OPEN' WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
         }
     }
 }
