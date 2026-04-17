@@ -1602,11 +1602,12 @@ namespace PKApp.DAL
                 new MySqlParameter("?dcid", dcId));
         }
 
-        public static void UpdateDCLineSellingForm(int dcId, int productId, string sellingForm)
+        public static void UpdateDCLineSellingForm(int dcId, int productId, string sellingForm, string source = "CASE")
         {
             ExecuteNonQuery(
-                "UPDATE PK_DCLines SET SellingForm=?form WHERE DCID=?dcid AND ProductID=?pid ORDER BY LineID DESC LIMIT 1;",
+                "UPDATE PK_DCLines SET SellingForm=?form, Source=?src WHERE DCID=?dcid AND ProductID=?pid ORDER BY LineID DESC LIMIT 1;",
                 new MySqlParameter("?form", sellingForm ?? "JAR"),
+                new MySqlParameter("?src", source ?? "CASE"),
                 new MySqlParameter("?dcid", dcId),
                 new MySqlParameter("?pid", productId));
         }
