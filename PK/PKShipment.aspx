@@ -128,11 +128,16 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 <div class="form-group" style="flex:3;"><label>Product</label>
                     <select id="selProduct" onchange="onProductSelect();"><option value="0">-- Select Product --</option></select></div>
                 <div class="form-group" style="flex:1;"><label>Selling Form</label>
-                    <select id="selForm">
+                    <select id="selForm" onchange="onProductSelect();">
                         <option value="JAR">JAR</option>
                         <option value="BOX">BOX</option>
                         <option value="PCS">PCS</option>
                         <option value="CASE">CASE</option>
+                    </select></div>
+                <div class="form-group" style="flex:1;"><label>Source</label>
+                    <select id="selSource" onchange="onProductSelect();">
+                        <option value="CASE">From Cases</option>
+                        <option value="LOOSE">From Loose</option>
                     </select></div>
                 <div class="form-group" style="flex:1;"><label>Quantity</label>
                     <input type="number" id="txtLineQty" min="1" step="1" placeholder="0"/></div>
@@ -143,9 +148,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 
         <!-- LINE ITEMS TABLE -->
         <table class="line-table" id="lineTable" style="display:none;">
-            <thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th><th></th></tr></thead>
+            <thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Source</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th><th></th></tr></thead>
             <tbody id="lineBody"></tbody>
-            <tfoot><tr style="font-weight:700;"><td colspan="6">TOTAL</td><td class="num" id="ftTaxable">0</td><td class="num" id="ftGST">0</td><td class="num" id="ftTotal">0</td><td></td></tr></tfoot>
+            <tfoot><tr style="font-weight:700;"><td colspan="7">TOTAL</td><td class="num" id="ftTaxable">0</td><td class="num" id="ftGST">0</td><td class="num" id="ftTotal">0</td><td></td></tr></tfoot>
         </table>
 
         <div class="form-group" style="margin-top:14px;"><label>Remarks</label>
@@ -178,11 +183,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <div style="font-size:12px;color:#555;margin-bottom:12px;padding:8px;background:#f9f9f9;border-radius:4px;"><strong>Remarks:</strong> <asp:Label ID="lblViewRemarks" runat="server"/></div>
         </asp:Panel>
         <asp:Repeater ID="rptViewLines" runat="server">
-            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th></tr></thead><tbody></HeaderTemplate>
+            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Source</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th></tr></thead><tbody></HeaderTemplate>
             <ItemTemplate><tr>
                 <td><strong><%# Eval("ProductName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("ProductCode") %></div></td>
                 <td style="font-size:10px;color:var(--text-muted);"><%# Eval("HSNCode") %></td>
                 <td class="num" style="font-weight:600;color:#0078d4;"><%# Eval("SellingForm") %></td>
+                <td class="num" style="font-size:10px;"><%# Eval("Source") != DBNull.Value && Eval("Source").ToString() == "LOOSE" ? "<span style='color:#27ae60'>Loose</span>" : "<span style='color:#e67e22'>Cases</span>" %></td>
                 <td class="num"><%# string.Format("{0:N0}", Eval("TotalPcs")) %></td>
                 <td class="num" style="color:var(--text-dim);"><%# Eval("MRP") != DBNull.Value ? string.Format("₹{0:N2}", Eval("MRP")) : "—" %></td>
                 <td class="num" style="font-weight:700;"><%# Eval("UnitRate") != DBNull.Value ? string.Format("₹{0:N2}", Eval("UnitRate")) : "—" %></td>
@@ -601,26 +607,24 @@ function onProductSelect(){
     var sel=document.getElementById('selProduct');
     var info=document.getElementById('stockInfo');
     if(sel.value==='0'){info.innerHTML='';return;}
-    var opt=sel.options[sel.selectedIndex];
-    var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
-    var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
     var p=productData[sel.value];
-    var jpc=p?parseInt(p.jarsPerCase)||12:12;
-    var us=p?parseInt(p.unitSize)||1:1;
-    // Subtract already-added lines for same product (only for new unsaved DCs)
-    var dcId = document.getElementById('<%= hfDCID.ClientID %>').value;
-    var isSaved = dcId && dcId !== '0';
-    if (!isSaved) {
+    if(!p){info.innerHTML='';return;}
+    var jpc=parseInt(p.jarsPerCase)||12;
+    var avCases=parseInt(p.availCases)||0;
+    var avLoose=parseInt(p.availLoose)||0;
+
+    // Subtract already-added lines (for unsaved DCs)
+    var dcId=document.getElementById('<%= hfDCID.ClientID %>').value;
+    if(!dcId||dcId==='0'){
         lines.forEach(function(l){
             if(l.pid!==sel.value) return;
-            if(l.form==='CASE'){avCases-=l.qty;}
-            else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
-            else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
+            if(l.source==='CASE') avCases-=Math.ceil(l.qty/jpc);
+            else avLoose-=l.qty;
         });
     }
-    if(avCases<0)avCases=0; if(avLoose<0)avLoose=0;
-    var total=avCases+avLoose;
-    // Show MRP for selected selling form
+    if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
+
+    var source=document.getElementById('selSource').value;
     var form=document.getElementById('selForm').value;
     var mrp=0;
     if(p){
@@ -630,7 +634,12 @@ function onProductSelect(){
         else if(form==='CASE') mrp=parseFloat(p.mrpCase)||0;
     }
     var mrpInfo=mrp>0?' | MRP: ₹'+mrp:'';
-    info.innerHTML='<span class="stock-badge'+(total<=0?' stock-zero':'')+'">FG Stock: '+avCases+' cases'+(avLoose>0?' + '+avLoose+' loose jars':'')+mrpInfo+'</span>';
+    if(source==='CASE'){
+        var maxJars=avCases*jpc;
+        info.innerHTML='<span class="stock-badge'+(avCases<=0?' stock-zero':'')+'">From Cases: '+avCases+' cases ('+maxJars+' '+form+'s)'+mrpInfo+'</span>';
+    } else {
+        info.innerHTML='<span class="stock-badge'+(avLoose<=0?' stock-zero':'')+'">From Loose: '+avLoose+' available'+mrpInfo+'</span>';
+    }
 }
 
 function addLine(){
@@ -639,42 +648,41 @@ function addLine(){
     if(pid==='0'){erpAlert('Please select a product before adding.', {title:'Selection Required', type:'warn'});return;}
     var qty=parseInt(document.getElementById('txtLineQty').value)||0;
     if(qty<=0){erpAlert('Please enter quantity.', {title:'Quantity Required', type:'warn'});return;}
-    var form=document.getElementById('selForm').value; // PCS, JAR, BOX, CASE
+    var form=document.getElementById('selForm').value;
+    var source=document.getElementById('selSource').value; // CASE or LOOSE
 
     var p=productData[pid];
     if(!p){erpAlert('Product data not found.', {title:'Error', type:'danger'});return;}
 
-    // Stock validation — convert qty to cases + loose needed
     var jpc=parseInt(p.jarsPerCase)||12;
     var us=parseInt(p.unitSize)||1;
-    var casesNeeded=0, looseNeeded=0;
-    if(form==='CASE'){casesNeeded=qty;}
-    else if(form==='JAR'||form==='BOX'){casesNeeded=Math.floor(qty/jpc);looseNeeded=qty%jpc;}
-    else if(form==='PCS'){var jars=Math.floor(qty/us);casesNeeded=Math.floor(jars/jpc);looseNeeded=jars%jpc;}
 
-    // Account for already-added lines for same product
-    // Only subtract if this is a NEW DC (not yet saved) — for saved DCs, the server
-    // query already deducted the existing lines from available stock
-    var dcId = document.getElementById('<%= hfDCID.ClientID %>').value;
-    var isSaved = dcId && dcId !== '0';
-    var usedCases=0, usedLoose=0;
-    if (!isSaved) {
+    // Calculate available stock after existing lines
+    var avCases=parseInt(p.availCases)||0;
+    var avLoose=parseInt(p.availLoose)||0;
+    var dcId=document.getElementById('<%= hfDCID.ClientID %>').value;
+    if(!dcId||dcId==='0'){
         lines.forEach(function(l){
             if(l.pid!==pid) return;
-            var ljpc=parseInt(p.jarsPerCase)||12;
-            if(l.form==='CASE'){usedCases+=l.qty;}
-            else if(l.form==='JAR'||l.form==='BOX'){usedCases+=Math.floor(l.qty/ljpc);usedLoose+=l.qty%ljpc;}
-            else if(l.form==='PCS'){var lj=Math.floor(l.qty/us);usedCases+=Math.floor(lj/ljpc);usedLoose+=lj%ljpc;}
+            if((l.source||'CASE')==='CASE') avCases-=Math.ceil(l.qty/jpc);
+            else avLoose-=l.qty;
         });
     }
-    var avCases=(parseInt(p.availCases)||0)-usedCases;
-    var avLoose=(parseInt(p.availLoose)||0)-usedLoose;
     if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
 
-    if(casesNeeded>avCases){
-        erpAlert('Insufficient CASES for '+p.name+'. Need '+casesNeeded+', available '+avCases+'.', {title:'Stock Insufficient', type:'danger'});return;}
-    if(looseNeeded>avLoose){
-        erpAlert('Insufficient loose JARs/BOXes for '+p.name+'. Need '+looseNeeded+', available '+avLoose+'.', {title:'Stock Insufficient', type:'danger'});return;}
+    // Validate based on source
+    if(source==='CASE'){
+        if(form!=='CASE' && qty%jpc!==0){
+            erpAlert(form+' quantity must be in multiples of '+jpc+' when sourcing from Cases.', {title:'Invalid Quantity', type:'warn'});return;}
+        var casesNeeded=form==='CASE'?qty:Math.ceil(qty/jpc);
+        if(casesNeeded>avCases){
+            erpAlert('Insufficient CASES for '+p.name+'. Need '+casesNeeded+' cases, available '+avCases+'.', {title:'Stock Insufficient', type:'danger'});return;}
+    } else {
+        var looseNeeded=qty;
+        if(form==='PCS') looseNeeded=Math.ceil(qty/us);
+        if(looseNeeded>avLoose){
+            erpAlert('Insufficient loose stock for '+p.name+'. Need '+looseNeeded+', available '+avLoose+' loose.', {title:'Stock Insufficient', type:'danger'});return;}
+    }
 
     // Get MRP for selected selling form
     var mrp=0;
@@ -693,7 +701,7 @@ function addLine(){
     var gstAmt=Math.round((rate*qty-taxableVal)*100)/100;
     var lineTotal=Math.round(rate*qty*100)/100;
 
-    lines.push({pid:pid,name:p.name,code:p.code,form:form,qty:qty,
+    lines.push({pid:pid,name:p.name,code:p.code,form:form,source:source,qty:qty,
         hsn:hsn,gstRate:gstRate,mrp:mrp,marginPct:marginPct,rate:rate,
         taxableVal:taxableVal,gstAmt:gstAmt,lineTotal:lineTotal});
     renderLines();
@@ -717,12 +725,10 @@ function updateDropdownStock(){
         // For unsaved DCs, subtract lines already added
         if(!isSaved){
             var jpc=parseInt(p.jarsPerCase)||12;
-            var us=parseInt(p.unitSize)||1;
             lines.forEach(function(l){
                 if(l.pid!==pid) return;
-                if(l.form==='CASE'){avCases-=l.qty;}
-                else if(l.form==='JAR'||l.form==='BOX'){avCases-=Math.floor(l.qty/jpc);avLoose-=l.qty%jpc;}
-                else if(l.form==='PCS'){var jars=Math.floor(l.qty/us);avCases-=Math.floor(jars/jpc);avLoose-=jars%jpc;}
+                if((l.source||'CASE')==='CASE') avCases-=Math.ceil(l.qty/jpc);
+                else avLoose-=l.qty;
             });
         }
         if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
@@ -766,6 +772,7 @@ function renderLines(){
         tr.innerHTML='<td><strong>'+l.name+'</strong><div style="font-size:10px;color:var(--text-dim);">'+l.code+'</div></td>'
             +'<td style="font-size:10px;color:var(--text-muted);">'+l.hsn+'</td>'
             +'<td class="num" style="font-weight:600;color:#0078d4;">'+l.form+'</td>'
+            +'<td class="num" style="font-size:10px;color:'+((l.source||'CASE')==='CASE'?'#e67e22':'#27ae60')+';">'+((l.source||'CASE')==='CASE'?'Cases':'Loose')+'</td>'
             +'<td class="num">'+l.qty+'</td>'
             +'<td class="num" style="color:var(--text-dim);">'+fmt(mrp)+'</td>'
             +'<td class="num" style="font-weight:700;">'+fmt(rate)+'</td>'

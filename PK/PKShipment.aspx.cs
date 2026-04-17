@@ -316,7 +316,7 @@ namespace PKApp
                         0, line.Qty, line.HSN, line.GSTRate, line.MRP, line.MarginPct,
                         line.UnitRate, line.TaxableVal, cgst, sgst, igst, line.LineTotal);
                     // Save selling form
-                    PKDatabaseHelper.UpdateDCLineSellingForm(dcId, line.ProductID, line.SellingForm);
+                    PKDatabaseHelper.UpdateDCLineSellingForm(dcId, line.ProductID, line.SellingForm, line.Source ?? "CASE");
                 }
 
                 hfDCID.Value = dcId.ToString();
@@ -561,6 +561,9 @@ namespace PKApp
                     ? r["SellingForm"].ToString() : "JAR";
                 int qty = r.Table.Columns.Contains("TotalPcs") ? Convert.ToInt32(r["TotalPcs"]) : 0;
                 sb.Append("\"form\":\"" + sellingForm + "\",");
+                string sourceVal = r.Table.Columns.Contains("Source") && r["Source"] != DBNull.Value
+                    ? r["Source"].ToString() : "CASE";
+                sb.Append("\"source\":\"" + sourceVal + "\",");
                 sb.Append("\"qty\":" + qty + ",");
                 // Pricing fields — use saved values or defaults
                 string hsn = r.Table.Columns.Contains("HSNCode") && r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";

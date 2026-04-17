@@ -1467,20 +1467,15 @@ namespace PKApp.DAL
                 "   SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked" +
                 "   FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID = p.ProductID" +
 
-                // DC CASES consumed (DRAFT + FINALISED)
-                // SellingForm=CASE → TotalPcs is direct case count
-                // SellingForm=JAR/BOX → FLOOR(TotalPcs / ContainersPerCase) cases used
-                // SellingForm=PCS → FLOOR(TotalPcs / UnitsPerContainer / ContainersPerCase) cases used
+                // DC stock allocation based on Source column
+                // Source='CASE' → deduct CEIL(TotalPcs/ContainersPerCase) from cases pool
+                // Source='LOOSE' → deduct TotalPcs from loose pool
                 " LEFT JOIN (SELECT dl.ProductID," +
-                "   SUM(CASE" +
-                "     WHEN dl.SellingForm = 'CASE' THEN dl.TotalPcs" +
-                "     WHEN dl.SellingForm IN ('JAR','BOX') THEN FLOOR(dl.TotalPcs / GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
-                "     WHEN dl.SellingForm = 'PCS' THEN FLOOR(dl.TotalPcs / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(pp.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1) / GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
+                "   SUM(CASE WHEN IFNULL(dl.Source,'CASE') = 'CASE'" +
+                "     THEN CEIL(dl.TotalPcs / GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
                 "     ELSE 0 END) AS TotalCases," +
-                "   SUM(CASE" +
-                "     WHEN dl.SellingForm IN ('JAR','BOX') THEN MOD(dl.TotalPcs, GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
-                "     WHEN dl.SellingForm = 'PCS' THEN MOD(FLOOR(dl.TotalPcs / GREATEST(CAST(SUBSTRING_INDEX(IFNULL(pp.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1)), GREATEST(IFNULL(pp.ContainersPerCase,12),1))" +
-                "     ELSE 0 END) AS TotalLooseJars" +
+                "   SUM(CASE WHEN IFNULL(dl.Source,'CASE') = 'LOOSE'" +
+                "     THEN dl.TotalPcs ELSE 0 END) AS TotalLooseJars" +
                 "   FROM PK_DCLines dl" +
                 "   JOIN PK_DeliveryChallans dch ON dch.DCID = dl.DCID" +
                 "   JOIN PP_Products pp ON pp.ProductID = dl.ProductID" +
@@ -1652,7 +1647,7 @@ namespace PKApp.DAL
         public static DataTable GetDCLines(int dcId)
         {
             return ExecuteQuery(
-                "SELECT dl.LineID, dl.ProductID, dl.SellingForm, p.ProductName, p.ProductCode," +
+                "SELECT dl.LineID, dl.ProductID, dl.SellingForm, dl.Source, p.ProductName, p.ProductCode," +
                 " dl.Cases, dl.LooseJars, dl.JarsPerCase, dl.TotalPcs," +
                 " dl.HSNCode, dl.GSTRate, dl.MRP, dl.MarginPct, dl.UnitRate," +
                 " dl.TaxableValue, dl.CGSTAmt, dl.SGSTAmt, dl.IGSTAmt, dl.LineTotal," +
