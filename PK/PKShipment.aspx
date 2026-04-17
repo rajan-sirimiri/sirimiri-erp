@@ -591,12 +591,14 @@ window.addEventListener('load',function(){
         var jpc=parseInt(p.jarsPerCase)||12;
         var opt=document.createElement('option');
         opt.value=pid;
-        opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' jars':'');
+        var looseLabel=p.containerType==='BOX'?'boxes':'jars';
+        opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' '+looseLabel:'');
         opt.setAttribute('data-avcases',avCases);
         opt.setAttribute('data-avloose',avLoose);
         opt.setAttribute('data-avjars',parseInt(p.availJars)||0);
         opt.setAttribute('data-jpc',jpc);
         opt.setAttribute('data-unitsize',parseInt(p.unitSize)||1);
+        opt.setAttribute('data-ct',p.containerType||'JAR');
         sel.appendChild(opt);
     }
     var raw=document.getElementById('<%= hfLines.ClientID %>').value;
@@ -626,6 +628,12 @@ function onProductSelect(){
 
     var source=document.getElementById('selSource').value;
     var form=document.getElementById('selForm').value;
+    // Auto-set selling form based on container type
+    var ct=p.containerType||'JAR';
+    var selFormEl=document.getElementById('selForm');
+    if(ct==='BOX'){selFormEl.value='BOX';form='BOX';}
+    else if(ct==='DIRECT'){selFormEl.value='PCS';form='PCS';}
+    else {selFormEl.value='JAR';form='JAR';}
     var mrp=0;
     if(p){
         if(form==='PCS') mrp=parseFloat(p.mrpPcs)||0;
@@ -638,7 +646,8 @@ function onProductSelect(){
         var maxJars=avCases*jpc;
         info.innerHTML='<span class="stock-badge'+(avCases<=0?' stock-zero':'')+'">From Cases: '+avCases+' cases ('+maxJars+' '+form+'s)'+mrpInfo+'</span>';
     } else {
-        info.innerHTML='<span class="stock-badge'+(avLoose<=0?' stock-zero':'')+'">From Loose: '+avLoose+' available'+mrpInfo+'</span>';
+        var looseUnit=ct==='BOX'?'boxes':'jars';
+        info.innerHTML='<span class="stock-badge'+(avLoose<=0?' stock-zero':'')+'">From Loose: '+avLoose+' '+looseUnit+' available'+mrpInfo+'</span>';
     }
 }
 
@@ -732,7 +741,8 @@ function updateDropdownStock(){
             });
         }
         if(avCases<0)avCases=0;if(avLoose<0)avLoose=0;
-        opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' jars':'');
+        var ll=p.containerType==='BOX'?'boxes':'jars';
+        opt.text=p.name+' ('+p.code+') — '+avCases+' cases'+(avLoose>0?' + '+avLoose+' '+ll:'');
         opt.setAttribute('data-avcases',avCases);
         opt.setAttribute('data-avloose',avLoose);
     }

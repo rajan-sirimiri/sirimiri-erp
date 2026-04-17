@@ -112,7 +112,10 @@ namespace PKApp
                 sb.Append("\"mrpPcs\":" + mrpPcs.ToString("0.##") + ",");
                 sb.Append("\"mrpJar\":" + mrpJar.ToString("0.##") + ",");
                 sb.Append("\"mrpBox\":" + mrpBox.ToString("0.##") + ",");
-                sb.Append("\"mrpCase\":" + mrpCase.ToString("0.##"));
+                sb.Append("\"mrpCase\":" + mrpCase.ToString("0.##") + ",");
+                string ct = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
+                    ? r["ContainerType"].ToString() : "JAR";
+                sb.Append("\"containerType\":\"" + Esc(ct) + "\"");
                 sb.Append("}");
                 first = false;
             }
