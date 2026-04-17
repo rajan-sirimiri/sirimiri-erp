@@ -337,9 +337,11 @@ namespace StockApp
             string raw = context.Request["data"] ?? "";
             if (string.IsNullOrEmpty(raw)) return "{\"error\":\"No data\"}";
 
-            int userId = context.Session["UserID"] != null
-                ? Convert.ToInt32(context.Session["UserID"])
-                : Convert.ToInt32(context.Session["PK_UserID"]);
+            int userId = 1; // Default for cross-app calls
+            if (context.Session["UserID"] != null)
+                userId = Convert.ToInt32(context.Session["UserID"]);
+            else if (context.Session["PK_UserID"] != null)
+                userId = Convert.ToInt32(context.Session["PK_UserID"]);
             string today = DateTime.Now.ToString("yyyy-MM-dd");
             int updated = 0;
 
