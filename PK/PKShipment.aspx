@@ -102,7 +102,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <!-- CONSIGNMENT SELECTOR -->
         <div class="form-row" style="margin-bottom:12px;">
             <div class="form-group" style="flex:2;"><label>Consignment <span class="req">*</span></label>
-                <asp:DropDownList ID="ddlConsignment" runat="server" /></div>
+                <asp:DropDownList ID="ddlConsignment" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlConsignment_Changed" /></div>
             <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('pnlNewConsig').style.display=document.getElementById('pnlNewConsig').style.display==='none'?'block':'none';" style="font-size:11px;padding:8px 14px;">+ New Consignment</button></div>
         </div>
@@ -120,6 +120,35 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </div>
             <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Format: CONSIG-DDMMYYYY-NN-TEXT (date + sequence auto-generated)</div>
         </div>
+
+        <!-- CONSIGNMENT DC LIST PANEL -->
+        <asp:Panel ID="pnlConsigDCs" runat="server" Visible="false">
+        <div style="background:#f0f7ff;border:1px solid #cce0ff;border-radius:8px;padding:14px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#0078d4;">
+                    <asp:Label ID="lblConsigDCTitle" runat="server" /></div>
+                <asp:Button ID="btnBulkInvoice" runat="server" Text="Create All Invoices" CssClass="btn btn-zoho"
+                    OnClick="btnBulkInvoice_Click" CausesValidation="false" style="font-size:11px;padding:6px 14px;" />
+            </div>
+            <asp:Panel ID="pnlBulkResult" runat="server" Visible="false" style="margin-bottom:10px;">
+                <asp:Literal ID="litBulkResult" runat="server" />
+            </asp:Panel>
+            <table class="data-table" style="font-size:11px;">
+                <thead><tr><th>DC No.</th><th>Customer</th><th>Status</th><th class="num">Amount</th><th>Invoice</th></tr></thead>
+                <tbody>
+                    <asp:Repeater ID="rptConsigDCs" runat="server">
+                        <ItemTemplate><tr>
+                            <td style="font-weight:600;"><%# Eval("DCNumber") %></td>
+                            <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
+                            <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
+                            <td class="num" style="font-weight:600;"><%# Eval("GrandTotal") != DBNull.Value ? string.Format("₹{0:N0}", Eval("GrandTotal")) : "—" %></td>
+                            <td><%# GetInvoiceStatusBadge(Eval("DCID")) %></td>
+                        </tr></ItemTemplate>
+                    </asp:Repeater>
+                </tbody>
+            </table>
+        </div>
+        </asp:Panel>
 
         <div class="form-row">
             <div class="form-group"><label>DC Number</label>

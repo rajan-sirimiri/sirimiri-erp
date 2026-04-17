@@ -18,12 +18,13 @@ namespace PKApp
         protected DropDownList ddlCustomer, ddlChannel;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
-        protected Button btnCreateConsignment;
-        protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
-        protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
+        protected Button btnCreateConsignment, btnBulkInvoice;
+        protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult;
+        protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle;
+        protected Literal litBulkResult;
         protected HyperLink lnkViewInZoho;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
-        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections;
+        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs;
         protected Panel pnlProjEmpty;
         protected DropDownList ddlProjMonth, ddlProjYear, ddlConsignment;
         protected TextBox txtConsigDate, txtConsigText;
@@ -97,9 +98,131 @@ namespace PKApp
                 BindConsignments();
                 ddlConsignment.SelectedValue = newId.ToString();
                 txtConsigText.Text = "";
+
+                // Reset DC form for new consignment
+                hfDCID.Value = "0";
+                txtDCNumber.Text = "";
+                ddlCustomer.SelectedIndex = 0;
+                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                txtRemarks.Text = "";
+                hfLines.Value = "[]";
+                if (btnDeleteDC != null) btnDeleteDC.Visible = false;
+                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
+
+                LoadConsigDCs(newId);
                 ShowAlert("Consignment created: " + ddlConsignment.SelectedItem.Text, true);
             }
             catch (Exception ex) { ShowAlert("Error creating consignment: " + ex.Message, false); }
+        }
+
+        protected void ddlConsignment_Changed(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
+            if (csgId > 0)
+                LoadConsigDCs(csgId);
+            else if (pnlConsigDCs != null)
+                pnlConsigDCs.Visible = false;
+        }
+
+        void LoadConsigDCs(int consignmentId)
+        {
+            if (pnlConsigDCs == null) return;
+            var csg = PKDatabaseHelper.GetConsignmentById(consignmentId);
+            if (csg == null) { pnlConsigDCs.Visible = false; return; }
+
+            var dcs = PKDatabaseHelper.GetDCsByConsignment(consignmentId);
+            pnlConsigDCs.Visible = true;
+            if (lblConsigDCTitle != null)
+                lblConsigDCTitle.Text = csg["ConsignmentCode"] + " — " + dcs.Rows.Count + " DC(s)";
+            if (rptConsigDCs != null) { rptConsigDCs.DataSource = dcs; rptConsigDCs.DataBind(); }
+            if (pnlBulkResult != null) pnlBulkResult.Visible = false;
+
+            // Show bulk invoice button only if there are finalised DCs
+            bool hasFinalised = false;
+            foreach (DataRow r in dcs.Rows)
+                if (r["Status"].ToString() == "FINALISED") { hasFinalised = true; break; }
+            if (btnBulkInvoice != null) btnBulkInvoice.Visible = hasFinalised;
+        }
+
+        protected string GetInvoiceStatusBadge(object dcIdObj)
+        {
+            try
+            {
+                int dcId = Convert.ToInt32(dcIdObj);
+                var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
+                if (invLog != null && invLog["PushStatus"].ToString() == "Pushed")
+                {
+                    string invNo = invLog["ZohoInvoiceNo"] != System.DBNull.Value ? invLog["ZohoInvoiceNo"].ToString() : "";
+                    return "<span style='color:#27ae60;font-weight:600;font-size:10px;'>✓ " + invNo + "</span>";
+                }
+                else if (invLog != null && invLog["PushStatus"].ToString() == "Error")
+                {
+                    string err = invLog["ErrorMessage"] != System.DBNull.Value ? invLog["ErrorMessage"].ToString() : "Error";
+                    if (err.Length > 40) err = err.Substring(0, 40) + "…";
+                    return "<span style='color:#e74c3c;font-size:10px;' title='" + Server.HtmlEncode(err) + "'>✗ Failed</span>";
+                }
+            }
+            catch { }
+            return "<span style='color:#999;font-size:10px;'>— Pending</span>";
+        }
+
+        protected void btnBulkInvoice_Click(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            var dcs = PKDatabaseHelper.GetDCsByConsignment(csgId);
+            int success = 0, failed = 0, skipped = 0;
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<div style='font-size:11px;'>");
+
+            foreach (DataRow dc in dcs.Rows)
+            {
+                int dcId = Convert.ToInt32(dc["DCID"]);
+                string dcNum = dc["DCNumber"].ToString();
+                string custName = dc["CustomerName"].ToString();
+                string status = dc["Status"].ToString();
+
+                if (status != "FINALISED")
+                {
+                    skipped++;
+                    sb.Append("<div style='color:#999;'>⊘ " + dcNum + " (" + custName + ") — Draft, skipped</div>");
+                    continue;
+                }
+
+                try
+                {
+                    string channel = dc.Table.Columns.Contains("Channel") && dc["Channel"] != DBNull.Value
+                        ? dc["Channel"].ToString() : "GT";
+                    string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
+                    if (result.StartsWith("OK:"))
+                    {
+                        success++;
+                        sb.Append("<div style='color:#27ae60;'>✓ " + dcNum + " (" + custName + ") — Invoice " + result.Substring(3) + " created</div>");
+                    }
+                    else if (result.StartsWith("UPDATED:"))
+                    {
+                        success++;
+                        sb.Append("<div style='color:#0078d4;'>✓ " + dcNum + " (" + custName + ") — Invoice " + result.Substring(8) + " updated</div>");
+                    }
+                    else
+                    {
+                        failed++;
+                        sb.Append("<div style='color:#e74c3c;'>✗ " + dcNum + " (" + custName + ") — " + Server.HtmlEncode(result) + "</div>");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    sb.Append("<div style='color:#e74c3c;'>✗ " + dcNum + " (" + custName + ") — " + Server.HtmlEncode(ex.Message) + "</div>");
+                }
+            }
+
+            sb.Append("<div style='margin-top:8px;font-weight:700;'>Summary: " + success + " created, " + failed + " failed, " + skipped + " skipped</div>");
+            sb.Append("</div>");
+
+            if (pnlBulkResult != null) { pnlBulkResult.Visible = true; litBulkResult.Text = sb.ToString(); }
+            LoadConsigDCs(csgId); // refresh DC list with updated invoice status
         }
 
         void BuildProductData()
@@ -358,6 +481,13 @@ namespace PKApp
                 BuildProductData();
                 BuildCustomerData();
                 BindDCList();
+                BindConsignments();
+                if (ddlConsignment != null && consignmentId > 0)
+                {
+                    if (ddlConsignment.Items.FindByValue(consignmentId.ToString()) != null)
+                        ddlConsignment.SelectedValue = consignmentId.ToString();
+                    LoadConsigDCs(consignmentId);
+                }
                 // Show invoice button after save
                 if (btnCreateInvoiceDraft != null)
                 {

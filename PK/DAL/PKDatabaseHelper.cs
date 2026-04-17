@@ -2440,7 +2440,7 @@ namespace PKApp.DAL
         public static DataTable GetDCsByConsignment(int consignmentId)
         {
             return ExecuteQuery(
-                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber," +
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel," +
                 " c.CustomerName, c.CustomerCode, c.CustomerType," +
                 " (SELECT COUNT(*) FROM PK_DCLines dl WHERE dl.DCID=d.DCID) AS LineCount," +
                 " (SELECT IFNULL(SUM(dl2.TotalPcs),0) FROM PK_DCLines dl2 WHERE dl2.DCID=d.DCID) AS TotalPcs" +
