@@ -409,6 +409,7 @@ namespace StockApp.DAL
                 if (shipStr.Length > 100) shipStr = shipStr.Substring(0, 100);
                 var shipping = new Dictionary<string, object>();
                 shipping["street"] = shipStr;
+                shipping["address"] = shipStr;
                 if (c["ShipToCity"] != DBNull.Value) shipping["city"] = c["ShipToCity"].ToString();
                 if (c["ShipToState"] != DBNull.Value) shipping["state"] = c["ShipToState"].ToString();
                 if (c["ShipToPinCode"] != DBNull.Value) shipping["zip"] = c["ShipToPinCode"].ToString();
@@ -417,9 +418,13 @@ namespace StockApp.DAL
             }
             else if (billing.Count > 1)
             {
-                // No separate shipping — copy billing fields to a new shipping dict
+                // No separate shipping — copy billing to shipping
                 var shipCopy = new Dictionary<string, object>();
-                if (billing.ContainsKey("street")) shipCopy["street"] = billing["street"];
+                if (billing.ContainsKey("street"))
+                {
+                    shipCopy["street"] = billing["street"];
+                    shipCopy["address"] = billing["street"];
+                }
                 if (billing.ContainsKey("city")) shipCopy["city"] = billing["city"];
                 if (billing.ContainsKey("state")) shipCopy["state"] = billing["state"];
                 if (billing.ContainsKey("zip")) shipCopy["zip"] = billing["zip"];
