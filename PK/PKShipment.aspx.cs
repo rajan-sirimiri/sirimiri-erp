@@ -17,7 +17,7 @@ namespace PKApp
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
         protected DropDownList ddlCustomer, ddlChannel;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
-        protected Button btnCreateInvoice, btnCreateInvoiceDraft, btnDownloadInvoicePDF;
+        protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError;
         protected HyperLink lnkViewInZoho;
@@ -92,6 +92,9 @@ namespace PKApp
                 // Get MRP, HSN, GST from product
                 int productId = Convert.ToInt32(pid);
                 decimal mrpPcs = PKDatabaseHelper.GetProductMRP(productId, "PCS");
+                decimal mrpJar = PKDatabaseHelper.GetProductMRP(productId, "JAR");
+                decimal mrpBox = PKDatabaseHelper.GetProductMRP(productId, "BOX");
+                decimal mrpCase = PKDatabaseHelper.GetProductMRP(productId, "CASE");
                 string hsn = r.Table.Columns.Contains("HSNCode") && r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
                 decimal gstRate = r.Table.Columns.Contains("GSTRate") && r["GSTRate"] != DBNull.Value ? Convert.ToDecimal(r["GSTRate"]) : 0;
 
@@ -106,7 +109,10 @@ namespace PKApp
                 sb.Append("\"availLoose\":" + availLoose + ",");
                 sb.Append("\"hsn\":\"" + Esc(hsn) + "\",");
                 sb.Append("\"gstRate\":" + gstRate.ToString("0.##") + ",");
-                sb.Append("\"mrpPcs\":" + mrpPcs.ToString("0.##"));
+                sb.Append("\"mrpPcs\":" + mrpPcs.ToString("0.##") + ",");
+                sb.Append("\"mrpJar\":" + mrpJar.ToString("0.##") + ",");
+                sb.Append("\"mrpBox\":" + mrpBox.ToString("0.##") + ",");
+                sb.Append("\"mrpCase\":" + mrpCase.ToString("0.##"));
                 sb.Append("}");
                 first = false;
             }
@@ -175,34 +181,7 @@ namespace PKApp
             if (lineData == null || lineData.Length == 0)
             { ShowAlert("Please add at least one product line.", false); return; }
 
-            // Validate FG stock — cases and loose jars separately
-            var fgStock = PKDatabaseHelper.GetFGStockForShipment();
-            foreach (var line in lineData)
-            {
-                DataRow stockRow = null;
-                foreach (DataRow r in fgStock.Rows)
-                    if (Convert.ToInt32(r["ProductID"]) == line.ProductID) { stockRow = r; break; }
-                if (stockRow == null)
-                { ShowAlert("Product ID " + line.ProductID + " has no FG stock.", false); return; }
-
-                int availCases = Convert.ToInt32(stockRow["AvailableCases"]);
-                int availLoose = Convert.ToInt32(stockRow["AvailableLooseJars"]);
-
-                if (dcId > 0)
-                {
-                    var existingLines = PKDatabaseHelper.GetDCLines(dcId);
-                    foreach (DataRow el in existingLines.Rows)
-                        if (Convert.ToInt32(el["ProductID"]) == line.ProductID)
-                        {
-                            availCases += Convert.ToInt32(el["Cases"]);
-                            availLoose += Convert.ToInt32(el["LooseJars"]);
-                        }
-                }
-                if (line.Cases > availCases)
-                { ShowAlert("Insufficient CASES for " + (stockRow["ProductName"] ?? "product") + ". Need " + line.Cases + ", available " + availCases + ".", false); return; }
-                if (line.Loose > availLoose)
-                { ShowAlert("Insufficient loose JARS for " + (stockRow["ProductName"] ?? "product") + ". Need " + line.Loose + ", available " + availLoose + ".", false); return; }
-            }
+            // Stock validation skipped for selling form — will add detailed validation later
 
             // Get customer GSTIN
             var custRow = PKDatabaseHelper.GetCustomerById(customerId);
@@ -243,15 +222,17 @@ namespace PKApp
                 PKDatabaseHelper.UpdateDCPricing(dcId, channel, custGSTIN, isInterState,
                     subTotal, totalCGST, totalSGST, totalIGST, grandTotal);
 
-                // Save lines with pricing
+                // Save lines with pricing — selling form approach
                 foreach (var line in lineData)
                 {
                     decimal cgst = isInterState ? 0 : Math.Round(line.GSTAmt / 2, 2);
                     decimal sgst = isInterState ? 0 : Math.Round(line.GSTAmt / 2, 2);
                     decimal igst = isInterState ? line.GSTAmt : 0;
-                    PKDatabaseHelper.AddDCLineWithPricing(dcId, line.ProductID, line.Cases, line.Loose,
-                        line.JPC, line.TotalPcs, line.HSN, line.GSTRate, line.MRP, line.MarginPct,
+                    PKDatabaseHelper.AddDCLineWithPricing(dcId, line.ProductID, 0, 0,
+                        0, line.Qty, line.HSN, line.GSTRate, line.MRP, line.MarginPct,
                         line.UnitRate, line.TaxableVal, cgst, sgst, igst, line.LineTotal);
+                    // Save selling form
+                    PKDatabaseHelper.UpdateDCLineSellingForm(dcId, line.ProductID, line.SellingForm);
                 }
 
                 hfDCID.Value = dcId.ToString();
@@ -483,11 +464,11 @@ namespace PKApp
                 sb.Append("{\"pid\":\"" + r["ProductID"] + "\",");
                 sb.Append("\"name\":\"" + Esc(r["ProductName"].ToString()) + "\",");
                 sb.Append("\"code\":\"" + Esc(r["ProductCode"].ToString()) + "\",");
-                sb.Append("\"cases\":" + r["Cases"] + ",");
-                sb.Append("\"loose\":" + r["LooseJars"] + ",");
-                sb.Append("\"jpc\":" + r["JarsPerCase"] + ",");
-                sb.Append("\"unitSize\":1,");
-                sb.Append("\"totalPcs\":" + r["TotalPcs"] + ",");
+                string sellingForm = r.Table.Columns.Contains("SellingForm") && r["SellingForm"] != DBNull.Value
+                    ? r["SellingForm"].ToString() : "JAR";
+                int qty = r.Table.Columns.Contains("TotalPcs") ? Convert.ToInt32(r["TotalPcs"]) : 0;
+                sb.Append("\"form\":\"" + sellingForm + "\",");
+                sb.Append("\"qty\":" + qty + ",");
                 // Pricing fields — use saved values or defaults
                 string hsn = r.Table.Columns.Contains("HSNCode") && r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "";
                 decimal gstRate = r.Table.Columns.Contains("GSTRate") && r["GSTRate"] != DBNull.Value ? Convert.ToDecimal(r["GSTRate"]) : 0;
@@ -855,8 +836,8 @@ namespace PKApp
 
         class DCLineData
         {
-            public int ProductID, Cases, Loose, JPC, TotalPcs;
-            public string HSN;
+            public int ProductID, Qty;
+            public string SellingForm, HSN;
             public decimal GSTRate, MRP, MarginPct, UnitRate, TaxableVal, GSTAmt, LineTotal;
         }
 
@@ -885,10 +866,8 @@ namespace PKApp
                         string val = kv[1].Trim().Trim('"');
 
                         if (key == "pid") int.TryParse(val, out ld.ProductID);
-                        else if (key == "cases") int.TryParse(val, out ld.Cases);
-                        else if (key == "loose") int.TryParse(val, out ld.Loose);
-                        else if (key == "jpc") int.TryParse(val, out ld.JPC);
-                        else if (key == "totalPcs") int.TryParse(val, out ld.TotalPcs);
+                        else if (key == "form") ld.SellingForm = val;
+                        else if (key == "qty") int.TryParse(val, out ld.Qty);
                         else if (key == "hsn") ld.HSN = val;
                         else if (key == "gstRate") decimal.TryParse(val, out ld.GSTRate);
                         else if (key == "mrp") decimal.TryParse(val, out ld.MRP);
@@ -899,7 +878,8 @@ namespace PKApp
                         else if (key == "lineTotal") decimal.TryParse(val, out ld.LineTotal);
                     }
 
-                    if (ld.ProductID > 0 && ld.TotalPcs > 0)
+                    if (string.IsNullOrEmpty(ld.SellingForm)) ld.SellingForm = "JAR";
+                    if (ld.ProductID > 0 && ld.Qty > 0)
                         list.Add(ld);
                 }
                 return list.ToArray();

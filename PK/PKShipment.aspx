@@ -125,12 +125,17 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
             <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;">ADD PRODUCTS TO THIS DC</div>
             <div class="form-row" style="align-items:flex-end;">
-                <div class="form-group"><label>Product</label>
+                <div class="form-group" style="flex:3;"><label>Product</label>
                     <select id="selProduct" onchange="onProductSelect();"><option value="0">-- Select Product --</option></select></div>
-                <div class="form-group"><label>Cases</label>
-                    <input type="number" id="txtLineCases" min="0" step="1" placeholder="0"/></div>
-                <div class="form-group"><label>Loose Jars</label>
-                    <input type="number" id="txtLineLoose" min="0" step="1" placeholder="0"/></div>
+                <div class="form-group" style="flex:1;"><label>Selling Form</label>
+                    <select id="selForm">
+                        <option value="JAR">JAR</option>
+                        <option value="BOX">BOX</option>
+                        <option value="PCS">PCS</option>
+                        <option value="CASE">CASE</option>
+                    </select></div>
+                <div class="form-group" style="flex:1;"><label>Quantity</label>
+                    <input type="number" id="txtLineQty" min="1" step="1" placeholder="0"/></div>
             </div>
             <div id="stockInfo" style="font-size:12px;color:var(--text-dim);margin-top:4px;"></div>
             <button type="button" class="btn-add" onclick="addLine();" style="margin-top:10px;">+ Add Product Line</button>
@@ -138,9 +143,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 
         <!-- LINE ITEMS TABLE -->
         <table class="line-table" id="lineTable" style="display:none;">
-            <thead><tr><th>Product</th><th>HSN</th><th class="num">Cases</th><th class="num">Loose</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th><th></th></tr></thead>
+            <thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th><th></th></tr></thead>
             <tbody id="lineBody"></tbody>
-            <tfoot><tr style="font-weight:700;"><td colspan="7">TOTAL</td><td class="num" id="ftTaxable">0</td><td class="num" id="ftGST">0</td><td class="num" id="ftTotal">0</td><td></td></tr></tfoot>
+            <tfoot><tr style="font-weight:700;"><td colspan="6">TOTAL</td><td class="num" id="ftTaxable">0</td><td class="num" id="ftGST">0</td><td class="num" id="ftTotal">0</td><td></td></tr></tfoot>
         </table>
 
         <div class="form-group" style="margin-top:14px;"><label>Remarks</label>
@@ -150,8 +155,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" OnClientClick="syncLines();" CausesValidation="false"/>
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
             <asp:Button ID="btnCreateInvoiceDraft" runat="server" Text="&#x1F4E8; Create Invoice in Zoho" CssClass="btn btn-zoho"
-                OnClick="btnCreateInvoiceDraft_Click" CausesValidation="false" Visible="false"
-                OnClientClick="syncLines(); return confirm('Save DC and create Zoho invoice?');"/>
+                OnClientClick="doCreateInvoiceDraftConfirm(); return false;" CausesValidation="false" Visible="false"/>
+            <asp:Button ID="btnCreateInvoiceDraftHidden" runat="server" OnClick="btnCreateInvoiceDraft_Click" CausesValidation="false" style="display:none;"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return doDeleteDCConfirm();" CausesValidation="false"/>
@@ -173,12 +178,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <div style="font-size:12px;color:#555;margin-bottom:12px;padding:8px;background:#f9f9f9;border-radius:4px;"><strong>Remarks:</strong> <asp:Label ID="lblViewRemarks" runat="server"/></div>
         </asp:Panel>
         <asp:Repeater ID="rptViewLines" runat="server">
-            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th>HSN</th><th class="num">Cases</th><th class="num">Loose</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th></tr></thead><tbody></HeaderTemplate>
+            <HeaderTemplate><table class="data-table"><thead><tr><th>Product</th><th>HSN</th><th class="num">Form</th><th class="num">Qty</th><th class="num">MRP</th><th class="num">Rate</th><th class="num">Taxable</th><th class="num">GST</th><th class="num">Total</th></tr></thead><tbody></HeaderTemplate>
             <ItemTemplate><tr>
                 <td><strong><%# Eval("ProductName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("ProductCode") %></div></td>
                 <td style="font-size:10px;color:var(--text-muted);"><%# Eval("HSNCode") %></td>
-                <td class="num"><%# Eval("Cases") %></td>
-                <td class="num"><%# Eval("LooseJars") %></td>
+                <td class="num" style="font-weight:600;color:#0078d4;"><%# Eval("SellingForm") %></td>
                 <td class="num"><%# string.Format("{0:N0}", Eval("TotalPcs")) %></td>
                 <td class="num" style="color:var(--text-dim);"><%# Eval("MRP") != DBNull.Value ? string.Format("₹{0:N2}", Eval("MRP")) : "—" %></td>
                 <td class="num" style="font-weight:700;"><%# Eval("UnitRate") != DBNull.Value ? string.Format("₹{0:N2}", Eval("UnitRate")) : "—" %></td>
@@ -228,8 +232,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <!-- Zoho Invoice Creation — visible when no invoice exists yet -->
             <asp:Panel ID="pnlCreateInvoice" runat="server" Visible="false">
                 <asp:Button ID="btnCreateInvoice" runat="server" Text="&#x1F4E8; Create Invoice in Zoho" CssClass="btn btn-zoho"
-                    OnClick="btnCreateInvoice_Click" CausesValidation="false"
-                    OnClientClick="return confirm('Create Zoho Books invoice for this DC?');"/>
+                    OnClientClick="doCreateInvoiceConfirm(); return false;" CausesValidation="false"/>
+                <asp:Button ID="btnCreateInvoiceHidden" runat="server" OnClick="btnCreateInvoice_Click" CausesValidation="false" style="display:none;"/>
             </asp:Panel>
         </div>
     </div>
@@ -607,40 +611,35 @@ function addLine(){
     var sel=document.getElementById('selProduct');
     var pid=sel.value;
     if(pid==='0'){erpAlert('Please select a product before adding.', {title:'Selection Required', type:'warn'});return;}
-    var cs=parseInt(document.getElementById('txtLineCases').value)||0;
-    var lj=parseInt(document.getElementById('txtLineLoose').value)||0;
-    if(cs<=0&&lj<=0){erpAlert('Please enter number of cases or loose jars.', {title:'Quantity Required', type:'warn'});return;}
-    var opt=sel.options[sel.selectedIndex];
-    var jpc=parseInt(opt.getAttribute('data-jpc'))||12;
-    var us=parseInt(opt.getAttribute('data-unitsize'))||1;
-    var lineJars=(cs*jpc)+lj;
-    var totalPcs=lineJars*us;
-
-    var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
-    var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
-    var usedCases=0, usedLoose=0;
-    lines.forEach(function(l){if(l.pid===pid){usedCases+=l.cases;usedLoose+=l.loose;}});
-    if(cs>(avCases-usedCases)){erpAlert('Insufficient CASES. Available: '+(avCases-usedCases)+' cases.', {title:'Stock Insufficient', type:'danger'});return;}
-    if(lj>(avLoose-usedLoose)){erpAlert('Insufficient loose JARS. Available: '+(avLoose-usedLoose)+' jars.', {title:'Stock Insufficient', type:'danger'});return;}
+    var qty=parseInt(document.getElementById('txtLineQty').value)||0;
+    if(qty<=0){erpAlert('Please enter quantity.', {title:'Quantity Required', type:'warn'});return;}
+    var form=document.getElementById('selForm').value; // PCS, JAR, BOX, CASE
 
     var p=productData[pid];
-    var mrp=parseFloat(p.mrpPcs)||0;
-    if(mrp<=0){erpAlert('MRP not set for '+p.name+'. Please configure in Product MRP.', {title:'MRP Missing', type:'warn'});return;}
+    if(!p){erpAlert('Product data not found.', {title:'Error', type:'danger'});return;}
+
+    // Get MRP for selected selling form
+    var mrp=0;
+    if(form==='PCS') mrp=parseFloat(p.mrpPcs)||0;
+    else if(form==='JAR') mrp=parseFloat(p.mrpJar)||0;
+    else if(form==='BOX') mrp=parseFloat(p.mrpBox)||0;
+    else if(form==='CASE') mrp=parseFloat(p.mrpCase)||0;
+    if(mrp<=0){erpAlert('MRP not set for '+p.name+' ('+form+'). Configure in Product MRP page.', {title:'MRP Missing', type:'warn'});return;}
+
     var marginPct=getMarginPct();
     var rate=Math.round(mrp*(1-marginPct/100)*100)/100;
     var gstRate=parseFloat(p.gstRate)||0;
     var hsn=p.hsn||'';
-    // Rate is inclusive of GST. Taxable = Rate / (1 + GST/100) * Qty
     var rateExGST=gstRate>0?rate/(1+gstRate/100):rate;
-    var taxableVal=Math.round(rateExGST*totalPcs*100)/100;
-    var gstAmt=Math.round((rate*totalPcs-taxableVal)*100)/100;
-    var lineTotal=Math.round(rate*totalPcs*100)/100;
+    var taxableVal=Math.round(rateExGST*qty*100)/100;
+    var gstAmt=Math.round((rate*qty-taxableVal)*100)/100;
+    var lineTotal=Math.round(rate*qty*100)/100;
 
-    lines.push({pid:pid,name:p.name,code:p.code,cases:cs,loose:lj,jpc:jpc,unitSize:us,totalPcs:totalPcs,
-        hsn:hsn,gstRate:gstRate,mrp:mrp,marginPct:marginPct,rate:rate,taxableVal:taxableVal,gstAmt:gstAmt,lineTotal:lineTotal});
+    lines.push({pid:pid,name:p.name,code:p.code,form:form,qty:qty,
+        hsn:hsn,gstRate:gstRate,mrp:mrp,marginPct:marginPct,rate:rate,
+        taxableVal:taxableVal,gstAmt:gstAmt,lineTotal:lineTotal});
     renderLines();
-    document.getElementById('txtLineCases').value='';
-    document.getElementById('txtLineLoose').value='';
+    document.getElementById('txtLineQty').value='';
     sel.selectedIndex=0;
     document.getElementById('stockInfo').innerHTML='';
 }
@@ -651,14 +650,8 @@ function updateDropdownStock(){
     var sel=document.getElementById('selProduct');
     for(var i=1;i<sel.options.length;i++){
         var opt=sel.options[i];var pid=opt.value;
-        var avCases=parseInt(opt.getAttribute('data-avcases'))||0;
-        var avLoose=parseInt(opt.getAttribute('data-avloose'))||0;
-        var usedCases=0, usedLoose=0;
-        lines.forEach(function(l){if(l.pid===pid){usedCases+=l.cases;usedLoose+=l.loose;}});
-        var remCases=avCases-usedCases;var remLoose=avLoose-usedLoose;
-        if(remCases<0)remCases=0; if(remLoose<0)remLoose=0;
         var p=productData[pid];
-        if(p) opt.text=p.name+' ('+p.code+') — '+remCases+' cases'+(remLoose>0?' + '+remLoose+' jars':'');
+        if(p) opt.text=p.name+' ('+p.code+')';
     }
 }
 
@@ -668,30 +661,35 @@ function renderLines(){
     var body=document.getElementById('lineBody');
     var tbl=document.getElementById('lineTable');
     body.innerHTML='';
-    if(lines.length===0){tbl.style.display='none';syncLines();updateDropdownStock();return;}
+    if(lines.length===0){tbl.style.display='none';syncLines();return;}
     tbl.style.display='table';
     var sumTax=0,sumGST=0,sumTotal=0;
     var inter=isInterState();
-    // Recalc pricing for all lines (margin/channel may have changed)
     var marginPct=getMarginPct();
     lines.forEach(function(l,i){
         var p=productData[l.pid];
-        var mrp=parseFloat(p?p.mrpPcs:l.mrp)||l.mrp||0;
+        // Get MRP for the line's selling form
+        var mrp=l.mrp;
+        if(p){
+            if(l.form==='PCS') mrp=parseFloat(p.mrpPcs)||mrp;
+            else if(l.form==='JAR') mrp=parseFloat(p.mrpJar)||mrp;
+            else if(l.form==='BOX') mrp=parseFloat(p.mrpBox)||mrp;
+            else if(l.form==='CASE') mrp=parseFloat(p.mrpCase)||mrp;
+        }
         var gstRate=parseFloat(p?p.gstRate:l.gstRate)||l.gstRate||0;
         var rate=Math.round(mrp*(1-marginPct/100)*100)/100;
         var rateExGST=gstRate>0?rate/(1+gstRate/100):rate;
-        var taxableVal=Math.round(rateExGST*l.totalPcs*100)/100;
-        var gstAmt=Math.round((rate*l.totalPcs-taxableVal)*100)/100;
-        var lineTotal=Math.round(rate*l.totalPcs*100)/100;
-        l.marginPct=marginPct;l.rate=rate;l.taxableVal=taxableVal;l.gstAmt=gstAmt;l.lineTotal=lineTotal;
+        var taxableVal=Math.round(rateExGST*l.qty*100)/100;
+        var gstAmt=Math.round((rate*l.qty-taxableVal)*100)/100;
+        var lineTotal=Math.round(rate*l.qty*100)/100;
+        l.mrp=mrp;l.marginPct=marginPct;l.rate=rate;l.taxableVal=taxableVal;l.gstAmt=gstAmt;l.lineTotal=lineTotal;
 
-        var gstLabel=inter?'IGST '+gstRate+'%':'CGST+SGST '+(gstRate/2)+'%+'+(gstRate/2)+'%';
+        var gstLabel=inter?'IGST '+gstRate+'%':'C+S '+(gstRate/2)+'%+'+(gstRate/2)+'%';
         var tr=document.createElement('tr');
         tr.innerHTML='<td><strong>'+l.name+'</strong><div style="font-size:10px;color:var(--text-dim);">'+l.code+'</div></td>'
             +'<td style="font-size:10px;color:var(--text-muted);">'+l.hsn+'</td>'
-            +'<td class="num">'+l.cases+'</td>'
-            +'<td class="num">'+l.loose+'</td>'
-            +'<td class="num">'+l.totalPcs+'</td>'
+            +'<td class="num" style="font-weight:600;color:#0078d4;">'+l.form+'</td>'
+            +'<td class="num">'+l.qty+'</td>'
             +'<td class="num" style="color:var(--text-dim);">'+fmt(mrp)+'</td>'
             +'<td class="num" style="font-weight:700;">'+fmt(rate)+'</td>'
             +'<td class="num">'+fmt(taxableVal)+'</td>'
@@ -705,7 +703,6 @@ function renderLines(){
     document.getElementById('ftGST').innerText=fmt(sumGST);
     document.getElementById('ftTotal').innerText=fmt(sumTotal);
     syncLines();
-    updateDropdownStock();
 }
 
 function syncLines(){
@@ -724,6 +721,23 @@ function addSAEditLine(){
 }
 </script>
 <script>
+function doCreateInvoiceDraftConfirm(){
+    syncLines();
+    erpConfirm('Save this Delivery Challan and create a Zoho Books invoice?', {
+        title: 'Create Invoice',
+        type: 'info',
+        okText: 'Create Invoice',
+        onOk: function(){ setTimeout(function(){ document.getElementById('<%= btnCreateInvoiceDraftHidden.ClientID %>').click(); }, 300); }
+    });
+}
+function doCreateInvoiceConfirm(){
+    erpConfirm('Create a Zoho Books invoice for this finalised Delivery Challan?', {
+        title: 'Create Invoice',
+        type: 'info',
+        okText: 'Create Invoice',
+        onOk: function(){ setTimeout(function(){ document.getElementById('<%= btnCreateInvoiceHidden.ClientID %>').click(); }, 300); }
+    });
+}
 function doDeleteDCConfirm(){
     erpConfirm('Are you sure you want to DELETE this entire Delivery Challan? All reserved stock will be freed. This cannot be undone.', {
         title: 'Delete Delivery Challan',

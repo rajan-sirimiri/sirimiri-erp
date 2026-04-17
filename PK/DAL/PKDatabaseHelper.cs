@@ -1601,6 +1601,15 @@ namespace PKApp.DAL
                 new MySqlParameter("?dcid", dcId));
         }
 
+        public static void UpdateDCLineSellingForm(int dcId, int productId, string sellingForm)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DCLines SET SellingForm=?form WHERE DCID=?dcid AND ProductID=?pid ORDER BY LineID DESC LIMIT 1;",
+                new MySqlParameter("?form", sellingForm ?? "JAR"),
+                new MySqlParameter("?dcid", dcId),
+                new MySqlParameter("?pid", productId));
+        }
+
         /// Update DC header (draft mode)
         public static void UpdateDCHeader(int dcId, int customerId, DateTime dcDate, string remarks)
         {
@@ -1637,7 +1646,7 @@ namespace PKApp.DAL
         public static DataTable GetDCLines(int dcId)
         {
             return ExecuteQuery(
-                "SELECT dl.LineID, dl.ProductID, p.ProductName, p.ProductCode," +
+                "SELECT dl.LineID, dl.ProductID, dl.SellingForm, p.ProductName, p.ProductCode," +
                 " dl.Cases, dl.LooseJars, dl.JarsPerCase, dl.TotalPcs," +
                 " dl.HSNCode, dl.GSTRate, dl.MRP, dl.MarginPct, dl.UnitRate," +
                 " dl.TaxableValue, dl.CGSTAmt, dl.SGSTAmt, dl.IGSTAmt, dl.LineTotal," +

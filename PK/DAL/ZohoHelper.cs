@@ -824,15 +824,16 @@ namespace StockApp.DAL
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
 
-        /// <summary>Get DC lines with product details and MRP.</summary>
+        /// <summary>Get DC lines with product details, selling form, and MRP.</summary>
         public static DataTable GetDCLinesForInvoice(int dcId)
         {
             var dt = new DataTable();
             using (var conn = new MySqlConnection(ConnStr))
             using (var cmd = new MySqlCommand(
-                "SELECT l.LineID, l.ProductID, l.Cases, l.LooseJars, l.JarsPerCase, l.TotalPcs, " +
+                "SELECT l.LineID, l.ProductID, l.SellingForm, l.TotalPcs AS Qty, " +
+                "l.MRP AS LineMRP, l.UnitRate AS LineRate, l.MarginPct AS LineMargin, " +
+                "l.HSNCode AS LineHSN, l.GSTRate AS LineGSTRate, " +
                 "p.ProductName, p.ProductCode, p.HSNCode, p.GSTRate, " +
-                "IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase, " +
                 "IFNULL(p.ContainerType, 'JAR') AS ContainerType, " +
                 "IFNULL(mrp_pcs.MRP, 0) AS MRP_PCS, " +
                 "IFNULL(mrp_jar.MRP, 0) AS MRP_JAR, " +
@@ -889,7 +890,7 @@ namespace StockApp.DAL
             var lines = GetDCLinesForInvoice(dcId);
             if (lines.Rows.Count == 0) return "DC has no line items";
 
-            // Build Zoho invoice line items — bill in JARs/BOXes, not PCS
+            // Build Zoho invoice line items — use SellingForm from DC
             var lineItems = new List<Dictionary<string, object>>();
             foreach (DataRow line in lines.Rows)
             {
@@ -898,37 +899,43 @@ namespace StockApp.DAL
                 if (string.IsNullOrEmpty(zohoItemId))
                     return "Product '" + line["ProductName"] + "' not synced to Zoho. Sync products first.";
 
-                int cases = Convert.ToInt32(line["Cases"]);
-                int looseJars = Convert.ToInt32(line["LooseJars"]);
-                int jarsPerCase = Convert.ToInt32(line["JarsPerCase"]);
-                string containerType = line["ContainerType"].ToString().ToUpper();
-                string unitLabel = containerType == "BOX" ? "BOX" : "JAR";
+                // Read selling form and quantity from DC line
+                string sellingForm = line.Table.Columns.Contains("SellingForm") && line["SellingForm"] != DBNull.Value
+                    ? line["SellingForm"].ToString().ToUpper() : "JAR";
+                int qty = Convert.ToInt32(line["Qty"]);
 
-                // Quantity in JARs/BOXes = (cases × jarsPerCase) + looseJars
-                int qtyJars = (cases * jarsPerCase) + looseJars;
+                // Use saved rate from DC line if available, otherwise calculate
+                decimal rate = line["LineRate"] != DBNull.Value ? Convert.ToDecimal(line["LineRate"]) : 0;
+                decimal mrp = line["LineMRP"] != DBNull.Value ? Convert.ToDecimal(line["LineMRP"]) : 0;
 
-                // MRP per JAR/BOX
-                decimal mrpJarBox = containerType == "BOX" ? Convert.ToDecimal(line["MRP_BOX"]) : Convert.ToDecimal(line["MRP_JAR"]);
-                decimal mrpPcs = Convert.ToDecimal(line["MRP_PCS"]);
-                // Prefer JAR/BOX MRP, fallback to PCS
-                decimal mrp = mrpJarBox > 0 ? mrpJarBox : mrpPcs;
-                if (mrp <= 0)
-                    return "MRP not configured for '" + line["ProductName"] + "'. Set MRP in Product MRP page first.";
+                if (rate <= 0)
+                {
+                    // Fallback: get MRP for the selling form and calculate
+                    if (sellingForm == "PCS") mrp = Convert.ToDecimal(line["MRP_PCS"]);
+                    else if (sellingForm == "JAR") mrp = Convert.ToDecimal(line["MRP_JAR"]);
+                    else if (sellingForm == "BOX") mrp = Convert.ToDecimal(line["MRP_BOX"]);
+                    else if (sellingForm == "CASE") mrp = Convert.ToDecimal(line["MRP_CASE"]);
+                    if (mrp <= 0)
+                        return "MRP not configured for '" + line["ProductName"] + "' (" + sellingForm + ").";
+                    decimal marginPct = GetEffectiveMargin(customerId, productId, channel);
+                    rate = CalculateRate(mrp, marginPct);
+                }
 
-                decimal marginPct = GetEffectiveMargin(customerId, productId, channel);
-                decimal rate = CalculateRate(mrp, marginPct);
-
-                string hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
-                decimal gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
+                string hsn = line["LineHSN"] != DBNull.Value ? line["LineHSN"].ToString() : "";
+                if (string.IsNullOrEmpty(hsn))
+                    hsn = line["HSNCode"] != DBNull.Value ? line["HSNCode"].ToString() : "";
+                decimal gstRate = line["LineGSTRate"] != DBNull.Value ? Convert.ToDecimal(line["LineGSTRate"]) : 0;
+                if (gstRate <= 0)
+                    gstRate = line["GSTRate"] != DBNull.Value ? Convert.ToDecimal(line["GSTRate"]) : 0;
 
                 string taxId = GetZohoTaxId(gstRate);
 
                 var lineItem = new Dictionary<string, object>
                 {
                     { "item_id", zohoItemId },
-                    { "quantity", qtyJars },
+                    { "quantity", qty },
                     { "rate", rate },
-                    { "unit", unitLabel },
+                    { "unit", sellingForm },
                     { "hsn_or_sac", hsn }
                 };
 
@@ -939,7 +946,7 @@ namespace StockApp.DAL
                 else
                     lineItem["tax_exemption_id"] = GetZohoTaxExemptionId();
 
-                string desc = "DC: " + dc["DCNumber"] + " | Cases: " + cases + " × " + jarsPerCase + " + Loose: " + looseJars;
+                string desc = "DC: " + dc["DCNumber"] + " | " + qty + " " + sellingForm;
                 lineItem["description"] = desc;
 
                 lineItems.Add(lineItem);
@@ -986,7 +993,9 @@ namespace StockApp.DAL
                 { "line_items", lineItems }
             };
 
-            // Shipping address
+            // Shipping address — Zoho limits: address=100, city=100, state=100, zip=10
+            if (shipAddr.Length > 100) shipAddr = shipAddr.Substring(0, 100);
+            if (shipCity.Length > 100) shipCity = shipCity.Substring(0, 100);
             var shipTo = new Dictionary<string, object>
             {
                 { "address", shipAddr },
