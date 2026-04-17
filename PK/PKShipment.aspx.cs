@@ -939,7 +939,7 @@ namespace PKApp
         class DCLineData
         {
             public int ProductID, Qty;
-            public string SellingForm, HSN;
+            public string SellingForm, Source, HSN;
             public decimal GSTRate, MRP, MarginPct, UnitRate, TaxableVal, GSTAmt, LineTotal;
         }
 
@@ -969,6 +969,7 @@ namespace PKApp
 
                         if (key == "pid") int.TryParse(val, out ld.ProductID);
                         else if (key == "form") ld.SellingForm = val;
+                        else if (key == "source") ld.Source = val;
                         else if (key == "qty") int.TryParse(val, out ld.Qty);
                         else if (key == "hsn") ld.HSN = val;
                         else if (key == "gstRate") decimal.TryParse(val, out ld.GSTRate);
