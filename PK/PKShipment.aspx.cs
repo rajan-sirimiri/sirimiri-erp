@@ -1312,7 +1312,9 @@ namespace PKApp
                 }
             }
 
-            int dcId = PKDatabaseHelper.ConvertSAShipmentToDC(shipId);
+            int csgId = 0;
+            int.TryParse(hfActiveConsig.Value, out csgId);
+            int dcId = PKDatabaseHelper.ConvertSAShipmentToDC(shipId, csgId);
             ShowAlert("SH-" + shipId.ToString("D5") + " converted to Delivery Challan. SA side is now read-only.", true);
             pnlSADetail.Visible = false;
             BindSAOrders();

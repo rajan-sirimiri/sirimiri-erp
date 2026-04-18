@@ -1860,7 +1860,7 @@ namespace PKApp.DAL
         {
             // Get shipment header
             var sh = ExecuteQueryRow(
-                "SELECT CustomerID, ShipmentDate, Remarks FROM SA_Shipments WHERE ShipmentID=?sid;",
+                "SELECT CustomerID, ShipmentDate, Remarks, ConsignmentID FROM SA_Shipments WHERE ShipmentID=?sid;",
                 new MySqlParameter("?sid", shipmentId));
             if (sh == null) throw new Exception("Shipment not found.");
 
@@ -1868,6 +1868,10 @@ namespace PKApp.DAL
             DateTime dcDate = Convert.ToDateTime(sh["ShipmentDate"]);
             string remarks = sh["Remarks"] != DBNull.Value ? sh["Remarks"].ToString() : "";
             string saRef = "SH-" + shipmentId.ToString("D5");
+
+            // Use shipment's consignment if none passed
+            if (consignmentId <= 0 && sh["ConsignmentID"] != DBNull.Value)
+                consignmentId = Convert.ToInt32(sh["ConsignmentID"]);
 
             // Create DC (with consignment if provided)
             string dcNumber = GenerateDCNumber();
