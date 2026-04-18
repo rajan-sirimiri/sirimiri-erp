@@ -106,6 +106,29 @@ namespace PKApp.DAL
                 " WHERE c.IsActive=1 ORDER BY c.CustomerName;");
         }
 
+        /// <summary>Get active customers filtered by type codes (e.g. "RT" or "DI,ST").</summary>
+        public static DataTable GetActiveCustomersByType(string typeCodes)
+        {
+            // Build IN clause from comma-separated type codes
+            string[] types = typeCodes.Split(',');
+            string inClause = "";
+            var prms = new System.Collections.Generic.List<MySqlParameter>();
+            for (int i = 0; i < types.Length; i++)
+            {
+                if (i > 0) inClause += ",";
+                inClause += "?t" + i;
+                prms.Add(new MySqlParameter("?t" + i, types[i].Trim()));
+            }
+            return ExecuteQuery(
+                "SELECT c.CustomerID, c.CustomerCode, c.CustomerType, c.CustomerName," +
+                " c.ContactPerson, c.Phone, c.Email, c.GSTIN, c.State, c.City," +
+                " IFNULL(ct.TypeName,'') AS TypeName" +
+                " FROM PK_Customers c" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode = c.CustomerType" +
+                " WHERE c.IsActive=1 AND c.CustomerType IN (" + inClause + ") ORDER BY c.CustomerName;",
+                prms.ToArray());
+        }
+
         public static DataRow GetCustomerById(int id)
         {
             return ExecuteQueryRow(

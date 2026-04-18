@@ -41,24 +41,29 @@ namespace PKApp
             if (lblUser != null) lblUser.Text = Session["PK_FullName"] as string ?? "";
             if (!IsPostBack)
             {
-                BindCustomers();
+                BindCustomers("RT");
                 BuildProductData();
-                BuildCustomerData();
+                BuildCustomerData("RT");
                 BindConsigTabs();
                 BindDispatchedDropdown();
                 BindArchivedDropdown();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (txtConsigDate != null) txtConsigDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (btnDeleteDC != null) btnDeleteDC.Visible = false;
+                LoadRetailDCs();
                 LoadProjDropdowns();
                 BindProjections();
             }
             BindSAOrders();
         }
 
-        void BindCustomers()
+        void BindCustomers(string typeFilter = null)
         {
-            var dt = PKDatabaseHelper.GetActiveCustomers();
+            DataTable dt;
+            if (!string.IsNullOrEmpty(typeFilter))
+                dt = PKDatabaseHelper.GetActiveCustomersByType(typeFilter);
+            else
+                dt = PKDatabaseHelper.GetActiveCustomers();
             ddlCustomer.Items.Clear();
             ddlCustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
             foreach (DataRow r in dt.Rows)
@@ -105,7 +110,11 @@ namespace PKApp
             pnlForm.Visible = true;
             if (pnlLocked != null) pnlLocked.Visible = false;
             ResetDCForm();
+            BindCustomers("RT");
+            BuildCustomerData("RT");
             BindConsigTabs();
+            // Show retail DCs list
+            LoadRetailDCs();
         }
 
         protected void rptConsigTabs_Command(object s, CommandEventArgs e)
@@ -115,6 +124,8 @@ namespace PKApp
                 int csgId = Convert.ToInt32(e.CommandArgument);
                 hfActiveConsig.Value = csgId.ToString();
                 hfActiveTab.Value = "consig";
+                BindCustomers("DI,ST");
+                BuildCustomerData("DI,ST");
                 LoadConsigDCs(csgId);
                 ResetDCForm();
                 BindConsigTabs();
@@ -248,6 +259,28 @@ namespace PKApp
             {
                 pnlForm.Visible = true;
             }
+        }
+
+        void LoadRetailDCs()
+        {
+            var dcs = PKDatabaseHelper.GetRetailDCs();
+            if (pnlConsigDCs != null)
+            {
+                pnlConsigDCs.Visible = true;
+                if (pnlConsigContent != null) pnlConsigContent.Visible = dcs.Rows.Count > 0;
+                if (lblConsigDCTitle != null) lblConsigDCTitle.Text = "Retail Orders — " + dcs.Rows.Count + " DC(s)";
+                if (lblConsigStatus != null) { lblConsigStatus.Text = ""; lblConsigStatus.Visible = false; }
+                if (rptConsigDCs != null) { rptConsigDCs.DataSource = dcs; rptConsigDCs.DataBind(); }
+                if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = dcs.Rows.Count == 0;
+                if (btnBulkInvoice != null) btnBulkInvoice.Visible = false;
+                if (btnDispatchConsig != null) btnDispatchConsig.Visible = false;
+                if (btnArchiveConsig != null) btnArchiveConsig.Visible = false;
+                if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = false;
+                if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
+                if (pnlBulkResult != null) pnlBulkResult.Visible = false;
+            }
+            // Show form for retail even when consignment content not visible
+            pnlForm.Visible = true;
         }
 
         protected string GetTransportLabel(object mode, object courier)
@@ -485,9 +518,13 @@ namespace PKApp
             if (hfProductData != null) hfProductData.Value = sb.ToString();
         }
 
-        void BuildCustomerData()
+        void BuildCustomerData(string typeFilter = null)
         {
-            var dt = PKDatabaseHelper.GetActiveCustomers();
+            DataTable dt;
+            if (!string.IsNullOrEmpty(typeFilter))
+                dt = PKDatabaseHelper.GetActiveCustomersByType(typeFilter);
+            else
+                dt = PKDatabaseHelper.GetActiveCustomers();
             var sb = new System.Text.StringBuilder("{");
             bool first = true;
             foreach (DataRow r in dt.Rows)
@@ -524,13 +561,20 @@ namespace PKApp
 
         void BindDCList()
         {
-            // Refresh the consignment DC list if a consignment is selected
-            int csgId = 0;
-            int.TryParse(hfActiveConsig.Value, out csgId);
-            if (csgId > 0)
+            string tab = hfActiveTab != null ? hfActiveTab.Value : "retail";
+            if (tab == "retail")
             {
-                BindConsigTabs();
-                LoadConsigDCs(csgId);
+                LoadRetailDCs();
+            }
+            else
+            {
+                int csgId = 0;
+                int.TryParse(hfActiveConsig.Value, out csgId);
+                if (csgId > 0)
+                {
+                    BindConsigTabs();
+                    LoadConsigDCs(csgId);
+                }
             }
         }
 
@@ -549,10 +593,11 @@ namespace PKApp
             if (lineData == null || lineData.Length == 0)
             { ShowAlert("Please add at least one product line.", false); return; }
 
-            // Consignment validation — mandatory
+            // Consignment validation — mandatory for consignment tabs, not for retail
             int consignmentId = 0;
             int.TryParse(hfActiveConsig.Value, out consignmentId);
-            if (consignmentId <= 0 && dcId <= 0)
+            string activeTab = hfActiveTab != null ? hfActiveTab.Value : "retail";
+            if (activeTab != "retail" && consignmentId <= 0 && dcId <= 0)
             { ShowAlert("Please select a Consignment before saving.", false); return; }
 
             // Stock validation — source-based (CASE or LOOSE)

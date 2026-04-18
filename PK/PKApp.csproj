@@ -71,9 +71,9 @@
   <ItemGroup>
     <!-- DAL -->
     <Compile Include="DAL\PKDatabaseHelper.cs" />
-    <Compile Include="DAL\ZohoHelper.cs" />
     <!-- Global -->
     <Content Include="Global.asax" />
+    <Compile Include="DAL\ZohoHelper_PK.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
