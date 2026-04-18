@@ -979,7 +979,7 @@ namespace StockApp
             LoadSAConsigDetail(csgId);
         }
 
-        private string GetStatusBadge(string status)
+        protected string GetStatusBadge(string status)
         {
             switch (status)
             {
