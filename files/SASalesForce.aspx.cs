@@ -14,6 +14,11 @@ namespace StockApp
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty, pnlProjForm;
         protected Panel pnlShipLines, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion, pnlShipForm;
         protected Panel pnlConsignments, pnlSAConsigDetail, pnlConsigEmpty, pnlSAConsigOrdersEmpty;
+        protected Panel pnlSAShipForm, pnlSAConsigLocked;
+        protected Label lblSALockedStatus;
+        // Set by LoadSAConsigDetail — consulted by rptSAConsigOrders_ItemDataBound to hide
+        // per-row Edit/Delete buttons when the whole consignment is locked (DISPATCHED/ARCHIVED).
+        private bool _saConsigIsLocked = false;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
@@ -960,36 +965,74 @@ namespace StockApp
                 {
                     case "OPEN": lblSAConsigStatus.Style["background"] = "#fff3cd"; lblSAConsigStatus.Style["color"] = "#856404"; break;
                     case "READY": lblSAConsigStatus.Style["background"] = "#d4edda"; lblSAConsigStatus.Style["color"] = "#155724"; break;
+                    case "DISPATCHED": lblSAConsigStatus.Style["background"] = "#cce5ff"; lblSAConsigStatus.Style["color"] = "#004085"; break;
+                    case "ARCHIVED": lblSAConsigStatus.Style["background"] = "#e2e3e5"; lblSAConsigStatus.Style["color"] = "#383d41"; break;
                     default: lblSAConsigStatus.Style["background"] = "#e2e3e5"; lblSAConsigStatus.Style["color"] = "#383d41"; break;
                 }
             }
+
+            // Lock rule: only OPEN + READY allow writes. DISPATCHED and ARCHIVED are view-only.
+            _saConsigIsLocked = (status != "OPEN" && status != "READY");
+            if (pnlSAShipForm != null) pnlSAShipForm.Visible = !_saConsigIsLocked;
+            if (pnlSAConsigLocked != null) pnlSAConsigLocked.Visible = _saConsigIsLocked;
+            if (lblSALockedStatus != null) lblSALockedStatus.Text = status.ToLower();
+            // If user was mid-edit when something moved the consignment (unlikely but possible), bail out of edit mode
+            if (_saConsigIsLocked && hfEditShipId != null) hfEditShipId.Value = "0";
 
             var orders = DatabaseHelper.GetShipmentsByConsignment(consignmentId);
             if (rptSAConsigOrders != null) { rptSAConsigOrders.DataSource = orders; rptSAConsigOrders.DataBind(); }
             if (pnlSAConsigOrdersEmpty != null) pnlSAConsigOrdersEmpty.Visible = orders.Rows.Count == 0;
 
-            // Show "Send to Shipment Team" if there are orders with status "Saved"
+            // Show "Send to Shipment Team" only for active consignments with drafts
             bool hasSaved = false;
             foreach (DataRow r in orders.Rows)
                 if (r["Status"].ToString() == "Saved") { hasSaved = true; break; }
-            if (btnSASendToPK != null) btnSASendToPK.Visible = hasSaved;
+            if (btnSASendToPK != null) btnSASendToPK.Visible = hasSaved && !_saConsigIsLocked;
 
-            // Bind form dropdowns + product data (stock + case qty + container type)
-            BindSAConsigCustomers();
-            BindSAConsigChannels();
-            BuildSAProductData();
-
-            // If not in edit mode, reset the form and render a single blank row
-            int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
-            if (editShipId <= 0)
+            // Bind form dropdowns + product data (only needed when form is visible)
+            if (!_saConsigIsLocked)
             {
-                if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
-                if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
-                if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "New Shipment Order";
-                if (btnSACancelEdit != null) btnSACancelEdit.Visible = false;
-                if (btnSACreateOrder != null) btnSACreateOrder.Text = "Create Shipment Order";
-                BindSAShipLines(CreateBlankLinesTable());
+                BindSAConsigCustomers();
+                BindSAConsigChannels();
+                BuildSAProductData();
+
+                // If not in edit mode, reset the form and render a single blank row
+                int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
+                if (editShipId <= 0)
+                {
+                    if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                    if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
+                    if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "New Shipment Order";
+                    if (btnSACancelEdit != null) btnSACancelEdit.Visible = false;
+                    if (btnSACreateOrder != null) btnSACreateOrder.Text = "Create Shipment Order";
+                    BindSAShipLines(CreateBlankLinesTable());
+                }
             }
+        }
+
+        /// <summary>Per-row visibility for Edit/Delete — belt-and-braces with the ItemTemplate's Status-based Visible expression.
+        /// Hides both buttons if the whole consignment is locked (DISPATCHED/ARCHIVED).</summary>
+        protected void rptSAConsigOrders_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
+            if (!_saConsigIsLocked) return;
+            var edit = e.Item.FindControl("lnkEditOrder") as LinkButton;
+            var del  = e.Item.FindControl("lnkDeleteOrder") as LinkButton;
+            if (edit != null) edit.Visible = false;
+            if (del != null) del.Visible = false;
+        }
+
+        /// <summary>Server-side guard used by all write handlers. Returns true if writes are allowed.
+        /// Shows an alert and refreshes the view if not.</summary>
+        private bool AssertSAConsigWritable(int consignmentId)
+        {
+            var csg = DatabaseHelper.GetConsignmentById(consignmentId);
+            if (csg == null) { ShowAlert("Consignment not found.", false); return false; }
+            string st = csg["Status"].ToString();
+            if (st == "OPEN" || st == "READY") return true;
+            ShowAlert("Cannot modify — consignment is " + st + " (view only).", false);
+            LoadSAConsigDetail(consignmentId);
+            return false;
         }
 
         /// <summary>
@@ -1141,6 +1184,7 @@ namespace StockApp
             int csgId = 0;
             int.TryParse(hfSAConsigId.Value, out csgId);
             if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+            if (!AssertSAConsigWritable(csgId)) return;
 
             int custId = ddlSACustomer != null ? Convert.ToInt32(ddlSACustomer.SelectedValue) : 0;
             if (custId <= 0) { ShowAlert("Please select a customer.", false); return; }
@@ -1242,6 +1286,9 @@ namespace StockApp
                 int csgId = ship["ConsignmentID"] != DBNull.Value ? Convert.ToInt32(ship["ConsignmentID"]) : 0;
                 if (csgId > 0) hfSAConsigId.Value = csgId.ToString();
 
+                // Server-side guard: reject edit if consignment is locked
+                if (csgId > 0 && !AssertSAConsigWritable(csgId)) return;
+
                 // Set edit flag BEFORE LoadSAConsigDetail so it skips the form reset
                 if (hfEditShipId != null) hfEditShipId.Value = shipId.ToString();
 
@@ -1281,6 +1328,11 @@ namespace StockApp
                     "SELECT Status, ConsignmentID FROM SA_Shipments WHERE ShipmentID=?sid;",
                     new MySqlParameter("?sid", shipId));
                 if (ship == null) return;
+                int csgId = ship["ConsignmentID"] != DBNull.Value ? Convert.ToInt32(ship["ConsignmentID"]) : 0;
+
+                // Server-side guard: reject delete if consignment is locked
+                if (csgId > 0 && !AssertSAConsigWritable(csgId)) return;
+
                 string st = ship["Status"].ToString();
                 if (st == "DC" || st == "Shipped")
                 { ShowAlert("Cannot delete — order already " + st + ".", false); return; }
@@ -1291,7 +1343,6 @@ namespace StockApp
                     new MySqlParameter("?sid", shipId));
                 ShowAlert("Shipment order deleted.", true);
 
-                int csgId = ship["ConsignmentID"] != DBNull.Value ? Convert.ToInt32(ship["ConsignmentID"]) : 0;
                 if (csgId > 0) LoadSAConsigDetail(csgId);
             }
         }
@@ -1310,6 +1361,7 @@ namespace StockApp
             int csgId = 0;
             int.TryParse(hfSAConsigId.Value, out csgId);
             if (csgId <= 0) return;
+            if (!AssertSAConsigWritable(csgId)) return;
 
             // Change all "Saved" shipments to "Order" status
             DatabaseHelper.ExecuteNonQueryPublic(

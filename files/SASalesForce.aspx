@@ -331,7 +331,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div class="card-title" style="margin:0;padding:0;border:none;">Shipment Orders</div>
     </div>
-    <asp:Repeater ID="rptSAConsigOrders" runat="server">
+    <asp:Repeater ID="rptSAConsigOrders" runat="server" OnItemDataBound="rptSAConsigOrders_ItemDataBound">
         <HeaderTemplate><table class="sa-table"><tr><th>Order#</th><th>Customer</th><th>Date</th><th>Items</th><th>Qty</th><th>Status</th><th></th></tr></HeaderTemplate>
         <ItemTemplate><tr>
             <td style="font-family:monospace;font-weight:600;color:var(--accent);">SH-<%# Eval("ShipmentID").ToString().PadLeft(5,'0') %></td>
@@ -340,10 +340,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td class="num"><%# Eval("LineCount") %></td>
             <td class="num" style="font-weight:600;"><%# string.Format("{0:N0}", Eval("TotalQty")) %></td>
             <td><%# GetStatusBadge(Eval("Status").ToString()) %></td>
-            <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
+            <td><asp:LinkButton ID="lnkEditOrder" runat="server" Text="Edit" CommandName="EditSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
                 Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
                 style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;margin-right:8px;" CausesValidation="false"/>
-                <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
+                <asp:LinkButton ID="lnkDeleteOrder" runat="server" Text="Delete" CommandName="DeleteSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
                 Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
                 OnClientClick="var href=this.getAttribute('href'); erpConfirm('Delete this shipment order?',{title:'Delete Order',type:'warn',okText:'Delete',onOk:function(){eval(href);}});return false;"
                 style="color:var(--red);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;" CausesValidation="false"/></td>
@@ -353,7 +353,8 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <asp:Panel ID="pnlSAConsigOrdersEmpty" runat="server"><div style="text-align:center;padding:14px;color:var(--text-dim);font-size:12px;">No shipment orders yet. Create one below.</div></asp:Panel>
 </div>
 
-<!-- Shipment Order Form (embedded in consignment) -->
+<!-- Shipment Order Form (embedded in consignment) — hidden when consignment is DISPATCHED/ARCHIVED -->
+<asp:Panel ID="pnlSAShipForm" runat="server">
 <div class="sa-card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
         <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">
@@ -407,6 +408,20 @@ tr:hover{background:rgba(41,128,185,0.04);}
             OnClick="btnSACreateOrder_Click" CausesValidation="false"/>
     </div>
 </div>
+</asp:Panel>
+
+<!-- Read-only banner shown when consignment is locked (DISPATCHED/ARCHIVED) -->
+<asp:Panel ID="pnlSAConsigLocked" runat="server" Visible="false">
+<div class="sa-card" style="background:#f0f7ff;border:1px solid #cce5ff;padding:14px 18px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;">&#x1F512;</span>
+        <div>
+            <div style="font-weight:700;font-size:13px;color:#004085;">Consignment is <asp:Label ID="lblSALockedStatus" runat="server"/> — view only</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">No new orders can be added and existing orders cannot be modified.</div>
+        </div>
+    </div>
+</div>
+</asp:Panel>
 </asp:Panel>
 
 <!-- Empty state when no consignment selected -->
