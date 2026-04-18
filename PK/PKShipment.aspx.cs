@@ -14,10 +14,10 @@ namespace PKApp
         protected Panel pnlAlert, pnlForm, pnlLocked, pnlViewRemarks;
         protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
         protected HiddenField hfDCID, hfLines, hfProductData, hfCustomerData, hfOrgState, hfSAShipId, hfSAProductOptions;
-        protected HiddenField hfActiveConsig, hfActiveTab;
+        protected HiddenField hfActiveConsig, hfActiveTab, hfSubTab;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks, txtConsigDate, txtConsigText, txtVehicleNo, txtCourierName, txtTrackingNo;
         protected DropDownList ddlCustomer, ddlChannel, ddlTransport, ddlDispatched, ddlArchived, ddlProjMonth, ddlProjYear;
-        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
+        protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC, btnUnconvertDCFromForm;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
@@ -55,6 +55,20 @@ namespace PKApp
                 BindProjections();
             }
             BindSAOrders();
+        }
+
+        // Fix 4: Re-apply the persisted sub-tab selection after every postback.
+        // `hfSubTab` is written client-side by switchShipTab() and read here — the JS reads the
+        // value from the hidden field and invokes switchShipTab() to restore .active classes on
+        // the correct sub-tab button and panel. Without this, every postback reset the view to
+        // "Delivery Challans" because the DC sub-tab has `class="ship-tab active"` hardcoded.
+        protected override void OnPreRender(EventArgs e)
+        {
+            base.OnPreRender(e);
+            string tab = hfSubTab != null && !string.IsNullOrEmpty(hfSubTab.Value) ? hfSubTab.Value : "dc";
+            if (tab != "dc" && tab != "sa") tab = "dc";
+            string js = "if(typeof switchShipTab==='function'){switchShipTab('" + tab + "');}";
+            Page.ClientScript.RegisterStartupScript(GetType(), "restoreSubTab", js, true);
         }
 
         void BindCustomers(string typeFilter = null)
@@ -936,6 +950,48 @@ namespace PKApp
             catch (Exception ex) { ShowAlert("Error deleting DC: " + ex.Message, false); }
         }
 
+        // ── UNCONVERT DC (from the DC form — for SA-originated DCs) ──────
+        // Fix 5: When the user opens a DRAFT DC that was created from a Sales Force shipment order,
+        // show an "Unconvert DC" button. Pressing it deletes the DC and flips the SA shipment back to "Order".
+        protected void btnUnconvertDCFromForm_Click(object s, EventArgs e)
+        {
+            int dcId = Convert.ToInt32(hfDCID.Value);
+            if (dcId == 0) { ShowAlert("No DC selected.", false); return; }
+            try
+            {
+                var dc = PKDatabaseHelper.GetDCById(dcId);
+                if (dc == null) { ShowAlert("DC not found.", false); return; }
+                if (dc["Status"].ToString() != "DRAFT")
+                { ShowAlert("Only DRAFT DCs can be unconverted.", false); return; }
+
+                string rem = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
+                var m = System.Text.RegularExpressions.Regex.Match(rem, @"^SH-(\d{5})");
+                if (!m.Success)
+                { ShowAlert("This DC was not created from a Sales Force order.", false); return; }
+
+                int shipId = Convert.ToInt32(m.Groups[1].Value);
+                PKDatabaseHelper.UnconvertSAShipmentDC(shipId);
+
+                // Reset form state — the DC no longer exists
+                hfDCID.Value = "0";
+                hfLines.Value = "";
+                txtDCNumber.Text = "";
+                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                txtRemarks.Text = "";
+                if (ddlCustomer != null) ddlCustomer.SelectedIndex = 0;
+                lblFormTitle.Text = "New Delivery Challan";
+                pnlForm.Visible = false;
+
+                ShowAlert("DC unconverted. SH-" + shipId.ToString("D5") + " is back in Order status — SA team can edit it again.", true);
+                BuildProductData();
+                BindDCList();
+                BindSAOrders();
+                // Stay on the SA Orders sub-tab so the user sees the restored order
+                if (hfSubTab != null) hfSubTab.Value = "sa";
+            }
+            catch (Exception ex) { ShowAlert("Error unconverting DC: " + ex.Message, false); }
+        }
+
         // ── LOAD EXISTING DC ──
         protected void rptDCs_ItemCommand(object src, RepeaterCommandEventArgs e)
         {
@@ -1018,6 +1074,14 @@ namespace PKApp
                 btnFinalise.Visible = true;
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
 
+                // Fix 5: Show Unconvert button when this DC originated from an SA shipment order.
+                // Detection: Remarks starts with "SH-" followed by a 5-digit shipment number (set by ConvertSAShipmentToDC).
+                if (btnUnconvertDCFromForm != null)
+                {
+                    string rem = dc["Remarks"] == DBNull.Value ? "" : dc["Remarks"].ToString();
+                    btnUnconvertDCFromForm.Visible = System.Text.RegularExpressions.Regex.IsMatch(rem, @"^SH-\d{5}");
+                }
+
                 // Restore consignment selection
                 if (dc.Table.Columns.Contains("ConsignmentID") && dc["ConsignmentID"] != DBNull.Value)
                 {
@@ -1047,6 +1111,9 @@ namespace PKApp
             {
                 pnlForm.Visible = false;
                 pnlLocked.Visible = true;
+
+                // Fix 5: finalised DC cannot be unconverted
+                if (btnUnconvertDCFromForm != null) btnUnconvertDCFromForm.Visible = false;
 
                 // Populate read-only view
                 if (lblLockedTitle != null)

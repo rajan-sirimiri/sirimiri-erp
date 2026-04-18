@@ -1904,9 +1904,11 @@ namespace PKApp.DAL
             int dcId = Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
 
             // Get shipment lines and create DC lines
+            // Fix 3: read SellingForm from SA line; fall back to ContainerType for pre-migration rows
             var lines = ExecuteQuery(
                 "SELECT sl.ProductID, sl.ShippedQty, IFNULL(p.ContainersPerCase, 12) AS JPC," +
-                " IFNULL(p.ContainerType, 'JAR') AS ContainerType" +
+                " IFNULL(p.ContainerType, 'JAR') AS ContainerType," +
+                " IFNULL(sl.SellingForm, '') AS SASellingForm" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID = sl.ProductID" +
                 " WHERE sl.ShipmentID=?sid AND sl.ShippedQty > 0;",
@@ -1918,10 +1920,19 @@ namespace PKApp.DAL
                 int shippedQty = Convert.ToInt32(r["ShippedQty"]); // in jars/containers
                 int jpc = Convert.ToInt32(r["JPC"]);
 
-                // Determine selling form from container type
-                string containerType = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
-                    ? r["ContainerType"].ToString() : "JAR";
-                string sellingForm = containerType == "BOX" ? "BOX" : containerType == "DIRECT" ? "PCS" : "JAR";
+                // Prefer the user's SellingForm choice from SA; fall back to ContainerType inference
+                string saForm = r["SASellingForm"].ToString();
+                string sellingForm;
+                if (!string.IsNullOrEmpty(saForm))
+                {
+                    sellingForm = saForm;
+                }
+                else
+                {
+                    string containerType = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
+                        ? r["ContainerType"].ToString() : "JAR";
+                    sellingForm = containerType == "BOX" ? "BOX" : containerType == "DIRECT" ? "PCS" : "JAR";
+                }
 
                 // TotalPcs = shippedQty in the selling form (JARs/BOXes)
                 // Source = CASE by default (shipped from cases)

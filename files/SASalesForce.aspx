@@ -268,6 +268,13 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ══════ TAB: CONSIGNMENTS ══════ -->
 <asp:Panel ID="pnlConsignments" runat="server" Visible="false">
 
+<!-- Action bar with visible Create Consignment button -->
+<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
+    <button type="button" class="btn btn-primary btn-sm"
+        onclick="var d=document.getElementById('divNewConsig');d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none';"
+        style="padding:8px 14px;">+ Create Consignment</button>
+</div>
+
 <!-- Consignment Tab Bar -->
 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:0;">
     <div class="tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);flex:1;overflow-x:auto;">
@@ -279,7 +286,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
                     OnCommand="SAConsig_Command" CausesValidation="false" style="white-space:nowrap;font-size:11px;padding:10px 16px;" />
             </ItemTemplate>
         </asp:Repeater>
-        <button type="button" class="tab-btn" onclick="document.getElementById('divNewConsig').style.display=document.getElementById('divNewConsig').style.display==='none'?'block':'none';"
+        <button type="button" class="tab-btn" onclick="var d=document.getElementById('divNewConsig');d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none';"
             style="color:var(--teal);font-size:16px;padding:8px 14px;" title="New Consignment">+</button>
     </div>
 </div>
@@ -325,9 +332,13 @@ tr:hover{background:rgba(41,128,185,0.04);}
             <td class="num"><%# Eval("LineCount") %></td>
             <td class="num" style="font-weight:600;"><%# string.Format("{0:N0}", Eval("TotalQty")) %></td>
             <td><%# GetStatusBadge(Eval("Status").ToString()) %></td>
-            <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
+            <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
                 Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
-                style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;" CausesValidation="false"/></td>
+                style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;margin-right:8px;" CausesValidation="false"/>
+                <asp:LinkButton runat="server" Text="Delete" CommandName="DeleteSAConsigShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="SAConsigOrder_Command"
+                Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
+                OnClientClick="var href=this.getAttribute('href'); erpConfirm('Delete this shipment order?',{title:'Delete Order',type:'warn',okText:'Delete',onOk:function(){eval(href);}});return false;"
+                style="color:var(--red);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;" CausesValidation="false"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
     </asp:Repeater>
@@ -336,7 +347,15 @@ tr:hover{background:rgba(41,128,185,0.04);}
 
 <!-- Shipment Order Form (embedded in consignment) -->
 <div class="sa-card">
-    <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">New Shipment Order <asp:Label ID="lblSAEditShipId" runat="server" style="color:var(--accent);"/></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+        <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">
+            <asp:Label ID="lblSAShipFormTitle" runat="server" Text="New Shipment Order"/>
+            <asp:Label ID="lblSAEditShipId" runat="server" style="color:var(--accent);"/>
+        </div>
+        <asp:LinkButton ID="btnSACancelEdit" runat="server" Text="&#x2715; Cancel Edit" CssClass="btn btn-sm"
+            OnClick="btnSACancelEdit_Click" CausesValidation="false" Visible="false"
+            style="background:#f0f0f0;color:#666;border:1px solid #ddd;text-decoration:none;padding:6px 12px;font-size:11px;"/>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;">
         <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Customer <span style="color:var(--accent);">*</span></label>
             <asp:DropDownList ID="ddlSACustomer" runat="server" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
@@ -350,12 +369,29 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div style="margin-top:14px;">
         <div class="card-title" style="font-size:12px;">Products</div>
         <div id="divSAShipLines">
-            <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 120px 30px;gap:8px;margin-bottom:6px;align-items:center;">
-                <asp:DropDownList ID="ddlSAFirstProduct" runat="server" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onchange="onSAProductChange(this);" />
-                <input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onblur="roundToCase(this);"/>
-                <span class="sa-stock-info" style="font-size:10px;color:#666;"></span>
-                <span></span>
-            </div>
+            <!-- Existing lines rendered here in edit mode -->
+            <asp:Repeater ID="rptSAShipLines" runat="server" OnItemDataBound="rptSAShipLines_ItemDataBound">
+                <ItemTemplate>
+                    <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr 30px;gap:8px;margin-bottom:6px;align-items:center;">
+                        <select name="sa_ship_product" class="sa-prod-sel" onchange="onSAProductSelect(this);"
+                            style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+                            <option value="0">-- Select Product --</option>
+                            <asp:Literal ID="litSAProductOptions" runat="server"/>
+                        </select>
+                        <select name="sa_ship_form" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+                            <option value='<%# Eval("SellingForm") %>' selected><%# Eval("SellingForm") %></option>
+                            <option value="JAR">JAR</option>
+                            <option value="BOX">BOX</option>
+                            <option value="PCS">PCS</option>
+                            <option value="CASE">CASE</option>
+                        </select>
+                        <input type="number" name="sa_ship_qty" min="0" step="1" value='<%# Eval("Quantity") %>' placeholder="Qty"
+                            style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                        <span class="sa-stock-hint" style="font-size:10px;color:var(--text-dim);"></span>
+                        <button type="button" style="background:none;border:none;color:#e74c3c;font-size:14px;cursor:pointer;" onclick="this.parentNode.remove();">&#x2715;</button>
+                    </div>
+                </ItemTemplate>
+            </asp:Repeater>
         </div>
         <button type="button" class="btn btn-sm" style="font-size:11px;background:#f0f0f0;color:#333;border:1px solid #ddd;padding:6px 12px;border-radius:6px;margin-top:4px;" onclick="addSAShipLine()">+ Add Product</button>
     </div>
@@ -379,7 +415,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
 </asp:Panel>
 
 </div>
-<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/><asp:HiddenField ID="hfSAConsigId" runat="server" Value="0"/><asp:HiddenField ID="hfSAProductData" runat="server" Value="{}"/>
+<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/><asp:HiddenField ID="hfSAConsigId" runat="server" Value="0"/><asp:HiddenField ID="hfSAProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfSAProductsJson" runat="server"/>
 <script>
 function addProjLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
@@ -488,52 +524,49 @@ window.addEventListener('load', function() {
         document.getElementById('txtCustSearch').value = ddl.options[ddl.selectedIndex].text;
     }
 });
-var _saProductData = {};
-try { _saProductData = JSON.parse(document.getElementById('<%= hfSAProductData.ClientID %>').value || '{}'); } catch(e){}
-
-function onSAProductChange(sel) {
-    var pid = sel.value;
-    var row = sel.closest('.line-row');
-    var info = row ? row.querySelector('.sa-stock-info') : null;
-    if (!info) return;
-    var pd = _saProductData[pid];
-    if (pd) {
-        info.innerHTML = '<span style="color:#1a9e6a;font-weight:700;">FG: ' + pd.stock + '</span> | Case: ' + pd.caseQty;
-    } else {
-        info.innerHTML = '';
-    }
-}
-
-function roundToCase(inp) {
-    var qty = parseInt(inp.value) || 0;
-    if (qty <= 0) return;
-    var row = inp.closest('.line-row');
-    if (!row) return;
-    var sel = row.querySelector('select');
-    if (!sel) return;
-    var pid = sel.value;
-    var pd = _saProductData[pid];
-    if (!pd || pd.caseQty <= 1) return;
-    var cq = pd.caseQty;
-    var rounded = Math.ceil(qty / cq) * cq;
-    if (rounded !== qty) {
-        inp.value = rounded;
-        inp.style.background = '#fffde7';
-        setTimeout(function(){ inp.style.background = ''; }, 1500);
-    }
-}
-
 function addSAShipLine() {
-    var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
+    var p = document.getElementById('<%= hfSAProductOptionsHtml.ClientID %>').value
+         || document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
     var d = document.getElementById('divSAShipLines'), r = document.createElement('div');
     r.className = 'line-row';
-    r.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 120px 30px;gap:8px;margin-bottom:6px;align-items:center;';
-    r.innerHTML = '<select name="sa_ship_product" onchange="onSAProductChange(this);" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select>'
-        + '<input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" onblur="roundToCase(this);" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>'
-        + '<span class="sa-stock-info" style="font-size:10px;color:#666;"></span>'
-        + '<button type="button" style="background:none;border:none;color:#e74c3c;font-size:14px;cursor:pointer;" onclick="this.parentNode.remove();">&#x2715;</button>';
+    r.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 1fr 1fr 30px;gap:8px;margin-bottom:6px;align-items:center;';
+    r.innerHTML =
+        '<select name="sa_ship_product" class="sa-prod-sel" onchange="onSAProductSelect(this);" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select>'
+      + '<select name="sa_ship_form" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="JAR">JAR</option><option value="BOX">BOX</option><option value="PCS">PCS</option><option value="CASE">CASE</option></select>'
+      + '<input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>'
+      + '<span class="sa-stock-hint" style="font-size:10px;color:var(--text-dim);"></span>'
+      + '<button type="button" style="background:none;border:none;color:#e74c3c;font-size:14px;cursor:pointer;" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
 }
+
+// Show FG stock + auto-pick selling form when product selected on a shipment line
+function onSAProductSelect(sel) {
+    var row = sel.parentNode;
+    var hint = row.querySelector('.sa-stock-hint');
+    var formSel = row.querySelector('select[name="sa_ship_form"]');
+    if (!hint) return;
+    if (sel.value === '0') { hint.textContent = ''; return; }
+    var raw = document.getElementById('<%= hfSAProductsJson.ClientID %>').value || '{}';
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { data = {}; }
+    var p = data[sel.value];
+    if (!p) { hint.textContent = ''; return; }
+    // Auto-pick selling form based on container type (mirrors PK DC behavior)
+    if (formSel) {
+        var ct = p.containerType || 'JAR';
+        var auto = ct === 'BOX' ? 'BOX' : ct === 'DIRECT' ? 'PCS' : 'JAR';
+        // Only auto-set if the current value is the default "JAR" or matches the first option (i.e. untouched)
+        if (formSel.value === 'JAR' || formSel.selectedIndex === 0) formSel.value = auto;
+    }
+    var stock = parseInt(p.fgStock) || 0;
+    hint.innerHTML = 'FG stock: <strong style="color:' + (stock > 0 ? 'var(--teal)' : '#e74c3c') + ';">' + stock + '</strong>';
+}
+
+// On page load, trigger stock hint for any pre-populated lines (edit mode)
+window.addEventListener('load', function() {
+    var sels = document.querySelectorAll('#divSAShipLines select.sa-prod-sel');
+    for (var i = 0; i < sels.length; i++) if (sels[i].value !== '0') onSAProductSelect(sels[i]);
+});
 </script>
 <script src="/StockApp/erp-modal.js"></script><script src="/StockApp/erp-keepalive.js"></script>
 </form></body></html>

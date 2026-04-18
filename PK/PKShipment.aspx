@@ -195,9 +195,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </asp:Panel>
 
     <!-- SUB-TABS: DCs | Sales Force Orders -->
-    <div class="ship-tab-bar">
-        <button type="button" class="ship-tab active" onclick="switchShipTab('dc')">Delivery Challans</button>
-        <button type="button" class="ship-tab" onclick="switchShipTab('sa')">Sales Force Orders</button>
+    <asp:HiddenField ID="hfSubTab" runat="server" Value="dc"/>
+    <div class="ship-tab-bar" id="subTabBar">
+        <button type="button" id="subTabDC" class="ship-tab active" onclick="switchShipTab('dc');return false;">Delivery Challans</button>
+        <button type="button" id="subTabSA" class="ship-tab" onclick="switchShipTab('sa');return false;">Sales Force Orders</button>
     </div>
 
     <div id="tabDC" class="ship-tab-panel active">
@@ -285,6 +286,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return doDeleteDCConfirm();" CausesValidation="false"/>
+            <asp:Button ID="btnUnconvertDCFromForm" runat="server" Text="&#x21A9; Unconvert DC (back to SA Order)" CssClass="btn btn-secondary"
+                OnClick="btnUnconvertDCFromForm_Click" CausesValidation="false" Visible="false"
+                OnClientClick="return doUnconvertDCConfirm();"/>
         </div>
     </div>
     </asp:Panel>
@@ -531,15 +535,22 @@ function onTransportChange(){
     document.getElementById('divTracking').style.display=(mode==='COURIER')?'flex':'none';
 }
 function switchShipTab(tab) {
+    // Scope the query to sub-tab bar only — consignment tabs also use .ship-tab class
+    var bar = document.getElementById('subTabBar');
+    if (!bar) return;
     var panels = document.querySelectorAll('.ship-tab-panel');
-    var tabs = document.querySelectorAll('.ship-tab');
     for (var i = 0; i < panels.length; i++) panels[i].classList.remove('active');
-    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
-    var map = {dc:'tabDC', sa:'tabSA'};
-    var p = document.getElementById(map[tab]);
+    var subTabs = bar.querySelectorAll('.ship-tab');
+    for (var j = 0; j < subTabs.length; j++) subTabs[j].classList.remove('active');
+    var panelMap = {dc:'tabDC', sa:'tabSA'};
+    var btnMap = {dc:'subTabDC', sa:'subTabSA'};
+    var p = document.getElementById(panelMap[tab]);
     if (p) p.classList.add('active');
-    var idx = {dc:0, sa:1};
-    if (tabs[idx[tab]]) tabs[idx[tab]].classList.add('active');
+    var b = document.getElementById(btnMap[tab]);
+    if (b) b.classList.add('active');
+    // Persist to hidden field so postbacks restore the right tab
+    var hf = document.getElementById('<%= hfSubTab.ClientID %>');
+    if (hf) hf.value = tab;
 }
 function toggleProjDetail(el) {
     var detail = el.parentElement.querySelector('.proj-detail');
@@ -938,6 +949,15 @@ function doDeleteDCConfirm(){
         type: 'danger',
         okText: 'Delete',
         onOk: function(){ __doPostBack('<%= btnDeleteDC.UniqueID %>', ''); }
+    });
+    return false;
+}
+function doUnconvertDCConfirm(){
+    erpConfirm('Unconvert this DC back to a Sales Force order? The DC will be deleted and SA will regain edit rights on the shipment order.', {
+        title: 'Unconvert DC',
+        type: 'warn',
+        okText: 'Unconvert',
+        onOk: function(){ __doPostBack('<%= btnUnconvertDCFromForm.UniqueID %>', ''); }
     });
     return false;
 }

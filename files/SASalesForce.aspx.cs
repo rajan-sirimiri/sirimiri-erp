@@ -17,15 +17,16 @@ namespace StockApp
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
-        protected DropDownList ddlSACustomer, ddlSAChannel, ddlSAFirstProduct;
+        protected DropDownList ddlSACustomer, ddlSAChannel;
         protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText, txtSAShipDate;
         protected Button btnTabProjection, btnTabShipments, btnTabConsignments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
         protected Button btnSACreateConsig, btnSASaveDraft, btnSACreateOrder, btnSASendToPK;
-        protected Label lblSAConsigTitle, lblSAConsigStatus, lblSAEditShipId;
-        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsigOrders, rptSAConsigTabs;
+        protected LinkButton btnSACancelEdit;
+        protected Label lblSAConsigTitle, lblSAConsigStatus, lblSAEditShipId, lblSAShipFormTitle;
+        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsigOrders, rptSAConsigTabs, rptSAShipLines;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
-        protected HiddenField hfSAConsigId, hfSAProductData;
+        protected HiddenField hfSAConsigId, hfSAProductOptionsHtml, hfSAProductsJson;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -906,55 +907,90 @@ namespace StockApp
             // Bind form dropdowns
             BindSAConsigCustomers();
             BindSAConsigChannels();
-            if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
-            if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
+            BuildSAProductData();
 
-            // Bind first product dropdown
-            if (ddlSAFirstProduct != null)
+            // Reset form unless we're in edit mode (which will repopulate afterwards)
+            int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
+            if (editShipId <= 0)
             {
-                ddlSAFirstProduct.Items.Clear();
-                ddlSAFirstProduct.Items.Add(new ListItem("-- Select Product --", "0"));
-                ddlSAFirstProduct.Attributes["onchange"] = "onSAProductChange(this);";
-
-                // Get FG stock data — simplified query for SA (stock + case qty only)
-                var fgStock = DatabaseHelper.ExecuteQueryPublic(
-                    "SELECT p.ProductID, p.ProductName," +
-                    " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
-                    " (IFNULL(osJ.Jars,0)" +
-                    "  + FLOOR(IFNULL(fg.TotalPCS,0)/GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1))" +
-                    "  - IFNULL(sp.JarsInCases,0) - IFNULL(dcA.LooseUsed,0))" +
-                    " + (IFNULL(osC.Cases,0) + IFNULL(sp.CasesPacked,0) - IFNULL(dcA.CasesUsed,0))" +
-                    "   * IFNULL(p.ContainersPerCase,12) AS AvailableFGJars" +
-                    " FROM PP_Products p" +
-                    " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Jars FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX') GROUP BY ProductID) osJ ON osJ.ProductID=p.ProductID" +
-                    " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Cases FROM PK_FGOpeningStock WHERE StockForm='CASE' GROUP BY ProductID) osC ON osC.ProductID=p.ProductID" +
-                    " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPCS FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID=p.ProductID" +
-                    " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS JarsInCases, SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID=p.ProductID" +
-                    " LEFT JOIN (SELECT dl.ProductID," +
-                    "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='CASE' THEN CEIL(dl.TotalPcs/GREATEST(IFNULL(pp.ContainersPerCase,12),1)) ELSE 0 END) AS CasesUsed," +
-                    "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='LOOSE' THEN dl.TotalPcs ELSE 0 END) AS LooseUsed" +
-                    "   FROM PK_DCLines dl JOIN PK_DeliveryChallans dch ON dch.DCID=dl.DCID JOIN PP_Products pp ON pp.ProductID=dl.ProductID" +
-                    "   WHERE dch.Status IN ('DRAFT','FINALISED') GROUP BY dl.ProductID) dcA ON dcA.ProductID=p.ProductID" +
-                    " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
-                    " ORDER BY p.ProductName;");
-                var sb = new System.Text.StringBuilder("{");
-                bool first = true;
-                foreach (DataRow fg in fgStock.Rows)
+                if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
+                if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "New Shipment Order";
+                if (btnSACancelEdit != null) btnSACancelEdit.Visible = false;
+                if (btnSACreateOrder != null) btnSACreateOrder.Text = "Create Shipment Order";
+                // Render a single blank line in the repeater
+                if (rptSAShipLines != null)
                 {
-                    string pid = fg["ProductID"].ToString();
-                    string name = fg["ProductName"].ToString();
-                    int stock = Convert.ToInt32(fg["AvailableFGJars"]);
-                    int caseQty = Convert.ToInt32(fg["ContainersPerCase"]);
-
-                    ddlSAFirstProduct.Items.Add(new ListItem(name + " (FG:" + stock + ")", pid));
-
-                    if (!first) sb.Append(",");
-                    sb.Append("\"" + pid + "\":{\"stock\":" + stock + ",\"caseQty\":" + caseQty + "}");
-                    first = false;
+                    var blank = new DataTable();
+                    blank.Columns.Add("LineID", typeof(int));
+                    blank.Columns.Add("ProductID", typeof(int));
+                    blank.Columns.Add("Quantity", typeof(int));
+                    blank.Columns.Add("SellingForm", typeof(string));
+                    blank.Rows.Add(0, 0, 0, "JAR");
+                    rptSAShipLines.DataSource = blank;
+                    rptSAShipLines.DataBind();
                 }
-                sb.Append("}");
-                if (hfSAProductData != null) hfSAProductData.Value = sb.ToString();
             }
+        }
+
+        /// <summary>Build a JSON blob of product data (container type + FG stock) for the client-side stock hint.</summary>
+        private void BuildSAProductData()
+        {
+            // Also build the HTML options blob for JS line addition
+            var prods = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT p.ProductID, p.ProductName, p.ProductCode," +
+                " IFNULL(p.ContainerType,'JAR') AS ContainerType," +
+                " (SELECT IFNULL(SUM(IFNULL(fs.CasesBalance,0)*IFNULL(p2.ContainersPerCase,12) + IFNULL(fs.LooseBalance,0)),0)" +
+                "  FROM PK_FGStockLedger fs JOIN PP_Products p2 ON p2.ProductID=fs.ProductID WHERE fs.ProductID=p.ProductID) AS FGStock" +
+                " FROM PP_Products p WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
+                " ORDER BY p.ProductName;");
+            var optsSb = new System.Text.StringBuilder();
+            var jsonSb = new System.Text.StringBuilder("{");
+            bool first = true;
+            foreach (DataRow p in prods.Rows)
+            {
+                string pid = p["ProductID"].ToString();
+                string name = p["ProductName"].ToString().Replace("'", "&#39;").Replace("\"", "&quot;");
+                string code = p["ProductCode"].ToString().Replace("'", "&#39;").Replace("\"", "&quot;");
+                string ct = p["ContainerType"].ToString();
+                int stock = 0;
+                if (p["FGStock"] != DBNull.Value) int.TryParse(p["FGStock"].ToString(), out stock);
+                optsSb.Append("<option value=\"").Append(pid).Append("\">").Append(name).Append(" (").Append(code).Append(")</option>");
+                if (!first) jsonSb.Append(",");
+                jsonSb.Append("\"").Append(pid).Append("\":{\"containerType\":\"").Append(ct).Append("\",\"fgStock\":").Append(stock).Append("}");
+                first = false;
+            }
+            jsonSb.Append("}");
+            if (hfSAProductOptionsHtml != null) hfSAProductOptionsHtml.Value = optsSb.ToString();
+            if (hfSAProductsJson != null) hfSAProductsJson.Value = jsonSb.ToString();
+        }
+
+        /// <summary>Bind the product options <literal> per row so server-rendered lines can show the saved product selected.</summary>
+        protected void rptSAShipLines_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
+            var row = (DataRowView)e.Item.DataItem;
+            int savedPid = row["ProductID"] != DBNull.Value ? Convert.ToInt32(row["ProductID"]) : 0;
+
+            var lit = e.Item.FindControl("litSAProductOptions") as Literal;
+            if (lit == null) return;
+
+            // Reuse the already-built hfSAProductOptionsHtml blob, but inject selected=...
+            // Cheaper: query once and cache on Items (but this is a small product list)
+            var prods = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT ProductID, ProductName, ProductCode FROM PP_Products" +
+                " WHERE IsActive=1 AND ProductType IN ('Core','Conversion','Prefilled Conversion')" +
+                " ORDER BY ProductName;");
+            var sb = new System.Text.StringBuilder();
+            foreach (DataRow p in prods.Rows)
+            {
+                int pid = Convert.ToInt32(p["ProductID"]);
+                string sel = (pid == savedPid) ? " selected" : "";
+                string name = p["ProductName"].ToString().Replace("\"", "&quot;");
+                string code = p["ProductCode"].ToString().Replace("\"", "&quot;");
+                sb.Append("<option value=\"").Append(pid).Append("\"").Append(sel).Append(">").Append(name).Append(" (").Append(code).Append(")</option>");
+            }
+            lit.Text = sb.ToString();
         }
 
         protected void btnSASaveDraft_Click(object s, EventArgs e)
@@ -978,54 +1014,179 @@ namespace StockApp
             int channelId = ddlSAChannel != null ? Convert.ToInt32(ddlSAChannel.SelectedValue) : 0;
             if (channelId <= 0) { ShowAlert("Please select a channel.", false); return; }
 
-            // Create the shipment
-            int shipId = DatabaseHelper.CreateShipmentInConsignment(csgId, custId, DateTime.Parse(shipDate), 0, channelId, UserID);
-
-            // Save product lines
-            // First product line (server-side dropdown)
-            int firstPid = ddlSAFirstProduct != null ? Convert.ToInt32(ddlSAFirstProduct.SelectedValue) : 0;
-            string[] firstQtys = Request.Form.GetValues("sa_ship_qty");
-            int firstQty = 0;
-            if (firstQtys != null && firstQtys.Length > 0) int.TryParse(firstQtys[0], out firstQty);
-            if (firstPid > 0 && firstQty > 0)
-            {
-                DatabaseHelper.ExecuteNonQueryPublic(
-                    "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,0,?sq);",
-                    new MySqlParameter("?sid", shipId), new MySqlParameter("?pid", firstPid), new MySqlParameter("?sq", firstQty));
-            }
-
-            // Additional product lines (JS-added rows)
+            // Read all product lines from the form
             string[] productIds = Request.Form.GetValues("sa_ship_product");
             string[] shipQtys = Request.Form.GetValues("sa_ship_qty");
-            if (productIds != null && shipQtys != null)
+            string[] shipForms = Request.Form.GetValues("sa_ship_form");
+            if (productIds == null || shipQtys == null)
+            { ShowAlert("Please add at least one product with a quantity.", false); return; }
+
+            // Validate at least one usable line
+            bool hasLine = false;
+            for (int i = 0; i < productIds.Length && i < shipQtys.Length; i++)
             {
-                // Skip index offset: firstQty was already read from index 0 of sa_ship_qty
-                int qtyOffset = 1; // first qty already used above
-                for (int i = 0; i < productIds.Length; i++)
+                int tpid = 0; int.TryParse(productIds[i], out tpid);
+                int tqty = 0; int.TryParse(shipQtys[i], out tqty);
+                if (tpid > 0 && tqty > 0) { hasLine = true; break; }
+            }
+            if (!hasLine) { ShowAlert("Please add at least one product with a quantity.", false); return; }
+
+            int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
+            int shipId;
+
+            if (editShipId > 0)
+            {
+                // UPDATE existing shipment header
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "UPDATE SA_Shipments SET CustomerID=?cust, ShipmentDate=?dt, ChannelID=?ch, Status=?st WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?cust", custId),
+                    new MySqlParameter("?dt", DateTime.Parse(shipDate)),
+                    new MySqlParameter("?ch", channelId),
+                    new MySqlParameter("?st", status),
+                    new MySqlParameter("?sid", editShipId));
+                shipId = editShipId;
+                // Clear old lines
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+            }
+            else
+            {
+                // INSERT new
+                shipId = DatabaseHelper.CreateShipmentInConsignment(csgId, custId, DateTime.Parse(shipDate), 0, channelId, UserID);
+                if (status == "Order")
+                    DatabaseHelper.ExecuteNonQueryPublic("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid;",
+                        new MySqlParameter("?sid", shipId));
+            }
+
+            // Insert lines — SellingForm included (schema migration adds the column; coalesce to 'JAR' if null)
+            for (int i = 0; i < productIds.Length; i++)
+            {
+                int pid = 0; int.TryParse(productIds[i], out pid);
+                int sq = 0;
+                if (i < shipQtys.Length) int.TryParse(shipQtys[i], out sq);
+                string form = (shipForms != null && i < shipForms.Length && !string.IsNullOrEmpty(shipForms[i]))
+                    ? shipForms[i] : "JAR";
+                if (pid > 0 && sq > 0)
                 {
-                    int pid = 0; int.TryParse(productIds[i], out pid);
-                    int qtyIdx = i + qtyOffset;
-                    int sq = 0;
-                    if (shipQtys != null && qtyIdx < shipQtys.Length) int.TryParse(shipQtys[qtyIdx], out sq);
-                    if (pid > 0 && sq > 0)
-                    {
-                        DatabaseHelper.ExecuteNonQueryPublic(
-                            "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,0,?sq);",
-                            new MySqlParameter("?sid", shipId), new MySqlParameter("?pid", pid), new MySqlParameter("?sq", sq));
-                    }
+                    DatabaseHelper.ExecuteNonQueryPublic(
+                        "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty, SellingForm) VALUES (?sid,?pid,0,?sq,?frm);",
+                        new MySqlParameter("?sid", shipId),
+                        new MySqlParameter("?pid", pid),
+                        new MySqlParameter("?sq", sq),
+                        new MySqlParameter("?frm", form));
                 }
             }
 
-            // Update status if "Order"
-            if (status == "Order")
-                DatabaseHelper.ExecuteNonQueryPublic("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid;",
-                    new MySqlParameter("?sid", shipId));
-
             string shipNo = "SH-" + shipId.ToString("D5");
-            ShowAlert(status == "Order"
-                ? "Shipment Order " + shipNo + " created — visible to Shipment team."
-                : "Shipment " + shipNo + " saved as draft.", true);
+            string msg;
+            if (editShipId > 0)
+                msg = status == "Order" ? "Order " + shipNo + " updated and sent to Shipment team." : "Draft " + shipNo + " updated.";
+            else
+                msg = status == "Order" ? "Shipment Order " + shipNo + " created — visible to Shipment team." : "Shipment " + shipNo + " saved as draft.";
+            ShowAlert(msg, true);
+
+            // Exit edit mode on success
+            if (hfEditShipId != null) hfEditShipId.Value = "0";
             LoadSAConsigDetail(csgId);
+        }
+
+        /// <summary>Handle Edit / Delete on a shipment order from inside the consignment view.</summary>
+        protected void SAConsigOrder_Command(object sender, CommandEventArgs e)
+        {
+            int shipId = Convert.ToInt32(e.CommandArgument);
+            if (e.CommandName == "EditSAConsigShip")
+            {
+                // Load the shipment into the embedded form
+                DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT ShipmentID, CustomerID, ShipmentDate, ChannelID, ConsignmentID, Status" +
+                    " FROM SA_Shipments WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                if (ship == null) { ShowAlert("Shipment not found.", false); return; }
+
+                // Ensure the right consignment is active
+                int csgId = 0;
+                if (ship["ConsignmentID"] != DBNull.Value) csgId = Convert.ToInt32(ship["ConsignmentID"]);
+                if (csgId > 0) hfSAConsigId.Value = csgId.ToString();
+
+                // Set edit mode FIRST so LoadSAConsigDetail doesn't reset the form
+                if (hfEditShipId != null) hfEditShipId.Value = shipId.ToString();
+
+                BindSAConsigTabs();
+                LoadSAConsigDetail(csgId);
+
+                // Now populate the form fields
+                if (ddlSACustomer != null && ship["CustomerID"] != DBNull.Value)
+                {
+                    var li = ddlSACustomer.Items.FindByValue(ship["CustomerID"].ToString());
+                    if (li != null) ddlSACustomer.SelectedValue = ship["CustomerID"].ToString();
+                }
+                if (txtSAShipDate != null) txtSAShipDate.Text = Convert.ToDateTime(ship["ShipmentDate"]).ToString("yyyy-MM-dd");
+                if (ddlSAChannel != null && ship["ChannelID"] != DBNull.Value)
+                {
+                    var li = ddlSAChannel.Items.FindByValue(ship["ChannelID"].ToString());
+                    if (li != null) ddlSAChannel.SelectedValue = ship["ChannelID"].ToString();
+                }
+
+                // Load lines into rptSAShipLines
+                DataTable lines = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT sl.LineID, sl.ProductID, sl.ShippedQty AS Quantity," +
+                    " IFNULL(sl.SellingForm,'JAR') AS SellingForm" +
+                    " FROM SA_ShipmentLines sl" +
+                    " WHERE sl.ShipmentID=?sid ORDER BY sl.LineID;",
+                    new MySqlParameter("?sid", shipId));
+                if (rptSAShipLines != null)
+                {
+                    rptSAShipLines.DataSource = lines.Rows.Count > 0 ? lines : (object)CreateBlankLinesTable();
+                    rptSAShipLines.DataBind();
+                }
+
+                // Update UI to reflect edit mode
+                if (lblSAEditShipId != null) lblSAEditShipId.Text = "— Editing SH-" + shipId.ToString("D5");
+                if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "Edit Shipment Order";
+                if (btnSACancelEdit != null) btnSACancelEdit.Visible = true;
+                if (btnSACreateOrder != null) btnSACreateOrder.Text = "Save & Send Order";
+            }
+            else if (e.CommandName == "DeleteSAConsigShip")
+            {
+                // Only delete if not yet converted to DC / shipped
+                DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
+                    "SELECT Status, ConsignmentID FROM SA_Shipments WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                if (ship == null) return;
+                string st = ship["Status"].ToString();
+                if (st == "DC" || st == "Shipped")
+                {
+                    ShowAlert("Cannot delete — order already " + st + ".", false);
+                    return;
+                }
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_Shipments WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+                ShowAlert("Shipment order deleted.", true);
+
+                int csgId = ship["ConsignmentID"] != DBNull.Value ? Convert.ToInt32(ship["ConsignmentID"]) : 0;
+                if (csgId > 0) LoadSAConsigDetail(csgId);
+            }
+        }
+
+        private DataTable CreateBlankLinesTable()
+        {
+            var t = new DataTable();
+            t.Columns.Add("LineID", typeof(int));
+            t.Columns.Add("ProductID", typeof(int));
+            t.Columns.Add("Quantity", typeof(int));
+            t.Columns.Add("SellingForm", typeof(string));
+            t.Rows.Add(0, 0, 0, "JAR");
+            return t;
+        }
+
+        protected void btnSACancelEdit_Click(object s, EventArgs e)
+        {
+            if (hfEditShipId != null) hfEditShipId.Value = "0";
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
+            if (csgId > 0) LoadSAConsigDetail(csgId);
         }
 
         protected void btnSASendToPK_Click(object s, EventArgs e)
