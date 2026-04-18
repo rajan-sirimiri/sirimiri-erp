@@ -761,5 +761,22 @@ namespace StockApp.DAL
                 new MySqlParameter("?cid", consignmentId),
                 new MySqlParameter("?sid", shipmentId));
         }
+
+        public static int CreateShipmentInConsignment(int consignmentId, int customerId, DateTime shipDate,
+            int stateId, int channelId, int userId, string remarks = "")
+        {
+            ExecuteNonQuery(
+                "INSERT INTO SA_Shipments (ConsignmentID, CustomerID, ShipmentDate, StateID, ChannelID," +
+                " Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?cid, ?custid, ?dt, ?sid, ?chid, 'Saved', ?rem, ?by, NOW());",
+                new MySqlParameter("?cid", consignmentId),
+                new MySqlParameter("?custid", customerId),
+                new MySqlParameter("?dt", shipDate.ToString("yyyy-MM-dd")),
+                new MySqlParameter("?sid", stateId),
+                new MySqlParameter("?chid", channelId),
+                new MySqlParameter("?rem", remarks ?? ""),
+                new MySqlParameter("?by", userId));
+            return Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
+        }
     }
 }
