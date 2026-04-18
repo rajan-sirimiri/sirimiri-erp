@@ -13,14 +13,18 @@ namespace StockApp
         protected Label lblShipZone, lblShipRegion, lblProjZone, lblProjRegion, lblEditingShipId;
         protected Panel pnlAlert, pnlProjection, pnlShipments, pnlProjLines, pnlProjEmpty, pnlProjForm;
         protected Panel pnlShipLines, pnlShipEmpty, pnlZoneRegionInfo, pnlProjZoneRegion, pnlShipForm;
+        protected Panel pnlConsignments, pnlSAConsigDetail, pnlConsigEmpty, pnlSAConsigOrdersEmpty;
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
-        protected TextBox txtShipDate, txtVehicleNo;
-        protected Button btnTabProjection, btnTabShipments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
-        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments;
+        protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText;
+        protected Button btnTabProjection, btnTabShipments, btnTabConsignments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
+        protected Button btnSACreateConsig, btnSAAddOrder;
+        protected Label lblSAConsigTitle;
+        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsignments, rptSAConsigOrders;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
+        protected HiddenField hfSAConsigId;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -195,10 +199,14 @@ namespace StockApp
 
         private void SetActiveTab()
         {
-            bool isProj = hfTab.Value != "shipments";
-            pnlProjection.Visible = isProj; pnlShipments.Visible = !isProj;
-            btnTabProjection.CssClass = isProj ? "tab-btn active" : "tab-btn";
-            btnTabShipments.CssClass = !isProj ? "tab-btn active" : "tab-btn";
+            string tab = hfTab.Value ?? "projection";
+            pnlProjection.Visible = tab == "projection";
+            pnlShipments.Visible = tab == "shipments";
+            if (pnlConsignments != null) pnlConsignments.Visible = tab == "consignments";
+            btnTabProjection.CssClass = tab == "projection" ? "tab-btn active" : "tab-btn";
+            btnTabShipments.CssClass = tab == "shipments" ? "tab-btn active" : "tab-btn";
+            if (btnTabConsignments != null) btnTabConsignments.CssClass = tab == "consignments" ? "tab-btn active" : "tab-btn";
+            if (tab == "consignments") BindSAConsignments();
         }
 
         protected void ddlMonth_Changed(object sender, EventArgs e) { RefreshData(); }
@@ -637,6 +645,11 @@ namespace StockApp
                     new MySqlParameter("?u", UserID));
                 object shipIdObj = DatabaseHelper.ExecuteScalarPublic("SELECT LAST_INSERT_ID();");
                 shipId = Convert.ToInt32(shipIdObj);
+
+                // Link to consignment if one is active
+                int consigId = hfSAConsigId != null ? Convert.ToInt32(hfSAConsigId.Value) : 0;
+                if (consigId > 0)
+                    PKApp.DAL.PKDatabaseHelper.LinkShipmentToConsignment(shipId, consigId);
             }
 
             // Save line items — read from ship_product dropdowns
@@ -787,5 +800,87 @@ namespace StockApp
 
         private void ShowAlert(string msg, bool success)
         { pnlAlert.Visible = true; lblAlert.Text = msg; pnlAlert.CssClass = "alert " + (success ? "alert-success" : "alert-danger"); }
+
+        // ══════════════════════════════════════════════════════════════
+        // SALES FORCE CONSIGNMENT HANDLERS
+        // ══════════════════════════════════════════════════════════════
+
+        void BindSAConsignments()
+        {
+            var dt = PKApp.DAL.PKDatabaseHelper.GetAllConsignments(50);
+            // Add ShipmentCount column
+            dt.Columns.Add("ShipmentCount", typeof(int));
+            foreach (DataRow r in dt.Rows)
+            {
+                int cid = Convert.ToInt32(r["ConsignmentID"]);
+                var ships = PKApp.DAL.PKDatabaseHelper.GetShipmentsByConsignment(cid);
+                r["ShipmentCount"] = ships.Rows.Count;
+            }
+            bool hasRows = dt.Rows.Count > 0;
+            if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = !hasRows;
+            if (rptSAConsignments != null) { rptSAConsignments.DataSource = dt; rptSAConsignments.DataBind(); }
+        }
+
+        protected void btnSACreateConsig_Click(object s, EventArgs e)
+        {
+            try
+            {
+                DateTime dt = DateTime.Parse(txtSAConsigDate.Text);
+                string userText = txtSAConsigText.Text.Trim();
+                if (string.IsNullOrEmpty(userText))
+                { ShowAlert("Please enter a consignment identifier (e.g. ROTN, BLORE).", false); return; }
+
+                int newId = PKApp.DAL.PKDatabaseHelper.CreateConsignment(dt, userText, "", UserID);
+                txtSAConsigText.Text = "";
+                hfSAConsigId.Value = newId.ToString();
+                BindSAConsignments();
+                LoadSAConsigDetail(newId);
+
+                var csg = PKApp.DAL.PKDatabaseHelper.GetConsignmentById(newId);
+                ShowAlert("Consignment created: " + (csg != null ? csg["ConsignmentCode"].ToString() : ""), true);
+            }
+            catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
+        }
+
+        protected void SAConsig_Command(object s, CommandEventArgs e)
+        {
+            if (e.CommandName == "OpenConsig")
+            {
+                int csgId = Convert.ToInt32(e.CommandArgument);
+                hfSAConsigId.Value = csgId.ToString();
+                LoadSAConsigDetail(csgId);
+            }
+        }
+
+        void LoadSAConsigDetail(int consignmentId)
+        {
+            if (pnlSAConsigDetail == null) return;
+            var csg = PKApp.DAL.PKDatabaseHelper.GetConsignmentById(consignmentId);
+            if (csg == null) { pnlSAConsigDetail.Visible = false; return; }
+
+            pnlSAConsigDetail.Visible = true;
+            if (lblSAConsigTitle != null)
+                lblSAConsigTitle.Text = csg["ConsignmentCode"].ToString();
+
+            var orders = PKApp.DAL.PKDatabaseHelper.GetShipmentsByConsignment(consignmentId);
+            if (rptSAConsigOrders != null) { rptSAConsigOrders.DataSource = orders; rptSAConsigOrders.DataBind(); }
+            if (pnlSAConsigOrdersEmpty != null) pnlSAConsigOrdersEmpty.Visible = orders.Rows.Count == 0;
+        }
+
+        protected void btnSAAddOrder_Click(object s, EventArgs e)
+        {
+            // Switch to Shipments tab with consignment pre-selected
+            // The shipment form will create the order under this consignment
+            int csgId = Convert.ToInt32(hfSAConsigId.Value);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            hfTab.Value = "shipments";
+            SetActiveTab();
+            RefreshData();
+
+            // Pre-fill: the existing shipment form will be used
+            // Store the consignment ID so when shipment is saved, it gets linked
+            ShowAlert("Create a shipment order below. It will be linked to the selected consignment.", true);
+        }
     }
 }

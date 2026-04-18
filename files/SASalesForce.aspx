@@ -90,6 +90,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <div class="tab-bar">
     <asp:Button ID="btnTabProjection" runat="server" Text="&#x1F4CA; Projection" CssClass="tab-btn active" OnClick="btnTab_Click" CommandArgument="projection"/>
     <asp:Button ID="btnTabShipments" runat="server" Text="&#x1F69A; Shipments &amp; Ordering" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="shipments"/>
+    <asp:Button ID="btnTabConsignments" runat="server" Text="&#x1F4E6; Consignments" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="consignments"/>
 </div>
 
 <!-- ═══════ TAB 1: PROJECTION ═══════ -->
@@ -265,8 +266,67 @@ tr:hover{background:rgba(41,128,185,0.04);}
 </div>
 </asp:Panel>
 
+<!-- ══════ TAB: CONSIGNMENTS ══════ -->
+<asp:Panel ID="pnlConsignments" runat="server" Visible="false">
+<div class="sa-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="card-title" style="margin:0;padding:0;border:none;">Consignments</div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('divNewConsig').style.display=document.getElementById('divNewConsig').style.display==='none'?'block':'none';">+ New Consignment</button>
+    </div>
+
+    <!-- New Consignment Form -->
+    <div id="divNewConsig" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">CREATE CONSIGNMENT</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+            <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Date</label>
+                <asp:TextBox ID="txtSAConsigDate" runat="server" TextMode="Date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
+            <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Identifier (e.g. ROTN)</label>
+                <asp:TextBox ID="txtSAConsigText" runat="server" placeholder="ROTN" MaxLength="30" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-transform:uppercase;"/></div>
+            <div><asp:Button ID="btnSACreateConsig" runat="server" Text="Create" CssClass="btn btn-primary" OnClick="btnSACreateConsig_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
+        </div>
+    </div>
+
+    <!-- Consignment List -->
+    <asp:Panel ID="pnlConsigEmpty" runat="server"><div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">No consignments yet.</div></asp:Panel>
+    <asp:Repeater ID="rptSAConsignments" runat="server">
+        <HeaderTemplate><table class="sa-table"><tr><th>Consignment</th><th>Date</th><th>Orders</th><th>Status</th><th></th></tr></HeaderTemplate>
+        <ItemTemplate><tr>
+            <td style="font-weight:600;"><%# Eval("ConsignmentCode") %></td>
+            <td><%# Convert.ToDateTime(Eval("ConsignmentDate")).ToString("dd-MMM-yyyy") %></td>
+            <td class="num"><%# Eval("ShipmentCount") %></td>
+            <td><%# Eval("Status").ToString()=="OPEN" ? "<span style='background:#fff3cd;color:#856404;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>OPEN</span>" : "<span style='background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>" + Eval("Status") + "</span>" %></td>
+            <td><asp:LinkButton runat="server" Text="Open" CommandName="OpenConsig" CommandArgument='<%# Eval("ConsignmentID") %>' OnCommand="SAConsig_Command" style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;"/></td>
+        </tr></ItemTemplate>
+        <FooterTemplate></table></FooterTemplate>
+    </asp:Repeater>
 </div>
-<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/>
+
+<!-- Consignment Detail (shows shipment orders inside selected consignment) -->
+<asp:Panel ID="pnlSAConsigDetail" runat="server" Visible="false">
+<div class="sa-card" style="margin-top:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="card-title" style="margin:0;padding:0;border:none;"><asp:Label ID="lblSAConsigTitle" runat="server"/></div>
+        <asp:Button ID="btnSAAddOrder" runat="server" Text="+ Add Shipment Order" CssClass="btn btn-primary btn-sm" OnClick="btnSAAddOrder_Click" CausesValidation="false"/>
+    </div>
+    <asp:Repeater ID="rptSAConsigOrders" runat="server">
+        <HeaderTemplate><table class="sa-table"><tr><th>Order#</th><th>Customer</th><th>Date</th><th>Items</th><th>Qty</th><th>Status</th></tr></HeaderTemplate>
+        <ItemTemplate><tr>
+            <td style="font-family:monospace;font-weight:600;color:var(--accent);">SH-<%# Eval("ShipmentID").ToString().PadLeft(5,'0') %></td>
+            <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
+            <td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td>
+            <td class="num"><%# Eval("LineCount") %></td>
+            <td class="num" style="font-weight:600;"><%# string.Format("{0:N0}", Eval("TotalQty")) %></td>
+            <td><%# Eval("Status").ToString()=="Order" ? "<span style='background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>Order</span>" : "<span style='font-size:10px;'>" + Eval("Status") + "</span>" %></td>
+        </tr></ItemTemplate>
+        <FooterTemplate></table></FooterTemplate>
+    </asp:Repeater>
+    <asp:Panel ID="pnlSAConsigOrdersEmpty" runat="server"><div style="text-align:center;padding:14px;color:var(--text-dim);font-size:12px;">No shipment orders yet. Click "+ Add Shipment Order" to create one.</div></asp:Panel>
+</div>
+</asp:Panel>
+</asp:Panel>
+
+</div>
+<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/><asp:HiddenField ID="hfSAConsigId" runat="server" Value="0"/>
 <script>
 function addProjLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;

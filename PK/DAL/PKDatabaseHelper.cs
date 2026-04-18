@@ -2443,6 +2443,18 @@ namespace PKApp.DAL
                 " ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC;");
         }
 
+        /// <summary>Get all consignments for SA listing.</summary>
+        public static DataTable GetAllConsignments(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status, c.Remarks," +
+                " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount," +
+                " (SELECT IFNULL(SUM(d2.GrandTotal),0) FROM PK_DeliveryChallans d2 WHERE d2.ConsignmentID=c.ConsignmentID) AS TotalAmount" +
+                " FROM PK_Consignments c WHERE c.Status IN ('OPEN','READY','DISPATCHED')" +
+                " ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
         /// <summary>Get DISPATCHED consignments for dropdown.</summary>
         public static DataTable GetDispatchedConsignments()
         {
@@ -2560,6 +2572,64 @@ namespace PKApp.DAL
                 " WHERE d.ConsignmentID IS NULL" +
                 " ORDER BY d.DCID DESC LIMIT ?lim;",
                 new MySqlParameter("?lim", limit));
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SALES FORCE CONSIGNMENT
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Get shipment orders under a consignment.</summary>
+        public static DataTable GetShipmentsByConsignment(int consignmentId)
+        {
+            return ExecuteQuery(
+                "SELECT s.ShipmentID, s.ShipmentDate, s.Status, s.CustomerID, s.Remarks," +
+                " c.CustomerName, c.CustomerCode, c.CustomerType," +
+                " IFNULL(ct.TypeName,'') AS TypeName," +
+                " (SELECT COUNT(*) FROM SA_ShipmentLines sl WHERE sl.ShipmentID=s.ShipmentID) AS LineCount," +
+                " (SELECT IFNULL(SUM(sl2.ShippedQty),0) FROM SA_ShipmentLines sl2 WHERE sl2.ShipmentID=s.ShipmentID) AS TotalQty" +
+                " FROM SA_Shipments s" +
+                " LEFT JOIN PK_Customers c ON c.CustomerID=s.CustomerID" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
+                " WHERE s.ConsignmentID=?cid ORDER BY s.ShipmentID;",
+                new MySqlParameter("?cid", consignmentId));
+        }
+
+        /// <summary>Link an existing shipment to a consignment.</summary>
+        public static void LinkShipmentToConsignment(int shipmentId, int consignmentId)
+        {
+            ExecuteNonQuery(
+                "UPDATE SA_Shipments SET ConsignmentID=?cid WHERE ShipmentID=?sid;",
+                new MySqlParameter("?cid", consignmentId),
+                new MySqlParameter("?sid", shipmentId));
+        }
+
+        /// <summary>Get consignments that have at least one shipment order (for PK visibility).</summary>
+        public static DataTable GetConsignmentsWithShipments()
+        {
+            return ExecuteQuery(
+                "SELECT DISTINCT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.Status" +
+                " FROM PK_Consignments c" +
+                " JOIN SA_Shipments s ON s.ConsignmentID=c.ConsignmentID" +
+                " WHERE c.Status IN ('OPEN','READY') AND s.Status IN ('Order','Saved')" +
+                " ORDER BY c.ConsignmentDate DESC;");
+        }
+
+        /// <summary>Create a shipment order under a consignment (from Sales Force).</summary>
+        public static int CreateShipmentInConsignment(int consignmentId, int customerId, DateTime shipDate,
+            int stateId, int channelId, int userId, string remarks = "")
+        {
+            ExecuteNonQuery(
+                "INSERT INTO SA_Shipments (ConsignmentID, CustomerID, ShipmentDate, StateID, ChannelID," +
+                " Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?cid, ?custid, ?dt, ?sid, ?chid, 'Order', ?rem, ?by, NOW());",
+                new MySqlParameter("?cid", consignmentId),
+                new MySqlParameter("?custid", customerId),
+                new MySqlParameter("?dt", shipDate.ToString("yyyy-MM-dd")),
+                new MySqlParameter("?sid", stateId),
+                new MySqlParameter("?chid", channelId),
+                new MySqlParameter("?rem", remarks ?? ""),
+                new MySqlParameter("?by", userId));
+            return Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
         }
     }
 }
