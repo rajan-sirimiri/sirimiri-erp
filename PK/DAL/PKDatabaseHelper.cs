@@ -2595,7 +2595,7 @@ namespace PKApp.DAL
                 " c.CustomerName, c.CustomerCode, c.CustomerType" +
                 " FROM PK_DeliveryChallans d" +
                 " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
-                " WHERE d.ConsignmentID IS NULL" +
+                " WHERE d.ConsignmentID IS NULL AND c.CustomerType='RT'" +
                 " ORDER BY d.DCID DESC LIMIT ?lim;",
                 new MySqlParameter("?lim", limit));
         }

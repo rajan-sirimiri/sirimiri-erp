@@ -108,7 +108,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 </ItemTemplate>
             </asp:Repeater>
             <button type="button" class="ship-tab" onclick="document.getElementById('pnlNewConsig').style.display=document.getElementById('pnlNewConsig').style.display==='none'?'block':'none';"
-                style="color:var(--teal);font-size:16px;padding:10px 16px;" title="New Consignment">+</button>
+                style="color:#fff;background:var(--teal);font-size:11px;font-weight:700;padding:8px 16px;border-radius:8px;margin-left:8px;margin-bottom:4px;" title="New Consignment">+ Create Consignment</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;margin-left:12px;margin-bottom:2px;">
             <asp:DropDownList ID="ddlDispatched" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlDispatched_Changed"
