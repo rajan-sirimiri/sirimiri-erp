@@ -26,7 +26,7 @@ namespace StockApp
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsigOrders, rptSAConsigTabs, rptSAShipLines;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
-        protected HiddenField hfSAConsigId, hfSAProductOptionsHtml, hfSAProductsJson;
+        protected HiddenField hfSAConsigId, hfSAProductData, hfSAProductOptionsHtml;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -904,12 +904,12 @@ namespace StockApp
                 if (r["Status"].ToString() == "Saved") { hasSaved = true; break; }
             if (btnSASendToPK != null) btnSASendToPK.Visible = hasSaved;
 
-            // Bind form dropdowns
+            // Bind form dropdowns + product data (stock + case qty + container type)
             BindSAConsigCustomers();
             BindSAConsigChannels();
             BuildSAProductData();
 
-            // Reset form unless we're in edit mode (which will repopulate afterwards)
+            // If not in edit mode, reset the form and render a single blank row
             int editShipId = hfEditShipId != null ? Convert.ToInt32(hfEditShipId.Value) : 0;
             if (editShipId <= 0)
             {
@@ -918,79 +918,146 @@ namespace StockApp
                 if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "New Shipment Order";
                 if (btnSACancelEdit != null) btnSACancelEdit.Visible = false;
                 if (btnSACreateOrder != null) btnSACreateOrder.Text = "Create Shipment Order";
-                // Render a single blank line in the repeater
-                if (rptSAShipLines != null)
-                {
-                    var blank = new DataTable();
-                    blank.Columns.Add("LineID", typeof(int));
-                    blank.Columns.Add("ProductID", typeof(int));
-                    blank.Columns.Add("Quantity", typeof(int));
-                    blank.Columns.Add("SellingForm", typeof(string));
-                    blank.Rows.Add(0, 0, 0, "JAR");
-                    rptSAShipLines.DataSource = blank;
-                    rptSAShipLines.DataBind();
-                }
+                BindSAShipLines(CreateBlankLinesTable());
             }
         }
 
-        /// <summary>Build a JSON blob of product data (container type + FG stock) for the client-side stock hint.</summary>
+        /// <summary>
+        /// Pull product list + FG stock + case qty + container type. Populates:
+        /// - hfSAProductData with JSON {pid:{stock,caseQty,containerType}}
+        /// - hfSAProductOptionsHtml with raw &lt;option&gt; list for JS line-addition
+        /// Stock query mirrors the PK DC form's accuracy: opening stock + production
+        /// - secondary packing reservations - already-issued DC lines.
+        /// </summary>
         private void BuildSAProductData()
         {
-            // Also build the HTML options blob for JS line addition
-            var prods = DatabaseHelper.ExecuteQueryPublic(
+            var fgStock = DatabaseHelper.ExecuteQueryPublic(
                 "SELECT p.ProductID, p.ProductName, p.ProductCode," +
                 " IFNULL(p.ContainerType,'JAR') AS ContainerType," +
-                " (SELECT IFNULL(SUM(IFNULL(fs.CasesBalance,0)*IFNULL(p2.ContainersPerCase,12) + IFNULL(fs.LooseBalance,0)),0)" +
-                "  FROM PK_FGStockLedger fs JOIN PP_Products p2 ON p2.ProductID=fs.ProductID WHERE fs.ProductID=p.ProductID) AS FGStock" +
-                " FROM PP_Products p WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
+                " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
+                " (IFNULL(osJ.Jars,0)" +
+                "  + FLOOR(IFNULL(fg.TotalPCS,0)/GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1))" +
+                "  - IFNULL(sp.JarsInCases,0) - IFNULL(dcA.LooseUsed,0))" +
+                " + (IFNULL(osC.Cases,0) + IFNULL(sp.CasesPacked,0) - IFNULL(dcA.CasesUsed,0))" +
+                "   * IFNULL(p.ContainersPerCase,12) AS AvailableFGJars" +
+                " FROM PP_Products p" +
+                " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Jars FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX') GROUP BY ProductID) osJ ON osJ.ProductID=p.ProductID" +
+                " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Cases FROM PK_FGOpeningStock WHERE StockForm='CASE' GROUP BY ProductID) osC ON osC.ProductID=p.ProductID" +
+                " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPCS FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID=p.ProductID" +
+                " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS JarsInCases, SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID=p.ProductID" +
+                " LEFT JOIN (SELECT dl.ProductID," +
+                "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='CASE' THEN CEIL(dl.TotalPcs/GREATEST(IFNULL(pp.ContainersPerCase,12),1)) ELSE 0 END) AS CasesUsed," +
+                "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='LOOSE' THEN dl.TotalPcs ELSE 0 END) AS LooseUsed" +
+                "   FROM PK_DCLines dl JOIN PK_DeliveryChallans dch ON dch.DCID=dl.DCID JOIN PP_Products pp ON pp.ProductID=dl.ProductID" +
+                "   WHERE dch.Status IN ('DRAFT','FINALISED') GROUP BY dl.ProductID) dcA ON dcA.ProductID=p.ProductID" +
+                " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
                 " ORDER BY p.ProductName;");
-            var optsSb = new System.Text.StringBuilder();
+
+            // Cache for rptSAShipLines_ItemDataBound so we don't re-query per row
+            ViewState["SAProductList"] = fgStock;
+
             var jsonSb = new System.Text.StringBuilder("{");
+            var optsSb = new System.Text.StringBuilder();
             bool first = true;
-            foreach (DataRow p in prods.Rows)
+            foreach (DataRow fg in fgStock.Rows)
             {
-                string pid = p["ProductID"].ToString();
-                string name = p["ProductName"].ToString().Replace("'", "&#39;").Replace("\"", "&quot;");
-                string code = p["ProductCode"].ToString().Replace("'", "&#39;").Replace("\"", "&quot;");
-                string ct = p["ContainerType"].ToString();
-                int stock = 0;
-                if (p["FGStock"] != DBNull.Value) int.TryParse(p["FGStock"].ToString(), out stock);
-                optsSb.Append("<option value=\"").Append(pid).Append("\">").Append(name).Append(" (").Append(code).Append(")</option>");
+                string pid = fg["ProductID"].ToString();
+                string name = fg["ProductName"].ToString();
+                string code = fg["ProductCode"].ToString();
+                int stock = Convert.ToInt32(fg["AvailableFGJars"]);
+                int caseQty = Convert.ToInt32(fg["ContainersPerCase"]);
+                string ct = fg["ContainerType"].ToString();
+
+                // Raw options HTML for JS line-addition — escape quotes just in case
+                string nameEsc = name.Replace("\"", "&quot;");
+                string codeEsc = code.Replace("\"", "&quot;");
+                optsSb.Append("<option value=\"").Append(pid).Append("\">")
+                      .Append(nameEsc).Append(" (FG:").Append(stock).Append(")</option>");
+
                 if (!first) jsonSb.Append(",");
-                jsonSb.Append("\"").Append(pid).Append("\":{\"containerType\":\"").Append(ct).Append("\",\"fgStock\":").Append(stock).Append("}");
+                jsonSb.Append("\"").Append(pid).Append("\":{")
+                      .Append("\"stock\":").Append(stock)
+                      .Append(",\"caseQty\":").Append(caseQty)
+                      .Append(",\"containerType\":\"").Append(ct).Append("\"")
+                      .Append("}");
                 first = false;
             }
             jsonSb.Append("}");
+
+            if (hfSAProductData != null) hfSAProductData.Value = jsonSb.ToString();
             if (hfSAProductOptionsHtml != null) hfSAProductOptionsHtml.Value = optsSb.ToString();
-            if (hfSAProductsJson != null) hfSAProductsJson.Value = jsonSb.ToString();
         }
 
-        /// <summary>Bind the product options <literal> per row so server-rendered lines can show the saved product selected.</summary>
+        /// <summary>Bind the repeater that renders shipment order product lines. Pass CreateBlankLinesTable() for a fresh form.</summary>
+        private void BindSAShipLines(DataTable lines)
+        {
+            if (rptSAShipLines == null) return;
+            rptSAShipLines.DataSource = lines;
+            rptSAShipLines.DataBind();
+        }
+
+        /// <summary>Per-row repeater binding — builds the product &lt;option&gt; list with the saved
+        /// product pre-selected, and the selling form &lt;option&gt; list with the saved form pre-selected.</summary>
         protected void rptSAShipLines_ItemDataBound(object sender, RepeaterItemEventArgs e)
         {
             if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
             var row = (DataRowView)e.Item.DataItem;
             int savedPid = row["ProductID"] != DBNull.Value ? Convert.ToInt32(row["ProductID"]) : 0;
+            string savedForm = row.Row.Table.Columns.Contains("SellingForm") && row["SellingForm"] != DBNull.Value
+                ? row["SellingForm"].ToString() : "JAR";
 
+            // Products
             var lit = e.Item.FindControl("litSAProductOptions") as Literal;
-            if (lit == null) return;
-
-            // Reuse the already-built hfSAProductOptionsHtml blob, but inject selected=...
-            // Cheaper: query once and cache on Items (but this is a small product list)
-            var prods = DatabaseHelper.ExecuteQueryPublic(
-                "SELECT ProductID, ProductName, ProductCode FROM PP_Products" +
-                " WHERE IsActive=1 AND ProductType IN ('Core','Conversion','Prefilled Conversion')" +
-                " ORDER BY ProductName;");
-            var sb = new System.Text.StringBuilder();
-            foreach (DataRow p in prods.Rows)
+            if (lit != null)
             {
-                int pid = Convert.ToInt32(p["ProductID"]);
-                string sel = (pid == savedPid) ? " selected" : "";
-                string name = p["ProductName"].ToString().Replace("\"", "&quot;");
-                string code = p["ProductCode"].ToString().Replace("\"", "&quot;");
-                sb.Append("<option value=\"").Append(pid).Append("\"").Append(sel).Append(">").Append(name).Append(" (").Append(code).Append(")</option>");
+                var products = ViewState["SAProductList"] as DataTable;
+                if (products == null)
+                {
+                    // Fallback — should have been built by BuildSAProductData() but guard anyway
+                    BuildSAProductData();
+                    products = ViewState["SAProductList"] as DataTable;
+                }
+                var sb = new System.Text.StringBuilder();
+                if (products != null)
+                {
+                    foreach (DataRow p in products.Rows)
+                    {
+                        int pid = Convert.ToInt32(p["ProductID"]);
+                        int stock = Convert.ToInt32(p["AvailableFGJars"]);
+                        string sel = (pid == savedPid) ? " selected" : "";
+                        string name = p["ProductName"].ToString().Replace("\"", "&quot;");
+                        sb.Append("<option value=\"").Append(pid).Append("\"").Append(sel).Append(">")
+                          .Append(name).Append(" (FG:").Append(stock).Append(")</option>");
+                    }
+                }
+                lit.Text = sb.ToString();
             }
-            lit.Text = sb.ToString();
+
+            // Selling form — build with savedForm selected
+            var litForm = e.Item.FindControl("litSAFormOptions") as Literal;
+            if (litForm != null)
+            {
+                var fsb = new System.Text.StringBuilder();
+                string[] forms = new[] { "JAR", "BOX", "PCS", "CASE" };
+                foreach (var f in forms)
+                {
+                    string sel = f == savedForm ? " selected" : "";
+                    fsb.Append("<option value=\"").Append(f).Append("\"").Append(sel).Append(">").Append(f).Append("</option>");
+                }
+                litForm.Text = fsb.ToString();
+            }
+        }
+
+        /// <summary>Single blank row for a fresh New Shipment Order form.</summary>
+        private DataTable CreateBlankLinesTable()
+        {
+            var t = new DataTable();
+            t.Columns.Add("LineID", typeof(int));
+            t.Columns.Add("ProductID", typeof(int));
+            t.Columns.Add("Quantity", typeof(int));
+            t.Columns.Add("SellingForm", typeof(string));
+            t.Rows.Add(0, 0, 0, "JAR");
+            return t;
         }
 
         protected void btnSASaveDraft_Click(object s, EventArgs e)
@@ -1014,14 +1081,13 @@ namespace StockApp
             int channelId = ddlSAChannel != null ? Convert.ToInt32(ddlSAChannel.SelectedValue) : 0;
             if (channelId <= 0) { ShowAlert("Please select a channel.", false); return; }
 
-            // Read all product lines from the form
+            // Read lines from form — all three arrays are index-aligned
             string[] productIds = Request.Form.GetValues("sa_ship_product");
-            string[] shipQtys = Request.Form.GetValues("sa_ship_qty");
-            string[] shipForms = Request.Form.GetValues("sa_ship_form");
+            string[] shipQtys   = Request.Form.GetValues("sa_ship_qty");
+            string[] shipForms  = Request.Form.GetValues("sa_ship_form");
             if (productIds == null || shipQtys == null)
             { ShowAlert("Please add at least one product with a quantity.", false); return; }
 
-            // Validate at least one usable line
             bool hasLine = false;
             for (int i = 0; i < productIds.Length && i < shipQtys.Length; i++)
             {
@@ -1045,20 +1111,20 @@ namespace StockApp
                     new MySqlParameter("?st", status),
                     new MySqlParameter("?sid", editShipId));
                 shipId = editShipId;
-                // Clear old lines
+                // Delete existing lines — re-insert below
                 DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
                     new MySqlParameter("?sid", shipId));
             }
             else
             {
-                // INSERT new
+                // INSERT new shipment
                 shipId = DatabaseHelper.CreateShipmentInConsignment(csgId, custId, DateTime.Parse(shipDate), 0, channelId, UserID);
                 if (status == "Order")
                     DatabaseHelper.ExecuteNonQueryPublic("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid;",
                         new MySqlParameter("?sid", shipId));
             }
 
-            // Insert lines — SellingForm included (schema migration adds the column; coalesce to 'JAR' if null)
+            // Insert lines (includes SellingForm — schema migration adds the column)
             for (int i = 0; i < productIds.Length; i++)
             {
                 int pid = 0; int.TryParse(productIds[i], out pid);
@@ -1085,36 +1151,34 @@ namespace StockApp
                 msg = status == "Order" ? "Shipment Order " + shipNo + " created — visible to Shipment team." : "Shipment " + shipNo + " saved as draft.";
             ShowAlert(msg, true);
 
-            // Exit edit mode on success
+            // Exit edit mode; LoadSAConsigDetail will reset the form
             if (hfEditShipId != null) hfEditShipId.Value = "0";
             LoadSAConsigDetail(csgId);
         }
 
-        /// <summary>Handle Edit / Delete on a shipment order from inside the consignment view.</summary>
+        /// <summary>Fix 2: Handle Edit / Delete on a shipment order from inside the consignment view.</summary>
         protected void SAConsigOrder_Command(object sender, CommandEventArgs e)
         {
             int shipId = Convert.ToInt32(e.CommandArgument);
             if (e.CommandName == "EditSAConsigShip")
             {
-                // Load the shipment into the embedded form
                 DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
                     "SELECT ShipmentID, CustomerID, ShipmentDate, ChannelID, ConsignmentID, Status" +
                     " FROM SA_Shipments WHERE ShipmentID=?sid;",
                     new MySqlParameter("?sid", shipId));
                 if (ship == null) { ShowAlert("Shipment not found.", false); return; }
 
-                // Ensure the right consignment is active
-                int csgId = 0;
-                if (ship["ConsignmentID"] != DBNull.Value) csgId = Convert.ToInt32(ship["ConsignmentID"]);
+                // Activate the right consignment
+                int csgId = ship["ConsignmentID"] != DBNull.Value ? Convert.ToInt32(ship["ConsignmentID"]) : 0;
                 if (csgId > 0) hfSAConsigId.Value = csgId.ToString();
 
-                // Set edit mode FIRST so LoadSAConsigDetail doesn't reset the form
+                // Set edit flag BEFORE LoadSAConsigDetail so it skips the form reset
                 if (hfEditShipId != null) hfEditShipId.Value = shipId.ToString();
 
                 BindSAConsigTabs();
                 LoadSAConsigDetail(csgId);
 
-                // Now populate the form fields
+                // Populate header fields
                 if (ddlSACustomer != null && ship["CustomerID"] != DBNull.Value)
                 {
                     var li = ddlSACustomer.Items.FindByValue(ship["CustomerID"].ToString());
@@ -1127,20 +1191,15 @@ namespace StockApp
                     if (li != null) ddlSAChannel.SelectedValue = ship["ChannelID"].ToString();
                 }
 
-                // Load lines into rptSAShipLines
+                // Load existing lines
                 DataTable lines = DatabaseHelper.ExecuteQueryPublic(
                     "SELECT sl.LineID, sl.ProductID, sl.ShippedQty AS Quantity," +
                     " IFNULL(sl.SellingForm,'JAR') AS SellingForm" +
-                    " FROM SA_ShipmentLines sl" +
-                    " WHERE sl.ShipmentID=?sid ORDER BY sl.LineID;",
+                    " FROM SA_ShipmentLines sl WHERE sl.ShipmentID=?sid ORDER BY sl.LineID;",
                     new MySqlParameter("?sid", shipId));
-                if (rptSAShipLines != null)
-                {
-                    rptSAShipLines.DataSource = lines.Rows.Count > 0 ? lines : (object)CreateBlankLinesTable();
-                    rptSAShipLines.DataBind();
-                }
+                BindSAShipLines(lines.Rows.Count > 0 ? lines : CreateBlankLinesTable());
 
-                // Update UI to reflect edit mode
+                // Flip UI into edit mode
                 if (lblSAEditShipId != null) lblSAEditShipId.Text = "— Editing SH-" + shipId.ToString("D5");
                 if (lblSAShipFormTitle != null) lblSAShipFormTitle.Text = "Edit Shipment Order";
                 if (btnSACancelEdit != null) btnSACancelEdit.Visible = true;
@@ -1148,17 +1207,14 @@ namespace StockApp
             }
             else if (e.CommandName == "DeleteSAConsigShip")
             {
-                // Only delete if not yet converted to DC / shipped
                 DataRow ship = DatabaseHelper.ExecuteQueryRowPublic(
                     "SELECT Status, ConsignmentID FROM SA_Shipments WHERE ShipmentID=?sid;",
                     new MySqlParameter("?sid", shipId));
                 if (ship == null) return;
                 string st = ship["Status"].ToString();
                 if (st == "DC" || st == "Shipped")
-                {
-                    ShowAlert("Cannot delete — order already " + st + ".", false);
-                    return;
-                }
+                { ShowAlert("Cannot delete — order already " + st + ".", false); return; }
+
                 DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
                     new MySqlParameter("?sid", shipId));
                 DatabaseHelper.ExecuteNonQueryPublic("DELETE FROM SA_Shipments WHERE ShipmentID=?sid;",
@@ -1170,17 +1226,7 @@ namespace StockApp
             }
         }
 
-        private DataTable CreateBlankLinesTable()
-        {
-            var t = new DataTable();
-            t.Columns.Add("LineID", typeof(int));
-            t.Columns.Add("ProductID", typeof(int));
-            t.Columns.Add("Quantity", typeof(int));
-            t.Columns.Add("SellingForm", typeof(string));
-            t.Rows.Add(0, 0, 0, "JAR");
-            return t;
-        }
-
+        /// <summary>Fix 2: exit edit mode without saving.</summary>
         protected void btnSACancelEdit_Click(object s, EventArgs e)
         {
             if (hfEditShipId != null) hfEditShipId.Value = "0";
