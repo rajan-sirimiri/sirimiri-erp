@@ -1142,7 +1142,13 @@ namespace PKApp
 
         void BindSAOrders()
         {
-            var dt = PKDatabaseHelper.GetSAShipmentOrders();
+            int csgId = 0;
+            int.TryParse(hfActiveConsig.Value, out csgId);
+            DataTable dt;
+            if (csgId > 0)
+                dt = PKDatabaseHelper.GetSAShipmentOrdersByConsignment(csgId);
+            else
+                dt = PKDatabaseHelper.GetSAShipmentOrders();
             bool hasRows = dt.Rows.Count > 0;
             if (pnlSAEmpty != null) pnlSAEmpty.Visible = !hasRows;
             if (pnlSAList != null) pnlSAList.Visible = hasRows;

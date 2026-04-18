@@ -17,7 +17,7 @@ namespace StockApp
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
-        protected DropDownList ddlSACustomer, ddlSAChannel;
+        protected DropDownList ddlSACustomer, ddlSAChannel, ddlSAFirstProduct;
         protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText, txtSAShipDate;
         protected Button btnTabProjection, btnTabShipments, btnTabConsignments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
         protected Button btnSACreateConsig, btnSASaveDraft, btnSACreateOrder, btnSASendToPK;
@@ -908,6 +908,20 @@ namespace StockApp
             BindSAConsigChannels();
             if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
             if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
+
+            // Bind first product dropdown
+            if (ddlSAFirstProduct != null)
+            {
+                var prods = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT p.ProductID, p.ProductName, p.ProductCode" +
+                    " FROM PP_Products p" +
+                    " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
+                    " ORDER BY p.ProductName;");
+                ddlSAFirstProduct.Items.Clear();
+                ddlSAFirstProduct.Items.Add(new ListItem("-- Select Product --", "0"));
+                foreach (DataRow p in prods.Rows)
+                    ddlSAFirstProduct.Items.Add(new ListItem(p["ProductName"].ToString(), p["ProductID"].ToString()));
+            }
         }
 
         protected void btnSASaveDraft_Click(object s, EventArgs e)
@@ -935,14 +949,31 @@ namespace StockApp
             int shipId = DatabaseHelper.CreateShipmentInConsignment(csgId, custId, DateTime.Parse(shipDate), 0, channelId, UserID);
 
             // Save product lines
+            // First product line (server-side dropdown)
+            int firstPid = ddlSAFirstProduct != null ? Convert.ToInt32(ddlSAFirstProduct.SelectedValue) : 0;
+            string[] firstQtys = Request.Form.GetValues("sa_ship_qty");
+            int firstQty = 0;
+            if (firstQtys != null && firstQtys.Length > 0) int.TryParse(firstQtys[0], out firstQty);
+            if (firstPid > 0 && firstQty > 0)
+            {
+                DatabaseHelper.ExecuteNonQueryPublic(
+                    "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,0,?sq);",
+                    new MySqlParameter("?sid", shipId), new MySqlParameter("?pid", firstPid), new MySqlParameter("?sq", firstQty));
+            }
+
+            // Additional product lines (JS-added rows)
             string[] productIds = Request.Form.GetValues("sa_ship_product");
             string[] shipQtys = Request.Form.GetValues("sa_ship_qty");
             if (productIds != null && shipQtys != null)
             {
+                // Skip index offset: firstQty was already read from index 0 of sa_ship_qty
+                int qtyOffset = 1; // first qty already used above
                 for (int i = 0; i < productIds.Length; i++)
                 {
                     int pid = 0; int.TryParse(productIds[i], out pid);
-                    int sq = 0; int.TryParse(shipQtys[i], out sq);
+                    int qtyIdx = i + qtyOffset;
+                    int sq = 0;
+                    if (shipQtys != null && qtyIdx < shipQtys.Length) int.TryParse(shipQtys[qtyIdx], out sq);
                     if (pid > 0 && sq > 0)
                     {
                         DatabaseHelper.ExecuteNonQueryPublic(

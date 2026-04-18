@@ -1784,6 +1784,32 @@ namespace PKApp.DAL
                 " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;");
         }
 
+        /// <summary>Get SA shipment orders for a specific consignment.</summary>
+        public static DataTable GetSAShipmentOrdersByConsignment(int consignmentId)
+        {
+            return ExecuteQuery(
+                "SELECT sh.ShipmentID, sh.ShipmentDate, sh.Status, sh.VehicleNo," +
+                " IFNULL(cust.CustomerName,'—') AS CustomerName," +
+                " IFNULL(ar.AreaName,'—') AS AreaName," +
+                " IFNULL(z.ZoneName,'—') AS ZoneName," +
+                " IFNULL(r.RegionName,'—') AS RegionName," +
+                " c.ChannelName," +
+                " IFNULL(tm.ModeName,'—') AS TransportMode," +
+                " COUNT(sl.LineID) AS ProductCount," +
+                " IFNULL(SUM(sl.ShippedQty),0) AS TotalQty" +
+                " FROM SA_Shipments sh" +
+                " LEFT JOIN PK_Customers cust ON cust.CustomerID=sh.CustomerID" +
+                " LEFT JOIN SA_Areas ar ON ar.AreaID=sh.PositionID" +
+                " LEFT JOIN SA_Zones z ON z.ZoneID=sh.ZoneID" +
+                " LEFT JOIN SA_Regions r ON r.RegionID=sh.RegionID" +
+                " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
+                " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
+                " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
+                " WHERE sh.ConsignmentID=?cid AND sh.Status IN ('Order','DC','Shipped')" +
+                " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;",
+                new MySqlParameter("?cid", consignmentId));
+        }
+
         /// <summary>Get line items for a SA shipment order</summary>
         public static DataTable GetSAShipmentLines(int shipmentId)
         {

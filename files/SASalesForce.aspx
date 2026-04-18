@@ -351,9 +351,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
         <div class="card-title" style="font-size:12px;">Products</div>
         <div id="divSAShipLines">
             <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 30px;gap:8px;margin-bottom:6px;">
-                <select name="sa_ship_product" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
-                    <option value="0">-- Select Product --</option>
-                </select>
+                <asp:DropDownList ID="ddlSAFirstProduct" runat="server" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" />
                 <input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
                 <span></span>
             </div>
