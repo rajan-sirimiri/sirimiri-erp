@@ -145,6 +145,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 <asp:Label ID="lblConsigStatus" runat="server" style="margin-left:10px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;" />
             </div>
             <div style="display:flex;gap:6px;align-items:center;">
+                <asp:Button ID="btnSyncFromZoho" runat="server" Text="Sync from Zoho" CssClass="btn btn-secondary"
+                    OnClick="btnSyncFromZoho_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;border-color:#0078d4;color:#0078d4;" />
                 <asp:Button ID="btnBulkInvoice" runat="server" Text="Create All Invoices" CssClass="btn btn-zoho"
                     OnClick="btnBulkInvoice_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
                 <asp:Button ID="btnDispatchConsig" runat="server" Text="Dispatch" CssClass="btn btn-primary"

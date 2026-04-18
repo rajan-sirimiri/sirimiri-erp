@@ -19,7 +19,7 @@ namespace PKApp
         protected DropDownList ddlCustomer, ddlChannel, ddlTransport, ddlDispatched, ddlArchived, ddlProjMonth, ddlProjYear;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
-        protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail;
+        protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle, lblConsigStatus;
         protected Literal litBulkResult;
@@ -231,6 +231,7 @@ namespace PKApp
                 if (r["Status"].ToString() == "FINALISED") { hasFinalised = true; break; }
 
             if (btnBulkInvoice != null) btnBulkInvoice.Visible = hasFinalised && status == "OPEN";
+            if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = hasFinalised && (status == "DISPATCHED" || status == "READY" || status == "OPEN");
             if (btnDispatchConsig != null) btnDispatchConsig.Visible = (status == "READY");
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
@@ -299,6 +300,51 @@ namespace PKApp
                 BindArchivedDropdown();
             }
             catch (Exception ex) { ShowAlert("Archive error: " + ex.Message, false); }
+        }
+
+        protected void btnSyncFromZoho_Click(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(hfActiveConsig.Value);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            try
+            {
+                var results = StockApp.DAL.ZohoHelper.SyncConsignmentBack(csgId);
+                var sb = new System.Text.StringBuilder();
+                sb.Append("<div style='font-size:11px;'>");
+                int totalChanges = 0, totalAlerts = 0;
+
+                foreach (var r in results)
+                {
+                    string icon = r.Success ? (r.Changes.Count > 0 ? "&#x1F504;" : "&#x2705;") : "&#x274C;";
+                    string color = r.StockAlerts.Count > 0 ? "#e74c3c" : r.Changes.Count > 0 ? "#0078d4" : "#27ae60";
+                    sb.Append("<div style='margin-bottom:6px;color:" + color + ";'>" + icon + " <strong>" + Server.HtmlEncode(r.ZohoInvoiceNo ?? "") + "</strong>");
+                    if (r.Changes.Count > 0)
+                    {
+                        totalChanges += r.Changes.Count;
+                        foreach (var c in r.Changes)
+                            sb.Append("<div style='margin-left:20px;color:#333;'>" + Server.HtmlEncode(c) + "</div>");
+                    }
+                    else
+                        sb.Append(" — No changes");
+                    if (r.StockAlerts.Count > 0)
+                    {
+                        totalAlerts += r.StockAlerts.Count;
+                        foreach (var a in r.StockAlerts)
+                            sb.Append("<div style='margin-left:20px;color:#e74c3c;font-weight:700;'>STOCK ALERT: " + Server.HtmlEncode(a) + "</div>");
+                    }
+                    sb.Append("</div>");
+                }
+
+                sb.Append("<div style='margin-top:8px;font-weight:700;'>Summary: " + totalChanges + " change(s)");
+                if (totalAlerts > 0)
+                    sb.Append(", <span style='color:#e74c3c;'>" + totalAlerts + " stock alert(s)</span>");
+                sb.Append("</div></div>");
+
+                if (pnlBulkResult != null) { pnlBulkResult.Visible = true; litBulkResult.Text = sb.ToString(); }
+                LoadConsigDCs(csgId);
+            }
+            catch (Exception ex) { ShowAlert("Sync error: " + ex.Message, false); }
         }
 
         protected string GetInvoiceStatusBadge(object dcIdObj)
