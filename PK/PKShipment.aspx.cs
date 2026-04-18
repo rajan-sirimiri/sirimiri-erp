@@ -11,7 +11,7 @@ namespace PKApp
         protected Label lblUser, lblAlert, lblFormTitle;
         protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
         protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus, lblSAChannel, lblSATransport;
-        protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
+        protected Panel pnlAlert, pnlForm, pnlLocked, pnlViewRemarks;
         protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
         protected HiddenField hfDCID, hfLines, hfProductData, hfCustomerData, hfOrgState, hfSAShipId, hfSAProductOptions;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks;
@@ -19,12 +19,12 @@ namespace PKApp
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice;
-        protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult;
+        protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle;
         protected Literal litBulkResult;
         protected HyperLink lnkViewInZoho;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
-        protected Repeater rptDCs, rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs;
+        protected Repeater rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs;
         protected Panel pnlProjEmpty;
         protected DropDownList ddlProjMonth, ddlProjYear, ddlConsignment;
         protected TextBox txtConsigDate, txtConsigText;
@@ -119,9 +119,27 @@ namespace PKApp
         {
             int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
             if (csgId > 0)
+            {
+                if (pnlConsigContent != null) pnlConsigContent.Visible = true;
                 LoadConsigDCs(csgId);
-            else if (pnlConsigDCs != null)
-                pnlConsigDCs.Visible = false;
+                // Reset DC form for new entry under this consignment
+                hfDCID.Value = "0";
+                txtDCNumber.Text = "";
+                ddlCustomer.SelectedIndex = 0;
+                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                txtRemarks.Text = "";
+                hfLines.Value = "[]";
+                lblFormTitle.Text = "New Delivery Challan";
+                pnlForm.Visible = true;
+                if (pnlLocked != null) pnlLocked.Visible = false;
+                if (btnDeleteDC != null) btnDeleteDC.Visible = false;
+                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
+            }
+            else
+            {
+                if (pnlConsigContent != null) pnlConsigContent.Visible = false;
+                if (pnlConsigDCs != null) pnlConsigDCs.Visible = false;
+            }
         }
 
         void LoadConsigDCs(int consignmentId)
@@ -132,10 +150,12 @@ namespace PKApp
 
             var dcs = PKDatabaseHelper.GetDCsByConsignment(consignmentId);
             pnlConsigDCs.Visible = true;
+            if (pnlConsigContent != null) pnlConsigContent.Visible = true;
             if (lblConsigDCTitle != null)
                 lblConsigDCTitle.Text = csg["ConsignmentCode"] + " — " + dcs.Rows.Count + " DC(s)";
             if (rptConsigDCs != null) { rptConsigDCs.DataSource = dcs; rptConsigDCs.DataBind(); }
             if (pnlBulkResult != null) pnlBulkResult.Visible = false;
+            if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = dcs.Rows.Count == 0;
 
             // Show bulk invoice button only if there are finalised DCs
             bool hasFinalised = false;
@@ -321,11 +341,15 @@ namespace PKApp
 
         void BindDCList()
         {
-            var dt = PKDatabaseHelper.GetRecentDCs();
-            bool hasRows = dt.Rows.Count > 0;
-            if (pnlEmpty != null) pnlEmpty.Visible = !hasRows;
-            if (pnlList != null) pnlList.Visible = hasRows;
-            if (rptDCs != null) { rptDCs.DataSource = dt; rptDCs.DataBind(); }
+            // Refresh the consignment DC list if a consignment is selected
+            int csgId = ddlConsignment != null ? Convert.ToInt32(ddlConsignment.SelectedValue) : 0;
+            if (csgId > 0)
+            {
+                BindConsignments();
+                if (ddlConsignment.Items.FindByValue(csgId.ToString()) != null)
+                    ddlConsignment.SelectedValue = csgId.ToString();
+                LoadConsigDCs(csgId);
+            }
         }
 
         // ── DRAFT SAVE ──
@@ -481,13 +505,6 @@ namespace PKApp
                 BuildProductData();
                 BuildCustomerData();
                 BindDCList();
-                BindConsignments();
-                if (ddlConsignment != null && consignmentId > 0)
-                {
-                    if (ddlConsignment.Items.FindByValue(consignmentId.ToString()) != null)
-                        ddlConsignment.SelectedValue = consignmentId.ToString();
-                    LoadConsigDCs(consignmentId);
-                }
                 // Show invoice button after save
                 if (btnCreateInvoiceDraft != null)
                 {

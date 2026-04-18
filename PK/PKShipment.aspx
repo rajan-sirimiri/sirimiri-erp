@@ -94,62 +94,78 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 <div class="main">
     <asp:Panel ID="pnlAlert" runat="server" Visible="false"><div class="alert"><asp:Label ID="lblAlert" runat="server"/></div></asp:Panel>
 
-    <!-- ══════ DC FORM ══════ -->
-    <asp:Panel ID="pnlForm" runat="server">
-    <div class="card">
-        <div class="card-title"><asp:Label ID="lblFormTitle" runat="server">New Delivery Challan</asp:Label></div>
-
-        <!-- CONSIGNMENT SELECTOR -->
-        <div class="form-row" style="margin-bottom:12px;">
-            <div class="form-group" style="flex:2;"><label>Consignment <span class="req">*</span></label>
+    <!-- ══════ CONSIGNMENT SELECTOR (page level) ══════ -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Consignment</div>
+        <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group" style="flex:2;"><label>Select Consignment <span class="req">*</span></label>
                 <asp:DropDownList ID="ddlConsignment" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlConsignment_Changed" /></div>
-            <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+            <div class="form-group" style="flex:0 0 auto;">
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('pnlNewConsig').style.display=document.getElementById('pnlNewConsig').style.display==='none'?'block':'none';" style="font-size:11px;padding:8px 14px;">+ New Consignment</button></div>
         </div>
-        <!-- Inline new consignment form (hidden by default) -->
-        <div id="pnlNewConsig" style="display:none;background:#f8f7f5;border-radius:8px;padding:14px;margin-bottom:14px;border:1px solid var(--border);">
+        <div id="pnlNewConsig" style="display:none;background:#f8f7f5;border-radius:8px;padding:14px;margin-top:10px;border:1px solid var(--border);">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">CREATE NEW CONSIGNMENT</div>
             <div class="form-row" style="align-items:flex-end;">
                 <div class="form-group" style="flex:1;"><label>Date</label>
                     <asp:TextBox ID="txtConsigDate" runat="server" TextMode="Date" /></div>
                 <div class="form-group" style="flex:1;"><label>Identifier (e.g. ROTN, BLORE)</label>
                     <asp:TextBox ID="txtConsigText" runat="server" placeholder="ROTN" MaxLength="30" style="text-transform:uppercase;"/></div>
-                <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+                <div class="form-group" style="flex:0 0 auto;">
                     <asp:Button ID="btnCreateConsignment" runat="server" Text="Create" CssClass="btn btn-primary"
                         OnClick="btnCreateConsignment_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
             </div>
             <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Format: CONSIG-DDMMYYYY-NN-TEXT (date + sequence auto-generated)</div>
         </div>
+    </div>
 
-        <!-- CONSIGNMENT DC LIST PANEL -->
-        <asp:Panel ID="pnlConsigDCs" runat="server" Visible="false">
-        <div style="background:#f0f7ff;border:1px solid #cce0ff;border-radius:8px;padding:14px;margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <div style="font-size:12px;font-weight:700;color:#0078d4;">
-                    <asp:Label ID="lblConsigDCTitle" runat="server" /></div>
+    <!-- ══════ CONSIGNMENT CONTENT (visible when consignment selected) ══════ -->
+    <asp:Panel ID="pnlConsigContent" runat="server" Visible="false">
+
+    <!-- SUB-TABS: DCs | Sales Force Orders -->
+    <div class="ship-tab-bar">
+        <button type="button" class="ship-tab active" onclick="switchShipTab('dc')">Delivery Challans</button>
+        <button type="button" class="ship-tab" onclick="switchShipTab('sa')">Sales Force Orders</button>
+    </div>
+
+    <!-- ══════ SUB-TAB: DELIVERY CHALLANS ══════ -->
+    <div id="tabDC" class="ship-tab-panel active">
+
+    <!-- Consignment DC List + Bulk Invoice -->
+    <asp:Panel ID="pnlConsigDCs" runat="server" Visible="false">
+    <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;"><asp:Label ID="lblConsigDCTitle" runat="server" /></div>
+            <div style="display:flex;gap:8px;">
                 <asp:Button ID="btnBulkInvoice" runat="server" Text="Create All Invoices" CssClass="btn btn-zoho"
                     OnClick="btnBulkInvoice_Click" CausesValidation="false" style="font-size:11px;padding:6px 14px;" />
             </div>
-            <asp:Panel ID="pnlBulkResult" runat="server" Visible="false" style="margin-bottom:10px;">
-                <asp:Literal ID="litBulkResult" runat="server" />
-            </asp:Panel>
-            <table class="data-table" style="font-size:11px;">
-                <thead><tr><th>DC No.</th><th>Customer</th><th>Status</th><th class="num">Amount</th><th>Invoice</th></tr></thead>
-                <tbody>
-                    <asp:Repeater ID="rptConsigDCs" runat="server">
-                        <ItemTemplate><tr>
-                            <td style="font-weight:600;"><%# Eval("DCNumber") %></td>
-                            <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
-                            <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
-                            <td class="num" style="font-weight:600;"><%# Eval("GrandTotal") != DBNull.Value ? string.Format("₹{0:N0}", Eval("GrandTotal")) : "—" %></td>
-                            <td><%# GetInvoiceStatusBadge(Eval("DCID")) %></td>
-                        </tr></ItemTemplate>
-                    </asp:Repeater>
-                </tbody>
-            </table>
         </div>
+        <asp:Panel ID="pnlBulkResult" runat="server" Visible="false" style="margin-bottom:10px;">
+            <asp:Literal ID="litBulkResult" runat="server" />
         </asp:Panel>
+        <table class="data-table" style="font-size:11px;">
+            <thead><tr><th>DC No.</th><th>Customer</th><th>Status</th><th class="num">Amount</th><th>Invoice</th><th></th></tr></thead>
+            <tbody>
+                <asp:Repeater ID="rptConsigDCs" runat="server" OnItemCommand="rptDCs_ItemCommand">
+                    <ItemTemplate><tr>
+                        <td style="font-weight:600;"><%# Eval("DCNumber") %></td>
+                        <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
+                        <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
+                        <td class="num" style="font-weight:600;"><%# Eval("GrandTotal") != DBNull.Value ? string.Format("₹{0:N0}", Eval("GrandTotal")) : "—" %></td>
+                        <td><%# GetInvoiceStatusBadge(Eval("DCID")) %></td>
+                        <td><asp:LinkButton runat="server" CommandName="EditDC" CommandArgument='<%# Eval("DCID") %>' CssClass="act-link" CausesValidation="false"><%# Eval("Status").ToString()=="DRAFT" ? "Edit" : "View" %></asp:LinkButton></td>
+                    </tr></ItemTemplate>
+                </asp:Repeater>
+            </tbody>
+        </table>
+        <asp:Panel ID="pnlConsigEmpty" runat="server"><div class="empty-note">No DCs in this consignment yet</div></asp:Panel>
+    </div>
+    </asp:Panel>
 
+    <!-- ══════ DC FORM ══════ -->
+    <asp:Panel ID="pnlForm" runat="server">
+    <div class="card">
+        <div class="card-title"><asp:Label ID="lblFormTitle" runat="server">New Delivery Challan</asp:Label></div>
         <div class="form-row">
             <div class="form-group"><label>DC Number</label>
                 <asp:TextBox ID="txtDCNumber" runat="server" ReadOnly="true" placeholder="Auto-generated"/></div>
@@ -297,14 +313,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div>
     </asp:Panel>
 
-    <!-- ══════ TAB BAR ══════ -->
-    <div class="ship-tab-bar">
-        <button type="button" class="ship-tab active" onclick="switchShipTab('dc')">&#x1F4CB; Delivery Challans</button>
-        <button type="button" class="ship-tab" onclick="switchShipTab('sa')">&#x1F4E6; Sales Force Orders</button>
-        <button type="button" class="ship-tab" onclick="switchShipTab('proj')">&#x1F4CA; Sales Projections</button>
-    </div>
+    <!-- ══════ RECENT DCs LIST (legacy - remove old standalone list) ══════ -->
+    </div><!-- end tabDC -->
 
-    <!-- ══════ TAB: SALES FORCE ORDERS ══════ -->
+    <!-- ══════ SUB-TAB: SALES FORCE ORDERS ══════ -->
     <div id="tabSA" class="ship-tab-panel">
     <div class="card">
         <div class="card-title">&#x1F4E6; Sales Force Orders</div>
@@ -414,13 +426,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     <asp:HiddenField ID="hfSAShipId" runat="server" Value="0"/>
     <asp:HiddenField ID="hfSAProductOptions" runat="server" Value="" ValidateRequestMode="Disabled"/>
 
-    <!-- ══════ RECENT DCs LIST ══════ -->
     </div><!-- end tabSA -->
+    </asp:Panel><!-- end pnlConsigContent -->
 
-    <!-- ══════ TAB: SALES PROJECTIONS ══════ -->
-    <div id="tabProj" class="ship-tab-panel">
-    <div class="card">
-        <div class="card-title">&#x1F4CA; Sales Projections (Read Only)</div>
+    <!-- ══════ SALES PROJECTIONS (always visible, outside consignment) ══════ -->
+    <div class="card" style="margin-top:20px;">
+        <div class="card-title">Sales Projections (Read Only)</div>
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
             <asp:DropDownList ID="ddlProjMonth" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlProjMonth_Changed"
                 style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"/>
@@ -459,34 +470,6 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             </ItemTemplate>
         </asp:Repeater>
     </div>
-    </div><!-- end tabProj -->
-
-    <!-- ══════ TAB: DELIVERY CHALLANS ══════ -->
-    <div id="tabDC" class="ship-tab-panel active">
-    <div class="card">
-        <div class="card-title">&#x1F4CB; Recent Delivery Challans</div>
-        <asp:Panel ID="pnlEmpty" runat="server"><div class="empty-note">No delivery challans yet</div></asp:Panel>
-        <asp:Panel ID="pnlList" runat="server" Visible="false">
-        <table class="data-table">
-            <thead><tr><th>DC No.</th><th>Date</th><th>Customer</th><th>Consignment</th><th class="num">Lines</th><th class="num">Total Pcs</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-                <asp:Repeater ID="rptDCs" runat="server" OnItemCommand="rptDCs_ItemCommand">
-                    <ItemTemplate><tr>
-                        <td style="font-weight:700;"><%# Eval("DCNumber") %></td>
-                        <td style="font-size:12px;"><%# Convert.ToDateTime(Eval("DCDate")).ToString("dd-MMM-yyyy") %></td>
-                        <td><strong><%# Eval("CustomerName") %></strong><div style="font-size:10px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
-                        <td style="font-size:10px;color:var(--text-muted);"><%# Eval("ConsignmentCode") %></td>
-                        <td class="num"><%# Eval("LineCount") %></td>
-                        <td class="num" style="font-weight:700;color:var(--teal);"><%# Eval("TotalPcs") == DBNull.Value ? "0" : string.Format("{0:N0}", Eval("TotalPcs")) %></td>
-                        <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
-                        <td><asp:LinkButton runat="server" CommandName="EditDC" CommandArgument='<%# Eval("DCID") %>' CssClass="act-link" CausesValidation="false"><%# Eval("Status").ToString()=="DRAFT" ? "Edit" : "View" %></asp:LinkButton></td>
-                    </tr></ItemTemplate>
-                </asp:Repeater>
-            </tbody>
-        </table>
-        </asp:Panel>
-    </div>
-    </div><!-- end tabDC -->
 </div>
 </form>
 <script>
@@ -495,11 +478,10 @@ function switchShipTab(tab) {
     var tabs = document.querySelectorAll('.ship-tab');
     for (var i = 0; i < panels.length; i++) panels[i].classList.remove('active');
     for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
-    var map = {dc:'tabDC', sa:'tabSA', proj:'tabProj'};
+    var map = {dc:'tabDC', sa:'tabSA'};
     var p = document.getElementById(map[tab]);
     if (p) p.classList.add('active');
-    // Highlight tab
-    var idx = {dc:0, sa:1, proj:2};
+    var idx = {dc:0, sa:1};
     if (tabs[idx[tab]]) tabs[idx[tab]].classList.add('active');
 }
 function toggleProjDetail(el) {
