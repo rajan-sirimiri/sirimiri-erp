@@ -11,23 +11,22 @@ namespace PKApp
         protected Label lblUser, lblAlert, lblFormTitle;
         protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
         protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus, lblSAChannel, lblSATransport;
-        protected Panel pnlAlert, pnlForm, pnlLocked, pnlEmpty, pnlList, pnlViewRemarks;
+        protected Panel pnlAlert, pnlForm, pnlLocked, pnlViewRemarks;
         protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
         protected HiddenField hfDCID, hfLines, hfProductData, hfCustomerData, hfOrgState, hfSAShipId, hfSAProductOptions;
-        protected TextBox txtDCNumber, txtDCDate, txtRemarks;
-        protected DropDownList ddlCustomer, ddlChannel;
+        protected HiddenField hfActiveConsig, hfActiveTab;
+        protected TextBox txtDCNumber, txtDCDate, txtRemarks, txtConsigDate, txtConsigText, txtVehicleNo, txtCourierName, txtTrackingNo;
+        protected DropDownList ddlCustomer, ddlChannel, ddlTransport, ddlDispatched, ddlArchived, ddlProjMonth, ddlProjYear;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
-        protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch;
+        protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle, lblConsigStatus;
         protected Literal litBulkResult;
         protected HyperLink lnkViewInZoho;
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
-        protected Repeater rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs;
+        protected Repeater rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs, rptConsigTabs;
         protected Panel pnlProjEmpty;
-        protected DropDownList ddlProjMonth, ddlProjYear, ddlConsignment;
-        protected TextBox txtConsigDate, txtConsigText, txtVehicleNo;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -45,11 +44,12 @@ namespace PKApp
                 BindCustomers();
                 BuildProductData();
                 BuildCustomerData();
-                BindConsignments();
+                BindConsigTabs();
+                BindDispatchedDropdown();
+                BindArchivedDropdown();
                 txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (txtConsigDate != null) txtConsigDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
                 if (btnDeleteDC != null) btnDeleteDC.Visible = false;
-                BindDCList();
                 LoadProjDropdowns();
                 BindProjections();
             }
@@ -71,20 +71,96 @@ namespace PKApp
             }
         }
 
-        void BindConsignments()
+        void BindConsigTabs()
         {
-            if (ddlConsignment == null) return;
-            var dt = PKDatabaseHelper.GetOpenConsignments();
-            ddlConsignment.Items.Clear();
-            ddlConsignment.Items.Add(new ListItem("-- Select Consignment --", "0"));
+            var dt = PKDatabaseHelper.GetActiveConsignments();
+            if (rptConsigTabs != null) { rptConsigTabs.DataSource = dt; rptConsigTabs.DataBind(); }
+        }
+
+        void BindDispatchedDropdown()
+        {
+            if (ddlDispatched == null) return;
+            var dt = PKDatabaseHelper.GetDispatchedConsignments();
+            ddlDispatched.Items.Clear();
+            ddlDispatched.Items.Add(new ListItem("Dispatched (" + dt.Rows.Count + ")", "0"));
             foreach (DataRow r in dt.Rows)
+                ddlDispatched.Items.Add(new ListItem(r["ConsignmentCode"].ToString(), r["ConsignmentID"].ToString()));
+        }
+
+        void BindArchivedDropdown()
+        {
+            if (ddlArchived == null) return;
+            var dt = PKDatabaseHelper.GetArchivedConsignments();
+            ddlArchived.Items.Clear();
+            ddlArchived.Items.Add(new ListItem("Archived (" + dt.Rows.Count + ")", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlArchived.Items.Add(new ListItem(r["ConsignmentCode"].ToString(), r["ConsignmentID"].ToString()));
+        }
+
+        protected void btnTabRetail_Click(object s, EventArgs e)
+        {
+            hfActiveConsig.Value = "0";
+            hfActiveTab.Value = "retail";
+            if (pnlConsigContent != null) pnlConsigContent.Visible = false;
+            pnlForm.Visible = true;
+            if (pnlLocked != null) pnlLocked.Visible = false;
+            ResetDCForm();
+            BindConsigTabs();
+        }
+
+        protected void rptConsigTabs_Command(object s, CommandEventArgs e)
+        {
+            if (e.CommandName == "SelectConsig")
             {
-                int dcCount = Convert.ToInt32(r["DCCount"]);
-                string status = r["Status"].ToString();
-                string statusTag = status == "READY" ? " [READY]" : status == "DISPATCHED" ? " [DISPATCHED]" : "";
-                string label = r["ConsignmentCode"] + " (" + dcCount + " DCs)" + statusTag;
-                ddlConsignment.Items.Add(new ListItem(label, r["ConsignmentID"].ToString()));
+                int csgId = Convert.ToInt32(e.CommandArgument);
+                hfActiveConsig.Value = csgId.ToString();
+                hfActiveTab.Value = "consig";
+                LoadConsigDCs(csgId);
+                ResetDCForm();
+                BindConsigTabs();
             }
+        }
+
+        protected void ddlDispatched_Changed(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlDispatched.SelectedValue);
+            if (csgId > 0)
+            {
+                hfActiveConsig.Value = csgId.ToString();
+                hfActiveTab.Value = "dispatched";
+                LoadConsigDCs(csgId);
+                pnlForm.Visible = false;
+                BindConsigTabs();
+            }
+        }
+
+        protected void ddlArchived_Changed(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlArchived.SelectedValue);
+            if (csgId > 0)
+            {
+                hfActiveConsig.Value = csgId.ToString();
+                hfActiveTab.Value = "archived";
+                LoadConsigDCs(csgId);
+                pnlForm.Visible = false;
+                BindConsigTabs();
+            }
+        }
+
+        void ResetDCForm()
+        {
+            hfDCID.Value = "0";
+            txtDCNumber.Text = "";
+            ddlCustomer.SelectedIndex = 0;
+            txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+            txtRemarks.Text = "";
+            hfLines.Value = "[]";
+            lblFormTitle.Text = "New Delivery Challan";
+            if (btnDeleteDC != null) btnDeleteDC.Visible = false;
+            if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
+            if (ddlTransport != null) ddlTransport.SelectedIndex = 0;
+            if (txtCourierName != null) txtCourierName.Text = "";
+            if (txtTrackingNo != null) txtTrackingNo.Text = "";
         }
 
         protected void btnCreateConsignment_Click(object s, EventArgs e)
@@ -97,49 +173,18 @@ namespace PKApp
                 { ShowAlert("Please enter a consignment identifier (e.g. ROTN, BLORE).", false); return; }
 
                 int newId = PKDatabaseHelper.CreateConsignment(dt, userText, "", UserID);
-                BindConsignments();
-                ddlConsignment.SelectedValue = newId.ToString();
+                hfActiveConsig.Value = newId.ToString();
+                hfActiveTab.Value = "consig";
                 txtConsigText.Text = "";
-
-                // Reset DC form for new consignment
-                hfDCID.Value = "0";
-                txtDCNumber.Text = "";
-                ddlCustomer.SelectedIndex = 0;
-                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
-                txtRemarks.Text = "";
-                hfLines.Value = "[]";
-                if (btnDeleteDC != null) btnDeleteDC.Visible = false;
-                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
-
+                ResetDCForm();
                 LoadConsigDCs(newId);
-                ShowAlert("Consignment created: " + ddlConsignment.SelectedItem.Text, true);
+                BindConsigTabs();
+                BindDispatchedDropdown();
+
+                var csg = PKDatabaseHelper.GetConsignmentById(newId);
+                ShowAlert("Consignment created: " + (csg != null ? csg["ConsignmentCode"].ToString() : ""), true);
             }
             catch (Exception ex) { ShowAlert("Error creating consignment: " + ex.Message, false); }
-        }
-
-        protected void ddlConsignment_Changed(object s, EventArgs e)
-        {
-            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
-            if (csgId > 0)
-            {
-                LoadConsigDCs(csgId);
-                // Reset DC form for new entry
-                hfDCID.Value = "0";
-                txtDCNumber.Text = "";
-                ddlCustomer.SelectedIndex = 0;
-                txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
-                txtRemarks.Text = "";
-                hfLines.Value = "[]";
-                lblFormTitle.Text = "New Delivery Challan";
-                if (btnDeleteDC != null) btnDeleteDC.Visible = false;
-                if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
-            }
-            else
-            {
-                if (pnlConsigContent != null) pnlConsigContent.Visible = false;
-                if (pnlConsigDCs != null) pnlConsigDCs.Visible = false;
-                pnlForm.Visible = true;
-            }
         }
 
         void LoadConsigDCs(int consignmentId)
@@ -159,7 +204,7 @@ namespace PKApp
 
             string status = csg["Status"].ToString();
 
-            // Auto-check if READY (all finalised + all invoiced)
+            // Auto-check READY status
             if (status == "OPEN")
             {
                 try { PKDatabaseHelper.UpdateConsignmentReadyStatus(consignmentId); } catch { }
@@ -176,11 +221,11 @@ namespace PKApp
                     case "OPEN": lblConsigStatus.Style["background"] = "#fff3cd"; lblConsigStatus.Style["color"] = "#856404"; break;
                     case "READY": lblConsigStatus.Style["background"] = "#d4edda"; lblConsigStatus.Style["color"] = "#155724"; break;
                     case "DISPATCHED": lblConsigStatus.Style["background"] = "#cce5ff"; lblConsigStatus.Style["color"] = "#004085"; break;
-                    default: lblConsigStatus.Style["background"] = "#e2e3e5"; lblConsigStatus.Style["color"] = "#383d41"; break;
+                    case "ARCHIVED": lblConsigStatus.Style["background"] = "#e2e3e5"; lblConsigStatus.Style["color"] = "#383d41"; break;
                 }
             }
 
-            // Button visibility based on lifecycle
+            // Button visibility
             bool hasFinalised = false;
             foreach (DataRow r in dcs.Rows)
                 if (r["Status"].ToString() == "FINALISED") { hasFinalised = true; break; }
@@ -190,7 +235,7 @@ namespace PKApp
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
 
-            // Hide DC form if consignment is DISPATCHED or beyond
+            // Hide DC form for dispatched/archived
             if (status == "DISPATCHED" || status == "ARCHIVED")
             {
                 pnlForm.Visible = false;
@@ -198,6 +243,62 @@ namespace PKApp
                 if (!string.IsNullOrEmpty(vn) && lblConsigDCTitle != null)
                     lblConsigDCTitle.Text += " | Vehicle: " + vn;
             }
+            else
+            {
+                pnlForm.Visible = true;
+            }
+        }
+
+        protected string GetTransportLabel(object mode, object courier)
+        {
+            string m = mode != null && mode != DBNull.Value ? mode.ToString() : "";
+            string c = courier != null && courier != DBNull.Value ? courier.ToString() : "";
+            if (m == "FULL_LOAD") return "<span style='color:#155724;'>Own Vehicle</span>";
+            if (m == "COURIER") return "<span style='color:#004085;'>Courier" + (!string.IsNullOrEmpty(c) ? ": " + c : "") + "</span>";
+            return "—";
+        }
+
+        protected void btnDispatchConsig_Click(object s, EventArgs e)
+        {
+            if (pnlDispatchForm != null) pnlDispatchForm.Visible = true;
+        }
+
+        protected void btnConfirmDispatch_Click(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(hfActiveConsig.Value);
+            if (csgId <= 0) return;
+            string vehicleNo = txtVehicleNo != null ? txtVehicleNo.Text.Trim().ToUpper() : "";
+            if (string.IsNullOrEmpty(vehicleNo))
+            { ShowAlert("Please enter a vehicle number.", false); return; }
+
+            try
+            {
+                PKDatabaseHelper.DispatchConsignment(csgId, vehicleNo);
+                ShowAlert("Consignment dispatched with Vehicle: " + vehicleNo, true);
+                BindConsigTabs();
+                BindDispatchedDropdown();
+                LoadConsigDCs(csgId);
+            }
+            catch (Exception ex) { ShowAlert("Dispatch error: " + ex.Message, false); }
+        }
+
+        protected void btnArchiveConsig_Click(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(hfActiveConsig.Value);
+            if (csgId <= 0) return;
+            try
+            {
+                PKDatabaseHelper.ArchiveConsignment(csgId);
+                ShowAlert("Consignment archived.", true);
+                hfActiveConsig.Value = "0";
+                hfActiveTab.Value = "retail";
+                if (pnlConsigContent != null) pnlConsigContent.Visible = false;
+                pnlForm.Visible = true;
+                BindConsigTabs();
+                BindDispatchedDropdown();
+                BindArchivedDropdown();
+            }
+            catch (Exception ex) { ShowAlert("Archive error: " + ex.Message, false); }
         }
 
         protected string GetInvoiceStatusBadge(object dcIdObj)
@@ -224,7 +325,7 @@ namespace PKApp
 
         protected void btnBulkInvoice_Click(object s, EventArgs e)
         {
-            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
+            int csgId = Convert.ToInt32(hfActiveConsig.Value);
             if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
 
             var dcs = PKDatabaseHelper.GetDCsByConsignment(csgId);
@@ -279,49 +380,6 @@ namespace PKApp
 
             if (pnlBulkResult != null) { pnlBulkResult.Visible = true; litBulkResult.Text = sb.ToString(); }
             LoadConsigDCs(csgId); // refresh DC list with updated invoice status
-        }
-
-        protected void btnDispatchConsig_Click(object s, EventArgs e)
-        {
-            // Show the dispatch form
-            if (pnlDispatchForm != null) pnlDispatchForm.Visible = true;
-        }
-
-        protected void btnConfirmDispatch_Click(object s, EventArgs e)
-        {
-            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
-            if (csgId <= 0) return;
-            string vehicleNo = txtVehicleNo != null ? txtVehicleNo.Text.Trim().ToUpper() : "";
-            if (string.IsNullOrEmpty(vehicleNo))
-            { ShowAlert("Please enter a vehicle number.", false); return; }
-
-            try
-            {
-                PKDatabaseHelper.DispatchConsignment(csgId, vehicleNo);
-                ShowAlert("Consignment dispatched with Vehicle: " + vehicleNo, true);
-                BindConsignments();
-                if (ddlConsignment.Items.FindByValue(csgId.ToString()) != null)
-                    ddlConsignment.SelectedValue = csgId.ToString();
-                LoadConsigDCs(csgId);
-            }
-            catch (Exception ex) { ShowAlert("Dispatch error: " + ex.Message, false); }
-        }
-
-        protected void btnArchiveConsig_Click(object s, EventArgs e)
-        {
-            int csgId = Convert.ToInt32(ddlConsignment.SelectedValue);
-            if (csgId <= 0) return;
-            try
-            {
-                PKDatabaseHelper.ArchiveConsignment(csgId);
-                ShowAlert("Consignment archived.", true);
-                BindConsignments();
-                ddlConsignment.SelectedIndex = 0;
-                if (pnlConsigContent != null) pnlConsigContent.Visible = false;
-                if (pnlConsigDCs != null) pnlConsigDCs.Visible = false;
-                pnlForm.Visible = true;
-            }
-            catch (Exception ex) { ShowAlert("Archive error: " + ex.Message, false); }
         }
 
         void BuildProductData()
@@ -420,12 +478,12 @@ namespace PKApp
 
         void BindDCList()
         {
-            int csgId = ddlConsignment != null ? Convert.ToInt32(ddlConsignment.SelectedValue) : 0;
+            // Refresh the consignment DC list if a consignment is selected
+            int csgId = 0;
+            int.TryParse(hfActiveConsig.Value, out csgId);
             if (csgId > 0)
             {
-                BindConsignments();
-                if (ddlConsignment.Items.FindByValue(csgId.ToString()) != null)
-                    ddlConsignment.SelectedValue = csgId.ToString();
+                BindConsigTabs();
                 LoadConsigDCs(csgId);
             }
         }
@@ -446,7 +504,8 @@ namespace PKApp
             { ShowAlert("Please add at least one product line.", false); return; }
 
             // Consignment validation — mandatory
-            int consignmentId = ddlConsignment != null ? Convert.ToInt32(ddlConsignment.SelectedValue) : 0;
+            int consignmentId = 0;
+            int.TryParse(hfActiveConsig.Value, out consignmentId);
             if (consignmentId <= 0 && dcId <= 0)
             { ShowAlert("Please select a Consignment before saving.", false); return; }
 
@@ -579,17 +638,17 @@ namespace PKApp
                 var dc = PKDatabaseHelper.GetDCById(dcId);
                 if (dc != null) txtDCNumber.Text = dc["DCNumber"].ToString();
 
+                // Save transport details
+                string transport = ddlTransport != null ? ddlTransport.SelectedValue : "";
+                string courier = txtCourierName != null ? txtCourierName.Text.Trim() : "";
+                string tracking = txtTrackingNo != null ? txtTrackingNo.Text.Trim() : "";
+                if (!string.IsNullOrEmpty(transport))
+                    PKDatabaseHelper.UpdateDCTransport(dcId, transport, courier, tracking);
+
                 ShowAlert("Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2"), true);
                 BuildProductData();
                 BuildCustomerData();
                 BindDCList();
-                BindConsignments();
-                if (ddlConsignment != null && consignmentId > 0)
-                {
-                    if (ddlConsignment.Items.FindByValue(consignmentId.ToString()) != null)
-                        ddlConsignment.SelectedValue = consignmentId.ToString();
-                    LoadConsigDCs(consignmentId);
-                }
                 // Show invoice button after save
                 if (btnCreateInvoiceDraft != null)
                 {
@@ -863,12 +922,21 @@ namespace PKApp
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
 
                 // Restore consignment selection
-                if (ddlConsignment != null && dc.Table.Columns.Contains("ConsignmentID") && dc["ConsignmentID"] != DBNull.Value)
+                if (dc.Table.Columns.Contains("ConsignmentID") && dc["ConsignmentID"] != DBNull.Value)
                 {
-                    string csgId = dc["ConsignmentID"].ToString();
-                    if (ddlConsignment.Items.FindByValue(csgId) != null)
-                        ddlConsignment.SelectedValue = csgId;
+                    hfActiveConsig.Value = dc["ConsignmentID"].ToString();
                 }
+
+                // Restore transport mode
+                if (ddlTransport != null && dc.Table.Columns.Contains("TransportMode") && dc["TransportMode"] != DBNull.Value)
+                {
+                    string tm = dc["TransportMode"].ToString();
+                    if (ddlTransport.Items.FindByValue(tm) != null) ddlTransport.SelectedValue = tm;
+                }
+                if (txtCourierName != null && dc.Table.Columns.Contains("CourierName") && dc["CourierName"] != DBNull.Value)
+                    txtCourierName.Text = dc["CourierName"].ToString();
+                if (txtTrackingNo != null && dc.Table.Columns.Contains("TrackingNumber") && dc["TrackingNumber"] != DBNull.Value)
+                    txtTrackingNo.Text = dc["TrackingNumber"].ToString();
 
                 if (btnCreateInvoiceDraft != null)
                 {
