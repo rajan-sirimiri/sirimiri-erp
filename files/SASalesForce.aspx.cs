@@ -17,11 +17,12 @@ namespace StockApp
         protected DropDownList ddlMonth, ddlYear;
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
-        protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText;
+        protected DropDownList ddlSACustomer, ddlSAChannel;
+        protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText, txtSAShipDate;
         protected Button btnTabProjection, btnTabShipments, btnTabConsignments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
-        protected Button btnSACreateConsig, btnSAAddOrder;
-        protected Label lblSAConsigTitle;
-        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsignments, rptSAConsigOrders;
+        protected Button btnSACreateConsig, btnSASaveDraft, btnSACreateOrder, btnSASendToPK;
+        protected Label lblSAConsigTitle, lblSAConsigStatus, lblSAEditShipId;
+        protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsigOrders, rptSAConsigTabs;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
         protected HiddenField hfSAConsigId;
@@ -201,12 +202,11 @@ namespace StockApp
         {
             string tab = hfTab.Value ?? "projection";
             pnlProjection.Visible = tab == "projection";
-            pnlShipments.Visible = tab == "shipments";
+            if (pnlShipments != null) pnlShipments.Visible = false; // Legacy — hidden
             if (pnlConsignments != null) pnlConsignments.Visible = tab == "consignments";
             btnTabProjection.CssClass = tab == "projection" ? "tab-btn active" : "tab-btn";
-            btnTabShipments.CssClass = tab == "shipments" ? "tab-btn active" : "tab-btn";
             if (btnTabConsignments != null) btnTabConsignments.CssClass = tab == "consignments" ? "tab-btn active" : "tab-btn";
-            if (tab == "consignments") BindSAConsignments();
+            if (tab == "consignments") BindSAConsigTabs();
         }
 
         protected void ddlMonth_Changed(object sender, EventArgs e) { RefreshData(); }
@@ -805,20 +805,37 @@ namespace StockApp
         // SALES FORCE CONSIGNMENT HANDLERS
         // ══════════════════════════════════════════════════════════════
 
-        void BindSAConsignments()
+        void BindSAConsigTabs()
         {
             var dt = DatabaseHelper.GetAllConsignments(50);
-            // Add ShipmentCount column
-            dt.Columns.Add("ShipmentCount", typeof(int));
+            if (rptSAConsigTabs != null) { rptSAConsigTabs.DataSource = dt; rptSAConsigTabs.DataBind(); }
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
+            bool hasSelection = csgId > 0;
+            if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = !hasSelection;
+        }
+
+        void BindSAConsigCustomers()
+        {
+            if (ddlSACustomer == null) return;
+            var dt = DatabaseHelper.ExecuteQueryPublic(
+                "SELECT c.CustomerID, c.CustomerCode, c.CustomerName, IFNULL(ct.TypeName,'') AS TypeName" +
+                " FROM PK_Customers c LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
+                " WHERE c.IsActive=1 AND c.CustomerType IN ('DI','ST') ORDER BY c.CustomerName;");
+            ddlSACustomer.Items.Clear();
+            ddlSACustomer.Items.Add(new ListItem("-- Select Customer --", "0"));
             foreach (DataRow r in dt.Rows)
-            {
-                int cid = Convert.ToInt32(r["ConsignmentID"]);
-                var ships = DatabaseHelper.GetShipmentsByConsignment(cid);
-                r["ShipmentCount"] = ships.Rows.Count;
-            }
-            bool hasRows = dt.Rows.Count > 0;
-            if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = !hasRows;
-            if (rptSAConsignments != null) { rptSAConsignments.DataSource = dt; rptSAConsignments.DataBind(); }
+                ddlSACustomer.Items.Add(new ListItem(r["CustomerName"] + " (" + r["CustomerCode"] + ") — " + r["TypeName"], r["CustomerID"].ToString()));
+        }
+
+        void BindSAConsigChannels()
+        {
+            if (ddlSAChannel == null) return;
+            var dt = DatabaseHelper.ExecuteQueryPublic("SELECT ChannelID, ChannelName FROM SA_Channels ORDER BY ChannelName;");
+            ddlSAChannel.Items.Clear();
+            ddlSAChannel.Items.Add(new ListItem("-- Select Channel --", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlSAChannel.Items.Add(new ListItem(r["ChannelName"].ToString(), r["ChannelID"].ToString()));
         }
 
         protected void btnSACreateConsig_Click(object s, EventArgs e)
@@ -833,7 +850,7 @@ namespace StockApp
                 int newId = DatabaseHelper.CreateConsignment(dt, userText, "", UserID);
                 txtSAConsigText.Text = "";
                 hfSAConsigId.Value = newId.ToString();
-                BindSAConsignments();
+                BindSAConsigTabs();
                 LoadSAConsigDetail(newId);
 
                 var csg = DatabaseHelper.GetConsignmentById(newId);
@@ -848,6 +865,7 @@ namespace StockApp
             {
                 int csgId = Convert.ToInt32(e.CommandArgument);
                 hfSAConsigId.Value = csgId.ToString();
+                BindSAConsigTabs();
                 LoadSAConsigDetail(csgId);
             }
         }
@@ -859,28 +877,117 @@ namespace StockApp
             if (csg == null) { pnlSAConsigDetail.Visible = false; return; }
 
             pnlSAConsigDetail.Visible = true;
+            if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = false;
             if (lblSAConsigTitle != null)
                 lblSAConsigTitle.Text = csg["ConsignmentCode"].ToString();
+
+            string status = csg["Status"].ToString();
+            if (lblSAConsigStatus != null)
+            {
+                lblSAConsigStatus.Text = status;
+                switch (status)
+                {
+                    case "OPEN": lblSAConsigStatus.Style["background"] = "#fff3cd"; lblSAConsigStatus.Style["color"] = "#856404"; break;
+                    case "READY": lblSAConsigStatus.Style["background"] = "#d4edda"; lblSAConsigStatus.Style["color"] = "#155724"; break;
+                    default: lblSAConsigStatus.Style["background"] = "#e2e3e5"; lblSAConsigStatus.Style["color"] = "#383d41"; break;
+                }
+            }
 
             var orders = DatabaseHelper.GetShipmentsByConsignment(consignmentId);
             if (rptSAConsigOrders != null) { rptSAConsigOrders.DataSource = orders; rptSAConsigOrders.DataBind(); }
             if (pnlSAConsigOrdersEmpty != null) pnlSAConsigOrdersEmpty.Visible = orders.Rows.Count == 0;
+
+            // Show "Send to Shipment Team" if there are orders with status "Saved"
+            bool hasSaved = false;
+            foreach (DataRow r in orders.Rows)
+                if (r["Status"].ToString() == "Saved") { hasSaved = true; break; }
+            if (btnSASendToPK != null) btnSASendToPK.Visible = hasSaved;
+
+            // Bind form dropdowns
+            BindSAConsigCustomers();
+            BindSAConsigChannels();
+            if (txtSAShipDate != null) txtSAShipDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+            if (lblSAEditShipId != null) lblSAEditShipId.Text = "";
         }
 
-        protected void btnSAAddOrder_Click(object s, EventArgs e)
+        protected void btnSASaveDraft_Click(object s, EventArgs e)
+        { SaveSAConsigShipment("Saved"); }
+
+        protected void btnSACreateOrder_Click(object s, EventArgs e)
+        { SaveSAConsigShipment("Order"); }
+
+        void SaveSAConsigShipment(string status)
         {
-            // Switch to Shipments tab with consignment pre-selected
-            // The shipment form will create the order under this consignment
-            int csgId = Convert.ToInt32(hfSAConsigId.Value);
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
             if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
 
-            hfTab.Value = "shipments";
-            SetActiveTab();
-            RefreshData();
+            int custId = ddlSACustomer != null ? Convert.ToInt32(ddlSACustomer.SelectedValue) : 0;
+            if (custId <= 0) { ShowAlert("Please select a customer.", false); return; }
 
-            // Pre-fill: the existing shipment form will be used
-            // Store the consignment ID so when shipment is saved, it gets linked
-            ShowAlert("Create a shipment order below. It will be linked to the selected consignment.", true);
+            string shipDate = txtSAShipDate != null ? txtSAShipDate.Text.Trim() : "";
+            if (string.IsNullOrEmpty(shipDate)) { ShowAlert("Please enter a date.", false); return; }
+
+            int channelId = ddlSAChannel != null ? Convert.ToInt32(ddlSAChannel.SelectedValue) : 0;
+            if (channelId <= 0) { ShowAlert("Please select a channel.", false); return; }
+
+            // Create the shipment
+            int shipId = DatabaseHelper.CreateShipmentInConsignment(csgId, custId, DateTime.Parse(shipDate), 0, channelId, UserID);
+
+            // Save product lines
+            string[] productIds = Request.Form.GetValues("sa_ship_product");
+            string[] shipQtys = Request.Form.GetValues("sa_ship_qty");
+            if (productIds != null && shipQtys != null)
+            {
+                for (int i = 0; i < productIds.Length; i++)
+                {
+                    int pid = 0; int.TryParse(productIds[i], out pid);
+                    int sq = 0; int.TryParse(shipQtys[i], out sq);
+                    if (pid > 0 && sq > 0)
+                    {
+                        DatabaseHelper.ExecuteNonQueryPublic(
+                            "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ProjectedQty, ShippedQty) VALUES (?sid,?pid,0,?sq);",
+                            new MySqlParameter("?sid", shipId), new MySqlParameter("?pid", pid), new MySqlParameter("?sq", sq));
+                    }
+                }
+            }
+
+            // Update status if "Order"
+            if (status == "Order")
+                DatabaseHelper.ExecuteNonQueryPublic("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid;",
+                    new MySqlParameter("?sid", shipId));
+
+            string shipNo = "SH-" + shipId.ToString("D5");
+            ShowAlert(status == "Order"
+                ? "Shipment Order " + shipNo + " created — visible to Shipment team."
+                : "Shipment " + shipNo + " saved as draft.", true);
+            LoadSAConsigDetail(csgId);
+        }
+
+        protected void btnSASendToPK_Click(object s, EventArgs e)
+        {
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
+            if (csgId <= 0) return;
+
+            // Change all "Saved" shipments to "Order" status
+            DatabaseHelper.ExecuteNonQueryPublic(
+                "UPDATE SA_Shipments SET Status='Order' WHERE ConsignmentID=?cid AND Status='Saved';",
+                new MySqlParameter("?cid", csgId));
+
+            ShowAlert("All draft orders sent to Shipment team.", true);
+            LoadSAConsigDetail(csgId);
+        }
+
+        private string GetStatusBadge(string status)
+        {
+            switch (status)
+            {
+                case "Order": return "<span style='background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>Order</span>";
+                case "Saved": return "<span style='background:#fff3cd;color:#856404;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>Draft</span>";
+                case "DC": return "<span style='background:#cce5ff;color:#004085;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>DC Created</span>";
+                default: return "<span style='font-size:10px;'>" + status + "</span>";
+            }
         }
     }
 }

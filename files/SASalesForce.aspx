@@ -89,7 +89,6 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <asp:HiddenField ID="hfTab" runat="server" Value="projection"/>
 <div class="tab-bar">
     <asp:Button ID="btnTabProjection" runat="server" Text="&#x1F4CA; Projection" CssClass="tab-btn active" OnClick="btnTab_Click" CommandArgument="projection"/>
-    <asp:Button ID="btnTabShipments" runat="server" Text="&#x1F69A; Shipments &amp; Ordering" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="shipments"/>
     <asp:Button ID="btnTabConsignments" runat="server" Text="&#x1F4E6; Consignments" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="consignments"/>
 </div>
 
@@ -268,61 +267,116 @@ tr:hover{background:rgba(41,128,185,0.04);}
 
 <!-- ══════ TAB: CONSIGNMENTS ══════ -->
 <asp:Panel ID="pnlConsignments" runat="server" Visible="false">
-<div class="sa-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div class="card-title" style="margin:0;padding:0;border:none;">Consignments</div>
-        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('divNewConsig').style.display=document.getElementById('divNewConsig').style.display==='none'?'block':'none';">+ New Consignment</button>
-    </div>
 
-    <!-- New Consignment Form -->
-    <div id="divNewConsig" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">CREATE CONSIGNMENT</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
-            <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Date</label>
-                <asp:TextBox ID="txtSAConsigDate" runat="server" TextMode="Date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
-            <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Identifier (e.g. ROTN)</label>
-                <asp:TextBox ID="txtSAConsigText" runat="server" placeholder="ROTN" MaxLength="30" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-transform:uppercase;"/></div>
-            <div><asp:Button ID="btnSACreateConsig" runat="server" Text="Create" CssClass="btn btn-primary" OnClick="btnSACreateConsig_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
-        </div>
+<!-- Consignment Tab Bar -->
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:0;">
+    <div class="tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);flex:1;overflow-x:auto;">
+        <asp:Repeater ID="rptSAConsigTabs" runat="server">
+            <ItemTemplate>
+                <asp:Button runat="server" Text='<%# Eval("ConsignmentCode") %>'
+                    CssClass='<%# "tab-btn" + (Eval("ConsignmentID").ToString() == hfSAConsigId.Value ? " active" : "") %>'
+                    CommandName="OpenConsig" CommandArgument='<%# Eval("ConsignmentID") %>'
+                    OnCommand="SAConsig_Command" CausesValidation="false" style="white-space:nowrap;font-size:11px;padding:10px 16px;" />
+            </ItemTemplate>
+        </asp:Repeater>
+        <button type="button" class="tab-btn" onclick="document.getElementById('divNewConsig').style.display=document.getElementById('divNewConsig').style.display==='none'?'block':'none';"
+            style="color:var(--teal);font-size:16px;padding:8px 14px;" title="New Consignment">+</button>
     </div>
-
-    <!-- Consignment List -->
-    <asp:Panel ID="pnlConsigEmpty" runat="server"><div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">No consignments yet.</div></asp:Panel>
-    <asp:Repeater ID="rptSAConsignments" runat="server">
-        <HeaderTemplate><table class="sa-table"><tr><th>Consignment</th><th>Date</th><th>Orders</th><th>Status</th><th></th></tr></HeaderTemplate>
-        <ItemTemplate><tr>
-            <td style="font-weight:600;"><%# Eval("ConsignmentCode") %></td>
-            <td><%# Convert.ToDateTime(Eval("ConsignmentDate")).ToString("dd-MMM-yyyy") %></td>
-            <td class="num"><%# Eval("ShipmentCount") %></td>
-            <td><%# Eval("Status").ToString()=="OPEN" ? "<span style='background:#fff3cd;color:#856404;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>OPEN</span>" : "<span style='background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>" + Eval("Status") + "</span>" %></td>
-            <td><asp:LinkButton runat="server" Text="Open" CommandName="OpenConsig" CommandArgument='<%# Eval("ConsignmentID") %>' OnCommand="SAConsig_Command" style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;"/></td>
-        </tr></ItemTemplate>
-        <FooterTemplate></table></FooterTemplate>
-    </asp:Repeater>
 </div>
 
-<!-- Consignment Detail (shows shipment orders inside selected consignment) -->
+<!-- New Consignment Form (hidden) -->
+<div id="divNewConsig" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:0 0 8px 8px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">CREATE CONSIGNMENT</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+        <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Date</label>
+            <asp:TextBox ID="txtSAConsigDate" runat="server" TextMode="Date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
+        <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Identifier (e.g. ROTN)</label>
+            <asp:TextBox ID="txtSAConsigText" runat="server" placeholder="ROTN" MaxLength="30" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-transform:uppercase;"/></div>
+        <div><asp:Button ID="btnSACreateConsig" runat="server" Text="Create" CssClass="btn btn-primary" OnClick="btnSACreateConsig_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
+    </div>
+</div>
+
+<!-- Consignment Content (when a tab is selected) -->
 <asp:Panel ID="pnlSAConsigDetail" runat="server" Visible="false">
-<div class="sa-card" style="margin-top:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div class="card-title" style="margin:0;padding:0;border:none;"><asp:Label ID="lblSAConsigTitle" runat="server"/></div>
-        <asp:Button ID="btnSAAddOrder" runat="server" Text="+ Add Shipment Order" CssClass="btn btn-primary btn-sm" OnClick="btnSAAddOrder_Click" CausesValidation="false"/>
+
+<!-- Consignment Header + Status -->
+<div class="sa-card" style="padding:12px 16px;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <span style="font-size:14px;font-weight:700;"><asp:Label ID="lblSAConsigTitle" runat="server"/></span>
+            <asp:Label ID="lblSAConsigStatus" runat="server" style="margin-left:10px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;" />
+        </div>
+        <asp:Button ID="btnSASendToPK" runat="server" Text="Send to Shipment Team" CssClass="btn btn-primary btn-sm"
+            OnClick="btnSASendToPK_Click" CausesValidation="false" Visible="false" />
+    </div>
+</div>
+
+<!-- Shipment Orders List -->
+<div class="sa-card" style="margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="card-title" style="margin:0;padding:0;border:none;">Shipment Orders</div>
     </div>
     <asp:Repeater ID="rptSAConsigOrders" runat="server">
-        <HeaderTemplate><table class="sa-table"><tr><th>Order#</th><th>Customer</th><th>Date</th><th>Items</th><th>Qty</th><th>Status</th></tr></HeaderTemplate>
+        <HeaderTemplate><table class="sa-table"><tr><th>Order#</th><th>Customer</th><th>Date</th><th>Items</th><th>Qty</th><th>Status</th><th></th></tr></HeaderTemplate>
         <ItemTemplate><tr>
             <td style="font-family:monospace;font-weight:600;color:var(--accent);">SH-<%# Eval("ShipmentID").ToString().PadLeft(5,'0') %></td>
             <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
             <td><%# Convert.ToDateTime(Eval("ShipmentDate")).ToString("dd-MMM") %></td>
             <td class="num"><%# Eval("LineCount") %></td>
             <td class="num" style="font-weight:600;"><%# string.Format("{0:N0}", Eval("TotalQty")) %></td>
-            <td><%# Eval("Status").ToString()=="Order" ? "<span style='background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;'>Order</span>" : "<span style='font-size:10px;'>" + Eval("Status") + "</span>" %></td>
+            <td><%# GetStatusBadge(Eval("Status").ToString()) %></td>
+            <td><asp:LinkButton runat="server" Text="Edit" CommandName="EditShip" CommandArgument='<%# Eval("ShipmentID") %>' OnCommand="ShipAction_Command"
+                Visible='<%# Eval("Status").ToString() == "Saved" || Eval("Status").ToString() == "Order" %>'
+                style="color:var(--accent);font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;" CausesValidation="false"/></td>
         </tr></ItemTemplate>
         <FooterTemplate></table></FooterTemplate>
     </asp:Repeater>
-    <asp:Panel ID="pnlSAConsigOrdersEmpty" runat="server"><div style="text-align:center;padding:14px;color:var(--text-dim);font-size:12px;">No shipment orders yet. Click "+ Add Shipment Order" to create one.</div></asp:Panel>
+    <asp:Panel ID="pnlSAConsigOrdersEmpty" runat="server"><div style="text-align:center;padding:14px;color:var(--text-dim);font-size:12px;">No shipment orders yet. Create one below.</div></asp:Panel>
+</div>
+
+<!-- Shipment Order Form (embedded in consignment) -->
+<div class="sa-card">
+    <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">New Shipment Order <asp:Label ID="lblSAEditShipId" runat="server" style="color:var(--accent);"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;">
+        <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Customer <span style="color:var(--accent);">*</span></label>
+            <asp:DropDownList ID="ddlSACustomer" runat="server" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
+        <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Date <span style="color:var(--accent);">*</span></label>
+            <asp:TextBox ID="txtSAShipDate" runat="server" TextMode="Date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
+        <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Channel <span style="color:var(--accent);">*</span></label>
+            <asp:DropDownList ID="ddlSAChannel" runat="server" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/></div>
+    </div>
+
+    <!-- Product Lines -->
+    <div style="margin-top:14px;">
+        <div class="card-title" style="font-size:12px;">Products</div>
+        <div id="divSAShipLines">
+            <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 30px;gap:8px;margin-bottom:6px;">
+                <select name="sa_ship_product" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+                    <option value="0">-- Select Product --</option>
+                </select>
+                <input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+                <span></span>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm" style="font-size:11px;background:#f0f0f0;color:#333;border:1px solid #ddd;padding:6px 12px;border-radius:6px;margin-top:4px;" onclick="addSAShipLine()">+ Add Product</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px;">
+        <asp:Button ID="btnSASaveDraft" runat="server" Text="Save Draft" CssClass="btn btn-sm" style="background:#f0f0f0;color:#333;border:1px solid #ddd;"
+            OnClick="btnSASaveDraft_Click" CausesValidation="false"/>
+        <asp:Button ID="btnSACreateOrder" runat="server" Text="Create Shipment Order" CssClass="btn btn-primary"
+            OnClick="btnSACreateOrder_Click" CausesValidation="false"/>
+    </div>
 </div>
 </asp:Panel>
+
+<!-- Empty state when no consignment selected -->
+<asp:Panel ID="pnlConsigEmpty" runat="server">
+    <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">
+        Select a consignment tab or click <strong>+</strong> to create one.
+    </div>
+</asp:Panel>
+
 </asp:Panel>
 
 </div>
@@ -435,6 +489,16 @@ window.addEventListener('load', function() {
         document.getElementById('txtCustSearch').value = ddl.options[ddl.selectedIndex].text;
     }
 });
+function addSAShipLine() {
+    var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
+    var d = document.getElementById('divSAShipLines'), r = document.createElement('div');
+    r.className = 'line-row';
+    r.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 30px;gap:8px;margin-bottom:6px;';
+    r.innerHTML = '<select name="sa_ship_product" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select>'
+        + '<input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>'
+        + '<button type="button" style="background:none;border:none;color:#e74c3c;font-size:14px;cursor:pointer;" onclick="this.parentNode.remove();">&#x2715;</button>';
+    d.appendChild(r);
+}
 </script>
 <script src="/StockApp/erp-modal.js"></script><script src="/StockApp/erp-keepalive.js"></script>
 </form></body></html>
