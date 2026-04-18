@@ -25,7 +25,7 @@ namespace StockApp
         protected Repeater rptProjLines, rptProjections, rptShipLines, rptShipments, rptSAConsigOrders, rptSAConsigTabs;
         protected HiddenField hfTab, hfProductOptionsHtml, hfUOMOptionsHtml, hfEditProjId;
         protected HiddenField hfShipZoneID, hfShipRegionID, hfProjZoneID, hfProjRegionID, hfEditShipId;
-        protected HiddenField hfSAConsigId;
+        protected HiddenField hfSAConsigId, hfSAProductData;
 
         private int SelMonth => Convert.ToInt32(ddlMonth.SelectedValue);
         private int SelYear => Convert.ToInt32(ddlYear.SelectedValue);
@@ -912,15 +912,48 @@ namespace StockApp
             // Bind first product dropdown
             if (ddlSAFirstProduct != null)
             {
-                var prods = DatabaseHelper.ExecuteQueryPublic(
-                    "SELECT p.ProductID, p.ProductName, p.ProductCode" +
-                    " FROM PP_Products p" +
-                    " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
-                    " ORDER BY p.ProductName;");
                 ddlSAFirstProduct.Items.Clear();
                 ddlSAFirstProduct.Items.Add(new ListItem("-- Select Product --", "0"));
-                foreach (DataRow p in prods.Rows)
-                    ddlSAFirstProduct.Items.Add(new ListItem(p["ProductName"].ToString(), p["ProductID"].ToString()));
+                ddlSAFirstProduct.Attributes["onchange"] = "onSAProductChange(this);";
+
+                // Get FG stock data — simplified query for SA (stock + case qty only)
+                var fgStock = DatabaseHelper.ExecuteQueryPublic(
+                    "SELECT p.ProductID, p.ProductName," +
+                    " IFNULL(p.ContainersPerCase, 12) AS ContainersPerCase," +
+                    " (IFNULL(osJ.Jars,0)" +
+                    "  + FLOOR(IFNULL(fg.TotalPCS,0)/GREATEST(CAST(SUBSTRING_INDEX(IFNULL(p.UnitsPerContainer,'1'),',',1) AS UNSIGNED),1))" +
+                    "  - IFNULL(sp.JarsInCases,0) - IFNULL(dcA.LooseUsed,0))" +
+                    " + (IFNULL(osC.Cases,0) + IFNULL(sp.CasesPacked,0) - IFNULL(dcA.CasesUsed,0))" +
+                    "   * IFNULL(p.ContainersPerCase,12) AS AvailableFGJars" +
+                    " FROM PP_Products p" +
+                    " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Jars FROM PK_FGOpeningStock WHERE StockForm IN ('JAR','BOX') GROUP BY ProductID) osJ ON osJ.ProductID=p.ProductID" +
+                    " LEFT JOIN (SELECT ProductID, SUM(Quantity) AS Cases FROM PK_FGOpeningStock WHERE StockForm='CASE' GROUP BY ProductID) osC ON osC.ProductID=p.ProductID" +
+                    " LEFT JOIN (SELECT ProductID, SUM(QtyPacked) AS TotalPCS FROM PK_FGStock GROUP BY ProductID) fg ON fg.ProductID=p.ProductID" +
+                    " LEFT JOIN (SELECT ProductID, SUM(TotalUnits) AS JarsInCases, SUM(CASE WHEN PackingType='CASE' THEN QtyCartons ELSE 0 END) AS CasesPacked FROM PK_SecondaryPacking GROUP BY ProductID) sp ON sp.ProductID=p.ProductID" +
+                    " LEFT JOIN (SELECT dl.ProductID," +
+                    "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='CASE' THEN CEIL(dl.TotalPcs/GREATEST(IFNULL(pp.ContainersPerCase,12),1)) ELSE 0 END) AS CasesUsed," +
+                    "   SUM(CASE WHEN IFNULL(dl.Source,'CASE')='LOOSE' THEN dl.TotalPcs ELSE 0 END) AS LooseUsed" +
+                    "   FROM PK_DCLines dl JOIN PK_DeliveryChallans dch ON dch.DCID=dl.DCID JOIN PP_Products pp ON pp.ProductID=dl.ProductID" +
+                    "   WHERE dch.Status IN ('DRAFT','FINALISED') GROUP BY dl.ProductID) dcA ON dcA.ProductID=p.ProductID" +
+                    " WHERE p.IsActive=1 AND p.ProductType IN ('Core','Conversion','Prefilled Conversion')" +
+                    " ORDER BY p.ProductName;");
+                var sb = new System.Text.StringBuilder("{");
+                bool first = true;
+                foreach (DataRow fg in fgStock.Rows)
+                {
+                    string pid = fg["ProductID"].ToString();
+                    string name = fg["ProductName"].ToString();
+                    int stock = Convert.ToInt32(fg["AvailableFGJars"]);
+                    int caseQty = Convert.ToInt32(fg["ContainersPerCase"]);
+
+                    ddlSAFirstProduct.Items.Add(new ListItem(name + " (FG:" + stock + ")", pid));
+
+                    if (!first) sb.Append(",");
+                    sb.Append("\"" + pid + "\":{\"stock\":" + stock + ",\"caseQty\":" + caseQty + "}");
+                    first = false;
+                }
+                sb.Append("}");
+                if (hfSAProductData != null) hfSAProductData.Value = sb.ToString();
             }
         }
 

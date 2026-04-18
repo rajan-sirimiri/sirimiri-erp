@@ -350,9 +350,10 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <div style="margin-top:14px;">
         <div class="card-title" style="font-size:12px;">Products</div>
         <div id="divSAShipLines">
-            <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 30px;gap:8px;margin-bottom:6px;">
-                <asp:DropDownList ID="ddlSAFirstProduct" runat="server" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" />
-                <input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>
+            <div class="line-row" style="display:grid;grid-template-columns:3fr 1fr 120px 30px;gap:8px;margin-bottom:6px;align-items:center;">
+                <asp:DropDownList ID="ddlSAFirstProduct" runat="server" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onchange="onSAProductChange(this);" />
+                <input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onblur="roundToCase(this);"/>
+                <span class="sa-stock-info" style="font-size:10px;color:#666;"></span>
                 <span></span>
             </div>
         </div>
@@ -378,7 +379,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
 </asp:Panel>
 
 </div>
-<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/><asp:HiddenField ID="hfSAConsigId" runat="server" Value="0"/>
+<asp:HiddenField ID="hfProductOptionsHtml" runat="server"/><asp:HiddenField ID="hfUOMOptionsHtml" runat="server"/><asp:HiddenField ID="hfEditProjId" runat="server" Value="0"/><asp:HiddenField ID="hfEditShipId" runat="server" Value="0"/><asp:HiddenField ID="hfSAConsigId" runat="server" Value="0"/><asp:HiddenField ID="hfSAProductData" runat="server" Value="{}"/>
 <script>
 function addProjLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
@@ -487,13 +488,49 @@ window.addEventListener('load', function() {
         document.getElementById('txtCustSearch').value = ddl.options[ddl.selectedIndex].text;
     }
 });
+var _saProductData = {};
+try { _saProductData = JSON.parse(document.getElementById('<%= hfSAProductData.ClientID %>').value || '{}'); } catch(e){}
+
+function onSAProductChange(sel) {
+    var pid = sel.value;
+    var row = sel.closest('.line-row');
+    var info = row ? row.querySelector('.sa-stock-info') : null;
+    if (!info) return;
+    var pd = _saProductData[pid];
+    if (pd) {
+        info.innerHTML = '<span style="color:#1a9e6a;font-weight:700;">FG: ' + pd.stock + '</span> | Case: ' + pd.caseQty;
+    } else {
+        info.innerHTML = '';
+    }
+}
+
+function roundToCase(inp) {
+    var qty = parseInt(inp.value) || 0;
+    if (qty <= 0) return;
+    var row = inp.closest('.line-row');
+    if (!row) return;
+    var sel = row.querySelector('select');
+    if (!sel) return;
+    var pid = sel.value;
+    var pd = _saProductData[pid];
+    if (!pd || pd.caseQty <= 1) return;
+    var cq = pd.caseQty;
+    var rounded = Math.ceil(qty / cq) * cq;
+    if (rounded !== qty) {
+        inp.value = rounded;
+        inp.style.background = '#fffde7';
+        setTimeout(function(){ inp.style.background = ''; }, 1500);
+    }
+}
+
 function addSAShipLine() {
     var p = document.getElementById('<%= hfProductOptionsHtml.ClientID %>').value;
     var d = document.getElementById('divSAShipLines'), r = document.createElement('div');
     r.className = 'line-row';
-    r.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 30px;gap:8px;margin-bottom:6px;';
-    r.innerHTML = '<select name="sa_ship_product" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select>'
-        + '<input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>'
+    r.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 120px 30px;gap:8px;margin-bottom:6px;align-items:center;';
+    r.innerHTML = '<select name="sa_ship_product" onchange="onSAProductChange(this);" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select>'
+        + '<input type="number" name="sa_ship_qty" min="0" step="1" placeholder="Qty" onblur="roundToCase(this);" style="padding:7px;border:1px solid var(--border);border-radius:6px;font-size:12px;"/>'
+        + '<span class="sa-stock-info" style="font-size:10px;color:#666;"></span>'
         + '<button type="button" style="background:none;border:none;color:#e74c3c;font-size:14px;cursor:pointer;" onclick="this.parentNode.remove();">&#x2715;</button>';
     d.appendChild(r);
 }
