@@ -729,14 +729,39 @@ namespace StockApp.DAL
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
 
+        /// <summary>Get ACTIVE consignments (OPEN or READY) for the SA tab strip.
+        /// DISPATCHED and ARCHIVED consignments show in separate dropdowns, not tabs.</summary>
         public static DataTable GetAllConsignments(int limit = 50)
         {
             return ExecuteQuery(
                 "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status, c.Remarks," +
                 " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount," +
                 " (SELECT IFNULL(SUM(d2.GrandTotal),0) FROM PK_DeliveryChallans d2 WHERE d2.ConsignmentID=c.ConsignmentID) AS TotalAmount" +
-                " FROM PK_Consignments c WHERE c.Status IN ('OPEN','READY','DISPATCHED')" +
+                " FROM PK_Consignments c WHERE c.Status IN ('OPEN','READY')" +
                 " ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
+        /// <summary>Get DISPATCHED consignments for the SA dispatched dropdown.
+        /// Mirrors PKDatabaseHelper.GetDispatchedConsignments but lives in StockApp so SA doesn't
+        /// take a cross-project dependency on PKApp.</summary>
+        public static DataTable GetDispatchedConsignmentsSA()
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.DispatchedAt," +
+                " (SELECT COUNT(*) FROM SA_Shipments s WHERE s.ConsignmentID=c.ConsignmentID) AS ShipmentCount" +
+                " FROM PK_Consignments c WHERE c.Status='DISPATCHED'" +
+                " ORDER BY c.DispatchedAt DESC;");
+        }
+
+        /// <summary>Get ARCHIVED consignments for the SA archived dropdown.</summary>
+        public static DataTable GetArchivedConsignmentsSA(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.DispatchedAt, c.ArchivedAt," +
+                " (SELECT COUNT(*) FROM SA_Shipments s WHERE s.ConsignmentID=c.ConsignmentID) AS ShipmentCount" +
+                " FROM PK_Consignments c WHERE c.Status='ARCHIVED'" +
+                " ORDER BY c.ArchivedAt DESC LIMIT ?lim;",
                 new MySqlParameter("?lim", limit));
         }
 

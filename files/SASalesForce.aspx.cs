@@ -18,6 +18,7 @@ namespace StockApp
         protected DropDownList ddlProjArea, ddlProjChannel;
         protected DropDownList ddlShipArea, ddlShipChannel, ddlTransport, ddlCustomer;
         protected DropDownList ddlSACustomer, ddlSAChannel;
+        protected DropDownList ddlSADispatched, ddlSAArchived;
         protected TextBox txtShipDate, txtVehicleNo, txtSAConsigDate, txtSAConsigText, txtSAShipDate;
         protected Button btnTabProjection, btnTabShipments, btnTabConsignments, btnLoadProjection, btnSaveProjection, btnCreateShipment, btnSaveShipment, btnNewProjection, btnNewShipment;
         protected Button btnSACreateConsig, btnSASaveDraft, btnSACreateOrder, btnSASendToPK;
@@ -814,6 +815,75 @@ namespace StockApp
             int.TryParse(hfSAConsigId.Value, out csgId);
             bool hasSelection = csgId > 0;
             if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = !hasSelection;
+
+            // Dropdowns for DISPATCHED + ARCHIVED — consignments that have left the active tab strip
+            BindSADispatchedDropdown();
+            BindSAArchivedDropdown();
+        }
+
+        /// <summary>Populate the Dispatched dropdown with all consignments in DISPATCHED status.
+        /// Mirrors the pattern used by the PK Shipment page.</summary>
+        void BindSADispatchedDropdown()
+        {
+            if (ddlSADispatched == null) return;
+            var dt = DatabaseHelper.GetDispatchedConsignmentsSA();
+            ddlSADispatched.Items.Clear();
+            ddlSADispatched.Items.Add(new ListItem("Dispatched (" + dt.Rows.Count + ")", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlSADispatched.Items.Add(new ListItem(r["ConsignmentCode"].ToString(), r["ConsignmentID"].ToString()));
+
+            // Keep the currently viewed dispatched consignment selected across postbacks
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
+            if (csgId > 0)
+            {
+                var li = ddlSADispatched.Items.FindByValue(csgId.ToString());
+                if (li != null) ddlSADispatched.SelectedValue = csgId.ToString();
+            }
+        }
+
+        /// <summary>Populate the Archived dropdown.</summary>
+        void BindSAArchivedDropdown()
+        {
+            if (ddlSAArchived == null) return;
+            var dt = DatabaseHelper.GetArchivedConsignmentsSA();
+            ddlSAArchived.Items.Clear();
+            ddlSAArchived.Items.Add(new ListItem("Archived (" + dt.Rows.Count + ")", "0"));
+            foreach (DataRow r in dt.Rows)
+                ddlSAArchived.Items.Add(new ListItem(r["ConsignmentCode"].ToString(), r["ConsignmentID"].ToString()));
+
+            int csgId = 0;
+            int.TryParse(hfSAConsigId.Value, out csgId);
+            if (csgId > 0)
+            {
+                var li = ddlSAArchived.Items.FindByValue(csgId.ToString());
+                if (li != null) ddlSAArchived.SelectedValue = csgId.ToString();
+            }
+        }
+
+        /// <summary>Open a dispatched consignment for viewing (same load path as clicking an active tab).</summary>
+        protected void ddlSADispatched_Changed(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlSADispatched.SelectedValue);
+            if (csgId > 0)
+            {
+                hfSAConsigId.Value = csgId.ToString();
+                if (hfEditShipId != null) hfEditShipId.Value = "0";
+                BindSAConsigTabs();
+                LoadSAConsigDetail(csgId);
+            }
+        }
+
+        protected void ddlSAArchived_Changed(object s, EventArgs e)
+        {
+            int csgId = Convert.ToInt32(ddlSAArchived.SelectedValue);
+            if (csgId > 0)
+            {
+                hfSAConsigId.Value = csgId.ToString();
+                if (hfEditShipId != null) hfEditShipId.Value = "0";
+                BindSAConsigTabs();
+                LoadSAConsigDetail(csgId);
+            }
         }
 
         void BindSAConsigCustomers()

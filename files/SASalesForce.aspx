@@ -268,11 +268,19 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ══════ TAB: CONSIGNMENTS ══════ -->
 <asp:Panel ID="pnlConsignments" runat="server" Visible="false">
 
-<!-- Action bar with visible Create Consignment button -->
-<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
+<!-- Action bar: Create Consignment button + Dispatched/Archived dropdowns -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px;">
     <button type="button" class="btn btn-primary btn-sm"
         onclick="var d=document.getElementById('divNewConsig');d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none';"
         style="padding:8px 14px;">+ Create Consignment</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <asp:DropDownList ID="ddlSADispatched" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSADispatched_Changed"
+            CausesValidation="false"
+            style="font-size:10px;padding:4px 8px;border:1px solid #cce5ff;border-radius:6px;color:#004085;background:#f0f7ff;" />
+        <asp:DropDownList ID="ddlSAArchived" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlSAArchived_Changed"
+            CausesValidation="false"
+            style="font-size:10px;padding:4px 8px;border:1px solid #e2e3e5;border-radius:6px;color:#383d41;background:#f5f5f5;" />
+    </div>
 </div>
 
 <!-- Consignment Tab Bar -->
