@@ -164,15 +164,21 @@ tr:hover td{background:#f8f9fb;}
 
     window.saveAll = function() {
         var pairs = [];
+        var details = [];
         for (var i = 0; i < products.length; i++) {
             var pid = products[i].id;
             var j = parseInt(document.getElementById('jar_' + pid).value) || 0;
             var c = parseInt(document.getElementById('case_' + pid).value) || 0;
             if (j !== origData[pid].jars || c !== origData[pid].cases) {
                 pairs.push(pid + ':' + j + ':' + c);
+                var name = products[i].name;
+                var changes = [];
+                if (j !== origData[pid].jars) changes.push('JARs/BOXes: ' + origData[pid].jars + ' → ' + j);
+                if (c !== origData[pid].cases) changes.push('Cases: ' + origData[pid].cases + ' → ' + c);
+                details.push(name + ' — ' + changes.join(', '));
             }
         }
-        if (pairs.length === 0) return;
+        if (pairs.length === 0) { erpAlert('No changes to save.', {title:'No Changes', type:'info'}); return; }
         document.getElementById('btnSave').disabled = true;
 
         var xhr = new XMLHttpRequest();
@@ -191,12 +197,13 @@ tr:hover td{background:#f8f9fb;}
                             document.getElementById('case_' + pid).classList.remove('changed');
                         }
                         document.getElementById('changeCount').textContent = '';
-                        showMsg('ok', 'Saved ' + resp.updated + ' product(s) successfully.');
+                        var msg = 'Updated ' + resp.updated + ' product(s):\n\n' + details.join('\n');
+                        erpAlert(msg, {title:'Opening Stock Saved', type:'success'});
                     } else {
-                        showMsg('err', resp.error || 'Save failed.');
+                        erpAlert(resp.error || 'Save failed.', {title:'Save Error', type:'danger'});
                         document.getElementById('btnSave').disabled = false;
                     }
-                } catch(e) { showMsg('err', 'Error saving.'); document.getElementById('btnSave').disabled = false; }
+                } catch(e) { erpAlert('Error saving: ' + e.message, {title:'Error', type:'danger'}); document.getElementById('btnSave').disabled = false; }
             }
         };
         xhr.send('action=saveFGOpening&data=' + encodeURIComponent(pairs.join(';')));
