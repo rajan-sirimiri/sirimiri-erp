@@ -1780,7 +1780,7 @@ namespace PKApp.DAL
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
-                " WHERE sh.Status IN ('Order','DC','Shipped')" +
+                " WHERE sh.Status IN ('Order','Saved')" +
                 " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;");
         }
 
@@ -1805,7 +1805,7 @@ namespace PKApp.DAL
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
-                " WHERE sh.ConsignmentID=?cid AND sh.Status IN ('Order','DC','Shipped')" +
+                " WHERE sh.ConsignmentID=?cid AND sh.Status IN ('Order','Saved')" +
                 " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;",
                 new MySqlParameter("?cid", consignmentId));
         }
