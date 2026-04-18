@@ -559,6 +559,12 @@ namespace PKApp
             return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
         }
 
+        string GetCustomerTypeFilter()
+        {
+            string tab = hfActiveTab != null ? hfActiveTab.Value : "retail";
+            return tab == "retail" ? "RT" : "DI,ST";
+        }
+
         void BindDCList()
         {
             string tab = hfActiveTab != null ? hfActiveTab.Value : "retail";
@@ -738,7 +744,7 @@ namespace PKApp
 
                 ShowAlert("Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2"), true);
                 BuildProductData();
-                BuildCustomerData();
+                BuildCustomerData(GetCustomerTypeFilter());
                 BindDCList();
                 // Show invoice button after save
                 if (btnCreateInvoiceDraft != null)
@@ -1128,7 +1134,7 @@ namespace PKApp
             }
 
             BuildProductData();
-            BuildCustomerData();
+            BuildCustomerData(GetCustomerTypeFilter());
             if (pnlAlert != null) pnlAlert.Visible = false;
         }
 
