@@ -2392,7 +2392,7 @@ namespace PKApp.DAL
                 new MySqlParameter("?dt", consigDate.ToString("yyyy-MM-dd")));
             int seq = seqObj != null && seqObj != DBNull.Value ? Convert.ToInt32(Convert.ToInt64(seqObj)) : 1;
 
-            string code = "CONSIG-" + consigDate.ToString("ddMMyyyy") + "-" + seq.ToString("D2") + "-" + userText;
+            string code = "CONSIG-" + consigDate.ToString("ddMMMyy").ToUpper() + "-" + seq.ToString("D2") + "-" + userText;
 
             ExecuteNonQuery(
                 "INSERT INTO PK_Consignments (ConsignmentCode, ConsignmentDate, SequenceNo, UserText, Status, Remarks, CreatedBy, CreatedAt)" +
@@ -2413,8 +2413,10 @@ namespace PKApp.DAL
         {
             return ExecuteQuery(
                 "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status," +
+                " c.VehicleNumber," +
                 " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount" +
-                " FROM PK_Consignments c WHERE c.Status='OPEN' ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC;");
+                " FROM PK_Consignments c WHERE c.Status IN ('OPEN','READY','DISPATCHED')" +
+                " ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC;");
         }
 
         /// <summary>Get all consignments (open + closed) for listing.</summary>
@@ -2440,7 +2442,7 @@ namespace PKApp.DAL
         public static DataTable GetDCsByConsignment(int consignmentId)
         {
             return ExecuteQuery(
-                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel," +
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel, d.TrackingNumber," +
                 " c.CustomerName, c.CustomerCode, c.CustomerType," +
                 " (SELECT COUNT(*) FROM PK_DCLines dl WHERE dl.DCID=d.DCID) AS LineCount," +
                 " (SELECT IFNULL(SUM(dl2.TotalPcs),0) FROM PK_DCLines dl2 WHERE dl2.DCID=d.DCID) AS TotalPcs" +
@@ -2450,18 +2452,75 @@ namespace PKApp.DAL
                 new MySqlParameter("?cid", consignmentId));
         }
 
-        /// <summary>Close a consignment (no more DCs can be added).</summary>
-        public static void CloseConsignment(int consignmentId)
+        /// <summary>Check if consignment is ready — all DCs finalised + all invoiced.</summary>
+        public static string GetConsignmentReadyStatus(int consignmentId)
         {
-            ExecuteNonQuery("UPDATE PK_Consignments SET Status='CLOSED' WHERE ConsignmentID=?id;",
+            var dcs = GetDCsByConsignment(consignmentId);
+            if (dcs.Rows.Count == 0) return "OPEN";
+            bool allFinalised = true, allInvoiced = true;
+            foreach (DataRow dc in dcs.Rows)
+            {
+                if (dc["Status"].ToString() != "FINALISED") allFinalised = false;
+                string invNo = dc.Table.Columns.Contains("InvoiceNumber") && dc["InvoiceNumber"] != DBNull.Value
+                    ? dc["InvoiceNumber"].ToString() : "";
+                if (string.IsNullOrEmpty(invNo)) allInvoiced = false;
+            }
+            if (allFinalised && allInvoiced) return "READY";
+            return "OPEN";
+        }
+
+        /// <summary>Update consignment status to READY if all DCs finalised + invoiced.</summary>
+        public static void UpdateConsignmentReadyStatus(int consignmentId)
+        {
+            string status = GetConsignmentReadyStatus(consignmentId);
+            ExecuteNonQuery("UPDATE PK_Consignments SET Status=?st WHERE ConsignmentID=?id AND Status='OPEN';",
+                new MySqlParameter("?st", status),
                 new MySqlParameter("?id", consignmentId));
         }
 
-        /// <summary>Reopen a closed consignment.</summary>
-        public static void ReopenConsignment(int consignmentId)
+        /// <summary>Dispatch a consignment — set status, vehicle number, dispatch time.</summary>
+        public static void DispatchConsignment(int consignmentId, string vehicleNumber)
         {
-            ExecuteNonQuery("UPDATE PK_Consignments SET Status='OPEN' WHERE ConsignmentID=?id;",
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status='DISPATCHED', VehicleNumber=?vn, DispatchedAt=NOW()" +
+                " WHERE ConsignmentID=?id AND Status IN ('OPEN','READY');",
+                new MySqlParameter("?vn", vehicleNumber ?? ""),
                 new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Update tracking number for a DC.</summary>
+        public static void UpdateDCTrackingNumber(int dcId, string trackingNumber)
+        {
+            ExecuteNonQuery("UPDATE PK_DeliveryChallans SET TrackingNumber=?tn WHERE DCID=?id;",
+                new MySqlParameter("?tn", trackingNumber ?? ""),
+                new MySqlParameter("?id", dcId));
+        }
+
+        /// <summary>Archive a consignment (hide from active view).</summary>
+        public static void ArchiveConsignment(int consignmentId)
+        {
+            ExecuteNonQuery("UPDATE PK_Consignments SET Status='ARCHIVED', ArchivedAt=NOW() WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Unarchive a consignment (restore to DISPATCHED).</summary>
+        public static void UnarchiveConsignment(int consignmentId)
+        {
+            ExecuteNonQuery("UPDATE PK_Consignments SET Status='DISPATCHED', ArchivedAt=NULL WHERE ConsignmentID=?id AND Status='ARCHIVED';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Get archived consignments.</summary>
+        public static DataTable GetArchivedConsignments(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status," +
+                " c.VehicleNumber, c.DispatchedAt, c.ArchivedAt," +
+                " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount," +
+                " (SELECT IFNULL(SUM(d2.GrandTotal),0) FROM PK_DeliveryChallans d2 WHERE d2.ConsignmentID=c.ConsignmentID) AS TotalAmount" +
+                " FROM PK_Consignments c WHERE c.Status='ARCHIVED'" +
+                " ORDER BY c.ArchivedAt DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
         }
     }
 }
