@@ -649,7 +649,7 @@ namespace StockApp
                 // Link to consignment if one is active
                 int consigId = hfSAConsigId != null ? Convert.ToInt32(hfSAConsigId.Value) : 0;
                 if (consigId > 0)
-                    PKApp.DAL.PKDatabaseHelper.LinkShipmentToConsignment(shipId, consigId);
+                    DatabaseHelper.LinkShipmentToConsignment(shipId, consigId);
             }
 
             // Save line items — read from ship_product dropdowns
@@ -807,13 +807,13 @@ namespace StockApp
 
         void BindSAConsignments()
         {
-            var dt = PKApp.DAL.PKDatabaseHelper.GetAllConsignments(50);
+            var dt = DatabaseHelper.GetAllConsignments(50);
             // Add ShipmentCount column
             dt.Columns.Add("ShipmentCount", typeof(int));
             foreach (DataRow r in dt.Rows)
             {
                 int cid = Convert.ToInt32(r["ConsignmentID"]);
-                var ships = PKApp.DAL.PKDatabaseHelper.GetShipmentsByConsignment(cid);
+                var ships = DatabaseHelper.GetShipmentsByConsignment(cid);
                 r["ShipmentCount"] = ships.Rows.Count;
             }
             bool hasRows = dt.Rows.Count > 0;
@@ -830,13 +830,13 @@ namespace StockApp
                 if (string.IsNullOrEmpty(userText))
                 { ShowAlert("Please enter a consignment identifier (e.g. ROTN, BLORE).", false); return; }
 
-                int newId = PKApp.DAL.PKDatabaseHelper.CreateConsignment(dt, userText, "", UserID);
+                int newId = DatabaseHelper.CreateConsignment(dt, userText, "", UserID);
                 txtSAConsigText.Text = "";
                 hfSAConsigId.Value = newId.ToString();
                 BindSAConsignments();
                 LoadSAConsigDetail(newId);
 
-                var csg = PKApp.DAL.PKDatabaseHelper.GetConsignmentById(newId);
+                var csg = DatabaseHelper.GetConsignmentById(newId);
                 ShowAlert("Consignment created: " + (csg != null ? csg["ConsignmentCode"].ToString() : ""), true);
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -855,14 +855,14 @@ namespace StockApp
         void LoadSAConsigDetail(int consignmentId)
         {
             if (pnlSAConsigDetail == null) return;
-            var csg = PKApp.DAL.PKDatabaseHelper.GetConsignmentById(consignmentId);
+            var csg = DatabaseHelper.GetConsignmentById(consignmentId);
             if (csg == null) { pnlSAConsigDetail.Visible = false; return; }
 
             pnlSAConsigDetail.Visible = true;
             if (lblSAConsigTitle != null)
                 lblSAConsigTitle.Text = csg["ConsignmentCode"].ToString();
 
-            var orders = PKApp.DAL.PKDatabaseHelper.GetShipmentsByConsignment(consignmentId);
+            var orders = DatabaseHelper.GetShipmentsByConsignment(consignmentId);
             if (rptSAConsigOrders != null) { rptSAConsigOrders.DataSource = orders; rptSAConsigOrders.DataBind(); }
             if (pnlSAConsigOrdersEmpty != null) pnlSAConsigOrdersEmpty.Visible = orders.Rows.Count == 0;
         }

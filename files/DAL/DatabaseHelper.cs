@@ -695,5 +695,71 @@ namespace StockApp.DAL
                 conn.Open(); return cmd.ExecuteScalar();
             }
         }
+
+        // ══════════════════════════════════════════════════════════════
+        // CONSIGNMENT METHODS (for SA Sales Force)
+        // ══════════════════════════════════════════════════════════════
+
+        public static int CreateConsignment(DateTime consigDate, string userText, string remarks, int userId)
+        {
+            userText = (userText ?? "").Trim().ToUpper().Replace(" ", "-");
+            if (string.IsNullOrEmpty(userText))
+                throw new Exception("User text for consignment is required.");
+            object seqObj = ExecuteScalar(
+                "SELECT IFNULL(MAX(SequenceNo), 0) + 1 FROM PK_Consignments WHERE ConsignmentDate=?dt;",
+                new MySqlParameter("?dt", consigDate.ToString("yyyy-MM-dd")));
+            int seq = seqObj != null && seqObj != DBNull.Value ? Convert.ToInt32(Convert.ToInt64(seqObj)) : 1;
+            string code = "CONSIG-" + consigDate.ToString("ddMMMyy").ToUpper() + "-" + seq.ToString("D2") + "-" + userText;
+            ExecuteNonQuery(
+                "INSERT INTO PK_Consignments (ConsignmentCode, ConsignmentDate, SequenceNo, UserText, Status, Remarks, CreatedBy, CreatedAt)" +
+                " VALUES(?code, ?dt, ?seq, ?txt, 'OPEN', ?rem, ?by, NOW());",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?dt", consigDate.ToString("yyyy-MM-dd")),
+                new MySqlParameter("?seq", seq),
+                new MySqlParameter("?txt", userText),
+                new MySqlParameter("?rem", remarks ?? ""),
+                new MySqlParameter("?by", userId));
+            return Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
+        }
+
+        public static DataRow GetConsignmentById(int consignmentId)
+        {
+            var dt = ExecuteQuery("SELECT * FROM PK_Consignments WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        public static DataTable GetAllConsignments(int limit = 50)
+        {
+            return ExecuteQuery(
+                "SELECT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.UserText, c.Status, c.Remarks," +
+                " (SELECT COUNT(*) FROM PK_DeliveryChallans d WHERE d.ConsignmentID=c.ConsignmentID) AS DCCount," +
+                " (SELECT IFNULL(SUM(d2.GrandTotal),0) FROM PK_DeliveryChallans d2 WHERE d2.ConsignmentID=c.ConsignmentID) AS TotalAmount" +
+                " FROM PK_Consignments c WHERE c.Status IN ('OPEN','READY','DISPATCHED')" +
+                " ORDER BY c.ConsignmentDate DESC, c.SequenceNo DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
+        public static DataTable GetShipmentsByConsignment(int consignmentId)
+        {
+            return ExecuteQuery(
+                "SELECT s.ShipmentID, s.ShipmentDate, s.Status, s.CustomerID, s.Remarks," +
+                " c.CustomerName, c.CustomerCode, c.CustomerType," +
+                " IFNULL(ct.TypeName,'') AS TypeName," +
+                " (SELECT COUNT(*) FROM SA_ShipmentLines sl WHERE sl.ShipmentID=s.ShipmentID) AS LineCount," +
+                " (SELECT IFNULL(SUM(sl2.ShippedQty),0) FROM SA_ShipmentLines sl2 WHERE sl2.ShipmentID=s.ShipmentID) AS TotalQty" +
+                " FROM SA_Shipments s" +
+                " LEFT JOIN PK_Customers c ON c.CustomerID=s.CustomerID" +
+                " LEFT JOIN PK_CustomerTypes ct ON ct.TypeCode=c.CustomerType" +
+                " WHERE s.ConsignmentID=?cid ORDER BY s.ShipmentID;",
+                new MySqlParameter("?cid", consignmentId));
+        }
+
+        public static void LinkShipmentToConsignment(int shipmentId, int consignmentId)
+        {
+            ExecuteNonQuery("UPDATE SA_Shipments SET ConsignmentID=?cid WHERE ShipmentID=?sid;",
+                new MySqlParameter("?cid", consignmentId),
+                new MySqlParameter("?sid", shipmentId));
+        }
     }
 }
