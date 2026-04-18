@@ -1814,7 +1814,10 @@ namespace PKApp.DAL
         public static DataTable GetSAShipmentLines(int shipmentId)
         {
             return ExecuteQuery(
-                "SELECT sl.LineID, sl.ProductID, p.ProductName, p.ProductCode, sl.ShippedQty AS Qty" +
+                "SELECT sl.LineID, sl.ProductID, p.ProductName, p.ProductCode," +
+                " sl.ShippedQty AS Qty," +
+                " IFNULL(sl.SellingForm,'JAR') AS SellingForm," +
+                " IFNULL(sl.Source,'CASE') AS Source" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID=sl.ProductID" +
                 " WHERE sl.ShipmentID=?sid ORDER BY p.ProductName;",
@@ -1904,11 +1907,12 @@ namespace PKApp.DAL
             int dcId = Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
 
             // Get shipment lines and create DC lines
-            // Fix 3: read SellingForm from SA line; fall back to ContainerType for pre-migration rows
+            // Fix 3+4: read both SellingForm and Source from SA line; fall back to ContainerType + CASE for pre-migration rows
             var lines = ExecuteQuery(
                 "SELECT sl.ProductID, sl.ShippedQty, IFNULL(p.ContainersPerCase, 12) AS JPC," +
                 " IFNULL(p.ContainerType, 'JAR') AS ContainerType," +
-                " IFNULL(sl.SellingForm, '') AS SASellingForm" +
+                " IFNULL(sl.SellingForm, '') AS SASellingForm," +
+                " IFNULL(sl.Source, '') AS SASource" +
                 " FROM SA_ShipmentLines sl" +
                 " JOIN PP_Products p ON p.ProductID = sl.ProductID" +
                 " WHERE sl.ShipmentID=?sid AND sl.ShippedQty > 0;",
@@ -1934,9 +1938,9 @@ namespace PKApp.DAL
                     sellingForm = containerType == "BOX" ? "BOX" : containerType == "DIRECT" ? "PCS" : "JAR";
                 }
 
-                // TotalPcs = shippedQty in the selling form (JARs/BOXes)
-                // Source = CASE by default (shipped from cases)
-                string source = "CASE";
+                // Source — carry from SA line; default CASE
+                string saSource = r["SASource"].ToString();
+                string source = !string.IsNullOrEmpty(saSource) ? saSource : "CASE";
 
                 ExecuteNonQuery(
                     "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs, SellingForm, Source)" +
@@ -1997,8 +2001,18 @@ namespace PKApp.DAL
                 new MySqlParameter("?sid", shipmentId));
         }
 
-        /// <summary>Update SA shipment line items from PK edit</summary>
+        /// <summary>Update SA shipment line items from PK edit (legacy 3-arg overload — defaults SellingForm to JAR, Source to CASE).</summary>
         public static void UpdateSAShipmentLines(int shipmentId, int[] productIds, int[] quantities)
+        {
+            string[] forms = new string[productIds.Length];
+            string[] sources = new string[productIds.Length];
+            for (int i = 0; i < productIds.Length; i++) { forms[i] = "JAR"; sources[i] = "CASE"; }
+            UpdateSAShipmentLines(shipmentId, productIds, quantities, forms, sources);
+        }
+
+        /// <summary>Update SA shipment line items from PK edit with SellingForm and Source (matches DC form semantics).</summary>
+        public static void UpdateSAShipmentLines(int shipmentId, int[] productIds, int[] quantities,
+            string[] sellingForms, string[] sources)
         {
             ExecuteNonQuery("DELETE FROM SA_ShipmentLines WHERE ShipmentID=?sid;",
                 new MySqlParameter("?sid", shipmentId));
@@ -2006,11 +2020,17 @@ namespace PKApp.DAL
             {
                 if (productIds[i] > 0 && quantities[i] > 0)
                 {
+                    string form = (sellingForms != null && i < sellingForms.Length && !string.IsNullOrEmpty(sellingForms[i]))
+                        ? sellingForms[i] : "JAR";
+                    string src  = (sources != null && i < sources.Length && !string.IsNullOrEmpty(sources[i]))
+                        ? sources[i] : "CASE";
                     ExecuteNonQuery(
-                        "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ShippedQty) VALUES (?sid,?pid,?qty);",
+                        "INSERT INTO SA_ShipmentLines (ShipmentID, ProductID, ShippedQty, SellingForm, Source) VALUES (?sid,?pid,?qty,?frm,?src);",
                         new MySqlParameter("?sid", shipmentId),
                         new MySqlParameter("?pid", productIds[i]),
-                        new MySqlParameter("?qty", quantities[i]));
+                        new MySqlParameter("?qty", quantities[i]),
+                        new MySqlParameter("?frm", form),
+                        new MySqlParameter("?src", src));
                 }
             }
         }

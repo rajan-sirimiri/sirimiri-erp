@@ -268,6 +268,13 @@ tr:hover{background:rgba(41,128,185,0.04);}
 <!-- ══════ TAB: CONSIGNMENTS ══════ -->
 <asp:Panel ID="pnlConsignments" runat="server" Visible="false">
 
+<!-- Action bar with visible Create Consignment button -->
+<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
+    <button type="button" class="btn btn-primary btn-sm"
+        onclick="var d=document.getElementById('divNewConsig');d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none';"
+        style="padding:8px 14px;">+ Create Consignment</button>
+</div>
+
 <!-- Consignment Tab Bar -->
 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:0;">
     <div class="tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);flex:1;overflow-x:auto;">
@@ -279,7 +286,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
                     OnCommand="SAConsig_Command" CausesValidation="false" style="white-space:nowrap;font-size:11px;padding:10px 16px;" />
             </ItemTemplate>
         </asp:Repeater>
-        <button type="button" class="tab-btn" onclick="document.getElementById('divNewConsig').style.display=document.getElementById('divNewConsig').style.display==='none'?'block':'none';"
+        <button type="button" class="tab-btn" onclick="var d=document.getElementById('divNewConsig');d.style.display=(d.style.display==='none'||d.style.display==='')?'block':'none';"
             style="color:var(--teal);font-size:16px;padding:8px 14px;" title="New Consignment">+</button>
     </div>
 </div>

@@ -1235,6 +1235,9 @@ namespace PKApp
 
         protected void rptSAOrders_ItemCommand(object src, RepeaterCommandEventArgs e)
         {
+            // Fix 2: any action triggered from the SA Orders sub-tab stays on SA Orders
+            if (hfSubTab != null) hfSubTab.Value = "sa";
+
             int shipId = Convert.ToInt32(e.CommandArgument);
 
             if (e.CommandName == "ViewSAOrder")
@@ -1261,6 +1264,9 @@ namespace PKApp
 
         void LoadSAOrderDetail(int shipId)
         {
+            // Fix 2: persist sub-tab across postback — we're on SA Orders
+            if (hfSubTab != null) hfSubTab.Value = "sa";
+
             hfSAShipId.Value = shipId.ToString();
             lblSAOrderId.Text = "SH-" + shipId.ToString("D5");
 
@@ -1290,22 +1296,55 @@ namespace PKApp
             var stockLines = PKDatabaseHelper.CheckFGStockForSAOrder(shipId);
             if (rptSALines != null) { rptSALines.DataSource = stockLines; rptSALines.DataBind(); }
 
-            // Load editable lines
+            // Load editable lines (must come after BuildSAStockProducts so ItemDataBound can see it)
             if (canEdit)
             {
+                // Fix 3: Build product options with stock in the label — matches DC form pattern
+                // Cache the per-product stock breakdown on the page so ItemDataBound can reuse it.
+                BuildSAEditProductOptions();
+
                 var editLines = PKDatabaseHelper.GetSAShipmentLines(shipId);
                 if (rptSAEditLines != null) { rptSAEditLines.DataSource = editLines; rptSAEditLines.DataBind(); }
-
-                // Build product options HTML for JS addSAEditLine
-                DataTable products = PKDatabaseHelper.ExecuteQueryPublic(
-                    "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
-                var sb = new System.Text.StringBuilder();
-                foreach (DataRow r in products.Rows)
-                    sb.Append("<option value='" + r["ProductID"] + "'>" + r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
-                if (hfSAProductOptions != null) hfSAProductOptions.Value = sb.ToString();
             }
 
             pnlSADetail.Visible = true;
+        }
+
+        /// <summary>Fix 3: Build the product option HTML used both for repeater rows and JS-added lines.
+        /// Label format matches the DC form: "Name (CODE) — N cases + N loose jars".
+        /// Pulls from GetFGStockForShipment() — the same source of truth as the DC product dropdown.</summary>
+        private void BuildSAEditProductOptions()
+        {
+            var stock = PKDatabaseHelper.GetFGStockForShipment();
+            // Cache for rptSAEditLines_ItemDataBound
+            ViewState["SAEditStockList"] = stock;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (DataRow r in stock.Rows)
+            {
+                string pid = r["ProductID"].ToString();
+                sb.Append("<option value='").Append(pid).Append("'>")
+                  .Append(FormatSAEditOptionLabel(r))
+                  .Append("</option>");
+            }
+            if (hfSAProductOptions != null) hfSAProductOptions.Value = sb.ToString();
+        }
+
+        /// <summary>Shared formatter so the JS-added rows and the ItemDataBound rows look identical.</summary>
+        private string FormatSAEditOptionLabel(DataRow r)
+        {
+            string name = r["ProductName"].ToString();
+            string code = r["ProductCode"].ToString();
+            int availCases = r.Table.Columns.Contains("AvailableCases") && r["AvailableCases"] != DBNull.Value
+                ? Convert.ToInt32(r["AvailableCases"]) : 0;
+            int availLoose = r.Table.Columns.Contains("AvailableLooseJars") && r["AvailableLooseJars"] != DBNull.Value
+                ? Convert.ToInt32(r["AvailableLooseJars"]) : 0;
+            string ct = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
+                ? r["ContainerType"].ToString() : "JAR";
+            string looseLabel = ct == "BOX" ? "loose boxes" : "loose jars";
+            string suffix = availCases + " cases";
+            if (availLoose > 0) suffix += " + " + availLoose + " " + looseLabel;
+            return name + " (" + code + ") — " + suffix;
         }
 
         protected void rptSAEditLines_ItemDataBound(object sender, RepeaterItemEventArgs e)
@@ -1314,48 +1353,102 @@ namespace PKApp
 
             var row = (DataRowView)e.Item.DataItem;
             int savedPid = row["ProductID"] != DBNull.Value ? Convert.ToInt32(row["ProductID"]) : 0;
+            string savedForm = row.Row.Table.Columns.Contains("SellingForm") && row["SellingForm"] != DBNull.Value
+                ? row["SellingForm"].ToString() : "JAR";
+            string savedSource = row.Row.Table.Columns.Contains("Source") && row["Source"] != DBNull.Value
+                ? row["Source"].ToString() : "CASE";
 
+            // Product dropdown with stock breakdown in label (matches DC form)
             var lit = e.Item.FindControl("litSAEditProduct") as Literal;
             if (lit != null)
             {
-                DataTable products = PKDatabaseHelper.ExecuteQueryPublic(
-                    "SELECT ProductID, ProductCode, ProductName FROM PP_Products WHERE IsActive=1 AND ProductType='Core' ORDER BY ProductName;");
-                var sb = new System.Text.StringBuilder();
-                foreach (DataRow r in products.Rows)
+                var stock = ViewState["SAEditStockList"] as DataTable;
+                if (stock == null)
                 {
-                    int pid = Convert.ToInt32(r["ProductID"]);
-                    string sel = (pid == savedPid) ? " selected" : "";
-                    sb.Append("<option value='" + pid + "'" + sel + ">" + r["ProductName"] + " (" + r["ProductCode"] + ")</option>");
+                    // Fallback — should have been built by BuildSAEditProductOptions() but guard
+                    BuildSAEditProductOptions();
+                    stock = ViewState["SAEditStockList"] as DataTable;
+                }
+                var sb = new System.Text.StringBuilder();
+                if (stock != null)
+                {
+                    foreach (DataRow r in stock.Rows)
+                    {
+                        int pid = Convert.ToInt32(r["ProductID"]);
+                        string sel = (pid == savedPid) ? " selected" : "";
+                        sb.Append("<option value='").Append(pid).Append("'").Append(sel).Append(">")
+                          .Append(FormatSAEditOptionLabel(r))
+                          .Append("</option>");
+                    }
                 }
                 lit.Text = sb.ToString();
+            }
+
+            // Selling Form dropdown — saved value pre-selected
+            var litForm = e.Item.FindControl("litSAEditForm") as Literal;
+            if (litForm != null)
+            {
+                var fsb = new System.Text.StringBuilder();
+                string[] forms = new[] { "JAR", "BOX", "PCS", "CASE" };
+                foreach (var f in forms)
+                {
+                    string sel = f == savedForm ? " selected" : "";
+                    fsb.Append("<option value='").Append(f).Append("'").Append(sel).Append(">").Append(f).Append("</option>");
+                }
+                litForm.Text = fsb.ToString();
+            }
+
+            // Source dropdown — saved value pre-selected. Labels match DC form.
+            var litSrc = e.Item.FindControl("litSAEditSource") as Literal;
+            if (litSrc != null)
+            {
+                string selCase = savedSource == "CASE" ? " selected" : "";
+                string selLoose = savedSource == "LOOSE" ? " selected" : "";
+                litSrc.Text = "<option value='CASE'" + selCase + ">From Cases</option>"
+                            + "<option value='LOOSE'" + selLoose + ">From Loose</option>";
             }
         }
 
         protected void btnSaveSAEdit_Click(object s, EventArgs e)
         {
+            // Fix 2: stay on SA Orders sub-tab after save
+            if (hfSubTab != null) hfSubTab.Value = "sa";
+
             int shipId = Convert.ToInt32(hfSAShipId.Value);
             if (shipId == 0) return;
 
-            string[] pids = Request.Form.GetValues("sa_edit_product");
-            string[] qtys = Request.Form.GetValues("sa_edit_qty");
+            string[] pids    = Request.Form.GetValues("sa_edit_product");
+            string[] qtys    = Request.Form.GetValues("sa_edit_qty");
+            string[] forms   = Request.Form.GetValues("sa_edit_form");
+            string[] sources = Request.Form.GetValues("sa_edit_source");
 
             if (pids == null || qtys == null)
             { ShowAlert("No product lines to save.", false); return; }
 
-            var productIds = new System.Collections.Generic.List<int>();
-            var quantities = new System.Collections.Generic.List<int>();
+            var productIds  = new System.Collections.Generic.List<int>();
+            var quantities  = new System.Collections.Generic.List<int>();
+            var sellingForms= new System.Collections.Generic.List<string>();
+            var sourceVals  = new System.Collections.Generic.List<string>();
 
             for (int i = 0; i < pids.Length; i++)
             {
                 int pid = 0; int.TryParse(pids[i], out pid);
-                int qty = 0; int.TryParse(qtys[i], out qty);
-                if (pid > 0 && qty > 0) { productIds.Add(pid); quantities.Add(qty); }
+                int qty = 0;
+                if (i < qtys.Length) int.TryParse(qtys[i], out qty);
+                string form = (forms != null && i < forms.Length && !string.IsNullOrEmpty(forms[i])) ? forms[i] : "JAR";
+                string src  = (sources != null && i < sources.Length && !string.IsNullOrEmpty(sources[i])) ? sources[i] : "CASE";
+                if (pid > 0 && qty > 0)
+                {
+                    productIds.Add(pid); quantities.Add(qty);
+                    sellingForms.Add(form); sourceVals.Add(src);
+                }
             }
 
             if (productIds.Count == 0)
             { ShowAlert("Please add at least one product with quantity.", false); return; }
 
-            PKDatabaseHelper.UpdateSAShipmentLines(shipId, productIds.ToArray(), quantities.ToArray());
+            PKDatabaseHelper.UpdateSAShipmentLines(shipId, productIds.ToArray(), quantities.ToArray(),
+                sellingForms.ToArray(), sourceVals.ToArray());
             ShowAlert("SH-" + shipId.ToString("D5") + " updated.", true);
             LoadSAOrderDetail(shipId);
             BindSAOrders();
@@ -1387,18 +1480,24 @@ namespace PKApp
             BindSAOrders();
             BindDCList();
 
-            // Auto-load the newly created DC for editing
-            if (dcId > 0) LoadDC(dcId);
+            // Auto-load the newly created DC for editing — user lands on DC sub-tab
+            if (dcId > 0)
+            {
+                if (hfSubTab != null) hfSubTab.Value = "dc";
+                LoadDC(dcId);
+            }
         }
 
         protected void btnConvertDC_Click(object s, EventArgs e)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             int shipId = Convert.ToInt32(hfSAShipId.Value);
             if (shipId > 0) DoConvertToDC(shipId);
         }
 
         void DoUnconvertDC(int shipId)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             PKDatabaseHelper.UnconvertSAShipmentDC(shipId);
             ShowAlert("SH-" + shipId.ToString("D5") + " reverted to Order status. SA team can now edit again.", true);
             pnlSADetail.Visible = false;
@@ -1407,12 +1506,14 @@ namespace PKApp
 
         protected void btnUnconvertDC_Click(object s, EventArgs e)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             int shipId = Convert.ToInt32(hfSAShipId.Value);
             if (shipId > 0) DoUnconvertDC(shipId);
         }
 
         void DoCompleteDispatch(int shipId)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             try
             {
                 PKDatabaseHelper.CompleteSAShipmentDispatch(shipId, UserID);
@@ -1429,12 +1530,14 @@ namespace PKApp
 
         protected void btnDispatch_Click(object s, EventArgs e)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             int shipId = Convert.ToInt32(hfSAShipId.Value);
             if (shipId > 0) DoCompleteDispatch(shipId);
         }
 
         protected void btnCloseSADetail_Click(object s, EventArgs e)
         {
+            if (hfSubTab != null) hfSubTab.Value = "sa";
             pnlSADetail.Visible = false;
         }
 

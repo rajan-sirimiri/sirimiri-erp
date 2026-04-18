@@ -441,25 +441,45 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <FooterTemplate></tbody></table></FooterTemplate>
         </asp:Repeater>
 
-        <!-- Editable product lines (only for Order/DC status) -->
+        <!-- Editable product lines (only for Order/DC status) — matches DC form layout -->
         <asp:Panel ID="pnlSAEditLines" runat="server" Visible="false">
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;">EDIT PRODUCTS</div>
+
+            <!-- Column headers (to match the grid below) -->
+            <div class="form-row" style="margin-bottom:6px;padding:0 4px;font-size:10px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;">
+                <div class="form-group" style="flex:3;">Product</div>
+                <div class="form-group" style="flex:1;">Selling Form</div>
+                <div class="form-group" style="flex:1;">Source</div>
+                <div class="form-group" style="flex:1;">Quantity</div>
+                <div style="flex:0;width:24px;"></div>
+            </div>
+
             <div id="divSAEditLines">
                 <asp:Repeater ID="rptSAEditLines" runat="server" OnItemDataBound="rptSAEditLines_ItemDataBound">
                     <ItemTemplate>
                         <div class="form-row" style="margin-bottom:6px;align-items:center;">
                             <div class="form-group" style="flex:3;">
-                                <select name="sa_edit_product" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                                <select name="sa_edit_product" class="sa-edit-prod" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
                                     <option value="0">-- Select Product --</option>
                                     <asp:Literal ID="litSAEditProduct" runat="server"/>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <select name="sa_edit_form" class="sa-edit-form" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                                    <asp:Literal ID="litSAEditForm" runat="server"/>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <select name="sa_edit_source" class="sa-edit-source" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                                    <asp:Literal ID="litSAEditSource" runat="server"/>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
                                 <input type="number" name="sa_edit_qty" min="0" step="1" value='<%# Eval("Qty") %>'
                                     style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;" placeholder="Qty"/>
                             </div>
-                            <div style="flex:0;">
+                            <div style="flex:0;width:24px;">
                                 <button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest('.form-row').remove();">&#x2715;</button>
                             </div>
                         </div>
@@ -911,9 +931,11 @@ function addSAEditLine(){
     var r = document.createElement('div');
     r.className = 'form-row';
     r.style.cssText = 'margin-bottom:6px;align-items:center;';
-    r.innerHTML = '<div class="form-group" style="flex:3;"><select name="sa_edit_product" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select></div>'
+    r.innerHTML = '<div class="form-group" style="flex:3;"><select name="sa_edit_product" class="sa-edit-prod" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;"><option value="0">-- Select Product --</option>' + p + '</select></div>'
+        + '<div class="form-group" style="flex:1;"><select name="sa_edit_form" class="sa-edit-form" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;"><option value="JAR">JAR</option><option value="BOX">BOX</option><option value="PCS">PCS</option><option value="CASE">CASE</option></select></div>'
+        + '<div class="form-group" style="flex:1;"><select name="sa_edit_source" class="sa-edit-source" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;"><option value="CASE">From Cases</option><option value="LOOSE">From Loose</option></select></div>'
         + '<div class="form-group" style="flex:1;"><input type="number" name="sa_edit_qty" min="0" step="1" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;" placeholder="Qty"/></div>'
-        + '<div style="flex:0;"><button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest(\'.form-row\').remove();">&#x2715;</button></div>';
+        + '<div style="flex:0;width:24px;"><button type="button" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;" onclick="this.closest(\'.form-row\').remove();">&#x2715;</button></div>';
     d.appendChild(r);
 }
 </script>
