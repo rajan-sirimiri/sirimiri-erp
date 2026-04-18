@@ -1332,7 +1332,7 @@ namespace StockApp.DAL
                 }
 
                 // Get current ERP DC lines
-                var erpLines = PKDatabaseHelper.GetDCLines(dcId);
+                var erpLines = PKApp.DAL.PKDatabaseHelper.GetDCLines(dcId);
 
                 // Build map of Zoho items by item_id → {qty, rate, amount}
                 var zohoItemMap = new Dictionary<string, Dictionary<string, object>>();
@@ -1346,7 +1346,7 @@ namespace StockApp.DAL
                 }
 
                 // Get FG stock for alerts
-                var fgStock = PKDatabaseHelper.GetFGStockForShipment();
+                var fgStock = PKApp.DAL.PKDatabaseHelper.GetFGStockForShipment();
 
                 // Compare and update each ERP line
                 foreach (DataRow erpLine in erpLines.Rows)
@@ -1457,7 +1457,7 @@ namespace StockApp.DAL
         public static List<ZohoSyncBackResult> SyncConsignmentBack(int consignmentId)
         {
             var results = new List<ZohoSyncBackResult>();
-            var dcs = PKDatabaseHelper.GetDCsByConsignment(consignmentId);
+            var dcs = PKApp.DAL.PKDatabaseHelper.GetDCsByConsignment(consignmentId);
             foreach (DataRow dc in dcs.Rows)
             {
                 int dcId = Convert.ToInt32(dc["DCID"]);
