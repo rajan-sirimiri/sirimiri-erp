@@ -77,6 +77,198 @@
         .msg-ok{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;color:#166534;font-size:14px;margin-bottom:16px}
         .msg-err{background:#fff8f8;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;color:#991b1b;font-size:14px;margin-bottom:16px}
         .empty-products{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+
+        /* ════════════════════════════════════════════════════════════
+           MOBILE STYLES — ≤768px
+           Compact nav (allows wrap), stacked logo header, taller multi-
+           select, product TABLE flipped to CARDS via CSS only (no JS
+           changes). All inputs hit 16px+ to prevent iOS focus zoom.
+           ════════════════════════════════════════════════════════════ */
+        @media (max-width: 768px) {
+            /* Nav: shrink + allow wrap so items don't overflow off-screen */
+            nav {
+                height: auto;
+                padding: 6px 12px;
+                flex-wrap: wrap;
+                gap: 6px;
+                row-gap: 4px;
+            }
+            nav .nav-item, nav a[href="ERPHome.aspx"] {
+                font-size: 12px !important;
+                padding: 8px 10px !important;
+            }
+            .nav-right {
+                margin-left: auto;
+                gap: 10px;
+                font-size: 12px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+            .user-label { display: none; } /* user info shown elsewhere; nav stays compact */
+            .btn-signout { padding: 4px 10px; font-size: 11px; }
+            /* Hover-only dropdowns don't work on touch — make them tap-toggle.
+               We keep CSS-only by using :focus-within so tapping the trigger
+               (which becomes focusable via tabindex) opens the menu. */
+            .nav-item { cursor: pointer; }
+            .nav-group .nav-dropdown { left: 0; right: auto; min-width: 200px; }
+            .nav-group:focus-within .nav-dropdown { display: block; }
+
+            /* Logo + bis-label: stack vertically, smaller logo */
+            .logo-area {
+                flex-direction: column;
+                gap: 8px;
+                padding: 14px 16px 8px;
+                align-items: center;
+            }
+            .logo-area img { height: 48px; }
+            .bis-label {
+                font-size: 16px;
+                line-height: 1.3;
+            }
+            .bis-label span {
+                font-size: 11px !important;
+            }
+
+            /* Page wrapper: trim padding for narrow screens */
+            .page-wrap { padding: 16px 12px 60px; }
+
+            /* Page header: stack title above date badge */
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+            .page-title { font-size: 24px; }
+            .date-badge { font-size: 12px; padding: 5px 12px; }
+
+            /* Card heads: tighter */
+            .card-head { padding: 10px 14px; }
+            .card-head h2 { font-size: 15px; }
+            .card-body { padding: 14px; }
+            .card { margin-bottom: 14px; }
+
+            /* Field row already collapses to one column at 640px — adjust here for 16px font */
+            .field select,
+            .field input[type=number],
+            .field input[type=text] {
+                font-size: 16px; /* prevent iOS zoom on focus */
+                padding: 12px 12px;
+            }
+            .field label { font-size: 11px; margin-bottom: 6px; }
+
+            /* Distributor multi-select: taller for easier scroll, larger row height */
+            .field select[multiple] {
+                height: 220px;
+                font-size: 15px;
+                padding: 4px;
+            }
+            .field select[multiple] option {
+                padding: 12px 10px;
+                margin-bottom: 1px;
+                line-height: 1.3;
+            }
+            .multi-hint { font-size: 12px; }
+            .multi-hint::after {
+                content: " (Tap to select; tap again to deselect)";
+                color: var(--accent);
+                font-weight: 500;
+            }
+
+            /* Shop placement: stack inputs */
+            .shop-input { width: 90px; font-size: 16px; padding: 12px; }
+            .shop-label { font-size: 14px; }
+
+            /* ── PRODUCT TABLE → CARDS on mobile ──
+               No JS changes: we keep the <table> DOM, flip its display so
+               each row stacks as a self-contained card with the column
+               headers acting as labels. */
+            .product-table,
+            .product-table thead,
+            .product-table tbody,
+            .product-table tr,
+            .product-table th,
+            .product-table td {
+                display: block;
+                width: 100%;
+            }
+            .product-table thead {
+                /* Header row not useful when each card has its own labels — hide */
+                position: absolute;
+                left: -9999px;
+            }
+            .product-table tr {
+                background: #fff;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                margin-bottom: 10px;
+                padding: 12px 14px;
+            }
+            .product-table tr:hover td { background: transparent; } /* kill hover stripe in cards */
+            .product-table td {
+                padding: 0;
+                border: none;
+                margin-bottom: 8px;
+            }
+            .product-table td:last-child { margin-bottom: 0; }
+            /* First column is the product name + meta */
+            .product-table td:first-child { margin-bottom: 12px; }
+            .product-name { font-size: 15px; font-weight: 600; }
+            .product-meta { font-size: 12px; }
+
+            /* Pack-form select: full-width on mobile, taller touch target */
+            .pack-select {
+                width: 100%;
+                min-width: 0;
+                font-size: 16px;
+                padding: 12px 14px;
+                min-height: 44px;
+            }
+            /* Quantity row: split pack-select and qty into two columns inside the card */
+            .qty-wrap {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px;
+                align-items: stretch;
+            }
+            .qty-input {
+                width: 100%;
+                font-size: 18px;
+                padding: 12px;
+                min-height: 44px;
+            }
+            .units-label {
+                min-width: 0;
+                text-align: center;
+                padding: 4px;
+                font-size: 13px;
+                color: var(--accent);
+                font-weight: 600;
+            }
+            .units-label:empty { display: none; }
+
+            /* Buttons: stacked full-width, primary first */
+            .btn-row {
+                flex-direction: column-reverse; /* visual order: SAVE on top, CLEAR below */
+                gap: 8px;
+            }
+            .btn-save, .btn-cancel {
+                width: 100%;
+                padding: 14px;
+                font-size: 16px;
+            }
+
+            /* Messages: tighter, sticky-ish to top */
+            .msg-ok, .msg-err { font-size: 13px; padding: 10px 12px; }
+        }
+
+        /* iPhone SE / very narrow phones (≤380px) — extra trim */
+        @media (max-width: 380px) {
+            .bis-label { font-size: 14px; }
+            .bis-label span { font-size: 10px !important; }
+            .page-title { font-size: 20px; }
+            nav .nav-item, nav a[href="ERPHome.aspx"] { font-size: 11px !important; padding: 6px 8px !important; }
+        }
     </style>
 </head>
 <body>
@@ -86,14 +278,14 @@
     <nav>
         <a href="ERPHome.aspx" style="text-decoration:none;color:#fff;font-size:13px;font-weight:600;padding:14px 18px;letter-spacing:.04em;text-transform:uppercase;">&#x2302; ERP</a>
         <div class="nav-group">
-            <span class="nav-item">&#9776; Home</span>
+            <span class="nav-item" tabindex="0">&#9776; Home</span>
             <div class="nav-dropdown">
                 <a href="StockEntry.aspx">Distributor Stock Position Entry</a>
                 <a href="DailySales.aspx" style="color:var(--accent);font-weight:600;">Daily Sales Entry</a>
             </div>
         </div>
         <asp:Panel ID="pnlAdminMenu" runat="server" Visible="false" CssClass="nav-group">
-            <span class="nav-item">&#9881; Admin</span>
+            <span class="nav-item" tabindex="0">&#9881; Admin</span>
             <div class="nav-dropdown">
                 <a href="UserAdmin.aspx">User Management</a>
                 <a href="ProductMaster.aspx">Product Master</a>
