@@ -21,8 +21,8 @@ namespace PKApp
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC, btnUnconvertDCFromForm;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
-        protected Button btnMarkReady;
-        protected System.Web.UI.HtmlControls.HtmlButton btnMarkReadyTrigger;
+        protected Button btnMarkReady, btnDeleteConsig;
+        protected System.Web.UI.HtmlControls.HtmlButton btnMarkReadyTrigger, btnDeleteConsigTrigger;
         // Consignment transport (truck-level — one consignment = one truck)
         protected Panel pnlConsigTransport, pnlDCTransport;
         protected DropDownList ddlConsigTransport;
@@ -427,6 +427,10 @@ namespace PKApp
             if (btnDispatchConsig != null) btnDispatchConsig.Visible = (status == "READY");
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
+            // DELETE button: OPEN consignment with zero DCs (CanDeleteConsignment also checks SA shipments)
+            if (btnDeleteConsigTrigger != null)
+                btnDeleteConsigTrigger.Visible = (status == "OPEN" && dcs.Rows.Count == 0
+                                                  && PKDatabaseHelper.CanDeleteConsignment(consignmentId));
 
             // Consignment-level transport panel — visible on OPEN/READY only (before dispatch).
             // Populate with saved values from PK_Consignments so edits are incremental.
@@ -491,6 +495,7 @@ namespace PKApp
                 if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = dcs.Rows.Count == 0;
                 if (btnBulkInvoice != null) btnBulkInvoice.Visible = false;
                 if (btnMarkReadyTrigger != null) btnMarkReadyTrigger.Visible = false;
+                if (btnDeleteConsigTrigger != null) btnDeleteConsigTrigger.Visible = false;
                 if (btnDispatchConsig != null) btnDispatchConsig.Visible = false;
                 if (btnArchiveConsig != null) btnArchiveConsig.Visible = false;
                 if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = false;
@@ -564,6 +569,40 @@ namespace PKApp
                 LoadConsigDCs(csgId);
             }
             catch (Exception ex) { ShowAlert("Error saving transport: " + ex.Message, false); }
+        }
+
+        /// <summary>Delete an empty OPEN consignment. Hidden in the UI for any consignment that has
+        /// DCs or SA shipments, but we defensively re-check in the DAL too. After deletion, switch
+        /// the UI back to the Retail tab since the active consignment no longer exists.</summary>
+        protected void btnDeleteConsig_Click(object s, EventArgs e)
+        {
+            int csgId = 0; int.TryParse(hfActiveConsig.Value, out csgId);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            if (!PKDatabaseHelper.CanDeleteConsignment(csgId))
+            { ShowAlert("Consignment cannot be deleted — it must be OPEN and contain zero DCs/shipments.", false); return; }
+
+            try
+            {
+                var csg = PKDatabaseHelper.GetConsignmentById(csgId);
+                string code = csg != null ? csg["ConsignmentCode"].ToString() : ("#" + csgId);
+                PKDatabaseHelper.DeleteEmptyConsignment(csgId);
+
+                // Reset navigation — no active consignment anymore
+                hfActiveConsig.Value = "0";
+                hfActiveTab.Value = "retail";
+                pnlForm.Visible = false;
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
+                BindCustomers("RT");
+                BuildCustomerData("RT");
+                ConfigureTransportModesForTab();
+                BindConsigTabs();
+                BindDispatchedDropdown();
+                LoadRetailDCs();
+
+                ShowAlert("Consignment " + code + " deleted.", true);
+            }
+            catch (Exception ex) { ShowAlert("Delete failed: " + ex.Message, false); }
         }
 
         /// <summary>PK user clicks MARK READY on the consignment header. Flips OPEN → READY, which
@@ -1006,6 +1045,10 @@ namespace PKApp
             // Stock validation — source-based (CASE or LOOSE)
             var fgStock = PKDatabaseHelper.GetFGStockForShipment();
             var productNeeds = new System.Collections.Generic.Dictionary<int, int[]>(); // pid → [casesNeeded, looseNeeded]
+
+            // Collect case-rounding notices so we can show them in the success alert (mirrors SA edit).
+            var roundedMsgs = new System.Collections.Generic.List<string>();
+
             foreach (var line in lineData)
             {
                 DataRow stockRow = null;
@@ -1019,14 +1062,26 @@ namespace PKApp
 
                 string src = string.IsNullOrEmpty(line.Source) ? "CASE" : line.Source;
 
-                // Case-multiple enforcement: when shipping JAR/BOX/PCS from cases, quantity MUST be
-                // a multiple of the case pack size. We can't break a case mid-dispatch — partial-case
-                // picks require Source=LOOSE. Mirrors SA edit behaviour.
+                // Case-multiple enforcement: when shipping JAR/BOX/PCS from cases, quantity must be
+                // a full-case multiple (we can't break a case mid-dispatch). If the user bypassed the
+                // client-side round-up, do it here and recompute the line's pricing so stock checks
+                // and the DB save both use the adjusted qty. Matches SA edit behaviour.
                 if (src == "CASE" && line.SellingForm != "CASE" && (line.Qty % jpc) != 0)
                 {
-                    ShowAlert(line.SellingForm + " quantity for " + stockRow["ProductName"] +
-                        " must be a multiple of " + jpc + " when sourcing from Cases. Change Source to 'Loose' or adjust quantity.", false);
-                    return;
+                    int original = line.Qty;
+                    int rounded = ((original + jpc - 1) / jpc) * jpc; // ceiling to next multiple
+                    line.Qty = rounded;
+                    // Recompute pricing from first principles since the client-side values were
+                    // calculated against the original qty. UnitRate and rates stay the same (they're
+                    // per-unit); only the multiplications against qty change.
+                    line.LineTotal  = Math.Round(line.UnitRate * rounded, 2, MidpointRounding.AwayFromZero);
+                    line.TaxableVal = line.GSTRate > 0
+                        ? Math.Round(line.LineTotal / (1m + line.GSTRate / 100m), 2, MidpointRounding.AwayFromZero)
+                        : line.LineTotal;
+                    line.GSTAmt     = Math.Round(line.LineTotal - line.TaxableVal, 2, MidpointRounding.AwayFromZero);
+
+                    roundedMsgs.Add(stockRow["ProductName"] + ": " + original + " rounded up to " + rounded +
+                        " (case of " + jpc + ")");
                 }
 
                 if (!productNeeds.ContainsKey(line.ProductID))
@@ -1154,7 +1209,10 @@ namespace PKApp
                         PKDatabaseHelper.UpdateDCTransport(dcId, transport, courier, tracking);
                 }
 
-                ShowAlert("Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2"), true);
+                string savedMsg = "Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2");
+                if (roundedMsgs.Count > 0)
+                    savedMsg += ". Case rounding applied — " + string.Join("; ", roundedMsgs.ToArray());
+                ShowAlert(savedMsg, true);
                 BuildProductData();
                 BuildCustomerData(GetCustomerTypeFilter());
                 BindDCList();

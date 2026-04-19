@@ -2898,6 +2898,43 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", consignmentId));
         }
 
+        /// <summary>True only when a consignment can be safely deleted — must be OPEN and contain
+        /// zero DCs. Once any DC has been added the consignment has audit history (invoices, stock
+        /// allocations) and must go through the normal lifecycle instead of being deleted.</summary>
+        public static bool CanDeleteConsignment(int consignmentId)
+        {
+            if (consignmentId <= 0) return false;
+            var csg = GetConsignmentById(consignmentId);
+            if (csg == null) return false;
+            if (csg["Status"].ToString() != "OPEN") return false;
+
+            // Count DCs (any status) and SA shipments linked to this consignment
+            var dcCount = ExecuteScalar(
+                "SELECT COUNT(*) FROM PK_DeliveryChallans WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+            if (dcCount != null && dcCount != DBNull.Value && Convert.ToInt64(dcCount) > 0) return false;
+
+            var saCount = ExecuteScalar(
+                "SELECT COUNT(*) FROM SA_Shipments WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+            if (saCount != null && saCount != DBNull.Value && Convert.ToInt64(saCount) > 0) return false;
+
+            return true;
+        }
+
+        /// <summary>Delete a consignment that has no DCs and no SA shipments. Defensive re-check
+        /// against <see cref="CanDeleteConsignment"/> so a race can't let a non-empty consignment
+        /// through. Throws with a descriptive message if the rule is violated.</summary>
+        public static void DeleteEmptyConsignment(int consignmentId)
+        {
+            if (!CanDeleteConsignment(consignmentId))
+                throw new Exception("Consignment cannot be deleted — it must be OPEN and contain zero DCs and zero SA shipments.");
+
+            ExecuteNonQuery(
+                "DELETE FROM PK_Consignments WHERE ConsignmentID=?id AND Status='OPEN';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
         /// <summary>Update DC transport details.</summary>
         public static void UpdateDCTransport(int dcId, string transportMode, string courierName, string trackingNumber)
         {

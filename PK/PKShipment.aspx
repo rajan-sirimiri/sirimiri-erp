@@ -169,6 +169,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     OnClick="btnDispatchConsig_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
                 <asp:Button ID="btnArchiveConsig" runat="server" Text="Archive" CssClass="btn btn-secondary"
                     OnClick="btnArchiveConsig_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
+                <!-- DELETE CONSIGNMENT: shown only when consignment is OPEN and contains zero DCs.
+                     Once any DC has been added, delete is refused — user must remove the DCs first. -->
+                <button type="button" id="btnDeleteConsigTrigger" runat="server" Visible="false"
+                    class="btn btn-danger" style="font-size:11px;padding:6px 14px;"
+                    onclick="confirmDeleteConsig();return false;">&#x1F5D1; Delete Consignment</button>
+                <asp:Button ID="btnDeleteConsig" runat="server" OnClick="btnDeleteConsig_Click"
+                    CausesValidation="false" style="display:none;" />
             </div>
         </div>
         <!-- Consignment-level transport — applies to the whole truck. Visible only for OPEN/READY
@@ -1011,8 +1018,17 @@ function addLine(){
 
     // Validate based on source
     if(source==='CASE'){
+        // Round up to next case multiple instead of rejecting — user intends full cases even if
+        // they type a loose number (matches SA edit behaviour). Show a brief notice so they see
+        // what happened and can adjust if they meant Source=LOOSE.
         if(form!=='CASE' && qty%jpc!==0){
-            erpAlert(form+' quantity must be in multiples of '+jpc+' when sourcing from Cases.', {title:'Invalid Quantity', type:'warn'});return;}
+            var rounded=Math.ceil(qty/jpc)*jpc;
+            erpAlert(form+' quantity rounded up from '+qty+' to '+rounded+' (multiple of '+jpc+' when sourcing from Cases). Change Source to "From Loose" if you need a partial case.', {title:'Quantity Adjusted', type:'info'});
+            qty=rounded;
+            // Reflect the change in the input field so the user sees the adjustment
+            var qtyInput=document.getElementById('txtLineQty');
+            if(qtyInput) qtyInput.value=qty;
+        }
         var casesNeeded=form==='CASE'?qty:Math.ceil(qty/jpc);
         if(casesNeeded>avCases){
             erpAlert('Insufficient CASES for '+p.name+'. Need '+casesNeeded+' cases, available '+avCases+'.', {title:'Stock Insufficient', type:'danger'});return;}
@@ -1184,6 +1200,15 @@ function confirmMarkReady(){
         type: 'warn',
         okText: 'Mark READY',
         onOk: function(){ __doPostBack('<%= btnMarkReady.UniqueID %>', ''); }
+    });
+    return false;
+}
+function confirmDeleteConsig(){
+    erpConfirm('Delete this empty consignment? This cannot be undone. Only consignments with zero DCs can be deleted.', {
+        title: 'Delete Consignment',
+        type: 'danger',
+        okText: 'Delete',
+        onOk: function(){ __doPostBack('<%= btnDeleteConsig.UniqueID %>', ''); }
     });
     return false;
 }
