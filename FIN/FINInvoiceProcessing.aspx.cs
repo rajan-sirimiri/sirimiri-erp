@@ -237,7 +237,10 @@ namespace FINApp
                 }
                 else if (!string.IsNullOrEmpty(zohoInvId) && !string.IsNullOrEmpty(zohoOrgId))
                 {
-                    string url = "https://books.zoho.in/app/" + zohoOrgId + "/invoices/" + zohoInvId;
+                    // Zoho Books frontend is a hash-routed SPA — without the # before /invoices,
+                    // the browser hits the server, which serves the dashboard. With #/invoices/{id},
+                    // the SPA router opens the specific invoice.
+                    string url = "https://books.zoho.in/app/" + zohoOrgId + "#/invoices/" + zohoInvId;
                     litInv.Text = Server.HtmlEncode(invNo) +
                         " <a href='" + url + "' target='_blank' title='Open in Zoho Books' " +
                         "style='color:var(--accent);text-decoration:none;font-size:11px;'>&#x2197;</a>";
@@ -806,7 +809,8 @@ namespace FINApp
             string zohoOrgId = FINDatabaseHelper.GetZohoOrgID();
             if (!string.IsNullOrEmpty(zohoInvId) && !string.IsNullOrEmpty(zohoOrgId))
             {
-                string zohoUrl = "https://books.zoho.in/app/" + zohoOrgId + "/invoices/" + zohoInvId;
+                // Hash-routed SPA — see note in BuildEInvoiceCell comment for litInvoice URL.
+                string zohoUrl = "https://books.zoho.in/app/" + zohoOrgId + "#/invoices/" + zohoInvId;
                 ph.Controls.Add(new LiteralControl(
                     "<a href='" + zohoUrl + "' target='_blank' class='einv-link' " +
                     "title='Open invoice in Zoho Books, then click Push to IRP'>↗ Push in Zoho</a>"));
