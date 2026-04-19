@@ -136,6 +136,27 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", id));
         }
 
+        /// <summary>Find an existing customer by phone / email / name (any match). Used by the retail
+        /// quick-add flow to prevent creating duplicates. Returns first hit or null.</summary>
+        public static DataRow FindCustomerByContactInfo(string phone, string email, string name)
+        {
+            // Treat empty strings as "no filter". At least one must be non-empty.
+            phone = (phone ?? "").Trim();
+            email = (email ?? "").Trim();
+            name  = (name  ?? "").Trim();
+            if (phone.Length == 0 && email.Length == 0 && name.Length == 0) return null;
+
+            var clauses = new System.Collections.Generic.List<string>();
+            var pars = new System.Collections.Generic.List<MySqlParameter>();
+            if (phone.Length > 0) { clauses.Add("Phone=?ph");         pars.Add(new MySqlParameter("?ph", phone)); }
+            if (email.Length > 0) { clauses.Add("LOWER(Email)=?em");  pars.Add(new MySqlParameter("?em", email.ToLower())); }
+            if (name.Length  > 0) { clauses.Add("LOWER(CustomerName)=?nm"); pars.Add(new MySqlParameter("?nm", name.ToLower())); }
+
+            string sql = "SELECT CustomerID, CustomerCode, CustomerName, Phone, Email, CustomerType, IsActive" +
+                         " FROM PK_Customers WHERE (" + string.Join(" OR ", clauses) + ") LIMIT 1;";
+            return ExecuteQueryRow(sql, pars.ToArray());
+        }
+
         public static int AddCustomer(string customerType, string name, string contact,
             string phone, string email, string address, string city, string state,
             string pinCode, string gstin)

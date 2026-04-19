@@ -12,14 +12,16 @@ namespace PKApp
         protected Label lblLockedTitle, lblViewDCNum, lblViewDate, lblViewCustomer, lblViewRemarks;
         protected Label lblSAOrderId, lblSACustomer, lblSADate, lblSAArea, lblSAStatus, lblSAChannel, lblSATransport;
         protected Panel pnlAlert, pnlForm, pnlLocked, pnlViewRemarks;
-        protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines;
+        protected Panel pnlSAEmpty, pnlSAList, pnlSADetail, pnlSAEditLines, pnlCreateRetailBar;
         protected HiddenField hfDCID, hfLines, hfProductData, hfCustomerData, hfOrgState, hfSAShipId, hfSAProductOptions;
         protected HiddenField hfActiveConsig, hfActiveTab, hfSubTab;
+        protected HiddenField hfNewCustName, hfNewCustPhone, hfNewCustEmail, hfNewCustAddress, hfNewCustCity, hfNewCustState, hfNewCustPinCode, hfNewCustGSTIN;
         protected TextBox txtDCNumber, txtDCDate, txtRemarks, txtConsigDate, txtConsigText, txtVehicleNo, txtCourierName, txtTrackingNo;
         protected DropDownList ddlCustomer, ddlChannel, ddlTransport, ddlDispatched, ddlArchived, ddlProjMonth, ddlProjYear;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC, btnUnconvertDCFromForm;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
+        protected Button btnCreateRetailOrder, btnCreateRetailCustomerHidden;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle, lblConsigStatus;
         protected Literal litBulkResult;
@@ -53,6 +55,10 @@ namespace PKApp
                 LoadRetailDCs();
                 LoadProjDropdowns();
                 BindProjections();
+                // Retail is the default landing tab: hide the DC form and show the Create Retail Order bar
+                pnlForm.Visible = false;
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
+                ConfigureTransportModesForTab();
             }
             BindSAOrders();
         }
@@ -121,14 +127,124 @@ namespace PKApp
             hfActiveConsig.Value = "0";
             hfActiveTab.Value = "retail";
             if (pnlConsigContent != null) pnlConsigContent.Visible = false;
-            pnlForm.Visible = true;
+            // Retail tab: form hidden by default — "+ Create Retail Order" button opens it
+            pnlForm.Visible = false;
             if (pnlLocked != null) pnlLocked.Visible = false;
+            if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
             ResetDCForm();
             BindCustomers("RT");
             BuildCustomerData("RT");
             BindConsigTabs();
+            ConfigureTransportModesForTab();
             // Show retail DCs list
             LoadRetailDCs();
+        }
+
+        /// <summary>Retail orders ship only via courier (no full-load option).
+        /// Consignment/DI/ST orders can use either.</summary>
+        void ConfigureTransportModesForTab()
+        {
+            if (ddlTransport == null) return;
+            bool isRetail = hfActiveTab != null && hfActiveTab.Value == "retail";
+            // Remove any existing Full Load entry, then add it back for non-retail
+            var full = ddlTransport.Items.FindByValue("FULL_LOAD");
+            if (isRetail)
+            {
+                if (full != null) ddlTransport.Items.Remove(full);
+                // Default to Courier so the user doesn't have to pick
+                var courier = ddlTransport.Items.FindByValue("COURIER");
+                if (courier != null) ddlTransport.SelectedValue = "COURIER";
+            }
+            else
+            {
+                if (full == null) ddlTransport.Items.Insert(1, new ListItem("Full Load - Own Vehicle", "FULL_LOAD"));
+            }
+        }
+
+        /// <summary>Click handler for the prominent "+ Create Retail Order" button.
+        /// Shows a fresh DC form ready for a new retail order.</summary>
+        protected void btnCreateRetailOrder_Click(object s, EventArgs e)
+        {
+            hfActiveTab.Value = "retail";
+            ResetDCForm();
+            txtDCDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+            if (ddlChannel != null) ddlChannel.SelectedValue = "GT";
+            pnlForm.Visible = true;
+            if (pnlLocked != null) pnlLocked.Visible = false;
+            if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
+            BindCustomers("RT");
+            BuildCustomerData("RT");
+            BuildProductData();
+            ConfigureTransportModesForTab();
+            if (btnDeleteDC != null) btnDeleteDC.Visible = false;
+            btnDraftSave.Visible = true;
+            btnFinalise.Visible = true;
+            lblFormTitle.Text = "New Retail Order";
+            if (pnlAlert != null) pnlAlert.Visible = false;
+        }
+
+        /// <summary>Invoked by the customer modal's Save button in retail quick-add flow.
+        /// Reads hidden fields populated by modal JS, dedupes by phone/email/name, creates
+        /// the customer as RT type, rebinds dropdowns, and auto-selects the new customer.</summary>
+        protected void btnCreateRetailCustomerHidden_Click(object s, EventArgs e)
+        {
+            string name    = hfNewCustName  != null ? hfNewCustName.Value.Trim()    : "";
+            string phone   = hfNewCustPhone != null ? hfNewCustPhone.Value.Trim()   : "";
+            string email   = hfNewCustEmail != null ? hfNewCustEmail.Value.Trim()   : "";
+            string address = hfNewCustAddress != null ? hfNewCustAddress.Value.Trim(): "";
+            string city    = hfNewCustCity  != null ? hfNewCustCity.Value.Trim()    : "";
+            string state   = hfNewCustState != null ? hfNewCustState.Value.Trim()   : "";
+            string pincode = hfNewCustPinCode != null ? hfNewCustPinCode.Value.Trim(): "";
+            string gstin   = hfNewCustGSTIN != null ? hfNewCustGSTIN.Value.Trim().ToUpper() : "";
+
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(phone))
+            { ShowAlert("Name and phone are required to create a customer.", false); return; }
+
+            int newCustId;
+            try
+            {
+                // Dedupe: phone / email / name match
+                var existing = PKDatabaseHelper.FindCustomerByContactInfo(phone, email, name);
+                if (existing != null)
+                {
+                    newCustId = Convert.ToInt32(existing["CustomerID"]);
+                    string existingName = existing["CustomerName"].ToString();
+                    string existingCode = existing["CustomerCode"].ToString();
+                    ShowAlert("Customer already exists: " + existingName + " (" + existingCode + "). Selected for you.", true);
+                }
+                else
+                {
+                    newCustId = PKDatabaseHelper.AddCustomer("RT", name, null, phone, email,
+                        address, city, state, pincode, gstin);
+                    ShowAlert("New retail customer added: " + name, true);
+                }
+            }
+            catch (Exception ex) { ShowAlert("Could not create customer: " + ex.Message, false); return; }
+
+            // Clear the hidden fields so they don't replay on a later postback
+            if (hfNewCustName    != null) hfNewCustName.Value    = "";
+            if (hfNewCustPhone   != null) hfNewCustPhone.Value   = "";
+            if (hfNewCustEmail   != null) hfNewCustEmail.Value   = "";
+            if (hfNewCustAddress != null) hfNewCustAddress.Value = "";
+            if (hfNewCustCity    != null) hfNewCustCity.Value    = "";
+            if (hfNewCustState   != null) hfNewCustState.Value   = "";
+            if (hfNewCustPinCode != null) hfNewCustPinCode.Value = "";
+            if (hfNewCustGSTIN   != null) hfNewCustGSTIN.Value   = "";
+
+            // Rebuild dropdowns + select the new customer, then show the DC form
+            BindCustomers("RT");
+            BuildCustomerData("RT");
+            BuildProductData();
+            if (ddlCustomer != null)
+            {
+                var li = ddlCustomer.Items.FindByValue(newCustId.ToString());
+                if (li != null) ddlCustomer.SelectedValue = newCustId.ToString();
+            }
+            pnlForm.Visible = true;
+            if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
+            if (pnlLocked != null) pnlLocked.Visible = false;
+            ConfigureTransportModesForTab();
+            if (lblFormTitle != null) lblFormTitle.Text = "New Retail Order";
         }
 
         protected void rptConsigTabs_Command(object s, CommandEventArgs e)
@@ -138,11 +254,13 @@ namespace PKApp
                 int csgId = Convert.ToInt32(e.CommandArgument);
                 hfActiveConsig.Value = csgId.ToString();
                 hfActiveTab.Value = "consig";
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = false;
                 BindCustomers("DI,ST");
                 BuildCustomerData("DI,ST");
                 LoadConsigDCs(csgId);
                 ResetDCForm();
                 BindConsigTabs();
+                ConfigureTransportModesForTab();
             }
         }
 
@@ -153,9 +271,11 @@ namespace PKApp
             {
                 hfActiveConsig.Value = csgId.ToString();
                 hfActiveTab.Value = "dispatched";
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = false;
                 LoadConsigDCs(csgId);
                 pnlForm.Visible = false;
                 BindConsigTabs();
+                ConfigureTransportModesForTab();
             }
         }
 
@@ -166,9 +286,11 @@ namespace PKApp
             {
                 hfActiveConsig.Value = csgId.ToString();
                 hfActiveTab.Value = "archived";
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = false;
                 LoadConsigDCs(csgId);
                 pnlForm.Visible = false;
                 BindConsigTabs();
+                ConfigureTransportModesForTab();
             }
         }
 

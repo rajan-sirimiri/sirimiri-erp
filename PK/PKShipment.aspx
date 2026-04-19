@@ -203,6 +203,27 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 
     <div id="tabDC" class="ship-tab-panel active">
 
+    <!-- ══════ CREATE RETAIL ORDER BUTTON (retail tab only) ══════ -->
+    <asp:Panel ID="pnlCreateRetailBar" runat="server" Visible="false">
+    <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;">
+        <asp:Button ID="btnCreateRetailOrder" runat="server" Text="+ Create Retail Order" CssClass="btn btn-primary"
+            OnClick="btnCreateRetailOrder_Click" CausesValidation="false"
+            style="padding:10px 18px;font-size:13px;"/>
+    </div>
+    </asp:Panel>
+
+    <!-- Hidden fields for retail quick-add customer modal -->
+    <asp:HiddenField ID="hfNewCustName" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustPhone" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustEmail" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustAddress" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustCity" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustState" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustPinCode" runat="server" Value=""/>
+    <asp:HiddenField ID="hfNewCustGSTIN" runat="server" Value=""/>
+    <asp:Button ID="btnCreateRetailCustomerHidden" runat="server" OnClick="btnCreateRetailCustomerHidden_Click"
+        CausesValidation="false" style="display:none;"/>
+
     <!-- ══════ DC FORM ══════ -->
     <asp:Panel ID="pnlForm" runat="server">
     <div class="card">
@@ -590,11 +611,15 @@ function openCustomerModal() {
     }
     if (_custModalOverlay) _custModalOverlay.remove();
 
+    // Only the Retail tab allows quick-add of new customers (RT type)
+    var activeTab = document.getElementById('<%= hfActiveTab.ClientID %>');
+    var isRetail = activeTab && activeTab.value === 'retail';
+
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px 0;';
 
     var box = document.createElement('div');
-    box.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;';
+    box.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;';
 
     // Header
     var hdr = document.createElement('div');
@@ -607,14 +632,14 @@ function openCustomerModal() {
 
     // Search input
     var sWrap = document.createElement('div'); sWrap.style.cssText = 'padding:12px 20px;';
-    var sInput = document.createElement('input'); sInput.type = 'text'; sInput.placeholder = 'Search customer name, code...';
+    var sInput = document.createElement('input'); sInput.type = 'text'; sInput.placeholder = 'Search by name, phone, email...';
     sInput.style.cssText = 'width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;font-family:\'DM Sans\',sans-serif;outline:none;background:#fafafa;';
     sInput.setAttribute('autocomplete', 'off');
     sWrap.appendChild(sInput); box.appendChild(sWrap);
 
     // Results list
     var list = document.createElement('div');
-    list.style.cssText = 'flex:1;overflow-y:auto;padding:0 8px 12px;-webkit-overflow-scrolling:touch;';
+    list.style.cssText = 'flex:1;overflow-y:auto;padding:0 8px 12px;-webkit-overflow-scrolling:touch;min-height:140px;';
 
     function renderList(query) {
         list.innerHTML = '';
@@ -653,11 +678,116 @@ function openCustomerModal() {
     }
 
     sInput.addEventListener('input', function() { renderList(sInput.value); });
-    box.appendChild(list); ov.appendChild(box); document.body.appendChild(ov);
+    box.appendChild(list);
+
+    // ── RETAIL QUICK-ADD SECTION ──
+    // Only render the quick-add footer on the Retail tab. For DI/ST, customer master is managed elsewhere.
+    var quickAddFooter = null;
+    var quickAddForm = null;
+    if (isRetail) {
+        quickAddFooter = document.createElement('div');
+        quickAddFooter.style.cssText = 'border-top:2px solid #f0ede8;padding:12px 20px;background:#fafafa;';
+
+        var addPrompt = document.createElement('div');
+        addPrompt.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#666;';
+        addPrompt.innerHTML = '<span>Can\'t find the customer?</span>';
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.textContent = '+ Add New Customer';
+        addBtn.style.cssText = 'padding:6px 14px;font-size:12px;font-weight:700;background:var(--teal,#1a9e6a);color:#fff;border:none;border-radius:6px;cursor:pointer;';
+        addPrompt.appendChild(addBtn);
+        quickAddFooter.appendChild(addPrompt);
+
+        // Build the quick-add form (hidden until addBtn clicked)
+        quickAddForm = document.createElement('div');
+        quickAddForm.style.cssText = 'display:none;padding-top:14px;margin-top:12px;border-top:1px dashed #e0e0e0;';
+        quickAddForm.innerHTML =
+            '<div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">New Retail Customer</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">' +
+            '  <input id="qaName" type="text" placeholder="Name *" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '  <input id="qaPhone" type="tel" placeholder="Phone *" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">' +
+            '  <input id="qaEmail" type="email" placeholder="Email" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '  <input id="qaAddress" type="text" placeholder="Shipping Address" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:8px;margin-bottom:8px;">' +
+            '  <input id="qaCity" type="text" placeholder="City" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '  <input id="qaState" type="text" placeholder="State" value="Tamil Nadu" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '  <input id="qaPinCode" type="text" placeholder="Pin Code" maxlength="10" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;"/>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px;">' +
+            '  <input id="qaGSTIN" type="text" placeholder="GSTIN (optional)" maxlength="20" style="padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;"/>' +
+            '</div>' +
+            '<div id="qaError" style="display:none;font-size:12px;color:#c0392b;margin-bottom:8px;"></div>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+            '  <button type="button" id="qaCancel" style="padding:8px 14px;font-size:12px;background:#f0f0f0;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer;">Cancel</button>' +
+            '  <button type="button" id="qaSave" style="padding:8px 16px;font-size:12px;font-weight:700;background:var(--accent,#0078d4);color:#fff;border:none;border-radius:6px;cursor:pointer;">Save &amp; Select</button>' +
+            '</div>';
+        quickAddFooter.appendChild(quickAddForm);
+
+        addBtn.onclick = function() {
+            quickAddForm.style.display = 'block';
+            addBtn.style.display = 'none';
+            // Prefill name from the search box if it looks like a name (not a phone/email)
+            var q = sInput.value.trim();
+            if (q) {
+                var nameInp = document.getElementById('qaName');
+                var phoneInp = document.getElementById('qaPhone');
+                var emailInp = document.getElementById('qaEmail');
+                if (/^\+?[\d\s\-]{7,}$/.test(q))       phoneInp.value = q;
+                else if (q.indexOf('@') > 0)           emailInp.value = q;
+                else                                    nameInp.value = q;
+            }
+            setTimeout(function(){ document.getElementById('qaName').focus(); }, 50);
+        };
+
+        box.appendChild(quickAddFooter);
+    }
+
+    ov.appendChild(box); document.body.appendChild(ov);
     _custModalOverlay = ov;
     ov.onclick = function(e) { if (e.target === ov) { ov.remove(); _custModalOverlay = null; } };
     renderList('');
     setTimeout(function() { sInput.focus(); }, 150);
+
+    // Wire quick-add Save/Cancel after DOM is in place
+    if (isRetail && quickAddForm) {
+        document.getElementById('qaCancel').onclick = function() {
+            quickAddForm.style.display = 'none';
+            var addBtn = quickAddFooter.querySelector('button'); // the first button was the Add btn
+            if (addBtn) addBtn.style.display = '';
+        };
+        document.getElementById('qaSave').onclick = function() {
+            var name   = document.getElementById('qaName').value.trim();
+            var phone  = document.getElementById('qaPhone').value.trim();
+            var email  = document.getElementById('qaEmail').value.trim();
+            var addr   = document.getElementById('qaAddress').value.trim();
+            var city   = document.getElementById('qaCity').value.trim();
+            var state  = document.getElementById('qaState').value.trim();
+            var pincode= document.getElementById('qaPinCode').value.trim();
+            var gstin  = document.getElementById('qaGSTIN').value.trim().toUpperCase();
+            var err    = document.getElementById('qaError');
+
+            if (!name) { err.textContent = 'Name is required.'; err.style.display='block'; return; }
+            if (!phone) { err.textContent = 'Phone is required.'; err.style.display='block'; return; }
+            err.style.display = 'none';
+
+            // Stuff into hidden fields and post back to server-side create handler
+            document.getElementById('<%= hfNewCustName.ClientID %>').value    = name;
+            document.getElementById('<%= hfNewCustPhone.ClientID %>').value   = phone;
+            document.getElementById('<%= hfNewCustEmail.ClientID %>').value   = email;
+            document.getElementById('<%= hfNewCustAddress.ClientID %>').value = addr;
+            document.getElementById('<%= hfNewCustCity.ClientID %>').value    = city;
+            document.getElementById('<%= hfNewCustState.ClientID %>').value   = state;
+            document.getElementById('<%= hfNewCustPinCode.ClientID %>').value = pincode;
+            document.getElementById('<%= hfNewCustGSTIN.ClientID %>').value   = gstin;
+
+            // Close the modal before postback so there's no flicker
+            ov.remove(); _custModalOverlay = null;
+            document.getElementById('<%= btnCreateRetailCustomerHidden.ClientID %>').click();
+        };
+    }
 }
 function escH(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
