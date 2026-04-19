@@ -1885,9 +1885,9 @@ namespace PKApp.DAL
         /// <summary>Convert SA shipment to a real Delivery Challan with line items</summary>
         public static int ConvertSAShipmentToDC(int shipmentId, int consignmentId = 0)
         {
-            // Get shipment header
+            // Get shipment header — include ChannelID so we can select the right margin column
             var sh = ExecuteQueryRow(
-                "SELECT CustomerID, ShipmentDate, Remarks, ConsignmentID FROM SA_Shipments WHERE ShipmentID=?sid;",
+                "SELECT CustomerID, ShipmentDate, Remarks, ConsignmentID, ChannelID FROM SA_Shipments WHERE ShipmentID=?sid;",
                 new MySqlParameter("?sid", shipmentId));
             if (sh == null) throw new Exception("Shipment not found.");
 
@@ -1895,12 +1895,37 @@ namespace PKApp.DAL
             DateTime dcDate = Convert.ToDateTime(sh["ShipmentDate"]);
             string remarks = sh["Remarks"] != DBNull.Value ? sh["Remarks"].ToString() : "";
             string saRef = "SH-" + shipmentId.ToString("D5");
+            int saChannelId = sh["ChannelID"] != DBNull.Value ? Convert.ToInt32(sh["ChannelID"]) : 1;
+
+            // Map SA ChannelID → DC channel code (DC stores "GT" or "SM" on the header)
+            // SA_Channels: 1 = General Trade, 2 = Super Market (see seed data in schema)
+            string channel = (saChannelId == 2) ? "SM" : "GT";
 
             // Use shipment's consignment if none passed
             if (consignmentId <= 0 && sh["ConsignmentID"] != DBNull.Value)
                 consignmentId = Convert.ToInt32(sh["ConsignmentID"]);
 
-            // Create DC (with consignment if provided)
+            // ── PRICING INPUTS ──────────────────────────────────────────────────
+            // Customer GSTIN + state (for inter-state vs intra-state GST split)
+            var cust = GetCustomerById(customerId);
+            string custGSTIN = cust != null && cust["GSTIN"] != DBNull.Value ? cust["GSTIN"].ToString() : "";
+            string custState = cust != null && cust["State"] != DBNull.Value ? cust["State"].ToString() : "";
+            // Org state for IGST determination — matches hfOrgState default on PKShipment.aspx
+            const string orgState = "Tamil Nadu";
+            bool isInterState = !string.IsNullOrEmpty(custState)
+                && !string.Equals(custState.Trim(), orgState.Trim(), StringComparison.OrdinalIgnoreCase);
+
+            // Customer margin — pick GT or SM column based on SA channel
+            decimal marginPct = 0;
+            var margins = GetCustomerMargins(customerId);
+            if (margins != null)
+            {
+                marginPct = channel == "SM"
+                    ? Convert.ToDecimal(margins["SuperMarketPct"])
+                    : Convert.ToDecimal(margins["GTPct"]);
+            }
+
+            // Create DC (header — pricing fields filled after lines are computed)
             string dcNumber = GenerateDCNumber();
             string remText = string.IsNullOrEmpty(remarks) ? saRef : saRef + " — " + remarks;
             if (consignmentId > 0)
@@ -1930,11 +1955,12 @@ namespace PKApp.DAL
             }
             int dcId = Convert.ToInt32(Convert.ToInt64(ExecuteScalar("SELECT LAST_INSERT_ID();")));
 
-            // Get shipment lines and create DC lines
-            // Fix 3+4: read both SellingForm and Source from SA line; fall back to ContainerType + CASE for pre-migration rows
+            // Get shipment lines with product HSN + GSTRate for pricing
             var lines = ExecuteQuery(
                 "SELECT sl.ProductID, sl.ShippedQty, IFNULL(p.ContainersPerCase, 12) AS JPC," +
                 " IFNULL(p.ContainerType, 'JAR') AS ContainerType," +
+                " IFNULL(p.HSNCode,'') AS HSNCode," +
+                " IFNULL(p.GSTRate, 0) AS GSTRate," +
                 " IFNULL(sl.SellingForm, '') AS SASellingForm," +
                 " IFNULL(sl.Source, '') AS SASource" +
                 " FROM SA_ShipmentLines sl" +
@@ -1942,13 +1968,18 @@ namespace PKApp.DAL
                 " WHERE sl.ShipmentID=?sid AND sl.ShippedQty > 0;",
                 new MySqlParameter("?sid", shipmentId));
 
+            // Accumulators for DC header totals
+            decimal subTotal = 0m, totalCGST = 0m, totalSGST = 0m, totalIGST = 0m, grandTotal = 0m;
+
             foreach (System.Data.DataRow r in lines.Rows)
             {
                 int productId = Convert.ToInt32(r["ProductID"]);
-                int shippedQty = Convert.ToInt32(r["ShippedQty"]); // in jars/containers
+                int shippedQty = Convert.ToInt32(r["ShippedQty"]); // count in selling-form units
                 int jpc = Convert.ToInt32(r["JPC"]);
+                string hsn = r["HSNCode"].ToString();
+                decimal gstRate = Convert.ToDecimal(r["GSTRate"]);
 
-                // Prefer the user's SellingForm choice from SA; fall back to ContainerType inference
+                // SellingForm: prefer SA user's choice; fall back to ContainerType inference
                 string saForm = r["SASellingForm"].ToString();
                 string sellingForm;
                 if (!string.IsNullOrEmpty(saForm))
@@ -1957,8 +1988,7 @@ namespace PKApp.DAL
                 }
                 else
                 {
-                    string containerType = r.Table.Columns.Contains("ContainerType") && r["ContainerType"] != DBNull.Value
-                        ? r["ContainerType"].ToString() : "JAR";
+                    string containerType = r["ContainerType"].ToString();
                     sellingForm = containerType == "BOX" ? "BOX" : containerType == "DIRECT" ? "PCS" : "JAR";
                 }
 
@@ -1966,16 +1996,55 @@ namespace PKApp.DAL
                 string saSource = r["SASource"].ToString();
                 string source = !string.IsNullOrEmpty(saSource) ? saSource : "CASE";
 
+                // ── LOOKUP MRP + COMPUTE PRICING ────────────────────────────────
+                // MRP is per (ProductID, SellingForm). GST-inclusive rate.
+                decimal mrp = GetProductMRP(productId, sellingForm);
+                // UnitRate = MRP × (1 − margin/100), rounded to 2dp (matches JS computation)
+                decimal unitRate = Math.Round(mrp * (1m - marginPct / 100m), 2, MidpointRounding.AwayFromZero);
+                // LineTotal is GST-inclusive: UnitRate × Qty
+                decimal lineTotal = Math.Round(unitRate * shippedQty, 2, MidpointRounding.AwayFromZero);
+                // TaxableValue = LineTotal / (1 + GSTRate/100)
+                decimal taxableVal = gstRate > 0
+                    ? Math.Round(lineTotal / (1m + gstRate / 100m), 2, MidpointRounding.AwayFromZero)
+                    : lineTotal;
+                decimal gstAmt = Math.Round(lineTotal - taxableVal, 2, MidpointRounding.AwayFromZero);
+                decimal cgstAmt = isInterState ? 0m : Math.Round(gstAmt / 2m, 2, MidpointRounding.AwayFromZero);
+                decimal sgstAmt = isInterState ? 0m : Math.Round(gstAmt / 2m, 2, MidpointRounding.AwayFromZero);
+                decimal igstAmt = isInterState ? gstAmt : 0m;
+
                 ExecuteNonQuery(
-                    "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs, SellingForm, Source)" +
-                    " VALUES(?dcid, ?pid, 0, 0, ?jpc, ?tp, ?form, ?src);",
+                    "INSERT INTO PK_DCLines (DCID, ProductID, Cases, LooseJars, JarsPerCase, TotalPcs," +
+                    " SellingForm, Source, HSNCode, GSTRate, MRP, MarginPct, UnitRate," +
+                    " TaxableValue, CGSTAmt, SGSTAmt, IGSTAmt, LineTotal)" +
+                    " VALUES(?dcid, ?pid, 0, 0, ?jpc, ?tp, ?form, ?src, ?hsn, ?gst, ?mrp, ?mgn, ?rate," +
+                    " ?tax, ?cgst, ?sgst, ?igst, ?lt);",
                     new MySqlParameter("?dcid", dcId),
                     new MySqlParameter("?pid", productId),
                     new MySqlParameter("?jpc", jpc),
                     new MySqlParameter("?tp", shippedQty),
                     new MySqlParameter("?form", sellingForm),
-                    new MySqlParameter("?src", source));
+                    new MySqlParameter("?src", source),
+                    new MySqlParameter("?hsn", hsn ?? ""),
+                    new MySqlParameter("?gst", gstRate),
+                    new MySqlParameter("?mrp", mrp),
+                    new MySqlParameter("?mgn", marginPct),
+                    new MySqlParameter("?rate", unitRate),
+                    new MySqlParameter("?tax", taxableVal),
+                    new MySqlParameter("?cgst", cgstAmt),
+                    new MySqlParameter("?sgst", sgstAmt),
+                    new MySqlParameter("?igst", igstAmt),
+                    new MySqlParameter("?lt", lineTotal));
+
+                subTotal   += taxableVal;
+                totalCGST  += cgstAmt;
+                totalSGST  += sgstAmt;
+                totalIGST  += igstAmt;
+                grandTotal += lineTotal;
             }
+
+            // Update DC header with channel, customer GSTIN, interstate flag, and running totals
+            UpdateDCPricing(dcId, channel, custGSTIN, isInterState,
+                subTotal, totalCGST, totalSGST, totalIGST, grandTotal);
 
             // Mark SA shipment as converted
             ExecuteNonQuery("UPDATE SA_Shipments SET Status='DC' WHERE ShipmentID=?sid;",
@@ -2481,6 +2550,18 @@ namespace PKApp.DAL
                 new MySqlParameter("?pid", productId),
                 new MySqlParameter("?form", sellingForm));
             return val != null && val != DBNull.Value ? Convert.ToDecimal(val) : 0;
+        }
+
+        /// <summary>Return the case pack size (ContainersPerCase) for a product, used to enforce
+        /// full-case multiples when shipping JAR/BOX/PCS from cases. Defaults to 12 if not set.</summary>
+        public static int GetProductCasePackSize(int productId)
+        {
+            var val = ExecuteScalar(
+                "SELECT IFNULL(ContainersPerCase, 12) FROM PP_Products WHERE ProductID=?pid;",
+                new MySqlParameter("?pid", productId));
+            if (val == null || val == DBNull.Value) return 12;
+            int n = Convert.ToInt32(val);
+            return n > 0 ? n : 12;
         }
 
         // ══════════════════════════════════════════════════════════════

@@ -1570,6 +1570,9 @@ namespace PKApp
             var sellingForms= new System.Collections.Generic.List<string>();
             var sourceVals  = new System.Collections.Generic.List<string>();
 
+            // Track any rounding we had to do so we can inform the user (matches DC form's roundToCase behaviour)
+            var roundedMsgs = new System.Collections.Generic.List<string>();
+
             for (int i = 0; i < pids.Length; i++)
             {
                 int pid = 0; int.TryParse(pids[i], out pid);
@@ -1577,8 +1580,24 @@ namespace PKApp
                 if (i < qtys.Length) int.TryParse(qtys[i], out qty);
                 string form = (forms != null && i < forms.Length && !string.IsNullOrEmpty(forms[i])) ? forms[i] : "JAR";
                 string src  = (sources != null && i < sources.Length && !string.IsNullOrEmpty(sources[i])) ? sources[i] : "CASE";
+
                 if (pid > 0 && qty > 0)
                 {
+                    // Case-multiple enforcement: when user ships JAR/BOX/PCS From Cases, quantity must be a
+                    // full-case multiple (ContainersPerCase — usually 12 or 6 depending on product). We can't
+                    // break cases during shipment — partial-case loose picking requires Source=LOOSE.
+                    if (src == "CASE" && form != "CASE")
+                    {
+                        int jpc = PKDatabaseHelper.GetProductCasePackSize(pid);
+                        if (jpc > 0 && (qty % jpc) != 0)
+                        {
+                            int rounded = ((qty + jpc - 1) / jpc) * jpc; // ceiling to next multiple
+                            roundedMsgs.Add("Product ID " + pid + ": " + qty + " rounded up to " + rounded +
+                                " (must be a multiple of " + jpc + " when shipping from cases)");
+                            qty = rounded;
+                        }
+                    }
+
                     productIds.Add(pid); quantities.Add(qty);
                     sellingForms.Add(form); sourceVals.Add(src);
                 }
@@ -1589,7 +1608,11 @@ namespace PKApp
 
             PKDatabaseHelper.UpdateSAShipmentLines(shipId, productIds.ToArray(), quantities.ToArray(),
                 sellingForms.ToArray(), sourceVals.ToArray());
-            ShowAlert("SH-" + shipId.ToString("D5") + " updated.", true);
+
+            string msg = "SH-" + shipId.ToString("D5") + " updated.";
+            if (roundedMsgs.Count > 0)
+                msg += " Case rounding applied — " + string.Join("; ", roundedMsgs.ToArray());
+            ShowAlert(msg, true);
             LoadSAOrderDetail(shipId);
             BindSAOrders();
         }
