@@ -973,8 +973,10 @@ namespace StockApp
                 }
             }
 
-            // Lock rule: only OPEN + READY allow writes. DISPATCHED and ARCHIVED are view-only.
-            _saConsigIsLocked = (status != "OPEN" && status != "READY");
+            // Lock rule: only OPEN allows writes. Once all DCs are FINALISED the consignment
+            // auto-promotes to READY which is locked on the SA side too — SA can't add/edit orders
+            // because PK is about to dispatch. DISPATCHED and ARCHIVED are also locked.
+            _saConsigIsLocked = (status != "OPEN");
             if (pnlSAShipForm != null) pnlSAShipForm.Visible = !_saConsigIsLocked;
             if (pnlSAConsigLocked != null) pnlSAConsigLocked.Visible = _saConsigIsLocked;
             if (lblSALockedStatus != null) lblSALockedStatus.Text = status.ToLower();
@@ -1025,14 +1027,16 @@ namespace StockApp
         }
 
         /// <summary>Server-side guard used by all write handlers. Returns true if writes are allowed.
-        /// Shows an alert and refreshes the view if not.</summary>
+        /// Only OPEN consignments are writable on the SA side — once all DCs are FINALISED the
+        /// consignment auto-promotes to READY and SA becomes view-only (PK is about to dispatch).</summary>
         private bool AssertSAConsigWritable(int consignmentId)
         {
             var csg = DatabaseHelper.GetConsignmentById(consignmentId);
             if (csg == null) { ShowAlert("Consignment not found.", false); return false; }
             string st = csg["Status"].ToString();
-            if (st == "OPEN" || st == "READY") return true;
-            ShowAlert("Cannot modify — consignment is " + st + " (view only).", false);
+            if (st == "OPEN") return true;
+            string reason = st == "READY" ? "ready for dispatch" : st.ToLower();
+            ShowAlert("Cannot modify — consignment is " + reason + " (view only).", false);
             LoadSAConsigDetail(consignmentId);
             return false;
         }

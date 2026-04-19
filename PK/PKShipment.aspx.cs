@@ -383,24 +383,30 @@ namespace PKApp
                 }
             }
 
-            // Button visibility
+            // Button visibility — driven by state machine rules
             bool hasFinalised = false;
             foreach (DataRow r in dcs.Rows)
                 if (r["Status"].ToString() == "FINALISED") { hasFinalised = true; break; }
 
             if (btnBulkInvoice != null) btnBulkInvoice.Visible = hasFinalised && status == "OPEN";
             if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = hasFinalised && (status == "DISPATCHED" || status == "READY" || status == "OPEN");
+            // Dispatch button: only when READY (i.e., all DCs FINALISED — auto-set by UpdateConsignmentReadyStatus)
             if (btnDispatchConsig != null) btnDispatchConsig.Visible = (status == "READY");
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
 
-            // Hide DC form for dispatched/archived
-            if (status == "DISPATCHED" || status == "ARCHIVED")
+            // DC form visibility: OPEN allows creating/editing DCs; READY/DISPATCHED/ARCHIVED is locked.
+            // READY = all DCs finalised, just waiting for dispatch — no new DCs, no edits.
+            bool consigLocked = (status != "OPEN");
+            if (consigLocked)
             {
                 pnlForm.Visible = false;
-                string vn = csg["VehicleNumber"] != DBNull.Value ? csg["VehicleNumber"].ToString() : "";
-                if (!string.IsNullOrEmpty(vn) && lblConsigDCTitle != null)
-                    lblConsigDCTitle.Text += " | Vehicle: " + vn;
+                if (status == "DISPATCHED" || status == "ARCHIVED")
+                {
+                    string vn = csg["VehicleNumber"] != DBNull.Value ? csg["VehicleNumber"].ToString() : "";
+                    if (!string.IsNullOrEmpty(vn) && lblConsigDCTitle != null)
+                        lblConsigDCTitle.Text += " | Vehicle: " + vn;
+                }
             }
             else
             {
@@ -443,6 +449,16 @@ namespace PKApp
 
         protected void btnDispatchConsig_Click(object s, EventArgs e)
         {
+            int csgId = 0; int.TryParse(hfActiveConsig.Value, out csgId);
+            if (!PKDatabaseHelper.CanDispatchConsignment(csgId))
+            {
+                var drafts = PKDatabaseHelper.GetDraftDCNumbersInConsignment(csgId);
+                string msg = drafts.Count > 0
+                    ? "Cannot dispatch yet — the following DCs are still in DRAFT: " + string.Join(", ", drafts.ToArray())
+                    : "Cannot dispatch — consignment has no finalised DCs.";
+                ShowAlert(msg, false);
+                return;
+            }
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = true;
         }
 
@@ -450,6 +466,16 @@ namespace PKApp
         {
             int csgId = Convert.ToInt32(hfActiveConsig.Value);
             if (csgId <= 0) return;
+            // Defensive re-check in case state changed between showing the dispatch form and confirmation
+            if (!PKDatabaseHelper.CanDispatchConsignment(csgId))
+            {
+                var drafts = PKDatabaseHelper.GetDraftDCNumbersInConsignment(csgId);
+                string msg = drafts.Count > 0
+                    ? "Dispatch blocked — DCs still in DRAFT: " + string.Join(", ", drafts.ToArray())
+                    : "Dispatch not possible — consignment state changed.";
+                ShowAlert(msg, false);
+                return;
+            }
             string vehicleNo = txtVehicleNo != null ? txtVehicleNo.Text.Trim().ToUpper() : "";
             if (string.IsNullOrEmpty(vehicleNo))
             { ShowAlert("Please enter a vehicle number.", false); return; }
@@ -457,7 +483,7 @@ namespace PKApp
             try
             {
                 PKDatabaseHelper.DispatchConsignment(csgId, vehicleNo);
-                ShowAlert("Consignment dispatched with Vehicle: " + vehicleNo, true);
+                ShowAlert("Consignment dispatched with Vehicle: " + vehicleNo + ". All DCs closed.", true);
                 BindConsigTabs();
                 BindDispatchedDropdown();
                 LoadConsigDCs(csgId);
@@ -760,6 +786,15 @@ namespace PKApp
             if (activeTab != "retail" && consignmentId <= 0 && dcId <= 0)
             { ShowAlert("Please select a Consignment before saving.", false); return; }
 
+            // State-machine guard — reject saves against non-editable DCs or locked consignments.
+            // On new DC (dcId=0) this checks the consignment instead; on existing DC it checks the DC itself.
+            if (dcId > 0)
+            {
+                if (!PKDatabaseHelper.CanEditDC(dcId))
+                { ShowAlert("This DC cannot be edited — it is finalised, closed, or its consignment is locked.", false); return; }
+            }
+            else if (consignmentId > 0 && !PKDatabaseHelper.CanAddDCToConsignment(consignmentId))
+            { ShowAlert("Cannot add a new DC — the consignment is READY/DISPATCHED and no longer accepts changes.", false); return; }
             // Stock validation — source-based (CASE or LOOSE)
             var fgStock = PKDatabaseHelper.GetFGStockForShipment();
             var productNeeds = new System.Collections.Generic.Dictionary<int, int[]>(); // pid → [casesNeeded, looseNeeded]
@@ -929,6 +964,10 @@ namespace PKApp
                 if (dcId == 0) return; // save failed
             }
 
+            // State-machine guard
+            if (!PKDatabaseHelper.CanFinaliseDC(dcId))
+            { ShowAlert("This DC cannot be finalised — it is already finalised, closed, or its consignment is locked.", false); return; }
+
             try
             {
                 // Generate invoice number
@@ -1063,6 +1102,10 @@ namespace PKApp
         {
             int dcId = Convert.ToInt32(hfDCID.Value);
             if (dcId == 0) { ShowAlert("No DC selected to delete.", false); return; }
+
+            // State-machine guard
+            if (!PKDatabaseHelper.CanEditDC(dcId))
+            { ShowAlert("This DC cannot be deleted — it is finalised, closed, or its consignment is locked.", false); return; }
 
             try
             {
@@ -1210,9 +1253,13 @@ namespace PKApp
                 lblFormTitle.Text = "Edit DC: " + dc["DCNumber"];
                 pnlForm.Visible = true;
                 pnlLocked.Visible = false;
-                btnDraftSave.Visible = true;
-                btnFinalise.Visible = true;
-                if (btnDeleteDC != null) btnDeleteDC.Visible = true;
+
+                // State-machine: even if DC is DRAFT, the parent consignment may be READY (waiting for
+                // dispatch) or DISPATCHED — in which case writes must be blocked at the UI too.
+                bool canEdit = PKDatabaseHelper.CanEditDC(dcId);
+                btnDraftSave.Visible = canEdit;
+                btnFinalise.Visible = canEdit;
+                if (btnDeleteDC != null) btnDeleteDC.Visible = canEdit;
 
                 // Fix 5: Show Unconvert button when this DC originated from an SA shipment order.
                 // Detection: Remarks starts with "SH-" followed by a 5-digit shipment number (set by ConvertSAShipmentToDC).

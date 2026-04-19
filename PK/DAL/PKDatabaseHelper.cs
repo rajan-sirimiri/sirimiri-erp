@@ -1683,7 +1683,7 @@ namespace PKApp.DAL
                 new MySqlParameter("?id",  dcId));
         }
 
-        /// Finalise a DC — locks it
+        /// Finalise a DC — locks it. Auto-transitions parent consignment to READY if all DCs are finalised.
         public static void FinaliseDeliveryChallan(int dcId, int userId)
         {
             ExecuteNonQuery(
@@ -1691,6 +1691,17 @@ namespace PKApp.DAL
                 new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?by",  userId),
                 new MySqlParameter("?id",  dcId));
+
+            // If this DC belongs to a consignment, recompute the consignment state. When every DC is
+            // finalised + invoiced the consignment flips OPEN → READY (and the Dispatch button unlocks).
+            var row = ExecuteQueryRow(
+                "SELECT ConsignmentID FROM PK_DeliveryChallans WHERE DCID=?id;",
+                new MySqlParameter("?id", dcId));
+            if (row != null && row["ConsignmentID"] != DBNull.Value)
+            {
+                int csgId = Convert.ToInt32(row["ConsignmentID"]);
+                if (csgId > 0) UpdateConsignmentReadyStatus(csgId);
+            }
         }
 
         /// Get DC header by ID
@@ -1741,11 +1752,108 @@ namespace PKApp.DAL
                 new MySqlParameter("?lim", limit));
         }
 
-        /// Delete a DRAFT DC entirely
+        /// Delete a DRAFT DC entirely. Recomputes parent consignment's ready-status afterward.
         public static void DeleteDraftDC(int dcId)
         {
+            // Capture consignment ID before delete so we can recompute afterwards
+            int csgIdToRefresh = 0;
+            var row = ExecuteQueryRow(
+                "SELECT ConsignmentID FROM PK_DeliveryChallans WHERE DCID=?id;",
+                new MySqlParameter("?id", dcId));
+            if (row != null && row["ConsignmentID"] != DBNull.Value)
+                csgIdToRefresh = Convert.ToInt32(row["ConsignmentID"]);
+
             ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
             ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id AND Status='DRAFT';", new MySqlParameter("?id", dcId));
+
+            if (csgIdToRefresh > 0) UpdateConsignmentReadyStatus(csgIdToRefresh);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // CONSIGNMENT & DC STATE MACHINE GUARDS
+        // ══════════════════════════════════════════════════════════════
+        //   Consignment: OPEN → READY → DISPATCHED → CLOSED → ARCHIVED
+        //     OPEN/READY are write-able; DISPATCHED and later are locked.
+        //   DC: DRAFT → FINALISED → CLOSED
+        //     DRAFT is editable; FINALISED is read-only in ERP (edit via Zoho + Sync);
+        //     CLOSED means the parent consignment was dispatched — nothing is possible.
+        //
+        //   READY is auto-transitioned: when every DC in an OPEN consignment reaches FINALISED
+        //   the consignment flips to READY. When a FINALISED DC is reverted to DRAFT (e.g., via
+        //   unconvert or by deleting an invoice) the consignment auto-reverts to OPEN.
+        //
+        //   All write-paths should consult these guards before acting so one place owns the rules.
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Returns the consignment status for a DC (empty string if the DC has no consignment).</summary>
+        public static string GetConsignmentStatusForDC(int dcId)
+        {
+            var val = ExecuteScalar(
+                "SELECT csg.Status FROM PK_DeliveryChallans dc" +
+                " LEFT JOIN PK_Consignments csg ON csg.ConsignmentID = dc.ConsignmentID" +
+                " WHERE dc.DCID=?id;",
+                new MySqlParameter("?id", dcId));
+            return (val != null && val != DBNull.Value) ? val.ToString() : "";
+        }
+
+        /// <summary>True only when the DC is DRAFT AND its parent consignment is OPEN (or the DC has no consignment).
+        /// READY consignments are also locked — all DCs are FINALISED at that point.</summary>
+        public static bool CanEditDC(int dcId)
+        {
+            var dc = GetDCById(dcId);
+            if (dc == null) return false;
+            if (dc["Status"].ToString() != "DRAFT") return false;
+            string csgStatus = GetConsignmentStatusForDC(dcId);
+            // Retail DCs (no consignment) are editable as long as they're DRAFT
+            if (string.IsNullOrEmpty(csgStatus)) return true;
+            return csgStatus == "OPEN";
+        }
+
+        /// <summary>True only when the DC is DRAFT AND parent consignment is OPEN/empty. Same rule as CanEditDC —
+        /// Finalise is just another write on the DC.</summary>
+        public static bool CanFinaliseDC(int dcId)
+        {
+            return CanEditDC(dcId);
+        }
+
+        /// <summary>True only when the consignment is OPEN. READY is "lock for further changes,
+        /// waiting to be dispatched" — no new DCs should be added once everything is finalised.</summary>
+        public static bool CanAddDCToConsignment(int consignmentId)
+        {
+            if (consignmentId <= 0) return true; // retail (no consignment) is handled separately
+            var csg = GetConsignmentById(consignmentId);
+            if (csg == null) return false;
+            return csg["Status"].ToString() == "OPEN";
+        }
+
+        /// <summary>True only when consignment is READY (or OPEN but every DC is FINALISED — defensive).
+        /// Gates the Dispatch button at the UI + server levels.</summary>
+        public static bool CanDispatchConsignment(int consignmentId)
+        {
+            if (consignmentId <= 0) return false;
+            var csg = GetConsignmentById(consignmentId);
+            if (csg == null) return false;
+            string st = csg["Status"].ToString();
+            if (st != "OPEN" && st != "READY") return false;
+
+            var dcs = GetDCsByConsignment(consignmentId);
+            if (dcs.Rows.Count == 0) return false; // can't dispatch an empty consignment
+            foreach (DataRow dc in dcs.Rows)
+                if (dc["Status"].ToString() != "FINALISED") return false;
+            return true;
+        }
+
+        /// <summary>Returns a list of DC numbers that are still in DRAFT within the given consignment.
+        /// Used by the UI to tell the user what's blocking dispatch.</summary>
+        public static System.Collections.Generic.List<string> GetDraftDCNumbersInConsignment(int consignmentId)
+        {
+            var result = new System.Collections.Generic.List<string>();
+            if (consignmentId <= 0) return result;
+            var dt = ExecuteQuery(
+                "SELECT DCNumber FROM PK_DeliveryChallans WHERE ConsignmentID=?id AND Status='DRAFT' ORDER BY DCID;",
+                new MySqlParameter("?id", consignmentId));
+            foreach (DataRow r in dt.Rows) result.Add(r["DCNumber"].ToString());
+            return result;
         }
 
         // ── ROLE-BASED ACCESS CHECK ──────────────────────────────────────
@@ -2059,18 +2167,25 @@ namespace PKApp.DAL
             // Find DC created from this shipment (by remarks containing SH-XXXXX)
             string saRef = "SH-" + shipmentId.ToString("D5");
             var dcRow = ExecuteQueryRow(
-                "SELECT DCID FROM PK_DeliveryChallans WHERE Remarks LIKE ?ref AND Status='DRAFT' LIMIT 1;",
+                "SELECT DCID, ConsignmentID FROM PK_DeliveryChallans WHERE Remarks LIKE ?ref AND Status='DRAFT' LIMIT 1;",
                 new MySqlParameter("?ref", "%" + saRef + "%"));
 
+            int csgIdToRefresh = 0;
             if (dcRow != null)
             {
                 int dcId = Convert.ToInt32(dcRow["DCID"]);
+                if (dcRow["ConsignmentID"] != DBNull.Value)
+                    csgIdToRefresh = Convert.ToInt32(dcRow["ConsignmentID"]);
                 ExecuteNonQuery("DELETE FROM PK_DCLines WHERE DCID=?id;", new MySqlParameter("?id", dcId));
                 ExecuteNonQuery("DELETE FROM PK_DeliveryChallans WHERE DCID=?id;", new MySqlParameter("?id", dcId));
             }
 
             ExecuteNonQuery("UPDATE SA_Shipments SET Status='Order' WHERE ShipmentID=?sid AND Status='DC';",
                 new MySqlParameter("?sid", shipmentId));
+
+            // Deleting a DC may change the consignment's ready-status (e.g., if it was the only DRAFT
+            // blocking READY, the consignment now promotes).
+            if (csgIdToRefresh > 0) UpdateConsignmentReadyStatus(csgIdToRefresh);
         }
 
         /// <summary>Get single SA shipment with full details for editing</summary>
@@ -2682,22 +2797,37 @@ namespace PKApp.DAL
             return (allFinalised && allInvoiced) ? "READY" : "OPEN";
         }
 
-        /// <summary>Auto-update consignment status to READY if conditions met.</summary>
+        /// <summary>Auto-transition between OPEN and READY based on DC states. Safe to call after any DC
+        /// state change (finalise, unconvert, delete draft, invoice creation). Only touches OPEN/READY
+        /// rows — DISPATCHED/CLOSED/ARCHIVED are terminal and never changed by this helper.</summary>
         public static void UpdateConsignmentReadyStatus(int consignmentId)
         {
-            string status = GetConsignmentReadyStatus(consignmentId);
-            ExecuteNonQuery("UPDATE PK_Consignments SET Status=?st WHERE ConsignmentID=?id AND Status='OPEN';",
-                new MySqlParameter("?st", status),
+            if (consignmentId <= 0) return;
+            string target = GetConsignmentReadyStatus(consignmentId); // "OPEN" or "READY"
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status=?st WHERE ConsignmentID=?id AND Status IN ('OPEN','READY');",
+                new MySqlParameter("?st", target),
                 new MySqlParameter("?id", consignmentId));
         }
 
-        /// <summary>Dispatch a consignment.</summary>
+        /// <summary>Dispatch a consignment. Cascades all contained DCs to CLOSED so they are
+        /// permanently read-only in ERP. Only callable when every DC is already FINALISED.</summary>
         public static void DispatchConsignment(int consignmentId, string vehicleNumber)
         {
+            // Defensive: verify eligibility one last time (UI should have blocked but guard anyway)
+            if (!CanDispatchConsignment(consignmentId))
+                throw new Exception("Consignment cannot be dispatched — one or more DCs are still in DRAFT.");
+
             ExecuteNonQuery(
                 "UPDATE PK_Consignments SET Status='DISPATCHED', VehicleNumber=?vn, DispatchedAt=NOW()" +
                 " WHERE ConsignmentID=?id AND Status IN ('OPEN','READY');",
                 new MySqlParameter("?vn", vehicleNumber ?? ""),
+                new MySqlParameter("?id", consignmentId));
+
+            // Cascade: every FINALISED DC in this consignment goes to CLOSED.
+            // (FINALISED is the only possible state at this point — DRAFT was blocked above.)
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET Status='CLOSED' WHERE ConsignmentID=?id AND Status='FINALISED';",
                 new MySqlParameter("?id", consignmentId));
         }
 
