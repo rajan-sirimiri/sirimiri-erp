@@ -950,5 +950,259 @@ namespace FINApp.DAL
                 " ORDER BY c.City;",
                 new MySqlParameter("?state", state));
         }
+
+        // ══════════════════════════════════════════════════════════════
+        // FIN CONSIGNMENTS — Invoice Processing workflow
+        // ══════════════════════════════════════════════════════════════
+        // Finance team reviews consignments before dispatch. They can edit any DC
+        // regardless of status, approve/unapprove DCs, and dispatch when ready.
+        // PK_Consignments and PK_DeliveryChallans are shared with the PK module;
+        // these helpers are FIN-specific read/write wrappers.
+
+        /// <summary>Return consignments that finance should see in the Invoice Processing dashboard:
+        /// everything except DISPATCHED and ARCHIVED (those live under Historical). Ordered by
+        /// most recent first so the active work sits at the top.</summary>
+        public static DataTable GetActiveConsignmentsForFIN()
+        {
+            return ExecuteQuery(
+                "SELECT ConsignmentID, ConsignmentCode, ConsignmentDate, Status, UserText," +
+                " IFNULL(TransportMode,'') AS TransportMode," +
+                " IFNULL(CourierName,'') AS CourierName," +
+                " IFNULL(TrackingNumber,'') AS TrackingNumber," +
+                " IFNULL(VehicleNumber,'') AS VehicleNumber" +
+                " FROM PK_Consignments" +
+                " WHERE Status NOT IN ('DISPATCHED','ARCHIVED')" +
+                " ORDER BY ConsignmentDate DESC, ConsignmentID DESC;");
+        }
+
+        /// <summary>DCs within a consignment with every field finance needs to review: customer,
+        /// invoice, grand total, approval state, Zoho sync pointers. Used to render the DC list in
+        /// the Invoice Processing dashboard.</summary>
+        public static DataTable GetDCsByConsignmentForFIN(int consignmentId)
+        {
+            return ExecuteQuery(
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel," +
+                " d.ApprovedAt, d.ApprovedBy," +
+                " u.FullName AS ApprovedByName," +
+                " c.CustomerName, c.CustomerCode, c.CustomerType" +
+                " FROM PK_DeliveryChallans d" +
+                " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
+                " LEFT JOIN users u ON u.UserID = d.ApprovedBy" +
+                " WHERE d.ConsignmentID=?cid" +
+                " ORDER BY d.DCID;",
+                new MySqlParameter("?cid", consignmentId));
+        }
+
+        /// <summary>Approve a DC (finance sign-off). Stores the approving user + timestamp.
+        /// Overwrites any prior approval so the audit trail reflects the most recent approver.</summary>
+        public static void ApproveDC(int dcId, int userId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET ApprovedAt=?now, ApprovedBy=?by WHERE DCID=?id;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by", userId),
+                new MySqlParameter("?id", dcId));
+        }
+
+        /// <summary>Clear a DC's approval flag — finance can toggle it off if they approved by
+        /// mistake. Also called automatically after any FIN-side edit of the DC so that content
+        /// changes force a re-review.</summary>
+        public static void UnapproveDC(int dcId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET ApprovedAt=NULL, ApprovedBy=NULL WHERE DCID=?id;",
+                new MySqlParameter("?id", dcId));
+        }
+
+        /// <summary>Load full DC detail for the FIN edit panel — header + line items with pricing.
+        /// Returns a DataSet with two tables: Header and Lines. Used by FINInvoiceProcessing's
+        /// expandable detail panel.</summary>
+        public static DataSet GetDCDetailForFIN(int dcId)
+        {
+            var ds = new DataSet();
+
+            var header = ExecuteQuery(
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.Channel," +
+                " d.SubTotal, d.TotalCGST, d.TotalSGST, d.TotalIGST, d.GrandTotal," +
+                " d.IsInterState, d.InvoiceNumber, d.Remarks, d.ApprovedAt, d.ApprovedBy," +
+                " c.CustomerName, c.CustomerCode, c.GSTIN, c.State" +
+                " FROM PK_DeliveryChallans d" +
+                " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
+                " WHERE d.DCID=?id;",
+                new MySqlParameter("?id", dcId));
+            header.TableName = "Header";
+            ds.Tables.Add(header);
+
+            var lines = ExecuteQuery(
+                "SELECT dl.LineID, dl.ProductID, dl.SellingForm, dl.Source," +
+                " p.ProductName, p.ProductCode," +
+                " dl.TotalPcs AS Qty, dl.JarsPerCase, dl.HSNCode, dl.GSTRate," +
+                " dl.MRP, dl.MarginPct, dl.UnitRate," +
+                " dl.TaxableValue, dl.CGSTAmt, dl.SGSTAmt, dl.IGSTAmt, dl.LineTotal" +
+                " FROM PK_DCLines dl" +
+                " JOIN PP_Products p ON p.ProductID = dl.ProductID" +
+                " WHERE dl.DCID=?id" +
+                " ORDER BY dl.LineID;",
+                new MySqlParameter("?id", dcId));
+            lines.TableName = "Lines";
+            ds.Tables.Add(lines);
+
+            return ds;
+        }
+
+        /// <summary>FIN-side override edit of a single DC line. Bypasses the PK state-machine
+        /// (DRAFT-only) rule — finance can edit FINALISED or CLOSED DCs too. Recomputes pricing
+        /// from scratch using the new qty and given MRP/margin, then rolls the DC header totals
+        /// to match. Auto-clears the DC's approval flag since the content changed.
+        /// Zoho sync after edit is the user's responsibility (they see a warning banner in UI).</summary>
+        public static void UpdateDCLineFromFIN(int lineId, int qty, decimal mrp, decimal marginPct,
+            string hsn, decimal gstRate, int userId)
+        {
+            // Look up parent DC to know interstate flag
+            var row = ExecuteQueryRow(
+                "SELECT dl.DCID, d.IsInterState FROM PK_DCLines dl" +
+                " JOIN PK_DeliveryChallans d ON d.DCID = dl.DCID" +
+                " WHERE dl.LineID=?lid;",
+                new MySqlParameter("?lid", lineId));
+            if (row == null) throw new Exception("DC line not found.");
+
+            int dcId = Convert.ToInt32(row["DCID"]);
+            bool isInterState = Convert.ToInt32(row["IsInterState"]) == 1;
+
+            // Recompute line pricing from first principles (same formulas PK DC form uses)
+            decimal unitRate  = Math.Round(mrp * (1m - marginPct / 100m), 2, MidpointRounding.AwayFromZero);
+            decimal lineTotal = Math.Round(unitRate * qty, 2, MidpointRounding.AwayFromZero);
+            decimal taxableVal = gstRate > 0
+                ? Math.Round(lineTotal / (1m + gstRate / 100m), 2, MidpointRounding.AwayFromZero)
+                : lineTotal;
+            decimal gstAmt  = Math.Round(lineTotal - taxableVal, 2, MidpointRounding.AwayFromZero);
+            decimal cgstAmt = isInterState ? 0m : Math.Round(gstAmt / 2m, 2, MidpointRounding.AwayFromZero);
+            decimal sgstAmt = isInterState ? 0m : Math.Round(gstAmt / 2m, 2, MidpointRounding.AwayFromZero);
+            decimal igstAmt = isInterState ? gstAmt : 0m;
+
+            ExecuteNonQuery(
+                "UPDATE PK_DCLines SET TotalPcs=?q, MRP=?mrp, MarginPct=?mgn, UnitRate=?rate," +
+                " HSNCode=?hsn, GSTRate=?gst, TaxableValue=?tax, CGSTAmt=?cgst, SGSTAmt=?sgst," +
+                " IGSTAmt=?igst, LineTotal=?lt WHERE LineID=?lid;",
+                new MySqlParameter("?q", qty),
+                new MySqlParameter("?mrp", mrp),
+                new MySqlParameter("?mgn", marginPct),
+                new MySqlParameter("?rate", unitRate),
+                new MySqlParameter("?hsn", hsn ?? ""),
+                new MySqlParameter("?gst", gstRate),
+                new MySqlParameter("?tax", taxableVal),
+                new MySqlParameter("?cgst", cgstAmt),
+                new MySqlParameter("?sgst", sgstAmt),
+                new MySqlParameter("?igst", igstAmt),
+                new MySqlParameter("?lt", lineTotal),
+                new MySqlParameter("?lid", lineId));
+
+            // Roll up DC header totals from all lines (avoid drift)
+            RecomputeDCHeaderTotals(dcId);
+
+            // Edit invalidates prior approval — finance must re-review
+            UnapproveDC(dcId);
+        }
+
+        /// <summary>Delete a DC line (FIN override). Finance can remove a line that shouldn't be
+        /// invoiced. Rolls up header totals and clears approval.</summary>
+        public static void DeleteDCLineFromFIN(int lineId, int userId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT DCID FROM PK_DCLines WHERE LineID=?lid;",
+                new MySqlParameter("?lid", lineId));
+            if (row == null) throw new Exception("DC line not found.");
+            int dcId = Convert.ToInt32(row["DCID"]);
+
+            ExecuteNonQuery("DELETE FROM PK_DCLines WHERE LineID=?lid;",
+                new MySqlParameter("?lid", lineId));
+
+            RecomputeDCHeaderTotals(dcId);
+            UnapproveDC(dcId);
+        }
+
+        /// <summary>Sum up a DC's lines into its header totals. Called after any FIN-side line edit
+        /// or delete so SubTotal/CGST/SGST/IGST/GrandTotal reflect actual lines.</summary>
+        private static void RecomputeDCHeaderTotals(int dcId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans dc SET" +
+                " SubTotal   = IFNULL((SELECT SUM(TaxableValue) FROM PK_DCLines WHERE DCID=?id), 0)," +
+                " TotalCGST  = IFNULL((SELECT SUM(CGSTAmt)      FROM PK_DCLines WHERE DCID=?id), 0)," +
+                " TotalSGST  = IFNULL((SELECT SUM(SGSTAmt)      FROM PK_DCLines WHERE DCID=?id), 0)," +
+                " TotalIGST  = IFNULL((SELECT SUM(IGSTAmt)      FROM PK_DCLines WHERE DCID=?id), 0)," +
+                " GrandTotal = IFNULL((SELECT SUM(LineTotal)    FROM PK_DCLines WHERE DCID=?id), 0)" +
+                " WHERE dc.DCID=?id;",
+                new MySqlParameter("?id", dcId));
+        }
+
+        /// <summary>FIN-side Mark READY — same outcome as the PK-side MarkConsignmentReady.
+        /// Requires status=OPEN and every DC to be FINALISED. Throws if any DC is still DRAFT.</summary>
+        public static void MarkConsignmentReadyFromFIN(int consignmentId)
+        {
+            var csg = ExecuteQueryRow(
+                "SELECT Status FROM PK_Consignments WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+            if (csg == null) throw new Exception("Consignment not found.");
+            if (csg["Status"].ToString() != "OPEN")
+                throw new Exception("Only OPEN consignments can be marked READY (current: " + csg["Status"] + ").");
+
+            var draftCount = ExecuteScalar(
+                "SELECT COUNT(*) FROM PK_DeliveryChallans WHERE ConsignmentID=?id AND Status='DRAFT';",
+                new MySqlParameter("?id", consignmentId));
+            if (draftCount != null && Convert.ToInt64(draftCount) > 0)
+                throw new Exception("Cannot mark READY — one or more DCs are still in DRAFT.");
+
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status='READY' WHERE ConsignmentID=?id AND Status='OPEN';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Dispatch a consignment from the FIN side. Identical outcome to the PK-side
+        /// dispatch — both call the shared state-change. Requires consignment=READY AND every
+        /// DC=FINALISED (enforced by the shared rule). Finance approval is NOT required — it's
+        /// informational per the rules. Cascade: every FINALISED DC in the consignment flips to
+        /// CLOSED as part of dispatch.</summary>
+        public static void DispatchConsignmentFromFIN(int consignmentId, string vehicleNumber)
+        {
+            // Precondition check using the same rules as PK
+            var csg = ExecuteQueryRow(
+                "SELECT Status FROM PK_Consignments WHERE ConsignmentID=?id;",
+                new MySqlParameter("?id", consignmentId));
+            if (csg == null) throw new Exception("Consignment not found.");
+            if (csg["Status"].ToString() != "READY")
+                throw new Exception("Consignment must be READY for dispatch (current: " + csg["Status"] + ").");
+
+            var draftCount = ExecuteScalar(
+                "SELECT COUNT(*) FROM PK_DeliveryChallans WHERE ConsignmentID=?id AND Status='DRAFT';",
+                new MySqlParameter("?id", consignmentId));
+            if (draftCount != null && Convert.ToInt64(draftCount) > 0)
+                throw new Exception("Dispatch blocked — one or more DCs are still in DRAFT.");
+
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status='DISPATCHED', VehicleNumber=?vn, DispatchedAt=NOW()" +
+                " WHERE ConsignmentID=?id AND Status='READY';",
+                new MySqlParameter("?vn", vehicleNumber ?? ""),
+                new MySqlParameter("?id", consignmentId));
+
+            // Cascade DCs to CLOSED
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET Status='CLOSED' WHERE ConsignmentID=?id AND Status='FINALISED';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Historical consignments for the Historical Consignments card — dispatched
+        /// and archived, ordered most-recently-dispatched first.</summary>
+        public static DataTable GetHistoricalConsignments(int limit = 100)
+        {
+            return ExecuteQuery(
+                "SELECT ConsignmentID, ConsignmentCode, ConsignmentDate, Status, UserText," +
+                " IFNULL(VehicleNumber,'') AS VehicleNumber, DispatchedAt, ArchivedAt" +
+                " FROM PK_Consignments" +
+                " WHERE Status IN ('DISPATCHED','ARCHIVED')" +
+                " ORDER BY IFNULL(DispatchedAt, CreatedAt) DESC" +
+                " LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
     }
 }

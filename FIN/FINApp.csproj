@@ -123,6 +123,27 @@
     <Compile Include="FINAnalyticsAPI.ashx.cs">
       <DependentUpon>FINAnalyticsAPI.ashx</DependentUpon>
     </Compile>
+    <!-- FIN Consignments module (Session 13) -->
+    <Content Include="FINConsignments.aspx" />
+    <Compile Include="FINConsignments.aspx.cs">
+      <DependentUpon>FINConsignments.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="FINInvoiceProcessing.aspx" />
+    <Compile Include="FINInvoiceProcessing.aspx.cs">
+      <DependentUpon>FINInvoiceProcessing.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="FINGoodsDelivery.aspx" />
+    <Compile Include="FINGoodsDelivery.aspx.cs">
+      <DependentUpon>FINGoodsDelivery.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="FINHistoricalConsignments.aspx" />
+    <Compile Include="FINHistoricalConsignments.aspx.cs">
+      <DependentUpon>FINHistoricalConsignments.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="progress_wheel.png" />
     <Content Include="Web.config" />
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />
