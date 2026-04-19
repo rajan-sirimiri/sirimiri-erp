@@ -592,10 +592,27 @@ namespace FINApp
             int dcId = 0; int.TryParse(hf.Value, out dcId);
             if (dcId <= 0) return;
 
+            // IMPORTANT: We rebind the repeater on every postback in Page_Load (so that the
+            // dynamically-added per-line Save/Delete LinkButtons in the detail panel can receive
+            // their commands). That rebind reads the OLD DB value into chk.Checked and clobbers
+            // the posted form value — by the time we get here, chk.Checked is the value from
+            // the database BEFORE the user's click, which is the opposite of what they intended.
+            // To recover the actual user intent, read the posted form value directly.
+            string posted = Request.Form[chk.UniqueID];
+            // Posted = "on" (checkbox was checked), null/empty (unchecked).
+            // For an AutoPostBack checkbox, only ONE checkbox posts at a time — the one that
+            // changed — so finding "on" here means the user just checked it; missing means just
+            // unchecked.
+            bool wantApproved;
+            if (posted != null)
+                wantApproved = posted.Equals("on", StringComparison.OrdinalIgnoreCase);
+            else
+                wantApproved = false;
+
             try
             {
-                if (chk.Checked) FINDatabaseHelper.ApproveDC(dcId, UserID);
-                else             FINDatabaseHelper.UnapproveDC(dcId);
+                if (wantApproved) FINDatabaseHelper.ApproveDC(dcId, UserID);
+                else              FINDatabaseHelper.UnapproveDC(dcId);
                 RefreshCurrentConsignment();
             }
             catch (Exception ex) { ShowAlert("Approval error: " + ex.Message, "alert-danger"); }

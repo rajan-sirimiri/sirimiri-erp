@@ -63,7 +63,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         <a id="lnkConsignments" runat="server" href="FINConsignments.aspx" class="menu-card" style="border-color:#d7bde2;">
             <div class="menu-icon">&#x1F69A;</div>
             <div>
-                <div class="menu-title">Consig<br/>nments</div>
+                <div class="menu-title">Consignments</div>
                 <div class="menu-desc">Review outbound consignments — invoice verification, DC approval, dispatch release, and delivery tracking</div>
             </div>
         </a>
