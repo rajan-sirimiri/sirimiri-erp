@@ -1377,5 +1377,32 @@ namespace FINApp.DAL
             var row = GetActiveEInvoice(dcId);
             return row != null && row["IRN"] != DBNull.Value ? row["IRN"].ToString() : "";
         }
+
+        // ══════════════════════════════════════════════════════════════
+        // SYNC FROM ZOHO
+        // ══════════════════════════════════════════════════════════════
+        // Wraps the existing PK-side StockApp.DAL.ZohoHelper.SyncConsignmentBack so
+        // FIN doesn't duplicate the sync logic. The PK helper walks every DC in the
+        // consignment, fetches the latest invoice from Zoho, and overwrites ERP
+        // header + line item data when it differs (with stock alerts when qty changes
+        // would breach FG stock). Returns a structured per-DC result list.
+        //
+        // What this does NOT sync (yet): IRN / ACK / QR code from Zoho's e-invoicing
+        // API. Those endpoints aren't publicly documented; finance must record IRN
+        // manually via the Record IRN modal until Phase 2 brings real API coverage.
+
+        /// <summary>Sync every DC in a consignment back from Zoho — header + line items.
+        /// Wrapper that delegates to PK's existing implementation.</summary>
+        public static System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> SyncConsignmentFromZoho(int consignmentId)
+        {
+            return StockApp.DAL.ZohoHelper.SyncConsignmentBack(consignmentId);
+        }
+
+        /// <summary>Sync a single DC back from Zoho — header + line items for that one DC.
+        /// Used by the per-DC "Sync" button.</summary>
+        public static StockApp.DAL.ZohoSyncBackResult SyncSingleDCFromZoho(int dcId)
+        {
+            return StockApp.DAL.ZohoHelper.SyncInvoiceBack(dcId);
+        }
     }
 }

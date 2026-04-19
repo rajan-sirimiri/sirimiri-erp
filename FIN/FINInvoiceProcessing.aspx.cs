@@ -16,7 +16,9 @@ namespace FINApp
         protected Literal litAlert, litConsigSummary, litBottomSummary;
         protected DropDownList ddlConsig;
         protected Repeater rptDCs;
-        protected Button btnDownloadAllInvoices, btnMarkReady, btnOpenDispatch, btnConfirmDispatch;
+        protected Button btnDownloadAllInvoices, btnMarkReady, btnOpenDispatch, btnConfirmDispatch, btnSyncAll;
+        protected Panel pnlSyncResult;
+        protected Literal litSyncResult;
         protected TextBox txtVehicleNo;
         protected HiddenField hfActiveDCID;
 
@@ -309,6 +311,10 @@ namespace FINApp
 
                 case "CancelEWB":
                     CancelEWBNow(dcId);
+                    break;
+
+                case "SyncDC":
+                    SyncSingleDC(dcId);
                     break;
             }
         }
@@ -636,6 +642,105 @@ namespace FINApp
         // BULK ACTIONS
         // ══════════════════════════════════════════════════════════════
 
+        // ── Sync from Zoho ──
+        // Pulls header + line items for every DC (or one DC) in the consignment from Zoho
+        // Books and overwrites ERP. Runs the existing PK helper that returns per-DC results
+        // including changes made and any stock-availability alerts. Note: IRN/ACK/QR are NOT
+        // synced here — those live in Zoho's e-invoicing API which we don't call yet (Phase 2).
+
+        protected void btnSyncAll_Click(object sender, EventArgs e)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            int csgId = 0; int.TryParse(ddlConsig.SelectedValue, out csgId);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", "alert-danger"); return; }
+
+            try
+            {
+                var results = FINDatabaseHelper.SyncConsignmentFromZoho(csgId);
+                RenderSyncResults(results, "Sync from Zoho — " + ddlConsig.SelectedItem.Text);
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("Sync error: " + ex.Message, "alert-danger"); }
+        }
+
+        /// <summary>Sync a single DC from Zoho — invoked from the per-DC "↻ Sync" button
+        /// in the E-Invoice cell. Bypasses the consignment-level loop so finance can refresh
+        /// just one DC after fixing it in Zoho.</summary>
+        void SyncSingleDC(int dcId)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            try
+            {
+                var r = FINDatabaseHelper.SyncSingleDCFromZoho(dcId);
+                var single = new System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> { r };
+                RenderSyncResults(single, "Sync — DC #" + dcId);
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("Sync error: " + ex.Message, "alert-danger"); }
+        }
+
+        /// <summary>Format a list of sync results into the result panel. Mirrors PK's display
+        /// approach — per-DC row with icon + invoice number + change list + stock alerts,
+        /// followed by a summary line.</summary>
+        void RenderSyncResults(System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> results, string title)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<div style='font-size:12px;'>")
+              .Append("<div style='font-weight:700;margin-bottom:6px;'>").Append(Server.HtmlEncode(title)).Append("</div>");
+
+            int totalChanges = 0, totalAlerts = 0, totalErrors = 0;
+
+            foreach (var r in results)
+            {
+                string icon = r.Success ? (r.Changes.Count > 0 ? "&#x1F504;" : "&#x2705;") : "&#x274C;";
+                string color = r.StockAlerts.Count > 0 ? "var(--danger)"
+                             : r.Changes.Count > 0 ? "var(--accent)"
+                             : "var(--teal)";
+                if (!r.Success) { color = "var(--danger)"; totalErrors++; }
+
+                sb.Append("<div style='margin-bottom:6px;color:").Append(color).Append(";'>")
+                  .Append(icon).Append(" <strong>")
+                  .Append(Server.HtmlEncode(r.ZohoInvoiceNo ?? "(no invoice number)")).Append("</strong>");
+
+                if (!r.Success)
+                {
+                    sb.Append(" — ").Append(Server.HtmlEncode(r.Message ?? "Sync failed"));
+                }
+                else if (r.Changes.Count > 0)
+                {
+                    totalChanges += r.Changes.Count;
+                    foreach (var c in r.Changes)
+                        sb.Append("<div style='margin-left:20px;color:var(--text);font-size:11px;'>")
+                          .Append(Server.HtmlEncode(c)).Append("</div>");
+                }
+                else
+                {
+                    sb.Append(" — No changes");
+                }
+
+                if (r.StockAlerts.Count > 0)
+                {
+                    totalAlerts += r.StockAlerts.Count;
+                    foreach (var a in r.StockAlerts)
+                        sb.Append("<div style='margin-left:20px;color:var(--danger);font-weight:700;font-size:11px;'>STOCK ALERT: ")
+                          .Append(Server.HtmlEncode(a)).Append("</div>");
+                }
+                sb.Append("</div>");
+            }
+
+            sb.Append("<div style='margin-top:8px;font-weight:700;border-top:1px solid var(--border);padding-top:8px;'>")
+              .Append("Summary: ").Append(totalChanges).Append(" change(s)");
+            if (totalAlerts > 0)
+                sb.Append(", <span style='color:var(--danger);'>").Append(totalAlerts).Append(" stock alert(s)</span>");
+            if (totalErrors > 0)
+                sb.Append(", <span style='color:var(--danger);'>").Append(totalErrors).Append(" error(s)</span>");
+            sb.Append(". <span style='color:var(--text-muted);font-weight:400;'>(IRN/ACK not synced — record manually if finance pushed-to-IRP in Zoho.)</span>");
+            sb.Append("</div></div>");
+
+            pnlSyncResult.Visible = true;
+            litSyncResult.Text = sb.ToString();
+        }
+
         protected void btnDownloadAllInvoices_Click(object sender, EventArgs e)
         {
             // Placeholder — we'd normally generate a zip of Zoho invoice PDFs here. For now, alert
@@ -826,6 +931,19 @@ namespace FINApp
             {
                 ph.Controls.Add(new LiteralControl(
                     "<div class='einv-irn' style='color:var(--warn);'>No Zoho invoice yet</div>"));
+            }
+
+            // Per-DC Sync action — refreshes header + lines from Zoho. Available whenever a
+            // Zoho invoice exists for the DC, regardless of e-invoice state.
+            if (IsFinance && !string.IsNullOrEmpty(zohoInvId))
+            {
+                var btnSync = new LinkButton
+                {
+                    CommandName = "SyncDC", CommandArgument = dcId.ToString(),
+                    CssClass = "einv-link", Text = "↻ Sync", CausesValidation = false,
+                    ToolTip = "Pull latest header + line items from Zoho for this DC"
+                };
+                ph.Controls.Add(btnSync);
             }
         }
 

@@ -213,6 +213,9 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             <div class="summary">
                 <asp:Literal ID="litBottomSummary" runat="server" />
             </div>
+            <asp:Button ID="btnSyncAll" runat="server" Text="&#x1F504; Sync All from Zoho"
+                CssClass="btn btn-secondary" OnClick="btnSyncAll_Click" CausesValidation="false"
+                ToolTip="Pull header + line item changes from Zoho for every DC in this consignment. IRN/ACK still need to be recorded manually." />
             <asp:Button ID="btnDownloadAllInvoices" runat="server" Text="&#x1F4E5; Download All Invoices"
                 CssClass="btn btn-secondary" OnClick="btnDownloadAllInvoices_Click" CausesValidation="false" />
             <asp:Button ID="btnMarkReady" runat="server" Text="Mark Consignment READY"
@@ -221,6 +224,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             <asp:Button ID="btnOpenDispatch" runat="server" Text="&#x1F69A; Dispatch Consignment"
                 CssClass="btn btn-primary" OnClick="btnOpenDispatch_Click" CausesValidation="false" Visible="false" />
         </div>
+
+        <!-- Sync result panel — shows per-DC changes/alerts after a Sync All or per-DC sync -->
+        <asp:Panel ID="pnlSyncResult" runat="server" Visible="false" CssClass="alert alert-info"
+            style="margin-top:12px;">
+            <div style="font-weight:700;margin-bottom:6px;">Sync Result</div>
+            <asp:Literal ID="litSyncResult" runat="server" />
+        </asp:Panel>
 
         <asp:Panel ID="pnlDispatchForm" runat="server" Visible="false" CssClass="dispatch-form">
             <div>
