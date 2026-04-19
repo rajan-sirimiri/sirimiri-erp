@@ -2909,7 +2909,23 @@ namespace PKApp.DAL
                 new MySqlParameter("?id", dcId));
         }
 
-        /// <summary>Get DCs not in any consignment (retail/standalone orders).</summary>
+        /// <summary>Update consignment-level transport details (truck mode, courier, tracking).
+        /// Transport is per-consignment since one consignment = one truck; retail DCs still carry
+        /// their own transport because they have no consignment. Requires the session12d migration
+        /// that adds TransportMode/CourierName/TrackingNumber columns to PK_Consignments.</summary>
+        public static void UpdateConsignmentTransport(int consignmentId, string transportMode, string courierName, string trackingNumber)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET TransportMode=?tm, CourierName=?cn, TrackingNumber=?tn WHERE ConsignmentID=?id;",
+                new MySqlParameter("?tm", transportMode ?? ""),
+                new MySqlParameter("?cn", courierName ?? ""),
+                new MySqlParameter("?tn", trackingNumber ?? ""),
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>Get retail DCs (no parent consignment) that are still active — i.e. not yet
+        /// dispatched. DRAFT and FINALISED DCs appear in this list; DISPATCHED retail DCs move to
+        /// <see cref="GetDispatchedRetailDCs"/> (shown in a dropdown on the Retail tab).</summary>
         public static DataTable GetRetailDCs(int limit = 50)
         {
             return ExecuteQuery(
@@ -2919,8 +2935,51 @@ namespace PKApp.DAL
                 " FROM PK_DeliveryChallans d" +
                 " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
                 " WHERE d.ConsignmentID IS NULL AND c.CustomerType='RT'" +
+                "   AND d.Status IN ('DRAFT','FINALISED')" +
                 " ORDER BY d.DCID DESC LIMIT ?lim;",
                 new MySqlParameter("?lim", limit));
+        }
+
+        /// <summary>Retail DCs that have been dispatched. Used by the Retail-tab dropdown so the
+        /// main DC list stays focused on "work-in-progress". Ordered most-recently-dispatched first.</summary>
+        public static DataTable GetDispatchedRetailDCs(int limit = 100)
+        {
+            return ExecuteQuery(
+                "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel," +
+                " d.TrackingNumber, d.TransportMode, d.CourierName, d.DispatchedAt," +
+                " c.CustomerName, c.CustomerCode" +
+                " FROM PK_DeliveryChallans d" +
+                " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
+                " WHERE d.ConsignmentID IS NULL AND c.CustomerType='RT' AND d.Status='DISPATCHED'" +
+                " ORDER BY d.DispatchedAt DESC, d.DCID DESC LIMIT ?lim;",
+                new MySqlParameter("?lim", limit));
+        }
+
+        /// <summary>Dispatch a retail DC. Requires the DC to be FINALISED (invoice created and
+        /// locked). Stores the final tracking number, then sets Status='DISPATCHED' and stamps
+        /// DispatchedAt/DispatchedBy. Retail DCs with no consignment use this path instead of the
+        /// consignment-level dispatch.</summary>
+        public static void DispatchRetailDC(int dcId, string trackingNumber, int userId)
+        {
+            // Guard: must be a retail DC (no consignment) and currently FINALISED
+            var dc = ExecuteQueryRow(
+                "SELECT Status, ConsignmentID FROM PK_DeliveryChallans WHERE DCID=?id;",
+                new MySqlParameter("?id", dcId));
+            if (dc == null) throw new Exception("DC not found.");
+            if (dc["ConsignmentID"] != DBNull.Value)
+                throw new Exception("This DC belongs to a consignment — use consignment dispatch instead.");
+            if (dc["Status"].ToString() != "FINALISED")
+                throw new Exception("Only FINALISED DCs can be dispatched. Current status: " + dc["Status"]);
+
+            // Update tracking (if provided) alongside the state flip
+            ExecuteNonQuery(
+                "UPDATE PK_DeliveryChallans SET Status='DISPATCHED', DispatchedAt=?now, DispatchedBy=?by," +
+                " TrackingNumber=CASE WHEN ?tn='' THEN TrackingNumber ELSE ?tn END" +
+                " WHERE DCID=?id AND ConsignmentID IS NULL AND Status='FINALISED';",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by", userId),
+                new MySqlParameter("?tn", trackingNumber ?? ""),
+                new MySqlParameter("?id", dcId));
         }
 
         // ══════════════════════════════════════════════════════════════

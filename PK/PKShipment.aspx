@@ -47,6 +47,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .data-table tr:hover td{background:#f9f9f9;}
 .badge-draft{background:#fef9f3;color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
 .badge-final{background:#eafaf1;color:var(--teal);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.badge-dispatched{background:#e6f2ff;color:#004085;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
 .badge-closed{background:#e2e3e5;color:#383d41;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
 .stock-badge{display:inline-block;background:#e8f8f0;color:var(--teal);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;margin-left:6px;}
 .stock-zero{background:#fdf3f2;color:#e74c3c;}
@@ -98,7 +99,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     <!-- ══════ CONSIGNMENT TAB BAR (browser-style) ══════ -->
     <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:0;">
         <div class="ship-tab-bar" id="consigTabBar" style="flex:1;margin-bottom:0;">
-            <asp:Button ID="btnTabRetail" runat="server" Text="Retail Orders" CssClass="ship-tab active"
+            <asp:Button ID="btnTabRetail" runat="server" Text="Retail Orders"
                 OnClick="btnTabRetail_Click" CausesValidation="false" />
             <asp:Repeater ID="rptConsigTabs" runat="server">
                 <ItemTemplate>
@@ -116,6 +117,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 style="font-size:10px;padding:4px 8px;border:1px solid #cce5ff;border-radius:6px;color:#004085;background:#f0f7ff;" />
             <asp:DropDownList ID="ddlArchived" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlArchived_Changed"
                 style="font-size:10px;padding:4px 8px;border:1px solid #e2e3e5;border-radius:6px;color:#383d41;background:#f5f5f5;" />
+            <!-- Dispatched retail DCs dropdown — visible only on Retail tab -->
+            <asp:DropDownList ID="ddlRetailDispatched" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlRetailDispatched_Changed"
+                Visible="false"
+                style="font-size:10px;padding:4px 8px;border:1px solid #cce5ff;border-radius:6px;color:#004085;background:#f0f7ff;" />
         </div>
     </div>
     <asp:HiddenField ID="hfActiveConsig" runat="server" Value="0" />
@@ -132,6 +137,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
             <div class="form-group" style="flex:0 0 auto;">
                 <asp:Button ID="btnCreateConsignment" runat="server" Text="Create" CssClass="btn btn-primary"
                     OnClick="btnCreateConsignment_Click" CausesValidation="false" style="font-size:11px;padding:8px 16px;"/></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+            Transport mode (Own Vehicle / Courier) is set after creation on the consignment header — each truck carries one consignment.
         </div>
     </div>
 
@@ -163,6 +171,25 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     OnClick="btnArchiveConsig_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
             </div>
         </div>
+        <!-- Consignment-level transport — applies to the whole truck. Visible only for OPEN/READY
+             consignments; retail DCs set their own transport at the DC level. -->
+        <asp:Panel ID="pnlConsigTransport" runat="server" Visible="false" style="margin-top:10px;background:#f8f9fa;border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <div class="form-row" style="align-items:flex-end;gap:8px;">
+                <div class="form-group" style="flex:1;"><label style="font-size:10px;">Transport Mode</label>
+                    <asp:DropDownList ID="ddlConsigTransport" runat="server" onchange="onConsigTransportChange();" style="font-size:11px;padding:4px 8px;">
+                        <asp:ListItem Value="" Text="— Select —" />
+                        <asp:ListItem Value="FULL_LOAD" Text="Own Vehicle (Full Load)" />
+                        <asp:ListItem Value="COURIER" Text="Courier" />
+                    </asp:DropDownList></div>
+                <div class="form-group" id="divConsigCourier" runat="server" style="flex:1;"><label style="font-size:10px;">Courier Name</label>
+                    <asp:TextBox ID="txtConsigCourierName" runat="server" placeholder="e.g. DTDC" style="font-size:11px;padding:4px 8px;" /></div>
+                <div class="form-group" id="divConsigTracking" runat="server" style="flex:1;"><label style="font-size:10px;">Tracking / LR #</label>
+                    <asp:TextBox ID="txtConsigTrackingNo" runat="server" placeholder="Tracking #" style="font-size:11px;padding:4px 8px;" /></div>
+                <div class="form-group" style="flex:0 0 auto;">
+                    <asp:Button ID="btnSaveConsigTransport" runat="server" Text="Save Transport" CssClass="btn btn-secondary"
+                        OnClick="btnSaveConsigTransport_Click" CausesValidation="false" style="font-size:11px;padding:6px 14px;" /></div>
+            </div>
+        </asp:Panel>
         <!-- Dispatch form -->
         <asp:Panel ID="pnlDispatchForm" runat="server" Visible="false" style="margin-top:10px;background:#fffdf5;border:1px solid #f0e6c0;border-radius:8px;padding:12px;">
             <div class="form-row" style="align-items:flex-end;">
@@ -255,7 +282,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     <asp:ListItem Text="Super Market" Value="SM"/>
                 </asp:DropDownList></div>
         </div>
-        <div class="form-row" style="margin-top:10px;">
+        <asp:Panel ID="pnlDCTransport" runat="server" CssClass="form-row" style="margin-top:10px;">
             <div class="form-group"><label>Transport Mode</label>
                 <asp:DropDownList ID="ddlTransport" runat="server" onchange="onTransportChange();">
                     <asp:ListItem Text="-- Select --" Value=""/>
@@ -266,7 +293,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 <asp:TextBox ID="txtCourierName" runat="server" placeholder="e.g. DTDC, BlueDart" /></div>
             <div class="form-group" id="divTracking" style="display:none;"><label>Tracking / LR Number</label>
                 <asp:TextBox ID="txtTrackingNo" runat="server" placeholder="Optional" /></div>
-        </div>
+        </asp:Panel>
         <div id="divCustGST" style="display:none;padding:8px 14px;background:#f8f7f5;border-radius:8px;margin-bottom:12px;font-size:12px;">
             <span style="color:var(--text-muted);font-weight:600;">GSTIN:</span> <span id="spnCustGSTIN" style="font-weight:700;">—</span>
             &nbsp;&bull;&nbsp; <span id="spnCustState" style="color:var(--text-muted);">—</span>
@@ -311,9 +338,6 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
         <div class="btn-row">
             <asp:Button ID="btnDraftSave" runat="server" Text="&#x1F4BE; Save as Draft" CssClass="btn btn-primary" OnClick="btnDraftSave_Click" OnClientClick="syncLines();" CausesValidation="false"/>
             <asp:Button ID="btnFinalise" runat="server" Text="&#x2705; Finalise Shipment" CssClass="btn btn-success" OnClick="btnFinalise_Click" CausesValidation="false"/>
-            <asp:Button ID="btnCreateInvoiceDraft" runat="server" Text="&#x1F4E8; Create Invoice in Zoho" CssClass="btn btn-zoho"
-                OnClientClick="doCreateInvoiceDraftConfirm(); return false;" CausesValidation="false" Visible="false"/>
-            <asp:Button ID="btnCreateInvoiceDraftHidden" runat="server" OnClick="btnCreateInvoiceDraft_Click" CausesValidation="false" style="display:none;"/>
             <asp:Button ID="btnNew" runat="server" Text="+ New DC" CssClass="btn btn-secondary" OnClick="btnNew_Click" OnClientClick="document.getElementById('txtCustomerSearch').value='';" CausesValidation="false"/>
             <asp:Button ID="btnPrintDC" runat="server" Text="&#x1F4C4; Download DC" CssClass="btn btn-secondary" OnClick="btnPrintDC_Click" CausesValidation="false"/>
             <asp:Button ID="btnDeleteDC" runat="server" Text="&#x1F5D1; Delete DC" CssClass="btn btn-danger" OnClick="btnDeleteDC_Click" OnClientClick="return doDeleteDCConfirm();" CausesValidation="false"/>
@@ -396,7 +420,27 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     OnClientClick="doCreateInvoiceConfirm(); return false;" CausesValidation="false"/>
                 <asp:Button ID="btnCreateInvoiceHidden" runat="server" OnClick="btnCreateInvoice_Click" CausesValidation="false" style="display:none;"/>
             </asp:Panel>
+
+            <!-- Retail Dispatch — visible only for FINALISED retail DCs (no parent consignment) -->
+            <asp:Button ID="btnRetailDispatch" runat="server" Text="&#x1F69A; Dispatch" CssClass="btn btn-primary"
+                OnClientClick="toggleRetailDispatchForm(); return false;" CausesValidation="false" Visible="false"
+                style="background:#1a9e6a;"/>
         </div>
+
+        <!-- Retail Dispatch form — appears when user clicks Dispatch on a FINALISED retail DC -->
+        <asp:Panel ID="pnlRetailDispatch" runat="server" Visible="false" style="margin-top:10px;background:#fffdf5;border:1px solid #f0e6c0;border-radius:8px;padding:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">DISPATCH RETAIL DC</div>
+            <div class="form-row" style="align-items:flex-end;gap:8px;">
+                <div class="form-group" style="flex:1;"><label style="font-size:10px;">Tracking / LR Number</label>
+                    <asp:TextBox ID="txtRetailTracking" runat="server" placeholder="e.g. DTDC-123456789" style="font-size:11px;padding:4px 8px;" /></div>
+                <div class="form-group" style="flex:0 0 auto;">
+                    <asp:Button ID="btnConfirmRetailDispatch" runat="server" Text="Confirm Dispatch" CssClass="btn btn-primary"
+                        OnClick="btnConfirmRetailDispatch_Click" CausesValidation="false" style="font-size:11px;padding:6px 14px;" /></div>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+                After dispatch, this DC moves to the Dispatched dropdown and cannot be edited.
+            </div>
+        </asp:Panel>
     </div>
     </asp:Panel>
 
@@ -584,6 +628,24 @@ function onTransportChange(){
     var mode=document.getElementById('<%= ddlTransport.ClientID %>').value;
     document.getElementById('divCourier').style.display=mode==='COURIER'?'flex':'none';
     document.getElementById('divTracking').style.display=(mode==='COURIER')?'flex':'none';
+}
+function onConsigTransportChange(){
+    // Consignment-level transport toggle. Courier name + tracking only meaningful when mode=COURIER.
+    var ddl=document.getElementById('<%= ddlConsigTransport.ClientID %>');
+    if(!ddl)return;
+    var mode=ddl.value;
+    var dc=document.getElementById('<%= divConsigCourier.ClientID %>');
+    var dt=document.getElementById('<%= divConsigTracking.ClientID %>');
+    if(dc) dc.style.display=mode==='COURIER'?'flex':'none';
+    if(dt) dt.style.display=mode==='COURIER'?'flex':'none';
+}
+function toggleRetailDispatchForm(){
+    // Reveal the retail-dispatch tracking input when user clicks Dispatch on a FINALISED retail DC.
+    var p=document.getElementById('<%= pnlRetailDispatch.ClientID %>');
+    if(!p)return;
+    var vis=p.style.display!=='none' && p.style.display!=='';
+    p.style.display=vis?'none':'block';
+    if(!vis){ var t=document.getElementById('<%= txtRetailTracking.ClientID %>'); if(t) t.focus(); }
 }
 function switchShipTab(tab) {
     // Scope the query to sub-tab bar only — consignment tabs also use .ship-tab class
@@ -1083,19 +1145,6 @@ function addSAEditLine(){
 }
 </script>
 <script>
-function doCreateInvoiceDraftConfirm(){
-    syncLines();
-    var btn = document.getElementById('<%= btnCreateInvoiceDraft.ClientID %>');
-    var isUpdate = btn && btn.value.indexOf('Update') >= 0;
-    erpConfirm(isUpdate
-        ? 'Save this DC and update the existing Zoho Books invoice?'
-        : 'Save this DC and create a new Zoho Books invoice?', {
-        title: isUpdate ? 'Update Invoice' : 'Create Invoice',
-        type: 'info',
-        okText: isUpdate ? 'Update Invoice' : 'Create Invoice',
-        onOk: function(){ setTimeout(function(){ document.getElementById('<%= btnCreateInvoiceDraftHidden.ClientID %>').click(); }, 300); }
-    });
-}
 function doCreateInvoiceConfirm(){
     var btn = document.getElementById('<%= btnCreateInvoice.ClientID %>');
     var isUpdate = btn && btn.value.indexOf('Update') >= 0;

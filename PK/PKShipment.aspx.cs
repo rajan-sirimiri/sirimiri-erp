@@ -19,10 +19,21 @@ namespace PKApp
         protected TextBox txtDCNumber, txtDCDate, txtRemarks, txtConsigDate, txtConsigText, txtVehicleNo, txtCourierName, txtTrackingNo;
         protected DropDownList ddlCustomer, ddlChannel, ddlTransport, ddlDispatched, ddlArchived, ddlProjMonth, ddlProjYear;
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC, btnUnconvertDCFromForm;
-        protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
+        protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
         protected Button btnMarkReady;
         protected System.Web.UI.HtmlControls.HtmlButton btnMarkReadyTrigger;
+        // Consignment transport (truck-level — one consignment = one truck)
+        protected Panel pnlConsigTransport, pnlDCTransport;
+        protected DropDownList ddlConsigTransport;
+        protected TextBox txtConsigCourierName, txtConsigTrackingNo;
+        protected Button btnSaveConsigTransport;
+        protected System.Web.UI.HtmlControls.HtmlGenericControl divConsigCourier, divConsigTracking;
+        // Retail DC dispatch (retail DCs have no parent consignment — dispatched per-DC)
+        protected Button btnRetailDispatch, btnConfirmRetailDispatch;
+        protected Panel pnlRetailDispatch;
+        protected TextBox txtRetailTracking;
+        protected DropDownList ddlRetailDispatched;
         protected Button btnCreateRetailOrder, btnCreateRetailCustomerHidden;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle, lblConsigStatus;
@@ -112,6 +123,12 @@ namespace PKApp
 
         void BindConsigTabs()
         {
+            // Retail tab's active class is derived server-side from hfActiveTab so it doesn't
+            // incorrectly show as active after a new consignment is selected via postback.
+            string tab = hfActiveTab != null ? hfActiveTab.Value : "retail";
+            if (btnTabRetail != null)
+                btnTabRetail.CssClass = "ship-tab" + (tab == "retail" ? " active" : "");
+
             var dt = PKDatabaseHelper.GetActiveConsignments();
             if (rptConsigTabs != null) { rptConsigTabs.DataSource = dt; rptConsigTabs.DataBind(); }
         }
@@ -317,7 +334,6 @@ namespace PKApp
             hfLines.Value = "[]";
             lblFormTitle.Text = "New Delivery Challan";
             if (btnDeleteDC != null) btnDeleteDC.Visible = false;
-            if (btnCreateInvoiceDraft != null) btnCreateInvoiceDraft.Visible = false;
             if (ddlTransport != null) ddlTransport.SelectedIndex = 0;
             if (txtCourierName != null) txtCourierName.Text = "";
             if (txtTrackingNo != null) txtTrackingNo.Text = "";
@@ -337,12 +353,19 @@ namespace PKApp
                 hfActiveTab.Value = "consig";
                 txtConsigText.Text = "";
                 ResetDCForm();
+
+                // Rebind DC form scope for DI/ST customers (distributors/stores) — previously this wasn't
+                // happening and the customer dropdown still showed retail customers after creation.
+                BindCustomers("DI,ST");
+                BuildCustomerData("DI,ST");
+                BuildProductData();
+
+                BindConsigTabs();          // must run AFTER hfActiveTab/hfActiveConsig so correct tab is active
                 LoadConsigDCs(newId);
-                BindConsigTabs();
                 BindDispatchedDropdown();
 
                 var csg = PKDatabaseHelper.GetConsignmentById(newId);
-                ShowAlert("Consignment created: " + (csg != null ? csg["ConsignmentCode"].ToString() : ""), true);
+                ShowAlert("Consignment created: " + (csg != null ? csg["ConsignmentCode"].ToString() : "") + ". Ready to add DCs.", true);
             }
             catch (Exception ex) { ShowAlert("Error creating consignment: " + ex.Message, false); }
         }
@@ -405,6 +428,35 @@ namespace PKApp
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
 
+            // Consignment-level transport panel — visible on OPEN/READY only (before dispatch).
+            // Populate with saved values from PK_Consignments so edits are incremental.
+            if (pnlConsigTransport != null)
+            {
+                pnlConsigTransport.Visible = (status == "OPEN" || status == "READY");
+                if (pnlConsigTransport.Visible && ddlConsigTransport != null)
+                {
+                    string savedMode = csg.Table.Columns.Contains("TransportMode") && csg["TransportMode"] != DBNull.Value
+                        ? csg["TransportMode"].ToString() : "";
+                    string savedCourier = csg.Table.Columns.Contains("CourierName") && csg["CourierName"] != DBNull.Value
+                        ? csg["CourierName"].ToString() : "";
+                    string savedTrack = csg.Table.Columns.Contains("TrackingNumber") && csg["TrackingNumber"] != DBNull.Value
+                        ? csg["TrackingNumber"].ToString() : "";
+                    try { ddlConsigTransport.SelectedValue = savedMode; } catch { ddlConsigTransport.SelectedIndex = 0; }
+                    if (txtConsigCourierName != null) txtConsigCourierName.Text = savedCourier;
+                    if (txtConsigTrackingNo  != null) txtConsigTrackingNo.Text  = savedTrack;
+                    // Show courier/tracking only when mode is COURIER
+                    bool showCourierFields = savedMode == "COURIER";
+                    if (divConsigCourier  != null) divConsigCourier.Style["display"]  = showCourierFields ? "flex" : "none";
+                    if (divConsigTracking != null) divConsigTracking.Style["display"] = showCourierFields ? "flex" : "none";
+                }
+            }
+
+            // Per-DC transport fields are only meaningful for retail DCs (no parent consignment).
+            // On a consignment tab, hide them — transport is set once at consignment level.
+            if (pnlDCTransport != null) pnlDCTransport.Visible = false;
+            // Retail-dispatched dropdown is retail-only
+            if (ddlRetailDispatched != null) ddlRetailDispatched.Visible = false;
+
             // DC form visibility: OPEN allows creating/editing DCs; READY/DISPATCHED/ARCHIVED is locked.
             // READY means PK has signalled "no more DCs" — even if DCs are all finalised, SA/PK can't add more.
             bool consigLocked = (status != "OPEN");
@@ -438,11 +490,18 @@ namespace PKApp
                 if (rptConsigDCs != null) { rptConsigDCs.DataSource = dcs; rptConsigDCs.DataBind(); }
                 if (pnlConsigEmpty != null) pnlConsigEmpty.Visible = dcs.Rows.Count == 0;
                 if (btnBulkInvoice != null) btnBulkInvoice.Visible = false;
+                if (btnMarkReadyTrigger != null) btnMarkReadyTrigger.Visible = false;
                 if (btnDispatchConsig != null) btnDispatchConsig.Visible = false;
                 if (btnArchiveConsig != null) btnArchiveConsig.Visible = false;
                 if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = false;
                 if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
                 if (pnlBulkResult != null) pnlBulkResult.Visible = false;
+                // Consignment-level transport is hidden on retail; retail DCs have their own DC-level transport.
+                if (pnlConsigTransport != null) pnlConsigTransport.Visible = false;
+                if (pnlDCTransport != null) pnlDCTransport.Visible = true;
+                // Retail-dispatched dropdown — only meaningful on Retail tab
+                if (ddlRetailDispatched != null) ddlRetailDispatched.Visible = true;
+                BindRetailDispatchedDropdown();
             }
             // Retail uses a "Create Retail Order" button flow — don't force the DC form open here.
             // The caller (btnTabRetail_Click / btnCreateRetailOrder_Click) controls form visibility explicitly.
@@ -457,20 +516,54 @@ namespace PKApp
             return "—";
         }
 
-        /// <summary>Render a coloured badge for the DC's current state. Handles all three values:
-        /// DRAFT (orange), FINALISED (green), CLOSED (grey — consignment has been dispatched).
-        /// Previously the inline ternary in the repeater only handled FINALISED and fell through
-        /// to "Draft" for everything else, causing CLOSED DCs to mis-display as Draft.</summary>
+        /// <summary>Render a coloured badge for the DC's current state. Handles all values:
+        /// DRAFT (orange), FINALISED (green), DISPATCHED (blue — retail DC dispatched),
+        /// CLOSED (grey — consignment has been dispatched). Previously the inline ternary in
+        /// the repeater only handled FINALISED and fell through to "Draft" for everything else.</summary>
         protected string GetDCStatusBadge(object status)
         {
             string s = status != null && status != DBNull.Value ? status.ToString() : "";
             switch (s)
             {
-                case "DRAFT":     return "<span class='badge-draft'>Draft</span>";
-                case "FINALISED": return "<span class='badge-final'>Finalised</span>";
-                case "CLOSED":    return "<span class='badge-closed'>Closed</span>";
-                default:          return "<span class='badge-draft'>" + s + "</span>";
+                case "DRAFT":      return "<span class='badge-draft'>Draft</span>";
+                case "FINALISED":  return "<span class='badge-final'>Finalised</span>";
+                case "DISPATCHED": return "<span class='badge-dispatched'>Dispatched</span>";
+                case "CLOSED":     return "<span class='badge-closed'>Closed</span>";
+                default:           return "<span class='badge-draft'>" + s + "</span>";
             }
+        }
+
+        /// <summary>Save the consignment-level transport (truck mode, courier, tracking).
+        /// Consignment-based DCs inherit transport from the parent consignment — no per-DC fields.
+        /// Retail DCs continue to manage their own transport at the DC level.</summary>
+        protected void btnSaveConsigTransport_Click(object s, EventArgs e)
+        {
+            int csgId = 0; int.TryParse(hfActiveConsig.Value, out csgId);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            // Refuse writes against locked consignments (READY/DISPATCHED/ARCHIVED). The transport
+            // strip is only displayed for OPEN/READY but UI may lag — double-check.
+            var csg = PKDatabaseHelper.GetConsignmentById(csgId);
+            if (csg == null) { ShowAlert("Consignment not found.", false); return; }
+            string cst = csg["Status"].ToString();
+            if (cst != "OPEN" && cst != "READY")
+            { ShowAlert("Transport cannot be modified — consignment is " + cst + ".", false); return; }
+
+            string mode     = ddlConsigTransport != null ? ddlConsigTransport.SelectedValue : "";
+            string courier  = txtConsigCourierName != null ? txtConsigCourierName.Text.Trim() : "";
+            string tracking = txtConsigTrackingNo  != null ? txtConsigTrackingNo.Text.Trim()  : "";
+
+            // COURIER mode needs at least a courier name to be meaningful
+            if (mode == "COURIER" && string.IsNullOrEmpty(courier))
+            { ShowAlert("Please enter a courier name (or choose Own Vehicle).", false); return; }
+
+            try
+            {
+                PKDatabaseHelper.UpdateConsignmentTransport(csgId, mode, courier, tracking);
+                ShowAlert("Transport details saved.", true);
+                LoadConsigDCs(csgId);
+            }
+            catch (Exception ex) { ShowAlert("Error saving transport: " + ex.Message, false); }
         }
 
         /// <summary>PK user clicks MARK READY on the consignment header. Flips OPEN → READY, which
@@ -543,6 +636,66 @@ namespace PKApp
                 LoadConsigDCs(csgId);
             }
             catch (Exception ex) { ShowAlert("Dispatch error: " + ex.Message, false); }
+        }
+
+        /// <summary>Confirm-dispatch for a retail DC. Reads tracking # from the inline form, marks
+        /// the DC as DISPATCHED, drops it from the active retail list, adds it to the dispatched
+        /// dropdown. Retail DCs are dispatched per-DC (no consignment); tracking is captured at
+        /// this moment because the courier/LR number is typically assigned right before handoff.</summary>
+        protected void btnConfirmRetailDispatch_Click(object s, EventArgs e)
+        {
+            int dcId = 0; int.TryParse(hfDCID.Value, out dcId);
+            if (dcId <= 0) { ShowAlert("No DC selected.", false); return; }
+
+            string tracking = txtRetailTracking != null ? txtRetailTracking.Text.Trim() : "";
+            // Tracking is optional (user may dispatch by own vehicle and add LR later), but warn
+            // if empty so users don't click Confirm by mistake.
+            // Hard requirement skipped — retail dispatches sometimes happen without a tracking #.
+
+            try
+            {
+                PKDatabaseHelper.DispatchRetailDC(dcId, tracking, UserID);
+                ShowAlert("Retail DC dispatched" + (string.IsNullOrEmpty(tracking) ? "." : " with tracking " + tracking + "."), true);
+
+                // Clear the DC form — the dispatched DC is no longer active
+                hfDCID.Value = "0";
+                ResetDCForm();
+                if (pnlLocked != null) pnlLocked.Visible = false;
+                if (pnlForm != null) pnlForm.Visible = false;
+                if (pnlRetailDispatch != null) pnlRetailDispatch.Visible = false;
+
+                // Refresh retail views — active list + dispatched dropdown
+                LoadRetailDCs();
+                BindRetailDispatchedDropdown();
+            }
+            catch (Exception ex) { ShowAlert("Dispatch error: " + ex.Message, false); }
+        }
+
+        /// <summary>User picks a dispatched retail DC from the dropdown — load it in read-only view.</summary>
+        protected void ddlRetailDispatched_Changed(object sender, EventArgs e)
+        {
+            if (ddlRetailDispatched == null) return;
+            int dcId = 0; int.TryParse(ddlRetailDispatched.SelectedValue, out dcId);
+            if (dcId <= 0) return;
+
+            // Switch to retail context and load the DC in the locked view
+            hfActiveTab.Value = "retail";
+            hfActiveConsig.Value = "0";
+            LoadDC(dcId);
+        }
+
+        /// <summary>Populate the retail-dispatched dropdown on the Retail tab.</summary>
+        void BindRetailDispatchedDropdown()
+        {
+            if (ddlRetailDispatched == null) return;
+            var dt = PKDatabaseHelper.GetDispatchedRetailDCs();
+            ddlRetailDispatched.Items.Clear();
+            ddlRetailDispatched.Items.Add(new ListItem("Dispatched Retail (" + dt.Rows.Count + ")", "0"));
+            foreach (DataRow r in dt.Rows)
+            {
+                string label = r["DCNumber"].ToString() + " — " + r["CustomerName"];
+                ddlRetailDispatched.Items.Add(new ListItem(label, r["DCID"].ToString()));
+            }
         }
 
         protected void btnArchiveConsig_Click(object s, EventArgs e)
@@ -863,10 +1016,21 @@ namespace PKApp
                 int jpc = Convert.ToInt32(stockRow["ContainersPerCase"]);
                 if (jpc <= 0) jpc = 12;
 
+                string src = string.IsNullOrEmpty(line.Source) ? "CASE" : line.Source;
+
+                // Case-multiple enforcement: when shipping JAR/BOX/PCS from cases, quantity MUST be
+                // a multiple of the case pack size. We can't break a case mid-dispatch — partial-case
+                // picks require Source=LOOSE. Mirrors SA edit behaviour.
+                if (src == "CASE" && line.SellingForm != "CASE" && (line.Qty % jpc) != 0)
+                {
+                    ShowAlert(line.SellingForm + " quantity for " + stockRow["ProductName"] +
+                        " must be a multiple of " + jpc + " when sourcing from Cases. Change Source to 'Loose' or adjust quantity.", false);
+                    return;
+                }
+
                 if (!productNeeds.ContainsKey(line.ProductID))
                     productNeeds[line.ProductID] = new int[] { 0, 0 };
 
-                string src = string.IsNullOrEmpty(line.Source) ? "CASE" : line.Source;
                 if (src == "CASE")
                 {
                     int cases = line.SellingForm == "CASE" ? line.Qty : (int)Math.Ceiling((double)line.Qty / jpc);
@@ -978,29 +1142,21 @@ namespace PKApp
                 var dc = PKDatabaseHelper.GetDCById(dcId);
                 if (dc != null) txtDCNumber.Text = dc["DCNumber"].ToString();
 
-                // Save transport details
-                string transport = ddlTransport != null ? ddlTransport.SelectedValue : "";
-                string courier = txtCourierName != null ? txtCourierName.Text.Trim() : "";
-                string tracking = txtTrackingNo != null ? txtTrackingNo.Text.Trim() : "";
-                if (!string.IsNullOrEmpty(transport))
-                    PKDatabaseHelper.UpdateDCTransport(dcId, transport, courier, tracking);
+                // Save transport details — only for RETAIL DCs (no consignment). Consignment-based
+                // DCs inherit transport from the parent consignment via pnlConsigTransport.
+                if (activeTab == "retail")
+                {
+                    string transport = ddlTransport != null ? ddlTransport.SelectedValue : "";
+                    string courier = txtCourierName != null ? txtCourierName.Text.Trim() : "";
+                    string tracking = txtTrackingNo != null ? txtTrackingNo.Text.Trim() : "";
+                    if (!string.IsNullOrEmpty(transport))
+                        PKDatabaseHelper.UpdateDCTransport(dcId, transport, courier, tracking);
+                }
 
                 ShowAlert("Delivery Challan saved as Draft. Grand Total: ₹" + grandTotal.ToString("N2"), true);
                 BuildProductData();
                 BuildCustomerData(GetCustomerTypeFilter());
                 BindDCList();
-                // Show invoice button after save
-                if (btnCreateInvoiceDraft != null)
-                {
-                    btnCreateInvoiceDraft.Visible = true;
-                    try
-                    {
-                        var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
-                        bool hasInv = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
-                        btnCreateInvoiceDraft.Text = hasInv ? "Update Invoice in Zoho" : "Create Invoice in Zoho";
-                    }
-                    catch { }
-                }
                 if (btnDeleteDC != null) btnDeleteDC.Visible = true;
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
@@ -1051,29 +1207,6 @@ namespace PKApp
                 BindDCList();
             }
             catch (Exception ex) { ShowAlert("Error: " + ex.Message, false); }
-        }
-
-        // ── CREATE ZOHO INVOICE (from Draft) ──
-        protected void btnCreateInvoiceDraft_Click(object s, EventArgs e)
-        {
-            // Save draft first
-            btnDraftSave_Click(s, e);
-            int dcId = Convert.ToInt32(hfDCID.Value);
-            if (dcId == 0) return;
-
-            string channel = ddlChannel != null ? ddlChannel.SelectedValue : "GT";
-            try
-            {
-                string result = StockApp.DAL.ZohoHelper.CreateInvoiceFromDC(dcId, channel, UserID);
-                if (result.StartsWith("OK:"))
-                    ShowAlert("Draft saved. Zoho Invoice " + result.Substring(3) + " created.", true);
-                else if (result.StartsWith("UPDATED:"))
-                    ShowAlert("Draft saved. Zoho Invoice " + result.Substring(8) + " updated.", true);
-                else
-                    ShowAlert("Draft saved. Zoho: " + result, false);
-                LoadDC(dcId);
-            }
-            catch (Exception ex) { ShowAlert("Invoice error: " + ex.Message, false); }
         }
 
         // ── CREATE/UPDATE ZOHO INVOICE ──
@@ -1340,13 +1473,7 @@ namespace PKApp
                 if (txtTrackingNo != null && dc.Table.Columns.Contains("TrackingNumber") && dc["TrackingNumber"] != DBNull.Value)
                     txtTrackingNo.Text = dc["TrackingNumber"].ToString();
 
-                if (btnCreateInvoiceDraft != null)
-                {
-                    btnCreateInvoiceDraft.Visible = true;
-                    var invLog = StockApp.DAL.ZohoHelper.GetInvoiceLogForDC(dcId);
-                    bool hasInvoice = invLog != null && invLog["PushStatus"].ToString() == "Pushed";
-                    btnCreateInvoiceDraft.Text = hasInvoice ? "Update Invoice in Zoho" : "Create Invoice in Zoho";
-                }
+            }
             }
             else
             {
@@ -1355,6 +1482,21 @@ namespace PKApp
 
                 // Fix 5: finalised DC cannot be unconverted
                 if (btnUnconvertDCFromForm != null) btnUnconvertDCFromForm.Visible = false;
+
+                // Retail Dispatch button: visible only for FINALISED retail DCs (no parent consignment).
+                // Consignment-based DCs are dispatched collectively via the consignment's Dispatch button,
+                // so per-DC dispatch doesn't apply there.
+                bool isRetail = dc["ConsignmentID"] == DBNull.Value;
+                bool canDispatchRetail = isRetail && status == "FINALISED";
+                if (btnRetailDispatch != null) btnRetailDispatch.Visible = canDispatchRetail;
+                if (pnlRetailDispatch != null) pnlRetailDispatch.Visible = false; // collapsed until user clicks
+                if (txtRetailTracking != null)
+                {
+                    // Pre-fill with any saved tracking # so user can edit rather than re-type
+                    string saved = dc.Table.Columns.Contains("TrackingNumber") && dc["TrackingNumber"] != DBNull.Value
+                        ? dc["TrackingNumber"].ToString() : "";
+                    txtRetailTracking.Text = saved;
+                }
 
                 // Populate read-only view
                 if (lblLockedTitle != null)
