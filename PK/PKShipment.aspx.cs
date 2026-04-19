@@ -32,7 +32,8 @@ namespace PKApp
         // Sub-tab controls — runat=server on the buttons and panels so we can set CSS classes
         // server-side in OnPreRender, avoiding the JS startup-script flicker that was leaving
         // the wrong sub-tab active after postback.
-        protected System.Web.UI.HtmlControls.HtmlGenericControl subTabDC, subTabSA, tabDC, tabSA;
+        protected System.Web.UI.HtmlControls.HtmlButton subTabDC, subTabSA;
+        protected System.Web.UI.HtmlControls.HtmlGenericControl tabDC, tabSA;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
