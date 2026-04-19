@@ -984,10 +984,15 @@ namespace FINApp.DAL
                 "SELECT d.DCID, d.DCNumber, d.DCDate, d.Status, d.GrandTotal, d.InvoiceNumber, d.Channel," +
                 " d.ApprovedAt, d.ApprovedBy," +
                 " u.FullName AS ApprovedByName," +
-                " c.CustomerName, c.CustomerCode, c.CustomerType" +
+                " c.CustomerName, c.CustomerCode, c.CustomerType," +
+                " IFNULL(c.GSTIN,'') AS GSTIN," +
+                // Active e-invoice/EWB columns from FIN_EInvoiceLog (CancelledAt IS NULL)
+                " ei.IRN, ei.AckNo, ei.AckDate, ei.Status AS EInvoiceStatus," +
+                " ei.EWBNumber, ei.EWBDate, ei.EWBStatus" +
                 " FROM PK_DeliveryChallans d" +
                 " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
                 " LEFT JOIN users u ON u.UserID = d.ApprovedBy" +
+                " LEFT JOIN FIN_EInvoiceLog ei ON ei.DCID = d.DCID AND ei.CancelledAt IS NULL" +
                 " WHERE d.ConsignmentID=?cid" +
                 " ORDER BY d.DCID;",
                 new MySqlParameter("?cid", consignmentId));
@@ -1069,6 +1074,17 @@ namespace FINApp.DAL
             int dcId = Convert.ToInt32(row["DCID"]);
             bool isInterState = Convert.ToInt32(row["IsInterState"]) == 1;
 
+            // E-invoice guard: if an active IRN exists, the invoice is locked at NIC IRP and
+            // cannot be silently edited. Finance must cancel the e-invoice (within 24 hrs)
+            // and re-push after editing. We refuse the edit here with an actionable message.
+            string irn = GetActiveIRN(dcId);
+            if (!string.IsNullOrEmpty(irn))
+                throw new Exception(
+                    "Cannot edit — this DC has an active e-invoice (IRN " +
+                    (irn.Length > 12 ? irn.Substring(0, 12) + "..." : irn) +
+                    "). Cancel the e-invoice in Zoho Books first (within 24 hrs of generation), " +
+                    "record the cancellation in ERP, then edit the DC and re-push.");
+
             // Recompute line pricing from first principles (same formulas PK DC form uses)
             decimal unitRate  = Math.Round(mrp * (1m - marginPct / 100m), 2, MidpointRounding.AwayFromZero);
             decimal lineTotal = Math.Round(unitRate * qty, 2, MidpointRounding.AwayFromZero);
@@ -1113,6 +1129,14 @@ namespace FINApp.DAL
                 new MySqlParameter("?lid", lineId));
             if (row == null) throw new Exception("DC line not found.");
             int dcId = Convert.ToInt32(row["DCID"]);
+
+            // Same e-invoice guard as edit
+            string irn = GetActiveIRN(dcId);
+            if (!string.IsNullOrEmpty(irn))
+                throw new Exception(
+                    "Cannot delete line — DC has an active e-invoice (IRN " +
+                    (irn.Length > 12 ? irn.Substring(0, 12) + "..." : irn) +
+                    "). Cancel the e-invoice in Zoho first, record the cancellation in ERP, then edit.");
 
             ExecuteNonQuery("DELETE FROM PK_DCLines WHERE LineID=?lid;",
                 new MySqlParameter("?lid", lineId));
@@ -1203,6 +1227,155 @@ namespace FINApp.DAL
                 " ORDER BY IFNULL(DispatchedAt, CreatedAt) DESC" +
                 " LIMIT ?lim;",
                 new MySqlParameter("?lim", limit));
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // FIN E-INVOICE / E-WAY BILL — deep-link era
+        // ══════════════════════════════════════════════════════════════
+        // Phase 1 design: ERP doesn't call Zoho's e-invoicing REST endpoints
+        // (paths aren't publicly documented). Instead, finance clicks "Push to
+        // IRP" inside Zoho Books (via deep link) and pastes the IRN/ACK/QR
+        // back into ERP through this layer. Phase 2 will swap manual entry
+        // for automated API calls without changing the table or this surface.
+
+        /// <summary>Return the active e-invoice log row for a DC (CancelledAt IS NULL),
+        /// or NULL if none exists. There is at most one active row per DC; cancelled rows
+        /// are kept for audit but not returned by this method.</summary>
+        public static DataRow GetActiveEInvoice(int dcId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM FIN_EInvoiceLog WHERE DCID=?dc AND CancelledAt IS NULL" +
+                " ORDER BY LogID DESC LIMIT 1;",
+                new MySqlParameter("?dc", dcId));
+        }
+
+        /// <summary>Look up the Zoho invoice id for a DC. Used to build the deep-link
+        /// to Zoho Books for the "Push to IRP in Zoho" button.</summary>
+        public static string GetZohoInvoiceID(int dcId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT ZohoInvoiceID FROM zoho_invoicelog WHERE DCID=?dc AND ZohoInvoiceID IS NOT NULL" +
+                " ORDER BY LogID DESC LIMIT 1;",
+                new MySqlParameter("?dc", dcId));
+            return row != null && row["ZohoInvoiceID"] != DBNull.Value
+                ? row["ZohoInvoiceID"].ToString() : "";
+        }
+
+        /// <summary>Return the Zoho organization ID from Zoho_Config — needed to construct
+        /// deep links of the form https://books.zoho.in/app/{orgId}/invoices/{invId}.</summary>
+        public static string GetZohoOrgID()
+        {
+            var row = ExecuteQueryRow(
+                "SELECT OrganizationID FROM Zoho_Config WHERE ConfigID=1;");
+            return row != null && row["OrganizationID"] != DBNull.Value
+                ? row["OrganizationID"].ToString() : "";
+        }
+
+        /// <summary>Record an e-invoice generation that finance performed inside Zoho. They
+        /// paste the IRN, ACK number, and ACK date back from Zoho's invoice page. This is
+        /// the manual fallback for Phase 1 (no REST API yet). If a prior cancelled row
+        /// exists for this DC, a new row is created — the old one stays for audit.</summary>
+        public static void RecordEInvoiceManual(int dcId, string irn, string ackNo, DateTime? ackDate,
+            string zohoInvoiceId, int userId)
+        {
+            // Defensive: refuse if there's already an active (non-cancelled) row
+            var existing = GetActiveEInvoice(dcId);
+            if (existing != null)
+                throw new Exception("An active e-invoice already exists for this DC. Cancel it first before recording a new one.");
+
+            ExecuteNonQuery(
+                "INSERT INTO FIN_EInvoiceLog (DCID, ZohoInvoiceID, IRN, AckNo, AckDate, Status," +
+                " GeneratedAt, GeneratedBy)" +
+                " VALUES (?dc, ?zid, ?irn, ?ack, ?ackdt, 'GENERATED', ?now, ?by);",
+                new MySqlParameter("?dc", dcId),
+                new MySqlParameter("?zid", zohoInvoiceId ?? ""),
+                new MySqlParameter("?irn", irn ?? ""),
+                new MySqlParameter("?ack", ackNo ?? ""),
+                new MySqlParameter("?ackdt", (object)ackDate ?? DBNull.Value),
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by", userId));
+        }
+
+        /// <summary>Mark an active e-invoice as cancelled (ERP-side log only — finance must
+        /// also cancel inside Zoho/IRP, since we don't have API access yet). Stores reason
+        /// per NIC's enumeration: 1=Duplicate, 2=Data entry mistake, 3=Order cancelled,
+        /// 4=Others. Reason text is also stored verbatim so it shows up in audit reports.</summary>
+        public static void CancelEInvoiceManual(int dcId, string reason, int userId)
+        {
+            var active = GetActiveEInvoice(dcId);
+            if (active == null) throw new Exception("No active e-invoice found for this DC.");
+
+            ExecuteNonQuery(
+                "UPDATE FIN_EInvoiceLog SET Status='CANCELLED', CancelledAt=?now," +
+                " CancelledBy=?by, CancellationReason=?rsn" +
+                " WHERE LogID=?id;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?by", userId),
+                new MySqlParameter("?rsn", reason ?? ""),
+                new MySqlParameter("?id", Convert.ToInt32(active["LogID"])));
+        }
+
+        /// <summary>Record an e-way bill against an active e-invoice. EWB is a separate
+        /// NIC artefact (EWB number, date, validity). Lives on the same row as the IRN
+        /// since EWB is per-invoice. If no active e-invoice exists yet, refuses — EWB
+        /// must be linked to an IRN.</summary>
+        public static void RecordEWayBillManual(int dcId, string ewbNo, DateTime ewbDate,
+            DateTime? validUpto, int userId)
+        {
+            var active = GetActiveEInvoice(dcId);
+            if (active == null)
+                throw new Exception("Generate the e-invoice first — e-way bill must be linked to an IRN.");
+
+            ExecuteNonQuery(
+                "UPDATE FIN_EInvoiceLog SET EWBNumber=?ewb, EWBDate=?dt, EWBValidUpto=?valid," +
+                " EWBStatus='GENERATED' WHERE LogID=?id;",
+                new MySqlParameter("?ewb", ewbNo ?? ""),
+                new MySqlParameter("?dt", ewbDate),
+                new MySqlParameter("?valid", (object)validUpto ?? DBNull.Value),
+                new MySqlParameter("?id", Convert.ToInt32(active["LogID"])));
+        }
+
+        /// <summary>Mark an EWB as cancelled (ERP-side). Mirror of CancelEInvoiceManual but
+        /// EWB-only — the IRN stays GENERATED.</summary>
+        public static void CancelEWayBillManual(int dcId, string reason, int userId)
+        {
+            var active = GetActiveEInvoice(dcId);
+            if (active == null) throw new Exception("No active e-invoice for this DC.");
+            if (active["EWBNumber"] == DBNull.Value || string.IsNullOrEmpty(active["EWBNumber"].ToString()))
+                throw new Exception("No e-way bill recorded for this DC.");
+
+            ExecuteNonQuery(
+                "UPDATE FIN_EInvoiceLog SET EWBStatus='CANCELLED', EWBCancelledAt=?now," +
+                " EWBCancellationReason=?rsn WHERE LogID=?id;",
+                new MySqlParameter("?now", NowIST()),
+                new MySqlParameter("?rsn", reason ?? ""),
+                new MySqlParameter("?id", Convert.ToInt32(active["LogID"])));
+        }
+
+        /// <summary>Eligibility check: is this DC's customer B2B (has GSTIN) such that
+        /// e-invoicing is required? Per current rules, Sirimiri (>5 Cr aggregate turnover)
+        /// must e-invoice every B2B sale. B2C (no GSTIN) is exempt.</summary>
+        public static bool IsEInvoiceRequired(int dcId)
+        {
+            var row = ExecuteQueryRow(
+                "SELECT IFNULL(c.GSTIN,'') AS GSTIN" +
+                " FROM PK_DeliveryChallans d" +
+                " JOIN PK_Customers c ON c.CustomerID=d.CustomerID" +
+                " WHERE d.DCID=?dc;",
+                new MySqlParameter("?dc", dcId));
+            if (row == null) return false;
+            string gstin = row["GSTIN"].ToString().Trim();
+            // GSTIN is 15 chars (2-digit state + 10-digit PAN + 3 alphanumeric).
+            // We treat any non-empty GSTIN as B2B; deeper validation is Zoho's job.
+            return gstin.Length >= 15;
+        }
+
+        /// <summary>Returns the active IRN for a DC, or empty string. Used by the FIN
+        /// edit guard ("if IRN exists, refuse line edits and ask finance to cancel first").</summary>
+        public static string GetActiveIRN(int dcId)
+        {
+            var row = GetActiveEInvoice(dcId);
+            return row != null && row["IRN"] != DBNull.Value ? row["IRN"].ToString() : "";
         }
     }
 }

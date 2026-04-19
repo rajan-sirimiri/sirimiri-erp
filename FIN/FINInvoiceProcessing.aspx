@@ -36,8 +36,9 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .alert-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
 .alert-danger{background:#fdf3f2;color:#721c24;border:1px solid #f5c6cb;}
 .alert-info{background:#e6f2ff;color:#004085;border:1px solid #b3d7ff;}
+.alert-warn{background:#fff3cd;color:#856404;border:1px solid #ffeeba;}
 .dc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
-.dc-row{display:grid;grid-template-columns:140px 1fr 110px 130px 120px 90px 80px 80px;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);}
+.dc-row{display:grid;grid-template-columns:140px 1fr 100px 130px 120px 90px 110px 80px;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);}
 .dc-row:last-child{border-bottom:none;}
 .dc-row.header{background:#fafafa;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);}
 .dc-num{font-weight:700;color:var(--text);}
@@ -91,6 +92,29 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .header-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;font-size:12px;}
 .header-grid .hk{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:2px;}
 .header-grid .hv{font-weight:600;color:var(--text);}
+
+/* ---- E-Invoice column ---- */
+.einv-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.einv-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;display:inline-block;}
+.einv-b-none{background:#f5f5f5;color:#999;}
+.einv-b-b2c{background:#f0f0f0;color:#666;font-style:italic;}
+.einv-b-irp{background:#eafaf1;color:var(--teal);}
+.einv-b-cancel{background:#fdf3f2;color:var(--danger);}
+.einv-irn{font-size:9px;color:var(--text-dim);font-family:monospace;}
+.einv-link{font-size:10px;color:var(--accent);text-decoration:none;font-weight:600;cursor:pointer;border:none;background:transparent;padding:2px 4px;}
+.einv-link:hover{text-decoration:underline;}
+
+/* ---- Small inline modal for IRN entry ---- */
+.einv-modal-overlay{background:rgba(0,0,0,0.45);padding:30px 20px;border-radius:var(--radius);}
+.einv-modal{background:var(--surface);border-radius:var(--radius);max-width:520px;margin:0 auto;padding:24px 28px;box-shadow:0 12px 40px rgba(0,0,0,.18);}
+.einv-modal h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.05em;margin:0 0 4px 0;}
+.einv-modal .sub{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+.einv-modal label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:10px 0 4px;}
+.einv-modal input,.einv-modal select,.einv-modal textarea{width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;}
+.einv-modal textarea{min-height:60px;resize:vertical;}
+.einv-modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;}
+.einv-modal .helptext{font-size:11px;color:var(--text-muted);background:#f8f8f8;padding:10px 12px;border-radius:6px;margin-bottom:14px;line-height:1.5;}
+.einv-modal .helptext b{color:var(--text);}
 </style>
 </head>
 <body>
@@ -144,7 +168,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div>Invoice</div>
                 <div style="text-align:right;">Amount</div>
                 <div style="text-align:center;">Approved</div>
-                <div style="text-align:center;">PDF</div>
+                <div style="text-align:center;">E-Invoice</div>
                 <div style="text-align:center;">Review</div>
             </div>
             <asp:Repeater ID="rptDCs" runat="server" OnItemCommand="rptDCs_ItemCommand" OnItemDataBound="rptDCs_ItemDataBound">
@@ -159,7 +183,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                             <span class='dc-status-badge <%# GetStatusCss(Eval("Status").ToString()) %>'><%# GetStatusLabel(Eval("Status").ToString()) %></span>
                         </div>
                         <div class="dc-invoice">
-                            <%# Eval("InvoiceNumber") == DBNull.Value || Eval("InvoiceNumber").ToString() == "" ? "—" : Eval("InvoiceNumber") %>
+                            <asp:Literal runat="server" ID="litInvoice" />
                         </div>
                         <div class="dc-amount">&#x20B9;<%# Eval("GrandTotal") != DBNull.Value ? Convert.ToDecimal(Eval("GrandTotal")).ToString("N2") : "0.00" %></div>
                         <div class="approve-box">
@@ -170,9 +194,8 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                                 <asp:Literal runat="server" ID="litApproveMeta" />
                             </div>
                         </div>
-                        <div style="text-align:center;">
-                            <asp:LinkButton runat="server" ID="lnkDownloadInvoice" CssClass="btn-expand"
-                                CommandName="DownloadInvoice" CommandArgument='<%# Eval("DCID") %>'>PDF</asp:LinkButton>
+                        <div class="einv-cell">
+                            <asp:PlaceHolder runat="server" ID="phEInvoice" />
                         </div>
                         <div style="text-align:center;">
                             <asp:LinkButton runat="server" CssClass="btn-expand"
@@ -215,6 +238,91 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         <div class="empty">
             <div style="font-size:40px;margin-bottom:10px;opacity:.4;">&#x1F4EC;</div>
             No OPEN or READY consignments to process.
+        </div>
+    </asp:Panel>
+
+    <!-- ═══ E-INVOICE MODAL: RECORD IRN ═══
+         Shown when finance returns from Zoho after clicking "Push to IRP" and
+         needs to paste the IRN/ACK back into ERP. Hidden by default; opened by
+         the per-row "Record IRN" button via PostBack. -->
+    <asp:Panel ID="pnlRecordIRN" runat="server" Visible="false" CssClass="einv-modal-overlay" style="margin-top:20px;">
+        <div class="einv-modal">
+            <h3>Record IRN from Zoho</h3>
+            <div class="sub">
+                After pushing to IRP inside Zoho Books, copy the IRN, ACK number, and ACK date from
+                the invoice page and paste them here.
+            </div>
+            <div class="helptext">
+                <b>Where to find these in Zoho:</b> Open the invoice in Zoho Books — once successfully
+                pushed to IRP, the IRN, ACK Number, and ACK Date appear in the e-Invoice Details
+                section at the bottom of the invoice page.
+            </div>
+            <asp:HiddenField ID="hfRecordIRN_DCID" runat="server" Value="0" />
+            <asp:Label ID="lblRecordIRN_DCInfo" runat="server" Style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:10px;" />
+            <label>IRN (64-character hex)</label>
+            <asp:TextBox ID="txtIRN" runat="server" placeholder="e.g. a1b2c3d4...64 chars total" />
+            <label>ACK Number</label>
+            <asp:TextBox ID="txtAckNo" runat="server" placeholder="e.g. 112010036154980" />
+            <label>ACK Date (yyyy-mm-dd HH:mm)</label>
+            <asp:TextBox ID="txtAckDate" runat="server" placeholder="2026-04-19 14:30" />
+            <div class="actions">
+                <asp:Button ID="btnCancelIRN" runat="server" Text="Cancel" CssClass="btn btn-secondary"
+                    OnClick="btnCancelIRN_Click" CausesValidation="false" />
+                <asp:Button ID="btnSaveIRN" runat="server" Text="Save IRN" CssClass="btn btn-primary"
+                    OnClick="btnSaveIRN_Click" CausesValidation="false" />
+            </div>
+        </div>
+    </asp:Panel>
+
+    <!-- ═══ E-INVOICE MODAL: CANCEL IRN ═══ -->
+    <asp:Panel ID="pnlCancelEInv" runat="server" Visible="false" CssClass="einv-modal-overlay" style="margin-top:20px;">
+        <div class="einv-modal">
+            <h3>Cancel E-Invoice</h3>
+            <div class="sub">
+                Cancellation is allowed only within 24 hours of generation per NIC rules. You must also
+                cancel the e-invoice in Zoho Books — this only records the cancellation in ERP.
+            </div>
+            <asp:HiddenField ID="hfCancelEInv_DCID" runat="server" Value="0" />
+            <asp:Label ID="lblCancelEInv_Info" runat="server" Style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:10px;" />
+            <label>Reason (NIC code)</label>
+            <asp:DropDownList ID="ddlCancelReason" runat="server">
+                <asp:ListItem Value="1">1 — Duplicate</asp:ListItem>
+                <asp:ListItem Value="2">2 — Data entry mistake</asp:ListItem>
+                <asp:ListItem Value="3">3 — Order cancelled</asp:ListItem>
+                <asp:ListItem Value="4">4 — Others</asp:ListItem>
+            </asp:DropDownList>
+            <label>Notes (optional, but useful for audit)</label>
+            <asp:TextBox ID="txtCancelNotes" runat="server" TextMode="MultiLine" placeholder="e.g. Customer GSTIN was wrong; reissuing under correct GSTIN." />
+            <div class="actions">
+                <asp:Button ID="btnCancelEInv_Close" runat="server" Text="Close" CssClass="btn btn-secondary"
+                    OnClick="btnCancelEInvClose_Click" CausesValidation="false" />
+                <asp:Button ID="btnConfirmCancelEInv" runat="server" Text="Confirm Cancellation" CssClass="btn btn-danger"
+                    OnClick="btnConfirmCancelEInv_Click" CausesValidation="false" />
+            </div>
+        </div>
+    </asp:Panel>
+
+    <!-- ═══ E-WAY BILL MODAL: RECORD EWB ═══ -->
+    <asp:Panel ID="pnlRecordEWB" runat="server" Visible="false" CssClass="einv-modal-overlay" style="margin-top:20px;">
+        <div class="einv-modal">
+            <h3>Record E-Way Bill</h3>
+            <div class="sub">
+                Generate the EWB inside Zoho Books, then paste the EWB number and validity here.
+            </div>
+            <asp:HiddenField ID="hfRecordEWB_DCID" runat="server" Value="0" />
+            <asp:Label ID="lblRecordEWB_Info" runat="server" Style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:10px;" />
+            <label>EWB Number (12 digits)</label>
+            <asp:TextBox ID="txtEWBNo" runat="server" placeholder="e.g. 121012345678" />
+            <label>EWB Date (yyyy-mm-dd HH:mm)</label>
+            <asp:TextBox ID="txtEWBDate" runat="server" placeholder="2026-04-19 14:30" />
+            <label>Valid Up To (yyyy-mm-dd HH:mm, optional)</label>
+            <asp:TextBox ID="txtEWBValid" runat="server" placeholder="2026-04-20 23:59" />
+            <div class="actions">
+                <asp:Button ID="btnCancelEWB" runat="server" Text="Cancel" CssClass="btn btn-secondary"
+                    OnClick="btnCancelEWB_Click" CausesValidation="false" />
+                <asp:Button ID="btnSaveEWB" runat="server" Text="Save EWB" CssClass="btn btn-primary"
+                    OnClick="btnSaveEWB_Click" CausesValidation="false" />
+            </div>
         </div>
     </asp:Panel>
 

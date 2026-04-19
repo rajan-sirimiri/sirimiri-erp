@@ -20,6 +20,28 @@ namespace FINApp
         protected TextBox txtVehicleNo;
         protected HiddenField hfActiveDCID;
 
+        // Record IRN modal
+        protected Panel pnlRecordIRN;
+        protected HiddenField hfRecordIRN_DCID;
+        protected Label lblRecordIRN_DCInfo;
+        protected TextBox txtIRN, txtAckNo, txtAckDate;
+        protected Button btnSaveIRN, btnCancelIRN;
+
+        // Cancel E-Invoice modal
+        protected Panel pnlCancelEInv;
+        protected HiddenField hfCancelEInv_DCID;
+        protected Label lblCancelEInv_Info;
+        protected DropDownList ddlCancelReason;
+        protected TextBox txtCancelNotes;
+        protected Button btnConfirmCancelEInv, btnCancelEInv_Close;
+
+        // Record EWB modal
+        protected Panel pnlRecordEWB;
+        protected HiddenField hfRecordEWB_DCID;
+        protected Label lblRecordEWB_Info;
+        protected TextBox txtEWBNo, txtEWBDate, txtEWBValid;
+        protected Button btnSaveEWB, btnCancelEWB;
+
         private int UserID => Convert.ToInt32(Session["FIN_UserID"]);
         private string UserRole => Session["FIN_Role"]?.ToString() ?? "";
         private bool IsFinance => FINConsignments.IsFinanceRole(UserRole);
@@ -191,10 +213,34 @@ namespace FINApp
                 }
             }
 
-            // Invoice PDF link: show only if invoice number exists
-            var lnkPdf = e.Item.FindControl("lnkDownloadInvoice") as LinkButton;
-            if (lnkPdf != null)
-                lnkPdf.Visible = row["InvoiceNumber"] != DBNull.Value && row["InvoiceNumber"].ToString() != "";
+            // Invoice cell: invoice number + small "open in Zoho" deep link if Zoho invoice exists
+            var litInv = e.Item.FindControl("litInvoice") as Literal;
+            if (litInv != null)
+            {
+                string invNo = row["InvoiceNumber"] != DBNull.Value ? row["InvoiceNumber"].ToString() : "";
+                string zohoInvId = FINDatabaseHelper.GetZohoInvoiceID(dcId);
+                string zohoOrgId = FINDatabaseHelper.GetZohoOrgID();
+                if (string.IsNullOrEmpty(invNo))
+                {
+                    litInv.Text = "<span style='color:var(--text-dim);'>—</span>";
+                }
+                else if (!string.IsNullOrEmpty(zohoInvId) && !string.IsNullOrEmpty(zohoOrgId))
+                {
+                    string url = "https://books.zoho.in/app/" + zohoOrgId + "/invoices/" + zohoInvId;
+                    litInv.Text = Server.HtmlEncode(invNo) +
+                        " <a href='" + url + "' target='_blank' title='Open in Zoho Books' " +
+                        "style='color:var(--accent);text-decoration:none;font-size:11px;'>&#x2197;</a>";
+                }
+                else
+                {
+                    litInv.Text = Server.HtmlEncode(invNo);
+                }
+            }
+
+            // E-Invoice cell: status badge + action button(s) per state
+            var phEi = e.Item.FindControl("phEInvoice") as PlaceHolder;
+            if (phEi != null)
+                BuildEInvoiceCell(phEi, dcId, row);
 
             // Render the inline detail panel if this is the active DC
             if (dcId == ActiveDCID)
@@ -228,6 +274,27 @@ namespace FINApp
 
                 case "DeleteLine":
                     DeleteLineFromDetail(e.Item, dcId);
+                    break;
+
+                // ── e-invoice / EWB modal triggers ──
+                case "OpenIRPInZoho":
+                    OpenZohoInvoiceInNewTab(dcId);
+                    break;
+
+                case "RecordIRN":
+                    OpenRecordIRNModal(dcId);
+                    break;
+
+                case "CancelEInvoice":
+                    OpenCancelEInvoiceModal(dcId);
+                    break;
+
+                case "RecordEWB":
+                    OpenRecordEWBModal(dcId);
+                    break;
+
+                case "CancelEWB":
+                    CancelEWBNow(dcId);
                     break;
             }
         }
@@ -275,6 +342,22 @@ namespace FINApp
                     "This DC is " + st + " — its invoice is already in Zoho Books. Any line edit here will " +
                     "desync the Zoho invoice. You'll need to update the invoice in Zoho manually or use " +
                     "Sync-from-Zoho after saving." +
+                    "</div>"));
+            }
+
+            // E-invoice lock warning — much stronger than the Zoho warning above. Edits to a DC
+            // that has an active IRN will be REFUSED at the DAL level, so warn finance up-front
+            // that they need to cancel the e-invoice first.
+            string activeIRN = FINDatabaseHelper.GetActiveIRN(dcId);
+            if (!string.IsNullOrEmpty(activeIRN))
+            {
+                ph.Controls.Add(new LiteralControl(
+                    "<div class='fin-edit-warn' style='background:#fff3cd;border-color:#ffeeba;color:#856404;'>" +
+                    "<b>&#x1F512; E-Invoice locked</b>" +
+                    "This DC has an active e-invoice (IRN " +
+                    Server.HtmlEncode(activeIRN.Substring(0, Math.Min(16, activeIRN.Length))) + "...). " +
+                    "Line edits and deletes will be refused. To modify, first cancel the e-invoice in Zoho " +
+                    "Books (within 24 hrs of generation), record the cancellation in ERP, then edit here." +
                     "</div>"));
             }
 
@@ -601,6 +684,317 @@ namespace FINApp
             // Placeholder — same as bulk. Zoho PDF URL lookup would go here; the PK side uses
             // StockApp.DAL.ZohoHelper but it's a separate assembly we don't reference from FIN.
             ShowAlert("Per-DC invoice download is pending — view the invoice directly in Zoho for now.", "alert-info");
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // E-INVOICE / EWB CELL RENDERING + DEEP LINK
+        // ══════════════════════════════════════════════════════════════
+        // The e-invoice column shows one of these states per DC:
+        //   - B2C (no GSTIN): grey "B2C" badge, no actions
+        //   - B2B no IRN yet: "Push to IRP" button (deep link to Zoho) +
+        //     "Record IRN" button to enter IRN after pushing
+        //   - B2B with IRN: green badge with truncated IRN +
+        //     "Cancel" link + "EWB" sub-action
+        //   - Cancelled: red "Cancelled" badge + "Re-push" action
+        // Buttons are disabled when user isn't in a finance role.
+
+        void BuildEInvoiceCell(PlaceHolder ph, int dcId, DataRowView row)
+        {
+            ph.Controls.Clear();
+
+            // B2C check first — no GSTIN means no e-invoice required
+            string gstin = row["GSTIN"] != DBNull.Value ? row["GSTIN"].ToString().Trim() : "";
+            if (gstin.Length < 15)
+            {
+                ph.Controls.Add(new LiteralControl(
+                    "<span class='einv-badge einv-b-b2c' title='No GSTIN — e-invoicing not applicable for B2C invoices'>B2C</span>"));
+                return;
+            }
+
+            // Has IRN? Read from the joined columns on the row
+            string irn = row["IRN"] != DBNull.Value ? row["IRN"].ToString() : "";
+            string status = row["EInvoiceStatus"] != DBNull.Value ? row["EInvoiceStatus"].ToString() : "";
+
+            if (status == "GENERATED" && !string.IsNullOrEmpty(irn))
+            {
+                // Active e-invoice — show badge + IRN preview + actions
+                string irnPreview = irn.Length > 10 ? irn.Substring(0, 10) + "…" : irn;
+                ph.Controls.Add(new LiteralControl(
+                    "<span class='einv-badge einv-b-irp' title='" + Server.HtmlEncode(irn) + "'>IRN ✓</span>" +
+                    "<div class='einv-irn' title='" + Server.HtmlEncode(irn) + "'>" + Server.HtmlEncode(irnPreview) + "</div>"));
+
+                if (IsFinance)
+                {
+                    // EWB sub-action: record or show
+                    string ewbNo = row["EWBNumber"] != DBNull.Value ? row["EWBNumber"].ToString() : "";
+                    string ewbStatus = row["EWBStatus"] != DBNull.Value ? row["EWBStatus"].ToString() : "";
+                    if (string.IsNullOrEmpty(ewbNo))
+                    {
+                        var btnEWB = new LinkButton
+                        {
+                            CommandName = "RecordEWB", CommandArgument = dcId.ToString(),
+                            CssClass = "einv-link", Text = "+ EWB", CausesValidation = false
+                        };
+                        ph.Controls.Add(btnEWB);
+                    }
+                    else if (ewbStatus == "CANCELLED")
+                    {
+                        ph.Controls.Add(new LiteralControl(
+                            "<div class='einv-irn' style='color:var(--danger);'>EWB ✗</div>"));
+                    }
+                    else
+                    {
+                        ph.Controls.Add(new LiteralControl(
+                            "<div class='einv-irn' style='color:var(--teal);' title='EWB " + Server.HtmlEncode(ewbNo) + "'>EWB ✓ " + Server.HtmlEncode(ewbNo.Length > 8 ? ewbNo.Substring(0, 8) + "…" : ewbNo) + "</div>"));
+                        var btnEWBCancel = new LinkButton
+                        {
+                            CommandName = "CancelEWB", CommandArgument = dcId.ToString(),
+                            CssClass = "einv-link", Text = "✗ EWB", CausesValidation = false,
+                            OnClientClick = "return confirm('Mark EWB as cancelled? Cancel it in Zoho/IRP separately.');"
+                        };
+                        ph.Controls.Add(btnEWBCancel);
+                    }
+
+                    // Cancel e-invoice link
+                    var btnCancel = new LinkButton
+                    {
+                        CommandName = "CancelEInvoice", CommandArgument = dcId.ToString(),
+                        CssClass = "einv-link", Text = "Cancel", CausesValidation = false
+                    };
+                    btnCancel.Style["color"] = "var(--danger)";
+                    ph.Controls.Add(btnCancel);
+                }
+                return;
+            }
+
+            // No active e-invoice — show "Push to IRP in Zoho" + "Record IRN"
+            ph.Controls.Add(new LiteralControl(
+                "<span class='einv-badge einv-b-none'>Pending</span>"));
+
+            if (!IsFinance) return;
+
+            // Push to IRP — deep link to Zoho (only useful if Zoho invoice id is known)
+            string zohoInvId = FINDatabaseHelper.GetZohoInvoiceID(dcId);
+            string zohoOrgId = FINDatabaseHelper.GetZohoOrgID();
+            if (!string.IsNullOrEmpty(zohoInvId) && !string.IsNullOrEmpty(zohoOrgId))
+            {
+                string zohoUrl = "https://books.zoho.in/app/" + zohoOrgId + "/invoices/" + zohoInvId;
+                ph.Controls.Add(new LiteralControl(
+                    "<a href='" + zohoUrl + "' target='_blank' class='einv-link' " +
+                    "title='Open invoice in Zoho Books, then click Push to IRP'>↗ Push in Zoho</a>"));
+
+                var btnRecord = new LinkButton
+                {
+                    CommandName = "RecordIRN", CommandArgument = dcId.ToString(),
+                    CssClass = "einv-link", Text = "Record IRN", CausesValidation = false
+                };
+                ph.Controls.Add(btnRecord);
+            }
+            else
+            {
+                ph.Controls.Add(new LiteralControl(
+                    "<div class='einv-irn' style='color:var(--warn);'>No Zoho invoice yet</div>"));
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // MODAL OPENERS
+        // ══════════════════════════════════════════════════════════════
+
+        void OpenZohoInvoiceInNewTab(int dcId)
+        {
+            // Unused — handled directly via anchor tag in the cell. Kept for symmetry.
+        }
+
+        /// <summary>Open the Record-IRN modal pre-populated with DC info. Finance has just
+        /// returned from Zoho where they pushed the invoice to IRP.</summary>
+        void OpenRecordIRNModal(int dcId)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+
+            // Refuse if an active e-invoice already exists
+            string existingIrn = FINDatabaseHelper.GetActiveIRN(dcId);
+            if (!string.IsNullOrEmpty(existingIrn))
+            { ShowAlert("This DC already has an active e-invoice (IRN " + existingIrn.Substring(0, Math.Min(12, existingIrn.Length)) + "...). Cancel it first if you need to re-issue.", "alert-warn"); return; }
+
+            hfRecordIRN_DCID.Value = dcId.ToString();
+            txtIRN.Text = "";
+            txtAckNo.Text = "";
+            // Default ACK date to "now" since most users will record IRN immediately after pushing
+            txtAckDate.Text = FINDatabaseHelper.NowIST().ToString("yyyy-MM-dd HH:mm");
+
+            // Show DC context
+            string dcInfo = GetDCSummaryLine(dcId);
+            lblRecordIRN_DCInfo.Text = dcInfo;
+            pnlRecordIRN.Visible = true;
+        }
+
+        /// <summary>Open the cancel-e-invoice modal. Will refuse if no active IRN exists.</summary>
+        void OpenCancelEInvoiceModal(int dcId)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+
+            string irn = FINDatabaseHelper.GetActiveIRN(dcId);
+            if (string.IsNullOrEmpty(irn))
+            { ShowAlert("No active e-invoice on this DC to cancel.", "alert-warn"); return; }
+
+            hfCancelEInv_DCID.Value = dcId.ToString();
+            ddlCancelReason.SelectedIndex = 1; // default to "Data entry mistake"
+            txtCancelNotes.Text = "";
+            lblCancelEInv_Info.Text = GetDCSummaryLine(dcId) + " · IRN: " +
+                Server.HtmlEncode(irn.Substring(0, Math.Min(20, irn.Length))) + "...";
+            pnlCancelEInv.Visible = true;
+        }
+
+        void OpenRecordEWBModal(int dcId)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+
+            // EWB requires an active IRN
+            string irn = FINDatabaseHelper.GetActiveIRN(dcId);
+            if (string.IsNullOrEmpty(irn))
+            { ShowAlert("Generate the e-invoice first before recording an EWB.", "alert-warn"); return; }
+
+            hfRecordEWB_DCID.Value = dcId.ToString();
+            txtEWBNo.Text = "";
+            txtEWBDate.Text = FINDatabaseHelper.NowIST().ToString("yyyy-MM-dd HH:mm");
+            txtEWBValid.Text = "";
+            lblRecordEWB_Info.Text = GetDCSummaryLine(dcId);
+            pnlRecordEWB.Visible = true;
+        }
+
+        void CancelEWBNow(int dcId)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            try
+            {
+                FINDatabaseHelper.CancelEWayBillManual(dcId, "Cancelled from FIN dashboard", UserID);
+                ShowAlert("E-way bill marked as cancelled in ERP. Cancel it in Zoho/IRP separately.", "alert-success");
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("EWB cancel failed: " + ex.Message, "alert-danger"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // MODAL HANDLERS
+        // ══════════════════════════════════════════════════════════════
+
+        protected void btnSaveIRN_Click(object sender, EventArgs e)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            int dcId = 0; int.TryParse(hfRecordIRN_DCID.Value, out dcId);
+            if (dcId <= 0) { ShowAlert("DC reference lost — try again.", "alert-danger"); return; }
+
+            string irn = (txtIRN.Text ?? "").Trim();
+            string ackNo = (txtAckNo.Text ?? "").Trim();
+            string ackDtStr = (txtAckDate.Text ?? "").Trim();
+
+            if (string.IsNullOrEmpty(irn)) { ShowAlert("IRN is required.", "alert-danger"); return; }
+            if (irn.Length < 32) { ShowAlert("IRN looks too short — paste the full 64-char value from Zoho.", "alert-danger"); return; }
+            if (string.IsNullOrEmpty(ackNo)) { ShowAlert("ACK Number is required.", "alert-danger"); return; }
+
+            DateTime? ackDt = null;
+            if (!string.IsNullOrEmpty(ackDtStr))
+            {
+                DateTime parsed;
+                if (!DateTime.TryParse(ackDtStr, out parsed))
+                { ShowAlert("ACK Date is not a valid date — use yyyy-mm-dd HH:mm.", "alert-danger"); return; }
+                ackDt = parsed;
+            }
+
+            try
+            {
+                string zohoInvId = FINDatabaseHelper.GetZohoInvoiceID(dcId);
+                FINDatabaseHelper.RecordEInvoiceManual(dcId, irn, ackNo, ackDt, zohoInvId, UserID);
+                pnlRecordIRN.Visible = false;
+                ShowAlert("IRN recorded for DC. The e-invoice is now tracked in ERP.", "alert-success");
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("Save IRN failed: " + ex.Message, "alert-danger"); }
+        }
+
+        protected void btnCancelIRN_Click(object sender, EventArgs e)
+        {
+            pnlRecordIRN.Visible = false;
+        }
+
+        protected void btnConfirmCancelEInv_Click(object sender, EventArgs e)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            int dcId = 0; int.TryParse(hfCancelEInv_DCID.Value, out dcId);
+            if (dcId <= 0) return;
+
+            string reasonCode = ddlCancelReason.SelectedValue;
+            string reasonText = ddlCancelReason.SelectedItem != null ? ddlCancelReason.SelectedItem.Text : reasonCode;
+            string notes = (txtCancelNotes.Text ?? "").Trim();
+            string composed = reasonText + (string.IsNullOrEmpty(notes) ? "" : " — " + notes);
+
+            try
+            {
+                FINDatabaseHelper.CancelEInvoiceManual(dcId, composed, UserID);
+                pnlCancelEInv.Visible = false;
+                ShowAlert("E-invoice marked as cancelled. Remember to also cancel it in Zoho Books / IRP.", "alert-success");
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("Cancel failed: " + ex.Message, "alert-danger"); }
+        }
+
+        protected void btnCancelEInvClose_Click(object sender, EventArgs e)
+        {
+            pnlCancelEInv.Visible = false;
+        }
+
+        protected void btnSaveEWB_Click(object sender, EventArgs e)
+        {
+            if (!IsFinance) { ShowAlert("Not permitted for your role.", "alert-danger"); return; }
+            int dcId = 0; int.TryParse(hfRecordEWB_DCID.Value, out dcId);
+            if (dcId <= 0) return;
+
+            string ewb = (txtEWBNo.Text ?? "").Trim();
+            string ewbDtStr = (txtEWBDate.Text ?? "").Trim();
+            string validStr = (txtEWBValid.Text ?? "").Trim();
+
+            if (string.IsNullOrEmpty(ewb)) { ShowAlert("EWB Number is required.", "alert-danger"); return; }
+            DateTime ewbDt;
+            if (!DateTime.TryParse(ewbDtStr, out ewbDt))
+            { ShowAlert("EWB Date is required and must be a valid date.", "alert-danger"); return; }
+
+            DateTime? validUpto = null;
+            if (!string.IsNullOrEmpty(validStr))
+            {
+                DateTime parsedV;
+                if (!DateTime.TryParse(validStr, out parsedV))
+                { ShowAlert("Valid Up To is not a valid date.", "alert-danger"); return; }
+                validUpto = parsedV;
+            }
+
+            try
+            {
+                FINDatabaseHelper.RecordEWayBillManual(dcId, ewb, ewbDt, validUpto, UserID);
+                pnlRecordEWB.Visible = false;
+                ShowAlert("E-way bill recorded.", "alert-success");
+                RefreshCurrentConsignment();
+            }
+            catch (Exception ex) { ShowAlert("Save EWB failed: " + ex.Message, "alert-danger"); }
+        }
+
+        protected void btnCancelEWB_Click(object sender, EventArgs e)
+        {
+            pnlRecordEWB.Visible = false;
+        }
+
+        /// <summary>Build a one-line "DC-XXX-NNN — Customer Name" for modal headers.</summary>
+        string GetDCSummaryLine(int dcId)
+        {
+            try
+            {
+                var ds = FINDatabaseHelper.GetDCDetailForFIN(dcId);
+                if (ds.Tables["Header"].Rows.Count == 0) return "DC #" + dcId;
+                var h = ds.Tables["Header"].Rows[0];
+                return Server.HtmlEncode(h["DCNumber"].ToString()) + " — " +
+                       Server.HtmlEncode(h["CustomerName"].ToString());
+            }
+            catch { return "DC #" + dcId; }
         }
 
         // ══════════════════════════════════════════════════════════════
