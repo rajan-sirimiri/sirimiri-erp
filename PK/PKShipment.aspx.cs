@@ -126,7 +126,6 @@ namespace PKApp
         {
             hfActiveConsig.Value = "0";
             hfActiveTab.Value = "retail";
-            if (pnlConsigContent != null) pnlConsigContent.Visible = false;
             // Retail tab: form hidden by default — "+ Create Retail Order" button opens it
             pnlForm.Visible = false;
             if (pnlLocked != null) pnlLocked.Visible = false;
@@ -136,7 +135,7 @@ namespace PKApp
             BuildCustomerData("RT");
             BindConsigTabs();
             ConfigureTransportModesForTab();
-            // Show retail DCs list
+            // Show retail DCs list (LoadRetailDCs sets pnlConsigContent.Visible=true)
             LoadRetailDCs();
         }
 
@@ -403,7 +402,9 @@ namespace PKApp
             if (pnlConsigDCs != null)
             {
                 pnlConsigDCs.Visible = true;
-                if (pnlConsigContent != null) pnlConsigContent.Visible = dcs.Rows.Count > 0;
+                // On Retail tab, always show pnlConsigContent (it wraps the DC list + Create Retail bar + DC form).
+                // Previously this was `dcs.Rows.Count > 0` which hid everything when the list was empty.
+                if (pnlConsigContent != null) pnlConsigContent.Visible = true;
                 if (lblConsigDCTitle != null) lblConsigDCTitle.Text = "Retail Orders — " + dcs.Rows.Count + " DC(s)";
                 if (lblConsigStatus != null) { lblConsigStatus.Text = ""; lblConsigStatus.Visible = false; }
                 if (rptConsigDCs != null) { rptConsigDCs.DataSource = dcs; rptConsigDCs.DataBind(); }
@@ -415,8 +416,8 @@ namespace PKApp
                 if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
                 if (pnlBulkResult != null) pnlBulkResult.Visible = false;
             }
-            // Show form for retail even when consignment content not visible
-            pnlForm.Visible = true;
+            // Retail uses a "Create Retail Order" button flow — don't force the DC form open here.
+            // The caller (btnTabRetail_Click / btnCreateRetailOrder_Click) controls form visibility explicitly.
         }
 
         protected string GetTransportLabel(object mode, object courier)
@@ -462,11 +463,16 @@ namespace PKApp
                 ShowAlert("Consignment archived.", true);
                 hfActiveConsig.Value = "0";
                 hfActiveTab.Value = "retail";
-                if (pnlConsigContent != null) pnlConsigContent.Visible = false;
-                pnlForm.Visible = true;
+                // Switch back to Retail view after archive — hide form, show Create Retail bar, load retail DC list
+                pnlForm.Visible = false;
+                if (pnlCreateRetailBar != null) pnlCreateRetailBar.Visible = true;
+                BindCustomers("RT");
+                BuildCustomerData("RT");
                 BindConsigTabs();
                 BindDispatchedDropdown();
                 BindArchivedDropdown();
+                ConfigureTransportModesForTab();
+                LoadRetailDCs();
             }
             catch (Exception ex) { ShowAlert("Archive error: " + ex.Message, false); }
         }
