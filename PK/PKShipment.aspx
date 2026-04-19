@@ -194,14 +194,16 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div>
     </asp:Panel>
 
-    <!-- SUB-TABS: DCs | Sales Force Orders -->
+    <!-- SUB-TABS: DCs | Sales Force Orders.
+         The .active class is set server-side in SyncSubTabClasses() based on hfSubTab.Value so
+         the correct tab is active immediately after every postback — no JS startup flicker. -->
     <asp:HiddenField ID="hfSubTab" runat="server" Value="dc"/>
     <div class="ship-tab-bar" id="subTabBar">
-        <button type="button" id="subTabDC" class="ship-tab active" onclick="switchShipTab('dc');return false;">Delivery Challans</button>
-        <button type="button" id="subTabSA" class="ship-tab" onclick="switchShipTab('sa');return false;">Sales Force Orders</button>
+        <button type="button" id="subTabDC" runat="server" class="ship-tab active" onclick="switchShipTab('dc');return false;">Delivery Challans</button>
+        <button type="button" id="subTabSA" runat="server" class="ship-tab" onclick="switchShipTab('sa');return false;">Sales Force Orders</button>
     </div>
 
-    <div id="tabDC" class="ship-tab-panel active">
+    <div id="tabDC" runat="server" class="ship-tab-panel active">
 
     <!-- ══════ CREATE RETAIL ORDER BUTTON (retail tab only) ══════ -->
     <asp:Panel ID="pnlCreateRetailBar" runat="server" Visible="false">
@@ -394,7 +396,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
     </div><!-- end tabDC -->
 
     <!-- ══════ SUB-TAB: SALES FORCE ORDERS ══════ -->
-    <div id="tabSA" class="ship-tab-panel">
+    <div id="tabSA" runat="server" class="ship-tab-panel">
     <div class="card">
         <div class="card-title">&#x1F4E6; Sales Force Orders</div>
         <asp:Panel ID="pnlSAEmpty" runat="server"><div class="empty-note">No pending orders from Sales Force</div></asp:Panel>
@@ -855,6 +857,9 @@ window.addEventListener('load',function(){
     }
     var raw=document.getElementById('<%= hfLines.ClientID %>').value;
     if(raw){try{lines=JSON.parse(raw);}catch(e){lines=[];}renderLines();}
+    // Sync courier/tracking field visibility with current transport selection
+    // (important when the form loads with Courier pre-selected, e.g. on Retail tab)
+    if (typeof onTransportChange === 'function') onTransportChange();
 });
 
 function onProductSelect(){

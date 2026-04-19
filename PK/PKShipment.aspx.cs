@@ -29,6 +29,10 @@ namespace PKApp
         protected Button btnConvertDC, btnDispatch, btnUnconvertDC, btnCloseSADetail, btnSaveSAEdit;
         protected Repeater rptViewLines, rptSAOrders, rptSALines, rptSAEditLines, rptProjections, rptConsigDCs, rptConsigTabs;
         protected Panel pnlProjEmpty;
+        // Sub-tab controls — runat=server on the buttons and panels so we can set CSS classes
+        // server-side in OnPreRender, avoiding the JS startup-script flicker that was leaving
+        // the wrong sub-tab active after postback.
+        protected System.Web.UI.HtmlControls.HtmlGenericControl subTabDC, subTabSA, tabDC, tabSA;
         protected int UserID => Convert.ToInt32(Session["PK_UserID"]);
 
         protected void Page_Load(object s, EventArgs e)
@@ -63,18 +67,25 @@ namespace PKApp
             BindSAOrders();
         }
 
-        // Fix 4: Re-apply the persisted sub-tab selection after every postback.
-        // `hfSubTab` is written client-side by switchShipTab() and read here — the JS reads the
-        // value from the hidden field and invokes switchShipTab() to restore .active classes on
-        // the correct sub-tab button and panel. Without this, every postback reset the view to
-        // "Delivery Challans" because the DC sub-tab has `class="ship-tab active"` hardcoded.
+        // Re-apply the persisted sub-tab selection after every postback by directly setting
+        // the CSS `active` class on the runat=server sub-tab controls. This runs after all
+        // event handlers have set hfSubTab.Value, and produces HTML where the correct tab is
+        // already active — no JS startup script, no flicker, no race condition.
         protected override void OnPreRender(EventArgs e)
         {
             base.OnPreRender(e);
-            string tab = hfSubTab != null && !string.IsNullOrEmpty(hfSubTab.Value) ? hfSubTab.Value : "dc";
-            if (tab != "dc" && tab != "sa") tab = "dc";
-            string js = "if(typeof switchShipTab==='function'){switchShipTab('" + tab + "');}";
-            Page.ClientScript.RegisterStartupScript(GetType(), "restoreSubTab", js, true);
+            SyncSubTabClasses();
+        }
+
+        /// <summary>Sets CSS classes on subTabDC/subTabSA buttons and tabDC/tabSA panels
+        /// based on hfSubTab.Value. Called from OnPreRender so it runs after handlers.</summary>
+        void SyncSubTabClasses()
+        {
+            bool onSA = hfSubTab != null && hfSubTab.Value == "sa";
+            if (subTabDC != null) subTabDC.Attributes["class"] = onSA ? "ship-tab" : "ship-tab active";
+            if (subTabSA != null) subTabSA.Attributes["class"] = onSA ? "ship-tab active" : "ship-tab";
+            if (tabDC    != null) tabDC.Attributes["class"]    = onSA ? "ship-tab-panel" : "ship-tab-panel active";
+            if (tabSA    != null) tabSA.Attributes["class"]    = onSA ? "ship-tab-panel active" : "ship-tab-panel";
         }
 
         void BindCustomers(string typeFilter = null)

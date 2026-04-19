@@ -207,7 +207,9 @@ namespace StockApp
 
         private void SetActiveTab()
         {
-            string tab = hfTab.Value ?? "projection";
+            // Default landing tab is Consignments — that's where day-to-day SA work happens.
+            // Projections are a read-only reference and shouldn't be the first thing users see.
+            string tab = string.IsNullOrEmpty(hfTab.Value) ? "consignments" : hfTab.Value;
             pnlProjection.Visible = tab == "projection";
             if (pnlShipments != null) pnlShipments.Visible = false; // Legacy — hidden
             if (pnlConsignments != null) pnlConsignments.Visible = tab == "consignments";

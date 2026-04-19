@@ -86,7 +86,7 @@ tr:hover{background:rgba(41,128,185,0.04);}
     <label>Year</label><asp:DropDownList ID="ddlYear" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlYear_Changed"/>
     <div class="month-display"><asp:Label ID="lblMonthYear" runat="server"/></div>
 </div>
-<asp:HiddenField ID="hfTab" runat="server" Value="projection"/>
+<asp:HiddenField ID="hfTab" runat="server" Value="consignments"/>
 <div class="tab-bar">
     <asp:Button ID="btnTabProjection" runat="server" Text="&#x1F4CA; Projection" CssClass="tab-btn active" OnClick="btnTab_Click" CommandArgument="projection"/>
     <asp:Button ID="btnTabConsignments" runat="server" Text="&#x1F4E6; Consignments" CssClass="tab-btn" OnClick="btnTab_Click" CommandArgument="consignments"/>

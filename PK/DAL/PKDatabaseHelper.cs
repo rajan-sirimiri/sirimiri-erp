@@ -1801,7 +1801,9 @@ namespace PKApp.DAL
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
-                " WHERE sh.Status IN ('Order','Saved')" +
+                // Drafts ('Saved') are still being edited by the SA team — hide them from PK.
+                // Only show orders that have been submitted ('Order') or further along.
+                " WHERE sh.Status = 'Order'" +
                 " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;");
         }
 
@@ -1826,7 +1828,8 @@ namespace PKApp.DAL
                 " JOIN SA_Channels c ON c.ChannelID=sh.ChannelID" +
                 " LEFT JOIN SA_TransportModes tm ON tm.ModeID=sh.TransportModeID" +
                 " LEFT JOIN SA_ShipmentLines sl ON sl.ShipmentID=sh.ShipmentID" +
-                " WHERE sh.ConsignmentID=?cid AND sh.Status IN ('Order','Saved')" +
+                // Drafts ('Saved') are SA-team-only; PK sees them only after the SA user hits Create Shipment Order
+                " WHERE sh.ConsignmentID=?cid AND sh.Status = 'Order'" +
                 " GROUP BY sh.ShipmentID ORDER BY sh.ShipmentDate DESC;",
                 new MySqlParameter("?cid", consignmentId));
         }
@@ -2685,14 +2688,16 @@ namespace PKApp.DAL
                 new MySqlParameter("?sid", shipmentId));
         }
 
-        /// <summary>Get consignments that have at least one shipment order (for PK visibility).</summary>
+        /// <summary>Get consignments that have at least one submitted shipment order (for PK visibility).
+        /// Drafts ('Saved') are invisible to PK — they remain SA-team-only until the user clicks
+        /// "Create Shipment Order".</summary>
         public static DataTable GetConsignmentsWithShipments()
         {
             return ExecuteQuery(
                 "SELECT DISTINCT c.ConsignmentID, c.ConsignmentCode, c.ConsignmentDate, c.Status" +
                 " FROM PK_Consignments c" +
                 " JOIN SA_Shipments s ON s.ConsignmentID=c.ConsignmentID" +
-                " WHERE c.Status IN ('OPEN','READY') AND s.Status IN ('Order','Saved')" +
+                " WHERE c.Status IN ('OPEN','READY') AND s.Status = 'Order'" +
                 " ORDER BY c.ConsignmentDate DESC;");
         }
 
