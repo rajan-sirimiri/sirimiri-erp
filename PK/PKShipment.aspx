@@ -427,8 +427,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                 style="background:#1a9e6a;"/>
         </div>
 
-        <!-- Retail Dispatch form — appears when user clicks Dispatch on a FINALISED retail DC -->
-        <asp:Panel ID="pnlRetailDispatch" runat="server" Visible="false" style="margin-top:10px;background:#fffdf5;border:1px solid #f0e6c0;border-radius:8px;padding:12px;">
+        <!-- Retail Dispatch form — appears when user clicks Dispatch on a FINALISED retail DC.
+             Note: rendered into the DOM at all times (starts hidden via CSS display:none) so that
+             the toggleRetailDispatchForm() JS can find and show it without a postback. Using
+             asp:Panel Visible="false" would skip rendering entirely and break the toggle. -->
+        <asp:Panel ID="pnlRetailDispatch" runat="server" style="display:none;margin-top:10px;background:#fffdf5;border:1px solid #f0e6c0;border-radius:8px;padding:12px;">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">DISPATCH RETAIL DC</div>
             <div class="form-row" style="align-items:flex-end;gap:8px;">
                 <div class="form-group" style="flex:1;"><label style="font-size:10px;">Tracking / LR Number</label>

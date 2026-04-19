@@ -662,7 +662,8 @@ namespace PKApp
                 ResetDCForm();
                 if (pnlLocked != null) pnlLocked.Visible = false;
                 if (pnlForm != null) pnlForm.Visible = false;
-                if (pnlRetailDispatch != null) pnlRetailDispatch.Visible = false;
+                // Panel stays rendered (display:none) so toggleRetailDispatchForm can show/hide client-side
+                if (pnlRetailDispatch != null) pnlRetailDispatch.Style["display"] = "none";
 
                 // Refresh retail views — active list + dispatched dropdown
                 LoadRetailDCs();
@@ -1472,8 +1473,6 @@ namespace PKApp
                     txtCourierName.Text = dc["CourierName"].ToString();
                 if (txtTrackingNo != null && dc.Table.Columns.Contains("TrackingNumber") && dc["TrackingNumber"] != DBNull.Value)
                     txtTrackingNo.Text = dc["TrackingNumber"].ToString();
-
-            }
             }
             else
             {
@@ -1489,7 +1488,7 @@ namespace PKApp
                 bool isRetail = dc["ConsignmentID"] == DBNull.Value;
                 bool canDispatchRetail = isRetail && status == "FINALISED";
                 if (btnRetailDispatch != null) btnRetailDispatch.Visible = canDispatchRetail;
-                if (pnlRetailDispatch != null) pnlRetailDispatch.Visible = false; // collapsed until user clicks
+                if (pnlRetailDispatch != null) pnlRetailDispatch.Style["display"] = "none"; // collapsed until user clicks
                 if (txtRetailTracking != null)
                 {
                     // Pre-fill with any saved tracking # so user can edit rather than re-type
