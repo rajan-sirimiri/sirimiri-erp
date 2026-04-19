@@ -74,11 +74,22 @@ namespace FINApp
             }
             else
             {
-                // On postback, rebind so the dynamically-added per-line Save/Delete LinkButtons exist
-                // to receive their command events. The repeater's ViewState holds the declarative
-                // controls but dynamic ones built in BuildDCDetailInto are not persisted.
-                int csgId = 0; int.TryParse(ddlConsig.SelectedValue, out csgId);
-                if (csgId > 0) LoadConsignment(csgId);
+                // On postback, rebind ONLY when the user has a DC's detail panel open.
+                // The detail panel contains dynamically-added LinkButtons (per-line Save/Delete)
+                // that aren't preserved across postbacks via ViewState; they must be re-created
+                // in Page_Load so ASP.NET can dispatch their command events.
+                //
+                // For other postbacks (approval checkbox, dropdown change, modal buttons), the
+                // declarative controls in the repeater are restored from ViewState. Rebinding
+                // here would CLOBBER posted form values (e.g. checkbox state) with the OLD DB
+                // state before the event handler runs — breaking AutoPostBack controls inside
+                // the repeater. The event handlers themselves call RefreshCurrentConsignment
+                // after their work, so the UI catches up to the new DB state.
+                if (ActiveDCID > 0)
+                {
+                    int csgId = 0; int.TryParse(ddlConsig.SelectedValue, out csgId);
+                    if (csgId > 0) LoadConsignment(csgId);
+                }
             }
         }
 
@@ -592,22 +603,22 @@ namespace FINApp
             int dcId = 0; int.TryParse(hf.Value, out dcId);
             if (dcId <= 0) return;
 
-            // IMPORTANT: We rebind the repeater on every postback in Page_Load (so that the
-            // dynamically-added per-line Save/Delete LinkButtons in the detail panel can receive
-            // their commands). That rebind reads the OLD DB value into chk.Checked and clobbers
-            // the posted form value — by the time we get here, chk.Checked is the value from
-            // the database BEFORE the user's click, which is the opposite of what they intended.
-            // To recover the actual user intent, read the posted form value directly.
-            string posted = Request.Form[chk.UniqueID];
-            // Posted = "on" (checkbox was checked), null/empty (unchecked).
-            // For an AutoPostBack checkbox, only ONE checkbox posts at a time — the one that
-            // changed — so finding "on" here means the user just checked it; missing means just
-            // unchecked.
+            // Determine the user's intent. Two cases:
+            //   - ActiveDCID == 0: Page_Load skipped the rebind, ViewState handled the repeater,
+            //     and chk.Checked reflects the user's posted value correctly.
+            //   - ActiveDCID > 0: Page_Load rebound the repeater (needed for dynamic line buttons),
+            //     which clobbered chk.Checked with the OLD DB value. Fall back to Request.Form
+            //     to recover the posted value.
             bool wantApproved;
-            if (posted != null)
-                wantApproved = posted.Equals("on", StringComparison.OrdinalIgnoreCase);
+            if (ActiveDCID > 0)
+            {
+                string posted = Request.Form[chk.UniqueID];
+                wantApproved = posted != null && posted.IndexOf("on", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
             else
-                wantApproved = false;
+            {
+                wantApproved = chk.Checked;
+            }
 
             try
             {
