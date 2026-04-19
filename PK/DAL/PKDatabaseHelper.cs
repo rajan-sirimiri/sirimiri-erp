@@ -1683,7 +1683,11 @@ namespace PKApp.DAL
                 new MySqlParameter("?id",  dcId));
         }
 
-        /// Finalise a DC — locks it. Auto-transitions parent consignment to READY if all DCs are finalised.
+        /// Finalise a DC — locks it. If this DC belonged to a READY consignment but somehow reverts
+        /// to DRAFT later (e.g., via Unconvert), the caller's revert path uses
+        /// <see cref="RevertConsignmentIfDraftsExist"/> to drop the consignment back to OPEN.
+        /// DC finalisation itself is NOT sufficient to promote a consignment to READY — that's an
+        /// explicit PK action via <see cref="MarkConsignmentReady"/>.
         public static void FinaliseDeliveryChallan(int dcId, int userId)
         {
             ExecuteNonQuery(
@@ -1691,17 +1695,9 @@ namespace PKApp.DAL
                 new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?by",  userId),
                 new MySqlParameter("?id",  dcId));
-
-            // If this DC belongs to a consignment, recompute the consignment state. When every DC is
-            // finalised + invoiced the consignment flips OPEN → READY (and the Dispatch button unlocks).
-            var row = ExecuteQueryRow(
-                "SELECT ConsignmentID FROM PK_DeliveryChallans WHERE DCID=?id;",
-                new MySqlParameter("?id", dcId));
-            if (row != null && row["ConsignmentID"] != DBNull.Value)
-            {
-                int csgId = Convert.ToInt32(row["ConsignmentID"]);
-                if (csgId > 0) UpdateConsignmentReadyStatus(csgId);
-            }
+            // NOTE: intentionally no UpdateConsignmentReadyStatus() call here. Finalising a DC is a
+            // necessary but not sufficient condition for READY — PK must explicitly click the READY
+            // button on the consignment header to signal "no more DCs".
         }
 
         /// Get DC header by ID
@@ -1816,8 +1812,8 @@ namespace PKApp.DAL
             return CanEditDC(dcId);
         }
 
-        /// <summary>True only when the consignment is OPEN. READY is "lock for further changes,
-        /// waiting to be dispatched" — no new DCs should be added once everything is finalised.</summary>
+        /// <summary>True only when the consignment is OPEN. READY means PK has explicitly locked
+        /// new-DC additions via the READY button — new DCs rejected at that point.</summary>
         public static bool CanAddDCToConsignment(int consignmentId)
         {
             if (consignmentId <= 0) return true; // retail (no consignment) is handled separately
@@ -1826,21 +1822,17 @@ namespace PKApp.DAL
             return csg["Status"].ToString() == "OPEN";
         }
 
-        /// <summary>True only when consignment is READY (or OPEN but every DC is FINALISED — defensive).
-        /// Gates the Dispatch button at the UI + server levels.</summary>
+        /// <summary>True only when consignment is READY AND every DC is FINALISED. READY is set
+        /// explicitly by PK clicking the "Mark READY" button — DC finalisation alone is not
+        /// enough. Defensive all-DCs-finalised check guards against race conditions where a DC
+        /// was reverted to DRAFT between marking READY and clicking Dispatch.</summary>
         public static bool CanDispatchConsignment(int consignmentId)
         {
             if (consignmentId <= 0) return false;
             var csg = GetConsignmentById(consignmentId);
             if (csg == null) return false;
-            string st = csg["Status"].ToString();
-            if (st != "OPEN" && st != "READY") return false;
-
-            var dcs = GetDCsByConsignment(consignmentId);
-            if (dcs.Rows.Count == 0) return false; // can't dispatch an empty consignment
-            foreach (DataRow dc in dcs.Rows)
-                if (dc["Status"].ToString() != "FINALISED") return false;
-            return true;
+            if (csg["Status"].ToString() != "READY") return false;
+            return AllDCsFinalised(consignmentId);
         }
 
         /// <summary>Returns a list of DC numbers that are still in DRAFT within the given consignment.
@@ -2782,7 +2774,20 @@ namespace PKApp.DAL
                 new MySqlParameter("?cid", consignmentId));
         }
 
-        /// <summary>Check if consignment is ready — all DCs finalised + all invoiced.</summary>
+        /// <summary>Check whether every DC in the consignment is FINALISED (the eligibility test for
+        /// the PK-only "READY" button to be shown). Empty consignments (no DCs) return false.</summary>
+        public static bool AllDCsFinalised(int consignmentId)
+        {
+            var dcs = GetDCsByConsignment(consignmentId);
+            if (dcs.Rows.Count == 0) return false;
+            foreach (DataRow dc in dcs.Rows)
+                if (dc["Status"].ToString() != "FINALISED") return false;
+            return true;
+        }
+
+        /// <summary>[Legacy] Old behaviour returned "READY" when all DCs were finalised+invoiced;
+        /// kept only as an informational helper. State transitions no longer happen automatically —
+        /// READY is set explicitly via MarkConsignmentReady().</summary>
         public static string GetConsignmentReadyStatus(int consignmentId)
         {
             var dcs = GetDCsByConsignment(consignmentId);
@@ -2797,16 +2802,64 @@ namespace PKApp.DAL
             return (allFinalised && allInvoiced) ? "READY" : "OPEN";
         }
 
-        /// <summary>Auto-transition between OPEN and READY based on DC states. Safe to call after any DC
-        /// state change (finalise, unconvert, delete draft, invoice creation). Only touches OPEN/READY
-        /// rows — DISPATCHED/CLOSED/ARCHIVED are terminal and never changed by this helper.</summary>
-        public static void UpdateConsignmentReadyStatus(int consignmentId)
+        /// <summary>Auto-revert only: if the consignment is READY but any DC is no longer FINALISED
+        /// (e.g., a DRAFT was created via Unconvert or deletion/unfinalise pushed state backwards),
+        /// drop it back to OPEN so new DCs can be added again.
+        /// Does NOT promote OPEN → READY — that's an explicit PK action only.</summary>
+        public static void RevertConsignmentIfDraftsExist(int consignmentId)
         {
             if (consignmentId <= 0) return;
-            string target = GetConsignmentReadyStatus(consignmentId); // "OPEN" or "READY"
+            var csg = GetConsignmentById(consignmentId);
+            if (csg == null) return;
+            if (csg["Status"].ToString() != "READY") return; // only care about READY → OPEN
+            if (AllDCsFinalised(consignmentId)) return; // still valid READY
+
             ExecuteNonQuery(
-                "UPDATE PK_Consignments SET Status=?st WHERE ConsignmentID=?id AND Status IN ('OPEN','READY');",
-                new MySqlParameter("?st", target),
+                "UPDATE PK_Consignments SET Status='OPEN' WHERE ConsignmentID=?id AND Status='READY';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>[Legacy shim] Older code called UpdateConsignmentReadyStatus after DC changes
+        /// expecting bidirectional auto-transition. That auto-promote behaviour has been removed —
+        /// we now only auto-revert READY→OPEN when drafts exist. OPEN→READY is manual.
+        /// Kept as a shim so existing call sites don't break.</summary>
+        public static void UpdateConsignmentReadyStatus(int consignmentId)
+        {
+            RevertConsignmentIfDraftsExist(consignmentId);
+        }
+
+        /// <summary>True if the PK user can click the "Mark READY" button for this consignment.
+        /// Rules: status must be OPEN, at least one DC exists, and every DC is FINALISED.</summary>
+        public static bool CanMarkConsignmentReady(int consignmentId)
+        {
+            if (consignmentId <= 0) return false;
+            var csg = GetConsignmentById(consignmentId);
+            if (csg == null) return false;
+            if (csg["Status"].ToString() != "OPEN") return false;
+            return AllDCsFinalised(consignmentId);
+        }
+
+        /// <summary>Explicit PK action: mark an OPEN consignment as READY for dispatch.
+        /// Refuses if any DC is still DRAFT — that's the whole point of this flag. Callers should
+        /// check <see cref="CanMarkConsignmentReady"/> first and display a reason if it returns
+        /// false (e.g., "2 DCs still in DRAFT").</summary>
+        public static void MarkConsignmentReady(int consignmentId)
+        {
+            if (!CanMarkConsignmentReady(consignmentId))
+                throw new Exception("Consignment cannot be marked READY — not all DCs are finalised.");
+
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status='READY' WHERE ConsignmentID=?id AND Status='OPEN';",
+                new MySqlParameter("?id", consignmentId));
+        }
+
+        /// <summary>[Future: PK/Admin-only] Revert a READY consignment back to OPEN so that new DCs
+        /// can be added. Not wired to any UI yet — kept here so the flow is complete from the DAL.
+        /// Refuses if the consignment has already been dispatched.</summary>
+        public static void UnmarkConsignmentReady(int consignmentId)
+        {
+            ExecuteNonQuery(
+                "UPDATE PK_Consignments SET Status='OPEN' WHERE ConsignmentID=?id AND Status='READY';",
                 new MySqlParameter("?id", consignmentId));
         }
 

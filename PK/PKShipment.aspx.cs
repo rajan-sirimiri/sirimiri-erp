@@ -21,6 +21,8 @@ namespace PKApp
         protected Button btnDraftSave, btnFinalise, btnNew, btnNewFromLocked, btnPrintDC, btnDownloadFromView, btnDeleteDC, btnUnconvertDCFromForm;
         protected Button btnCreateInvoice, btnCreateInvoiceHidden, btnCreateInvoiceDraft, btnCreateInvoiceDraftHidden, btnDownloadInvoicePDF;
         protected Button btnCreateConsignment, btnBulkInvoice, btnDispatchConsig, btnArchiveConsig, btnConfirmDispatch, btnTabRetail, btnSyncFromZoho;
+        protected Button btnMarkReady;
+        protected System.Web.UI.HtmlControls.HtmlButton btnMarkReadyTrigger;
         protected Button btnCreateRetailOrder, btnCreateRetailCustomerHidden;
         protected Panel pnlCreateInvoice, pnlInvoiceStatus, pnlInvoiceError, pnlConsigDCs, pnlBulkResult, pnlConsigContent, pnlConsigEmpty, pnlDispatchForm;
         protected Label lblInvoiceNo, lblInvoiceZohoStatus, lblInvoiceAmount, lblInvoiceError, lblConsigDCTitle, lblConsigStatus;
@@ -385,18 +387,26 @@ namespace PKApp
 
             // Button visibility — driven by state machine rules
             bool hasFinalised = false;
+            bool allDCsFinalised = dcs.Rows.Count > 0;
             foreach (DataRow r in dcs.Rows)
-                if (r["Status"].ToString() == "FINALISED") { hasFinalised = true; break; }
+            {
+                string dcStatus = r["Status"].ToString();
+                if (dcStatus == "FINALISED") hasFinalised = true;
+                if (dcStatus != "FINALISED") allDCsFinalised = false;
+            }
 
             if (btnBulkInvoice != null) btnBulkInvoice.Visible = hasFinalised && status == "OPEN";
             if (btnSyncFromZoho != null) btnSyncFromZoho.Visible = hasFinalised && (status == "DISPATCHED" || status == "READY" || status == "OPEN");
-            // Dispatch button: only when READY (i.e., all DCs FINALISED — auto-set by UpdateConsignmentReadyStatus)
+            // MARK READY button: shown only on OPEN consignments where every DC is FINALISED.
+            // Clicking it locks new-DC additions and flips the consignment to READY, revealing Dispatch.
+            if (btnMarkReadyTrigger != null) btnMarkReadyTrigger.Visible = (status == "OPEN" && allDCsFinalised);
+            // Dispatch button: only after PK explicitly marked READY. DC finalisation alone is not enough.
             if (btnDispatchConsig != null) btnDispatchConsig.Visible = (status == "READY");
             if (pnlDispatchForm != null) pnlDispatchForm.Visible = false;
             if (btnArchiveConsig != null) btnArchiveConsig.Visible = (status == "DISPATCHED");
 
             // DC form visibility: OPEN allows creating/editing DCs; READY/DISPATCHED/ARCHIVED is locked.
-            // READY = all DCs finalised, just waiting for dispatch — no new DCs, no edits.
+            // READY means PK has signalled "no more DCs" — even if DCs are all finalised, SA/PK can't add more.
             bool consigLocked = (status != "OPEN");
             if (consigLocked)
             {
@@ -445,6 +455,50 @@ namespace PKApp
             if (m == "FULL_LOAD") return "<span style='color:#155724;'>Own Vehicle</span>";
             if (m == "COURIER") return "<span style='color:#004085;'>Courier" + (!string.IsNullOrEmpty(c) ? ": " + c : "") + "</span>";
             return "—";
+        }
+
+        /// <summary>Render a coloured badge for the DC's current state. Handles all three values:
+        /// DRAFT (orange), FINALISED (green), CLOSED (grey — consignment has been dispatched).
+        /// Previously the inline ternary in the repeater only handled FINALISED and fell through
+        /// to "Draft" for everything else, causing CLOSED DCs to mis-display as Draft.</summary>
+        protected string GetDCStatusBadge(object status)
+        {
+            string s = status != null && status != DBNull.Value ? status.ToString() : "";
+            switch (s)
+            {
+                case "DRAFT":     return "<span class='badge-draft'>Draft</span>";
+                case "FINALISED": return "<span class='badge-final'>Finalised</span>";
+                case "CLOSED":    return "<span class='badge-closed'>Closed</span>";
+                default:          return "<span class='badge-draft'>" + s + "</span>";
+            }
+        }
+
+        /// <summary>PK user clicks MARK READY on the consignment header. Flips OPEN → READY, which
+        /// locks new-DC additions, locks SA-side edits, and reveals the Dispatch button.
+        /// Guarded: refuses if any DC is still DRAFT.</summary>
+        protected void btnMarkReady_Click(object s, EventArgs e)
+        {
+            int csgId = 0; int.TryParse(hfActiveConsig.Value, out csgId);
+            if (csgId <= 0) { ShowAlert("No consignment selected.", false); return; }
+
+            if (!PKDatabaseHelper.CanMarkConsignmentReady(csgId))
+            {
+                var drafts = PKDatabaseHelper.GetDraftDCNumbersInConsignment(csgId);
+                string msg = drafts.Count > 0
+                    ? "Cannot mark READY — the following DCs are still in DRAFT: " + string.Join(", ", drafts.ToArray())
+                    : "Cannot mark READY — consignment has no DCs, or another state changed.";
+                ShowAlert(msg, false);
+                return;
+            }
+
+            try
+            {
+                PKDatabaseHelper.MarkConsignmentReady(csgId);
+                ShowAlert("Consignment marked READY for dispatch. No more DCs can be added.", true);
+                BindConsigTabs();
+                LoadConsigDCs(csgId);
+            }
+            catch (Exception ex) { ShowAlert("Mark READY failed: " + ex.Message, false); }
         }
 
         protected void btnDispatchConsig_Click(object s, EventArgs e)
@@ -1911,7 +1965,7 @@ tfoot td{border-top:2px solid #333;font-weight:700;font-size:13px;}
 <div class='header'>
 <div><div class='company'>SIRIMIRI NUTRITION</div><div class='company-sub'>Food Products Pvt. Ltd.</div></div>
 <div class='dc-title'><h1>DELIVERY CHALLAN</h1><div class='dc-num'>" + dcNumber + @"</div>
-<div class='dc-status " + (status == "FINALISED" ? "status-final" : "status-draft") + "'>" + status + @"</div></div>
+<div class='dc-status " + (status == "DRAFT" ? "status-draft" : "status-final") + "'>" + status + @"</div></div>
 </div>
 <div class='info-grid'>
 <div class='info-box'><div class='info-label'>Customer</div><div class='info-val'>" + custName + @"</div><div style='font-size:10px;color:#888;'>" + custCode + @"</div></div>

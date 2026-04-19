@@ -47,6 +47,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .data-table tr:hover td{background:#f9f9f9;}
 .badge-draft{background:#fef9f3;color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
 .badge-final{background:#eafaf1;color:var(--teal);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.badge-closed{background:#e2e3e5;color:#383d41;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
 .stock-badge{display:inline-block;background:#e8f8f0;color:var(--teal);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;margin-left:6px;}
 .stock-zero{background:#fdf3f2;color:#e74c3c;}
 .line-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
@@ -149,6 +150,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     OnClick="btnSyncFromZoho_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;border-color:#0078d4;color:#0078d4;" />
                 <asp:Button ID="btnBulkInvoice" runat="server" Text="Create All Invoices" CssClass="btn btn-zoho"
                     OnClick="btnBulkInvoice_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
+                <!-- MARK READY: shown only on OPEN consignments where every DC is FINALISED. Clicking this
+                     locks new-DC additions and flips the consignment to READY, which in turn reveals Dispatch. -->
+                <button type="button" id="btnMarkReadyTrigger" runat="server" Visible="false"
+                    class="btn btn-primary" style="font-size:11px;padding:6px 14px;background:#1a9e6a;"
+                    onclick="confirmMarkReady();return false;">Mark READY</button>
+                <asp:Button ID="btnMarkReady" runat="server" OnClick="btnMarkReady_Click"
+                    CausesValidation="false" style="display:none;" />
                 <asp:Button ID="btnDispatchConsig" runat="server" Text="Dispatch" CssClass="btn btn-primary"
                     OnClick="btnDispatchConsig_Click" CausesValidation="false" Visible="false" style="font-size:11px;padding:6px 14px;" />
                 <asp:Button ID="btnArchiveConsig" runat="server" Text="Archive" CssClass="btn btn-secondary"
@@ -180,7 +188,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
                     <ItemTemplate><tr>
                         <td style="font-weight:600;"><%# Eval("DCNumber") %></td>
                         <td><%# Eval("CustomerName") %><div style="font-size:9px;color:var(--text-dim);"><%# Eval("CustomerCode") %></div></td>
-                        <td><%# Eval("Status").ToString()=="FINALISED" ? "<span class='badge-final'>Finalised</span>" : "<span class='badge-draft'>Draft</span>" %></td>
+                        <td><%# GetDCStatusBadge(Eval("Status")) %></td>
                         <td class="num" style="font-weight:600;"><%# Eval("GrandTotal") != DBNull.Value ? string.Format("₹{0:N0}", Eval("GrandTotal")) : "—" %></td>
                         <td><%# GetInvoiceStatusBadge(Eval("DCID")) %></td>
                         <td style="font-size:10px;"><%# GetTransportLabel(Eval("TransportMode"), Eval("CourierName")) %></td>
@@ -1115,6 +1123,15 @@ function doUnconvertDCConfirm(){
         type: 'warn',
         okText: 'Unconvert',
         onOk: function(){ __doPostBack('<%= btnUnconvertDCFromForm.UniqueID %>', ''); }
+    });
+    return false;
+}
+function confirmMarkReady(){
+    erpConfirm('Mark this consignment READY for dispatch? No more DCs can be added after this. Sales Force will lose edit access on this consignment.', {
+        title: 'Mark READY',
+        type: 'warn',
+        okText: 'Mark READY',
+        onOk: function(){ __doPostBack('<%= btnMarkReady.UniqueID %>', ''); }
     });
     return false;
 }
