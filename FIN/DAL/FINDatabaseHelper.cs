@@ -1643,11 +1643,36 @@ namespace FINApp.DAL
         /// </summary>
         public static DataTable GetJournalList(DateTime? fromDate, DateTime? toDate, string status, string numberSearch)
         {
+            // Subqueries add a subtitle-ready "who and what" to each journal row:
+            //   PrimaryPartyName — name of the first party-tagged line (supplier or customer)
+            //   PrimaryAccountName — name of the first line whose account is NOT a party
+            //                        control account (AP/AR).  This is usually the expense
+            //                        or income account that "describes" the transaction.
+            // Both are LEFT JOINs/subqueries so the list works for journals without parties.
             string sql =
                 "SELECT j.JournalID, j.JournalNumber, j.JournalDate, j.Narration, j.Reference, " +
                 " j.Status, j.TotalDebit, j.TotalCredit, j.ReversedByJournalID, " +
                 " j.CreatedAt, j.PostedAt, j.ReversedAt, " +
-                " u.FullName AS CreatedByName " +
+                " u.FullName AS CreatedByName, " +
+                // Primary party — pick the first party-tagged line, resolve SUP:/CUS: prefix
+                " (SELECT CASE " +
+                "     WHEN SUBSTRING_INDEX(jl.ContactID, ':', 1) = 'SUP' " +
+                "          THEN (SELECT s.SupplierName FROM MM_Suppliers s " +
+                "                 WHERE s.SupplierID = CAST(SUBSTRING_INDEX(jl.ContactID, ':', -1) AS UNSIGNED)) " +
+                "     WHEN SUBSTRING_INDEX(jl.ContactID, ':', 1) = 'CUS' " +
+                "          THEN (SELECT c.CustomerName FROM PK_Customers c " +
+                "                 WHERE c.CustomerID = CAST(SUBSTRING_INDEX(jl.ContactID, ':', -1) AS UNSIGNED)) " +
+                "     ELSE NULL END " +
+                "  FROM FIN_JournalLine jl " +
+                "  WHERE jl.JournalID = j.JournalID AND jl.ContactID IS NOT NULL AND jl.ContactID <> '' " +
+                "  ORDER BY jl.LineOrder, jl.LineID LIMIT 1) AS PrimaryPartyName, " +
+                // Primary account — first line whose account type is NOT payable/receivable
+                " (SELECT coa.AccountName FROM FIN_JournalLine jl2 " +
+                "  INNER JOIN FIN_ChartOfAccounts coa ON coa.ZohoAccountID = jl2.ZohoAccountID " +
+                "  WHERE jl2.JournalID = j.JournalID " +
+                "    AND LOWER(COALESCE(coa.AccountTypeName, coa.AccountType, '')) NOT LIKE '%payable%' " +
+                "    AND LOWER(COALESCE(coa.AccountTypeName, coa.AccountType, '')) NOT LIKE '%receivable%' " +
+                "  ORDER BY jl2.LineOrder, jl2.LineID LIMIT 1) AS PrimaryAccountName " +
                 "FROM FIN_Journal j " +
                 "LEFT JOIN users u ON u.UserID = j.CreatedBy " +
                 "WHERE 1=1 ";
