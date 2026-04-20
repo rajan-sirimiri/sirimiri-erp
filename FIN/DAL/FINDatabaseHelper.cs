@@ -2208,5 +2208,114 @@ namespace FINApp.DAL
                 return dt;
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  JOURNAL → ZOHO PUSH LOG
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Fetch the zoho_journallog row for a given JournalID, or null if
+        /// the journal has never been push-attempted.  Used by the UI to
+        /// decide whether to show "Push to Zoho" vs "Re-push" vs
+        /// "View in Zoho".
+        /// </summary>
+        public static DataRow GetJournalLog(int journalId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT * FROM zoho_journallog WHERE JournalID = ?jid " +
+                "ORDER BY LogID DESC LIMIT 1", conn))
+            {
+                cmd.Parameters.AddWithValue("?jid", journalId);
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+            }
+        }
+
+        /// <summary>
+        /// Mark a journal as successfully pushed.  Upsert: first push
+        /// creates the log row; any later push attempt overwrites it.
+        /// </summary>
+        public static void MarkJournalPushed(
+            int journalId, string journalNumber,
+            string zohoJournalId, string zohoJournalNo, string zohoStatus,
+            int userId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO zoho_journallog " +
+                " (JournalID, JournalNumber, ZohoJournalID, ZohoJournalNo, ZohoStatus, " +
+                "  PushStatus, ErrorMessage, PushedAt, PushedBy) " +
+                "VALUES (?jid, ?jno, ?zid, ?zno, ?zst, 'Pushed', NULL, NOW(), ?uid) " +
+                "ON DUPLICATE KEY UPDATE " +
+                " JournalNumber = VALUES(JournalNumber), " +
+                " ZohoJournalID = VALUES(ZohoJournalID), " +
+                " ZohoJournalNo = VALUES(ZohoJournalNo), " +
+                " ZohoStatus    = VALUES(ZohoStatus), " +
+                " PushStatus    = 'Pushed', " +
+                " ErrorMessage  = NULL, " +
+                " PushedAt      = NOW(), " +
+                " PushedBy      = VALUES(PushedBy)", conn))
+            {
+                cmd.Parameters.AddWithValue("?jid", journalId);
+                cmd.Parameters.AddWithValue("?jno", (object)journalNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?zid", (object)zohoJournalId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?zno", (object)zohoJournalNo ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?zst", (object)zohoStatus ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?uid", userId);
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// Record a push failure.  Flips PushStatus to 'Error' and stores
+        /// ErrorMessage.  If there's no prior row, inserts a new Error row.
+        /// </summary>
+        public static void MarkJournalPushFailed(
+            int journalId, string journalNumber, string errorMessage, int userId)
+        {
+            if (!string.IsNullOrEmpty(errorMessage) && errorMessage.Length > 500)
+                errorMessage = errorMessage.Substring(0, 497) + "...";
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO zoho_journallog " +
+                " (JournalID, JournalNumber, PushStatus, ErrorMessage, PushedAt, PushedBy) " +
+                "VALUES (?jid, ?jno, 'Error', ?err, NOW(), ?uid) " +
+                "ON DUPLICATE KEY UPDATE " +
+                " JournalNumber = VALUES(JournalNumber), " +
+                " PushStatus    = 'Error', " +
+                " ErrorMessage  = VALUES(ErrorMessage), " +
+                " PushedAt      = NOW(), " +
+                " PushedBy      = VALUES(PushedBy)", conn))
+            {
+                cmd.Parameters.AddWithValue("?jid", journalId);
+                cmd.Parameters.AddWithValue("?jno", (object)journalNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?err", (object)errorMessage ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?uid", userId);
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// Given a party key like "SUP:88" or "CUS:793", resolve to
+        /// (PartyType, PartyID).  Returns (null, 0) on malformed input.
+        /// </summary>
+        public static Tuple<string, int> ParsePartyKey(string partyKey)
+        {
+            if (string.IsNullOrEmpty(partyKey)) return Tuple.Create<string, int>(null, 0);
+            var parts = partyKey.Split(':');
+            if (parts.Length != 2) return Tuple.Create<string, int>(null, 0);
+            string ptype = parts[0].ToUpperInvariant();
+            if (ptype != "SUP" && ptype != "CUS") return Tuple.Create<string, int>(null, 0);
+            int pid;
+            if (!int.TryParse(parts[1], out pid) || pid <= 0)
+                return Tuple.Create<string, int>(null, 0);
+            return Tuple.Create(ptype, pid);
+        }
     }
 }

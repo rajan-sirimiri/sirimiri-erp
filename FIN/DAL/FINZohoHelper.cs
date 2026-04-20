@@ -2066,6 +2066,243 @@ namespace FINApp.DAL
                 }
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  JOURNAL → ZOHO PUSH
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Ensure a customer is in Zoho_CustomerMap.  If not, trigger
+        /// SyncCustomerToZoho which creates/updates in Zoho and upserts
+        /// the mapping row.  Returns Zoho contact_id.  Sibling of the
+        /// existing EnsureVendor(int).  Throws on sync failure.
+        /// </summary>
+        private static string EnsureCustomer(int customerId)
+        {
+            string existing = GetZohoCustomerId(customerId);
+            if (!string.IsNullOrEmpty(existing)) return existing;
+
+            string syncResult = SyncCustomerToZoho(customerId);
+            // SyncCustomerToZoho returns "OK" on success, "Error: ..." or "Customer not found" on failure
+            if (syncResult != "OK")
+                throw new Exception("Customer sync failed: " + syncResult);
+
+            string after = GetZohoCustomerId(customerId);
+            if (string.IsNullOrEmpty(after))
+                throw new Exception("Customer sync returned OK but mapping row not found for customer " + customerId);
+            return after;
+        }
+
+        /// <summary>
+        /// Journal-line party-key resolver.  Given "SUP:88" / "CUS:793",
+        /// looks up (or syncs) the corresponding Zoho contact_id.
+        /// Returns null if partyKey is null/empty.
+        /// </summary>
+        private static string EnsureJournalContact(string partyKey)
+        {
+            if (string.IsNullOrEmpty(partyKey)) return null;
+
+            var parsed = FINDatabaseHelper.ParsePartyKey(partyKey);
+            string ptype = parsed.Item1;
+            int pid      = parsed.Item2;
+            if (ptype == null)
+                throw new Exception("Malformed party key on journal line: '" + partyKey + "'.");
+
+            if (ptype == "SUP") return EnsureVendor(pid);
+            if (ptype == "CUS") return EnsureCustomer(pid);
+            throw new Exception("Unknown party type in key '" + partyKey + "'.");
+        }
+
+        /// <summary>
+        /// Push one POSTED journal to Zoho Books as a manual Journal
+        /// (POST /journals).  Idempotent — if already pushed, returns
+        /// AlreadyPushed=true without hitting Zoho.
+        ///
+        /// AP/AR lines without a Party are rejected before the API call
+        /// (Zoho would reject them anyway).
+        /// </summary>
+        public static ZohoJournalPushResult PushJournalToZoho(int journalId, int userId)
+        {
+            var res = new ZohoJournalPushResult { JournalID = journalId };
+
+            // ─── 1. Load journal header + lines ──────────────────────
+            DataRow hdr;
+            DataTable lines;
+            try
+            {
+                var ds = FINDatabaseHelper.GetJournalDetail(journalId);
+                if (ds.Tables["Header"].Rows.Count == 0)
+                {
+                    res.Success = false;
+                    res.Message = "Journal not found.";
+                    return res;
+                }
+                hdr = ds.Tables["Header"].Rows[0];
+                lines = ds.Tables["Lines"];
+            }
+            catch (Exception ex)
+            {
+                res.Success = false;
+                res.Message = "Failed to load journal: " + ex.Message;
+                return res;
+            }
+
+            string journalNumber = hdr["JournalNumber"].ToString();
+            string status        = hdr["Status"].ToString();
+            res.JournalNumber    = journalNumber;
+
+            if (status != "POSTED")
+            {
+                res.Success = false;
+                res.Message = "Only POSTED journals can be pushed. This one is " + status + ".";
+                return res;
+            }
+
+            // ─── 2. Idempotency check ────────────────────────────────
+            DataRow priorLog = FINDatabaseHelper.GetJournalLog(journalId);
+            if (priorLog != null &&
+                priorLog["ZohoJournalID"] != DBNull.Value &&
+                !string.IsNullOrEmpty(priorLog["ZohoJournalID"].ToString()))
+            {
+                res.Success        = true;
+                res.AlreadyPushed  = true;
+                res.ZohoJournalID  = priorLog["ZohoJournalID"].ToString();
+                res.ZohoJournalNo  = priorLog["ZohoJournalNo"] != DBNull.Value
+                                     ? priorLog["ZohoJournalNo"].ToString() : "";
+                res.Message        = "Already pushed to Zoho.";
+                return res;
+            }
+
+            // ─── 3. Pre-push validation: AP/AR lines need a Party ───
+            foreach (DataRow ln in lines.Rows)
+            {
+                string accType = (ln["AccountTypeName"] ?? ln["AccountType"] ?? "")
+                                 .ToString().ToLowerInvariant();
+                bool isPartyAcct = accType.Contains("payable") || accType.Contains("receivable");
+                string contactId = ln["ContactID"] == DBNull.Value ? "" : ln["ContactID"].ToString();
+
+                if (isPartyAcct && string.IsNullOrEmpty(contactId))
+                {
+                    string accName = (ln["AccountName"] ?? "").ToString();
+                    res.Success = false;
+                    res.Message = "Line '" + accName + "' is an AP/AR account and requires a Party " +
+                                  "before this journal can be pushed to Zoho. POSTED journals must be " +
+                                  "reversed and re-created to change lines.";
+                    FINDatabaseHelper.MarkJournalPushFailed(journalId, journalNumber, res.Message, userId);
+                    return res;
+                }
+            }
+
+            // ─── 4. Resolve every party → Zoho contact_id ────────────
+            var partyContactIds = new Dictionary<int, string>();
+            try
+            {
+                foreach (DataRow ln in lines.Rows)
+                {
+                    string partyKey = ln["ContactID"] == DBNull.Value ? "" : ln["ContactID"].ToString();
+                    if (string.IsNullOrEmpty(partyKey)) continue;
+                    int ord = Convert.ToInt32(ln["LineOrder"]);
+                    partyContactIds[ord] = EnsureJournalContact(partyKey);
+                }
+            }
+            catch (Exception ex)
+            {
+                res.Success = false;
+                res.Message = "Party resolution failed: " + ex.Message;
+                FINDatabaseHelper.MarkJournalPushFailed(journalId, journalNumber, res.Message, userId);
+                return res;
+            }
+
+            // ─── 5. Build the Zoho /journals payload ─────────────────
+            var zohoLines = new List<Dictionary<string, object>>();
+            foreach (DataRow ln in lines.Rows)
+            {
+                string accountId = ln["ZohoAccountID"].ToString();
+                if (string.IsNullOrEmpty(accountId))
+                {
+                    res.Success = false;
+                    res.Message = "Line has no ZohoAccountID — chart of accounts may be out of sync.";
+                    FINDatabaseHelper.MarkJournalPushFailed(journalId, journalNumber, res.Message, userId);
+                    return res;
+                }
+
+                decimal dr = Convert.ToDecimal(ln["Debit"]);
+                decimal cr = Convert.ToDecimal(ln["Credit"]);
+                decimal amt = dr > 0 ? dr : cr;
+                string drCr = dr > 0 ? "debit" : "credit";
+
+                var zLine = new Dictionary<string, object>
+                {
+                    { "account_id",      accountId },
+                    { "amount",          amt },
+                    { "debit_or_credit", drCr }
+                };
+
+                string desc = ln["LineDescription"] == DBNull.Value ? "" : ln["LineDescription"].ToString();
+                if (!string.IsNullOrEmpty(desc))
+                    zLine["description"] = desc;
+
+                int ord = Convert.ToInt32(ln["LineOrder"]);
+                if (partyContactIds.ContainsKey(ord))
+                    zLine["customer_id"] = partyContactIds[ord];
+
+                zohoLines.Add(zLine);
+            }
+
+            var payload = new Dictionary<string, object>
+            {
+                { "journal_date",     Convert.ToDateTime(hdr["JournalDate"]).ToString("yyyy-MM-dd") },
+                { "reference_number", hdr["Reference"] == DBNull.Value ? journalNumber : hdr["Reference"].ToString() },
+                { "notes",            hdr["Narration"] == DBNull.Value ? ("Journal " + journalNumber) : hdr["Narration"].ToString() },
+                { "journal_type",     "both" },
+                { "line_items",       zohoLines }
+            };
+
+            // ─── 6. POST to Zoho ─────────────────────────────────────
+            try
+            {
+                var result = ZohoPost("journals", payload);
+                int code = Convert.ToInt32(result["code"]);
+                if (code == 0)
+                {
+                    var zohoJournal = result["journal"] as Dictionary<string, object>;
+                    string zohoJId = zohoJournal["journal_id"].ToString();
+                    string zohoJNo = zohoJournal.ContainsKey("entry_number")
+                                     ? zohoJournal["entry_number"].ToString() : "";
+                    string zohoStatus = zohoJournal.ContainsKey("status")
+                                        ? zohoJournal["status"].ToString() : "published";
+
+                    FINDatabaseHelper.MarkJournalPushed(
+                        journalId, journalNumber, zohoJId, zohoJNo, zohoStatus, userId);
+
+                    LogSync("PushJournal", "Journal", journalId.ToString(), zohoJId, "Success",
+                            "Pushed " + journalNumber + " → Zoho " + zohoJNo);
+
+                    res.Success       = true;
+                    res.ZohoJournalID = zohoJId;
+                    res.ZohoJournalNo = zohoJNo;
+                    res.Message       = "Pushed to Zoho as " + zohoJNo + ".";
+                    return res;
+                }
+                else
+                {
+                    string msg = result.ContainsKey("message") ? result["message"].ToString() : "Unknown error";
+                    FINDatabaseHelper.MarkJournalPushFailed(journalId, journalNumber, msg, userId);
+                    LogSync("PushJournal", "Journal", journalId.ToString(), null, "Error", msg);
+                    res.Success = false;
+                    res.Message = msg;
+                    return res;
+                }
+            }
+            catch (Exception ex)
+            {
+                FINDatabaseHelper.MarkJournalPushFailed(journalId, journalNumber, ex.Message, userId);
+                LogSync("PushJournal", "Journal", journalId.ToString(), null, "Error", ex.Message);
+                res.Success = false;
+                res.Message = ex.Message;
+                return res;
+            }
+        }
     }
 
     /// <summary>Result of syncing an invoice back from Zoho.</summary>
@@ -2091,5 +2328,17 @@ namespace FINApp.DAL
         public string ZohoVendorID;
         public string ZohoBillID;
         public string ZohoBillNo;
+    }
+
+    /// <summary>Result of pushing one journal to Zoho Books.</summary>
+    public class ZohoJournalPushResult
+    {
+        public int    JournalID;
+        public string JournalNumber;
+        public bool   Success;
+        public bool   AlreadyPushed;
+        public string Message;
+        public string ZohoJournalID;
+        public string ZohoJournalNo;
     }
 }
