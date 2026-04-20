@@ -118,6 +118,17 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         </a>
     </div>
 
+    <div class="section-head">Zoho Integration</div>
+    <div class="menu-grid">
+        <a id="lnkGRNToZoho" runat="server" href="FINGRNToZoho.aspx" class="menu-card" style="border-color:#f5c9a7;">
+            <div class="menu-icon">&#x1F4E6;</div>
+            <div>
+                <div class="menu-title">GRN to Zoho</div>
+                <div class="menu-desc">Push vendor-purchase GRNs to Zoho Books as Bills — Raw &amp; Packing materials (Phase 1)</div>
+            </div>
+        </a>
+    </div>
+
 </div>
 </form>
 <script src="/StockApp/erp-keepalive.js"></script>

@@ -91,6 +91,7 @@
       <DependentUpon>FINTallyMapping.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="ZohoHelper_PK.cs" />
     <Content Include="FINHome.aspx" />
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />
@@ -148,6 +149,11 @@
     <Content Include="FINHistoricalConsignments.aspx" />
     <Compile Include="FINHistoricalConsignments.aspx.cs">
       <DependentUpon>FINHistoricalConsignments.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Content Include="FINGRNToZoho.aspx" />
+    <Compile Include="FINGRNToZoho.aspx.cs">
+      <DependentUpon>FINGRNToZoho.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Content Include="progress_wheel.png" />
