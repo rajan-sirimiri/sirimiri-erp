@@ -163,6 +163,11 @@
       <DependentUpon>FINJournal.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Content Include="FINJournalPrint.aspx" />
+    <Compile Include="FINJournalPrint.aspx.cs">
+      <DependentUpon>FINJournalPrint.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="FINChartOfAccounts.aspx" />
     <Compile Include="FINChartOfAccounts.aspx.cs">
       <DependentUpon>FINChartOfAccounts.aspx</DependentUpon>
