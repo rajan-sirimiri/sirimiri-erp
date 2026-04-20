@@ -71,10 +71,16 @@ namespace FINApp
             // Always rebuild tab visuals (active underline + placeholder visibility)
             RenderTabState();
 
-            // Only rebind the list when rendering the page, not during the push handler
-            // itself — the push handler calls RenderActiveList() at the end.
-            if (!IsPostBack)
-                RenderActiveList();
+            // IMPORTANT: Always rebuild the list, even on postback. The per-row "Push"
+            // LinkButtons and the per-row checkboxes are dynamic controls built inside
+            // phTable; if we skip rebuild on postback, ASP.NET can't find the button
+            // that was clicked and silently drops the command event.
+            //
+            // Page_Load runs BEFORE event handlers, so we rebuild here with the
+            // pre-click data; the event handler (PushOne_Command / btnPushSelected_Click)
+            // does its work, and then calls RenderActiveList() itself at the end to
+            // refresh the display with post-push state.
+            RenderActiveList();
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -265,7 +271,6 @@ namespace FINApp
                 chk.Attributes["data-grnid"] = grnId.ToString();
                 cCheck.Controls.Add(chk);
                 tr.Cells.Add(cCheck);
-
                 // GRN no
                 var cGrn = new TableCell();
                 cGrn.Controls.Add(new LiteralControl(
@@ -330,6 +335,7 @@ namespace FINApp
                 {
                     var btn = new LinkButton
                     {
+                        ID = "btnPushRow_" + grnId,  // explicit ID so event dispatch works on postback
                         CssClass = "btn btn-push",
                         Text = "Push",
                         CommandName = "PushOne",
