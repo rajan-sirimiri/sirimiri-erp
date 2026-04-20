@@ -1578,5 +1578,574 @@ namespace FINApp.DAL
                 return dt;
             }
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  JOURNAL ENTRIES (FIN accounting module)
+        // ══════════════════════════════════════════════════════════════
+        // Double-entry journals with multi-line debits + credits. Accounts
+        // come from the locally-cached Zoho chart (FIN_ChartOfAccounts).
+        // Status flow: DRAFT → POSTED → REVERSED (via contra journal).
+
+        /// <summary>
+        /// List chart of accounts for the dropdown. Active only by default.
+        /// Optionally filter by account type (Asset/Liability/Equity/Income/Expense).
+        /// </summary>
+        public static DataTable GetChartOfAccounts(bool activeOnly = true, string typeFilter = null)
+        {
+            string sql =
+                "SELECT AccountID, ZohoAccountID, AccountName, AccountCode, AccountType, " +
+                " AccountTypeName, IsActive, LastSyncAt " +
+                "FROM FIN_ChartOfAccounts " +
+                "WHERE 1=1 ";
+            if (activeOnly) sql += " AND IsActive = 1 ";
+            if (!string.IsNullOrEmpty(typeFilter)) sql += " AND AccountType = ?type ";
+            sql += "ORDER BY AccountTypeName, AccountName";
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(sql, conn))
+            {
+                if (!string.IsNullOrEmpty(typeFilter))
+                    cmd.Parameters.AddWithValue("?type", typeFilter);
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt;
+            }
+        }
+
+        /// <summary>
+        /// When was the chart of accounts last synced from Zoho? Returns MinValue
+        /// if the table is empty.
+        /// </summary>
+        public static DateTime GetChartOfAccountsLastSync()
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand("SELECT MAX(LastSyncAt) FROM FIN_ChartOfAccounts", conn))
+            {
+                conn.Open();
+                object o = cmd.ExecuteScalar();
+                if (o == null || o == DBNull.Value) return DateTime.MinValue;
+                return Convert.ToDateTime(o);
+            }
+        }
+
+        /// <summary>
+        /// Journal listing for the dashboard. Filter by date range, status, or
+        /// journal number substring.
+        /// </summary>
+        public static DataTable GetJournalList(DateTime? fromDate, DateTime? toDate, string status, string numberSearch)
+        {
+            string sql =
+                "SELECT j.JournalID, j.JournalNumber, j.JournalDate, j.Narration, j.Reference, " +
+                " j.Status, j.TotalDebit, j.TotalCredit, j.ReversedByJournalID, " +
+                " j.CreatedAt, j.PostedAt, j.ReversedAt, " +
+                " u.FullName AS CreatedByName " +
+                "FROM FIN_Journal j " +
+                "LEFT JOIN users u ON u.UserID = j.CreatedBy " +
+                "WHERE 1=1 ";
+            if (fromDate.HasValue) sql += " AND j.JournalDate >= ?from ";
+            if (toDate.HasValue)   sql += " AND j.JournalDate <= ?to ";
+            if (!string.IsNullOrEmpty(status)) sql += " AND j.Status = ?status ";
+            if (!string.IsNullOrEmpty(numberSearch)) sql += " AND j.JournalNumber LIKE ?numq ";
+            sql += "ORDER BY j.JournalDate DESC, j.JournalID DESC LIMIT 500";
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(sql, conn))
+            {
+                if (fromDate.HasValue) cmd.Parameters.AddWithValue("?from", fromDate.Value.Date);
+                if (toDate.HasValue)   cmd.Parameters.AddWithValue("?to",   toDate.Value.Date);
+                if (!string.IsNullOrEmpty(status))       cmd.Parameters.AddWithValue("?status", status);
+                if (!string.IsNullOrEmpty(numberSearch)) cmd.Parameters.AddWithValue("?numq", "%" + numberSearch + "%");
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt;
+            }
+        }
+
+        /// <summary>
+        /// Load a journal's header + lines for edit or view mode.
+        /// DataSet tables: [0]=Header (single row), [1]=Lines.
+        /// </summary>
+        public static DataSet GetJournalDetail(int journalId)
+        {
+            var ds = new DataSet();
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                // Header
+                using (var cmd = new MySqlCommand(
+                    "SELECT j.*, u.FullName AS CreatedByName, up.FullName AS PostedByName, ur.FullName AS ReversedByName " +
+                    "FROM FIN_Journal j " +
+                    "LEFT JOIN users u  ON u.UserID  = j.CreatedBy " +
+                    "LEFT JOIN users up ON up.UserID = j.PostedBy " +
+                    "LEFT JOIN users ur ON ur.UserID = j.ReversedBy " +
+                    "WHERE j.JournalID = ?jid", conn))
+                {
+                    cmd.Parameters.AddWithValue("?jid", journalId);
+                    var dt = new DataTable("Header");
+                    dt.Load(cmd.ExecuteReader());
+                    ds.Tables.Add(dt);
+                }
+                // Lines — join to chart to get the human-readable account name
+                using (var cmd = new MySqlCommand(
+                    "SELECT l.LineID, l.JournalID, l.LineOrder, l.ZohoAccountID, " +
+                    " l.Debit, l.Credit, l.LineDescription, l.ContactID, " +
+                    " c.AccountName, c.AccountCode, c.AccountType, c.AccountTypeName " +
+                    "FROM FIN_JournalLine l " +
+                    "LEFT JOIN FIN_ChartOfAccounts c ON c.ZohoAccountID = l.ZohoAccountID " +
+                    "WHERE l.JournalID = ?jid " +
+                    "ORDER BY l.LineOrder, l.LineID", conn))
+                {
+                    cmd.Parameters.AddWithValue("?jid", journalId);
+                    var dt = new DataTable("Lines");
+                    dt.Load(cmd.ExecuteReader());
+                    ds.Tables.Add(dt);
+                }
+            }
+            return ds;
+        }
+
+        /// <summary>
+        /// Compute the current fiscal year code for journal numbering.
+        /// India FY runs April–March. e.g. 20 Apr 2026 → "2627" (FY26-27).
+        /// </summary>
+        public static string GetCurrentFY(DateTime forDate)
+        {
+            int y = forDate.Year;
+            int startYear = (forDate.Month >= 4) ? y : (y - 1);
+            int endYear = startYear + 1;
+            return (startYear % 100).ToString("D2") + (endYear % 100).ToString("D2");
+        }
+
+        /// <summary>
+        /// Increment and return the next journal number for the given date.
+        /// Uses FIN_JournalSequence (per-FY counter, pattern mirrors PK_DCSequence).
+        /// </summary>
+        public static string NextJournalNumber(DateTime forDate)
+        {
+            string fy = GetCurrentFY(forDate);
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                // Ensure row exists
+                using (var cmd = new MySqlCommand(
+                    "INSERT IGNORE INTO FIN_JournalSequence (FiscalYear, LastSeq) VALUES (?fy, 0)", conn))
+                {
+                    cmd.Parameters.AddWithValue("?fy", fy);
+                    cmd.ExecuteNonQuery();
+                }
+                // Increment + fetch
+                int nextSeq;
+                using (var cmd = new MySqlCommand(
+                    "UPDATE FIN_JournalSequence SET LastSeq = LastSeq + 1, UpdatedAt = NOW() WHERE FiscalYear = ?fy", conn))
+                {
+                    cmd.Parameters.AddWithValue("?fy", fy);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = new MySqlCommand(
+                    "SELECT LastSeq FROM FIN_JournalSequence WHERE FiscalYear = ?fy", conn))
+                {
+                    cmd.Parameters.AddWithValue("?fy", fy);
+                    nextSeq = Convert.ToInt32(cmd.ExecuteScalar());
+                }
+                return "JV-" + fy + "-" + nextSeq.ToString("D4");
+            }
+        }
+
+        /// <summary>
+        /// Represents one line the UI wants to save. LineOrder is assigned
+        /// by the DAL based on position in the list.
+        /// </summary>
+        public class JournalLineInput
+        {
+            public string ZohoAccountID;
+            public decimal Debit;
+            public decimal Credit;
+            public string LineDescription;
+            public string ContactID;
+        }
+
+        /// <summary>
+        /// Create a new journal as DRAFT with the given lines. Returns new JournalID.
+        /// </summary>
+        public static int SaveJournalAsDraft(DateTime journalDate, string narration, string reference,
+                                             System.Collections.Generic.List<JournalLineInput> lines, int userId)
+        {
+            if (lines == null || lines.Count == 0)
+                throw new Exception("Journal must have at least one line.");
+
+            decimal totalDebit = 0, totalCredit = 0;
+            foreach (var ln in lines)
+            {
+                if (ln.Debit > 0 && ln.Credit > 0)
+                    throw new Exception("A line can have either Debit or Credit, not both.");
+                if (ln.Debit == 0 && ln.Credit == 0)
+                    throw new Exception("Every line must have a non-zero Debit or Credit.");
+                if (string.IsNullOrEmpty(ln.ZohoAccountID))
+                    throw new Exception("Every line must have an Account selected.");
+                totalDebit  += ln.Debit;
+                totalCredit += ln.Credit;
+            }
+
+            string journalNo = NextJournalNumber(journalDate);
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    int journalId;
+                    using (var cmd = new MySqlCommand(
+                        "INSERT INTO FIN_Journal " +
+                        " (JournalNumber, JournalDate, Narration, Reference, Status, " +
+                        "  TotalDebit, TotalCredit, CreatedBy, CreatedAt) " +
+                        "VALUES " +
+                        " (?jn, ?jd, ?narr, ?ref, 'DRAFT', ?td, ?tc, ?uid, NOW()); " +
+                        "SELECT LAST_INSERT_ID();", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jn", journalNo);
+                        cmd.Parameters.AddWithValue("?jd", journalDate.Date);
+                        cmd.Parameters.AddWithValue("?narr", string.IsNullOrEmpty(narration) ? (object)DBNull.Value : narration);
+                        cmd.Parameters.AddWithValue("?ref", string.IsNullOrEmpty(reference) ? (object)DBNull.Value : reference);
+                        cmd.Parameters.AddWithValue("?td", totalDebit);
+                        cmd.Parameters.AddWithValue("?tc", totalCredit);
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        journalId = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+
+                    int order = 1;
+                    foreach (var ln in lines)
+                    {
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO FIN_JournalLine " +
+                            " (JournalID, LineOrder, ZohoAccountID, Debit, Credit, LineDescription, ContactID) " +
+                            "VALUES (?jid, ?ord, ?acc, ?dr, ?cr, ?desc, ?cid)", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("?jid", journalId);
+                            cmd.Parameters.AddWithValue("?ord", order++);
+                            cmd.Parameters.AddWithValue("?acc", ln.ZohoAccountID);
+                            cmd.Parameters.AddWithValue("?dr", ln.Debit);
+                            cmd.Parameters.AddWithValue("?cr", ln.Credit);
+                            cmd.Parameters.AddWithValue("?desc", string.IsNullOrEmpty(ln.LineDescription) ? (object)DBNull.Value : ln.LineDescription);
+                            cmd.Parameters.AddWithValue("?cid",  string.IsNullOrEmpty(ln.ContactID) ? (object)DBNull.Value : ln.ContactID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    tx.Commit();
+                    return journalId;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update an existing DRAFT journal. Throws if the journal is not DRAFT.
+        /// Replaces lines wholesale (delete all + re-insert) since re-ordering
+        /// is common and the transaction keeps it atomic.
+        /// </summary>
+        public static void UpdateJournalDraft(int journalId, DateTime journalDate, string narration, string reference,
+                                              System.Collections.Generic.List<JournalLineInput> lines, int userId)
+        {
+            if (lines == null || lines.Count == 0)
+                throw new Exception("Journal must have at least one line.");
+
+            decimal totalDebit = 0, totalCredit = 0;
+            foreach (var ln in lines)
+            {
+                if (ln.Debit > 0 && ln.Credit > 0)
+                    throw new Exception("A line can have either Debit or Credit, not both.");
+                if (ln.Debit == 0 && ln.Credit == 0)
+                    throw new Exception("Every line must have a non-zero Debit or Credit.");
+                if (string.IsNullOrEmpty(ln.ZohoAccountID))
+                    throw new Exception("Every line must have an Account selected.");
+                totalDebit  += ln.Debit;
+                totalCredit += ln.Credit;
+            }
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    // Verify it's still DRAFT
+                    using (var cmd = new MySqlCommand("SELECT Status FROM FIN_Journal WHERE JournalID = ?jid FOR UPDATE", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        object s = cmd.ExecuteScalar();
+                        if (s == null) throw new Exception("Journal not found.");
+                        if (s.ToString() != "DRAFT")
+                            throw new Exception("Only DRAFT journals can be edited. This one is " + s + ".");
+                    }
+
+                    using (var cmd = new MySqlCommand(
+                        "UPDATE FIN_Journal SET " +
+                        " JournalDate=?jd, Narration=?narr, Reference=?ref, " +
+                        " TotalDebit=?td, TotalCredit=?tc, UpdatedBy=?uid, UpdatedAt=NOW() " +
+                        "WHERE JournalID=?jid", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jd", journalDate.Date);
+                        cmd.Parameters.AddWithValue("?narr", string.IsNullOrEmpty(narration) ? (object)DBNull.Value : narration);
+                        cmd.Parameters.AddWithValue("?ref", string.IsNullOrEmpty(reference) ? (object)DBNull.Value : reference);
+                        cmd.Parameters.AddWithValue("?td", totalDebit);
+                        cmd.Parameters.AddWithValue("?tc", totalCredit);
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    using (var cmd = new MySqlCommand("DELETE FROM FIN_JournalLine WHERE JournalID = ?jid", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    int order = 1;
+                    foreach (var ln in lines)
+                    {
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO FIN_JournalLine " +
+                            " (JournalID, LineOrder, ZohoAccountID, Debit, Credit, LineDescription, ContactID) " +
+                            "VALUES (?jid, ?ord, ?acc, ?dr, ?cr, ?desc, ?cid)", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("?jid", journalId);
+                            cmd.Parameters.AddWithValue("?ord", order++);
+                            cmd.Parameters.AddWithValue("?acc", ln.ZohoAccountID);
+                            cmd.Parameters.AddWithValue("?dr", ln.Debit);
+                            cmd.Parameters.AddWithValue("?cr", ln.Credit);
+                            cmd.Parameters.AddWithValue("?desc", string.IsNullOrEmpty(ln.LineDescription) ? (object)DBNull.Value : ln.LineDescription);
+                            cmd.Parameters.AddWithValue("?cid",  string.IsNullOrEmpty(ln.ContactID) ? (object)DBNull.Value : ln.ContactID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    tx.Commit();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Post a DRAFT journal. Verifies debit == credit and flips status to POSTED.
+        /// </summary>
+        public static void PostJournal(int journalId, int userId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    decimal td, tc;
+                    string status;
+                    using (var cmd = new MySqlCommand(
+                        "SELECT Status, TotalDebit, TotalCredit FROM FIN_Journal WHERE JournalID = ?jid FOR UPDATE", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        using (var rdr = cmd.ExecuteReader())
+                        {
+                            if (!rdr.Read()) throw new Exception("Journal not found.");
+                            status = rdr["Status"].ToString();
+                            td = Convert.ToDecimal(rdr["TotalDebit"]);
+                            tc = Convert.ToDecimal(rdr["TotalCredit"]);
+                        }
+                    }
+                    if (status != "DRAFT")
+                        throw new Exception("Only DRAFT journals can be posted. This one is " + status + ".");
+                    if (td != tc)
+                        throw new Exception("Journal is not balanced: debit " + td.ToString("N2") + " vs credit " + tc.ToString("N2") + ".");
+                    if (td == 0)
+                        throw new Exception("Journal has zero total — add at least one line.");
+
+                    using (var cmd = new MySqlCommand(
+                        "UPDATE FIN_Journal SET Status='POSTED', PostedBy=?uid, PostedAt=NOW() WHERE JournalID=?jid", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        cmd.ExecuteNonQuery();
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reverse a POSTED journal by creating a contra entry with debits ↔ credits
+        /// swapped. Original becomes REVERSED and points to the contra via
+        /// ReversedByJournalID. Returns the new contra JournalID.
+        /// </summary>
+        public static int ReverseJournal(int originalJournalId, DateTime reversalDate, string reason, int userId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    // 1) Load original header + lines, verify POSTED
+                    string origNumber, origNarration, status;
+                    using (var cmd = new MySqlCommand(
+                        "SELECT Status, JournalNumber, Narration FROM FIN_Journal WHERE JournalID = ?jid FOR UPDATE", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", originalJournalId);
+                        using (var rdr = cmd.ExecuteReader())
+                        {
+                            if (!rdr.Read()) throw new Exception("Journal not found.");
+                            status = rdr["Status"].ToString();
+                            origNumber = rdr["JournalNumber"].ToString();
+                            origNarration = rdr["Narration"] == DBNull.Value ? "" : rdr["Narration"].ToString();
+                        }
+                    }
+                    if (status != "POSTED")
+                        throw new Exception("Only POSTED journals can be reversed. This one is " + status + ".");
+
+                    var origLines = new System.Collections.Generic.List<JournalLineInput>();
+                    decimal td = 0, tc = 0;
+                    using (var cmd = new MySqlCommand(
+                        "SELECT ZohoAccountID, Debit, Credit, LineDescription, ContactID, LineOrder " +
+                        "FROM FIN_JournalLine WHERE JournalID = ?jid ORDER BY LineOrder, LineID", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", originalJournalId);
+                        using (var rdr = cmd.ExecuteReader())
+                        {
+                            while (rdr.Read())
+                            {
+                                var ln = new JournalLineInput
+                                {
+                                    ZohoAccountID = rdr["ZohoAccountID"].ToString(),
+                                    // SWAP: original debit becomes credit, original credit becomes debit
+                                    Debit  = Convert.ToDecimal(rdr["Credit"]),
+                                    Credit = Convert.ToDecimal(rdr["Debit"]),
+                                    LineDescription = rdr["LineDescription"] == DBNull.Value ? null : rdr["LineDescription"].ToString(),
+                                    ContactID = rdr["ContactID"] == DBNull.Value ? null : rdr["ContactID"].ToString()
+                                };
+                                origLines.Add(ln);
+                                td += ln.Debit;
+                                tc += ln.Credit;
+                            }
+                        }
+                    }
+
+                    // 2) Create contra journal (new number, same lines swapped, narration prefixed)
+                    // NextJournalNumber uses its own connection — close the current tx briefly for it.
+                    // Simpler: inline the seq increment here to keep the tx atomic.
+                    string fy = GetCurrentFY(reversalDate);
+                    using (var cmd = new MySqlCommand(
+                        "INSERT IGNORE INTO FIN_JournalSequence (FiscalYear, LastSeq) VALUES (?fy, 0)", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?fy", fy);
+                        cmd.ExecuteNonQuery();
+                    }
+                    using (var cmd = new MySqlCommand(
+                        "UPDATE FIN_JournalSequence SET LastSeq = LastSeq + 1, UpdatedAt = NOW() WHERE FiscalYear = ?fy", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?fy", fy);
+                        cmd.ExecuteNonQuery();
+                    }
+                    int nextSeq;
+                    using (var cmd = new MySqlCommand(
+                        "SELECT LastSeq FROM FIN_JournalSequence WHERE FiscalYear = ?fy", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?fy", fy);
+                        nextSeq = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                    string contraNumber = "JV-" + fy + "-" + nextSeq.ToString("D4");
+                    string contraNarration = "Reversal of " + origNumber
+                        + (string.IsNullOrEmpty(reason) ? "" : " — " + reason)
+                        + (string.IsNullOrEmpty(origNarration) ? "" : " (orig: " + origNarration + ")");
+
+                    int contraId;
+                    using (var cmd = new MySqlCommand(
+                        "INSERT INTO FIN_Journal " +
+                        " (JournalNumber, JournalDate, Narration, Reference, Status, " +
+                        "  TotalDebit, TotalCredit, CreatedBy, CreatedAt, PostedBy, PostedAt) " +
+                        "VALUES " +
+                        " (?jn, ?jd, ?narr, ?ref, 'POSTED', ?td, ?tc, ?uid, NOW(), ?uid, NOW()); " +
+                        "SELECT LAST_INSERT_ID();", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jn", contraNumber);
+                        cmd.Parameters.AddWithValue("?jd", reversalDate.Date);
+                        cmd.Parameters.AddWithValue("?narr", contraNarration);
+                        cmd.Parameters.AddWithValue("?ref", origNumber);
+                        cmd.Parameters.AddWithValue("?td", td);
+                        cmd.Parameters.AddWithValue("?tc", tc);
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        contraId = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+
+                    int order = 1;
+                    foreach (var ln in origLines)
+                    {
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO FIN_JournalLine " +
+                            " (JournalID, LineOrder, ZohoAccountID, Debit, Credit, LineDescription, ContactID) " +
+                            "VALUES (?jid, ?ord, ?acc, ?dr, ?cr, ?desc, ?cid)", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("?jid", contraId);
+                            cmd.Parameters.AddWithValue("?ord", order++);
+                            cmd.Parameters.AddWithValue("?acc", ln.ZohoAccountID);
+                            cmd.Parameters.AddWithValue("?dr", ln.Debit);
+                            cmd.Parameters.AddWithValue("?cr", ln.Credit);
+                            cmd.Parameters.AddWithValue("?desc", string.IsNullOrEmpty(ln.LineDescription) ? (object)DBNull.Value : ln.LineDescription);
+                            cmd.Parameters.AddWithValue("?cid",  string.IsNullOrEmpty(ln.ContactID) ? (object)DBNull.Value : ln.ContactID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // 3) Mark original as REVERSED, link to contra
+                    using (var cmd = new MySqlCommand(
+                        "UPDATE FIN_Journal SET " +
+                        " Status='REVERSED', ReversedByJournalID=?cid, ReversedBy=?uid, ReversedAt=NOW() " +
+                        "WHERE JournalID=?jid", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?cid", contraId);
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        cmd.Parameters.AddWithValue("?jid", originalJournalId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    tx.Commit();
+                    return contraId;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Delete a DRAFT journal. Throws if status is not DRAFT. Lines cascade.
+        /// </summary>
+        public static void DeleteJournalDraft(int journalId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                string status;
+                using (var cmd = new MySqlCommand("SELECT Status FROM FIN_Journal WHERE JournalID = ?jid", conn))
+                {
+                    cmd.Parameters.AddWithValue("?jid", journalId);
+                    object s = cmd.ExecuteScalar();
+                    if (s == null) throw new Exception("Journal not found.");
+                    status = s.ToString();
+                }
+                if (status != "DRAFT")
+                    throw new Exception("Only DRAFT journals can be deleted. This one is " + status + ".");
+
+                using (var cmd = new MySqlCommand("DELETE FROM FIN_Journal WHERE JournalID = ?jid", conn))
+                {
+                    cmd.Parameters.AddWithValue("?jid", journalId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        /// <summary>Journal status counts for dashboard badge.</summary>
+        public static DataTable GetJournalStatusCounts()
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT Status, COUNT(*) AS Cnt FROM FIN_Journal GROUP BY Status", conn))
+            {
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt;
+            }
+        }
     }
 }

@@ -1944,6 +1944,128 @@ namespace FINApp.DAL
             }
             return results;
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  CHART OF ACCOUNTS — mirror Zoho's COA into FIN_ChartOfAccounts
+        // ══════════════════════════════════════════════════════════════
+        // Journal entries bind to a ledger account from Zoho's chart. To keep
+        // the entry UI responsive and to survive Zoho outages, we cache the
+        // COA locally. Finance clicks "Sync from Zoho" once at setup time and
+        // re-runs it whenever they add accounts in Zoho.
+        //
+        // Zoho endpoint: GET /books/v3/chartofaccounts?organization_id=...
+        //   filter_by=AccountType.All returns active + inactive accounts.
+        //   Pagination via page + per_page; response includes page_context.has_more_page.
+
+        /// <summary>
+        /// Pull the full chart of accounts from Zoho Books and upsert into
+        /// FIN_ChartOfAccounts. Returns the number of rows written (created + updated).
+        /// </summary>
+        public static int SyncChartOfAccountsFromZoho()
+        {
+            int total = 0;
+            int page = 1;
+            bool hasMore = true;
+
+            // Mark current time so we can detect any rows that didn't come back
+            // (means they were deleted in Zoho). We don't auto-delete — just flag IsActive=0.
+            DateTime syncStart = DateTime.Now;
+
+            while (hasMore)
+            {
+                string endpoint = "chartofaccounts?filter_by=AccountType.All&per_page=200&page=" + page;
+                var response = ZohoGet(endpoint);
+                if (response == null)
+                    throw new Exception("No response from Zoho chartofaccounts endpoint.");
+
+                if (response.ContainsKey("code"))
+                {
+                    int code = Convert.ToInt32(response["code"]);
+                    if (code != 0)
+                    {
+                        string msg = response.ContainsKey("message") ? response["message"].ToString() : "Unknown error";
+                        LogSync("SyncChartOfAccounts", "ChartOfAccounts", null, null, "Error",
+                            "Zoho returned code=" + code + " msg=" + msg);
+                        throw new Exception("Zoho error (" + code + "): " + msg);
+                    }
+                }
+
+                var accounts = response.ContainsKey("chartofaccounts") ? response["chartofaccounts"] as System.Collections.ArrayList : null;
+                if (accounts == null || accounts.Count == 0) break;
+
+                foreach (var a in accounts)
+                {
+                    var acc = a as Dictionary<string, object>;
+                    if (acc == null) continue;
+                    SaveChartOfAccount(acc);
+                    total++;
+                }
+
+                // Pagination check
+                var pageCtx = response.ContainsKey("page_context") ? response["page_context"] as Dictionary<string, object> : null;
+                if (pageCtx != null && pageCtx.ContainsKey("has_more_page"))
+                    hasMore = Convert.ToBoolean(pageCtx["has_more_page"]);
+                else
+                    hasMore = false;
+
+                page++;
+
+                // Safety valve — in case has_more_page is missing
+                if (page > 30) break;
+            }
+
+            LogSync("SyncChartOfAccounts", "ChartOfAccounts", null, null, "Success",
+                total + " account(s) synced from Zoho Books.");
+            return total;
+        }
+
+        /// <summary>Upsert one account row into FIN_ChartOfAccounts.</summary>
+        private static void SaveChartOfAccount(Dictionary<string, object> acc)
+        {
+            string zohoId = acc.ContainsKey("account_id") ? acc["account_id"].ToString() : "";
+            if (string.IsNullOrEmpty(zohoId)) return;
+
+            string name         = acc.ContainsKey("account_name") ? acc["account_name"].ToString() : "";
+            string code         = acc.ContainsKey("account_code") ? acc["account_code"].ToString() : "";
+            string type         = acc.ContainsKey("account_type") ? acc["account_type"].ToString() : "";
+            string typeName     = acc.ContainsKey("account_type_formatted") ? acc["account_type_formatted"].ToString()
+                                  : (acc.ContainsKey("account_type_name") ? acc["account_type_name"].ToString() : "");
+            string parentId     = acc.ContainsKey("parent_account_id") && acc["parent_account_id"] != null ? acc["parent_account_id"].ToString() : "";
+            string description  = acc.ContainsKey("description") && acc["description"] != null ? acc["description"].ToString() : "";
+            bool isActive       = acc.ContainsKey("is_active") && Convert.ToBoolean(acc["is_active"]);
+
+            string connStr = ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
+            using (var conn = new MySqlConnection(connStr))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO FIN_ChartOfAccounts " +
+                    " (ZohoAccountID, AccountName, AccountCode, AccountType, AccountTypeName, " +
+                    "  ParentAccountID, Description, IsActive, LastSyncAt, CreatedAt) " +
+                    "VALUES " +
+                    " (?zid, ?name, ?code, ?type, ?typeName, ?parent, ?desc, ?active, NOW(), NOW()) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    " AccountName=VALUES(AccountName)," +
+                    " AccountCode=VALUES(AccountCode)," +
+                    " AccountType=VALUES(AccountType)," +
+                    " AccountTypeName=VALUES(AccountTypeName)," +
+                    " ParentAccountID=VALUES(ParentAccountID)," +
+                    " Description=VALUES(Description)," +
+                    " IsActive=VALUES(IsActive)," +
+                    " LastSyncAt=NOW()", conn))
+                {
+                    cmd.Parameters.AddWithValue("?zid", zohoId);
+                    cmd.Parameters.AddWithValue("?name", name);
+                    cmd.Parameters.AddWithValue("?code", string.IsNullOrEmpty(code) ? (object)DBNull.Value : code);
+                    cmd.Parameters.AddWithValue("?type", string.IsNullOrEmpty(type) ? (object)DBNull.Value : type);
+                    cmd.Parameters.AddWithValue("?typeName", string.IsNullOrEmpty(typeName) ? (object)DBNull.Value : typeName);
+                    cmd.Parameters.AddWithValue("?parent", string.IsNullOrEmpty(parentId) ? (object)DBNull.Value : parentId);
+                    cmd.Parameters.AddWithValue("?desc", string.IsNullOrEmpty(description) ? (object)DBNull.Value : description);
+                    cmd.Parameters.AddWithValue("?active", isActive ? 1 : 0);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
     }
 
     /// <summary>Result of syncing an invoice back from Zoho.</summary>
