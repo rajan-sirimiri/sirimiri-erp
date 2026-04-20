@@ -45,6 +45,14 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\PK\bin\ClosedXML.dll</HintPath>
     </Reference>
+    <!-- PKApp.dll is referenced ONLY to call PKApp.DAL.PKDatabaseHelper for
+         PK-owned data queries (DC lines, FG stock, DCs by consignment). FIN's
+         Zoho helper (FINZohoHelper) lives entirely in FIN; no Zoho code comes
+         from PKApp.dll anymore. Build PK before FIN. -->
+    <Reference Include="PKApp">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\PK\bin\PKApp.dll</HintPath>
+    </Reference>
     <Reference Include="DocumentFormat.OpenXml, Version=2.12.3.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
       <HintPath>..\files\packages\DocumentFormat.OpenXml.2.12.3\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
     </Reference>
@@ -86,7 +94,6 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="DAL\FINZohoHelper.cs" />
-    <Compile Include="FINZohoHelper.cs" />
     <Content Include="FINHome.aspx" />
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />

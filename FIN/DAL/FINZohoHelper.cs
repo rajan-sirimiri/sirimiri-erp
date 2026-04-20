@@ -1681,7 +1681,16 @@ namespace FINApp.DAL
                 string supState = g["SupState"] != DBNull.Value ? g["SupState"].ToString().Trim().ToLower() : "";
                 bool interState = !string.IsNullOrEmpty(supState) && supState != "tamil nadu";
 
+                // Reverse-charge detection: if the vendor has no GSTIN (unregistered dealer),
+                // GST law says we must apply reverse charge — the buyer pays GST directly to
+                // the government. Zoho rejects the bill with "Reverse charge should be applied..."
+                // if we try to push a regular tax line for an unregistered vendor.
+                string supGstin = g["SupGSTIN"] != DBNull.Value ? g["SupGSTIN"].ToString().Trim() : "";
+                bool reverseCharge = string.IsNullOrEmpty(supGstin) || supGstin.Length < 15;
+
                 decimal gstRate = g["GSTRate"] != DBNull.Value ? Convert.ToDecimal(g["GSTRate"]) : 0;
+                // For RCM, Zoho still wants a tax_id so it knows the RCM rate — but the bill
+                // line's tax contribution is recorded separately as reverse-charge tax.
                 string taxId = interState ? GetZohoTaxId(gstRate, "IGST") : GetZohoTaxId(gstRate, "GST");
 
                 decimal qty = Convert.ToDecimal(g["Quantity"]);
@@ -1694,19 +1703,23 @@ namespace FINApp.DAL
                 var lineItem = new Dictionary<string, object>
                 {
                     { "item_id", zohoItemId },
-                    { "account_id", "" }, // let Zoho pick default expense account
                     { "quantity", qty },
                     { "rate", rate },
                     { "hsn_or_sac", hsn },
                     { "description", "GRN " + grnNo + " | " + itemNameForNotes }
                 };
-                // Remove account_id so Zoho uses the default
-                lineItem.Remove("account_id");
 
-                if (!string.IsNullOrEmpty(taxId))
-                    lineItem["tax_id"] = taxId;
-                else if (gstRate > 0)
-                    lineItem["tax_percentage"] = gstRate;
+                // Tax handling:
+                //   - Registered vendor → attach tax_id so Zoho calculates normal GST/IGST
+                //   - Unregistered vendor → no tax_id on the line (Zoho will mark as RCM);
+                //     mark out_of_scope so Zoho doesn't complain about missing tax either
+                if (!reverseCharge)
+                {
+                    if (!string.IsNullOrEmpty(taxId))
+                        lineItem["tax_id"] = taxId;
+                    else if (gstRate > 0)
+                        lineItem["tax_percentage"] = gstRate;
+                }
 
                 // Bill header — bill_date = InvoiceDate if present, else InwardDate
                 DateTime billDate;
@@ -1729,13 +1742,21 @@ namespace FINApp.DAL
                     { "date", billDate.ToString("yyyy-MM-dd") },
                     { "reference_number", grnNo },
                     { "notes", "GRN Ref: " + grnNo + " | ERP " + grnType + " inward"
-                        + (grnType == "RAW" ? " | RMID=" + g["RMID"] : " | PMID=" + g["PMID"]) },
+                        + (grnType == "RAW" ? " | RMID=" + g["RMID"] : " | PMID=" + g["PMID"])
+                        + (reverseCharge ? " | RCM (unregistered vendor)" : "") },
                     { "is_inclusive_tax", false },
                     { "line_items", new List<Dictionary<string, object>> { lineItem } }
                 };
                 if (!string.IsNullOrEmpty(sourceOfSupply))
                     bill["source_of_supply"] = sourceOfSupply;
                 bill["destination_of_supply"] = destOfSupply;
+
+                // RCM flag — tells Zoho this is a purchase from an unregistered vendor where
+                // the buyer is liable for GST under reverse charge. Without this flag, Zoho
+                // rejects the bill with "Reverse charge should be applied on ... purchases
+                // from unregistered vendors."
+                if (reverseCharge)
+                    bill["is_reverse_charge_applied"] = true;
 
                 // Log the bill JSON for debugging before firing
                 var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
