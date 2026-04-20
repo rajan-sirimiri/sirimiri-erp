@@ -25,6 +25,10 @@ namespace FINApp
         protected TextBox txtJournalDate, txtNarration, txtReference;
         protected LinkButton btnAddLine, btnCancel, btnSaveDraft, btnPost, btnDelete, btnReverse;
         protected Literal litTotalDebit, litTotalCredit, litBalance;
+        // Zoho push (detail mode)
+        protected Panel pnlZohoSection;
+        protected Literal litZohoStatus;
+        protected LinkButton btnPushToZoho, btnRepushToZoho;
 
         // ── mode / state ──
         // Mode is derived from query string: no id → list, id=NEW → new entry, id=<int> → edit/view existing.
@@ -101,6 +105,7 @@ namespace FINApp
                 RenderLineRows();
                 RefreshTotals();
                 WireDetailActionButtons();
+                RefreshZohoSection();
             }
             else
             {
@@ -180,7 +185,7 @@ namespace FINApp
 
             var tbl = new Table { CssClass = "tbl" };
             var hdr = new TableHeaderRow();
-            foreach (var h in new[] { "Number", "Date", "Narration", "Debit", "Credit", "Status", "Action" })
+            foreach (var h in new[] { "Number", "Date", "Narration", "Debit", "Credit", "Status", "Zoho", "Action" })
             {
                 var cell = new TableHeaderCell();
                 cell.Controls.Add(new LiteralControl(h));
@@ -188,10 +193,18 @@ namespace FINApp
                 else if (h == "Date") cell.CssClass = "col-date";
                 else if (h == "Debit" || h == "Credit") cell.CssClass = "col-total";
                 else if (h == "Status") cell.CssClass = "col-status";
+                else if (h == "Zoho") cell.CssClass = "col-zoho";
                 else if (h == "Action") cell.CssClass = "col-act";
                 hdr.Cells.Add(cell);
             }
             tbl.Rows.Add(hdr);
+
+            // Batch-fetch Zoho push status for every journal on this page so we can
+            // decorate rows without doing an extra query per row.
+            var jidsOnPage = new System.Collections.Generic.List<int>();
+            foreach (DataRow r in dt.Rows)
+                jidsOnPage.Add(Convert.ToInt32(r["JournalID"]));
+            var zohoLogs = FINDatabaseHelper.GetJournalLogsForList(jidsOnPage);
 
             foreach (DataRow r in dt.Rows)
             {
@@ -229,6 +242,10 @@ namespace FINApp
                 cSt.Text = StatusBadge(st);
                 tr.Cells.Add(cSt);
 
+                var cZoho = new TableCell { CssClass = "col-zoho" };
+                cZoho.Text = ZohoChip(zohoLogs.ContainsKey(jid) ? zohoLogs[jid] : null);
+                tr.Cells.Add(cZoho);
+
                 var cAct = new TableCell { CssClass = "col-act" };
                 string verb = st == "DRAFT" ? "Edit" : "View";
                 cAct.Text = "<a class='link' href='FINJournal.aspx?id=" + jid + "'>" + verb + " &rarr;</a>";
@@ -248,6 +265,105 @@ namespace FINApp
                 case "REVERSED": return "<span class='badge badge-reversed'>Reversed</span>";
                 default:         return "<span class='badge badge-draft'>" + Server.HtmlEncode(status) + "</span>";
             }
+        }
+
+        /// <summary>
+        /// Render a Zoho push status chip from a zoho_journallog row (may be null).
+        /// States:
+        ///   (no log row)                  → "—" (not pushed)
+        ///   PushStatus='Pushed' + ZohoID  → green "Zoho: <entry#>"
+        ///   PushStatus='Error'            → red "Error"
+        ///   (other / pending)             → grey "—"
+        /// </summary>
+        string ZohoChip(DataRow logRow)
+        {
+            if (logRow == null)
+                return "<span class='badge badge-zoho-notpushed'>—</span>";
+
+            string pushStatus = logRow["PushStatus"].ToString();
+            string zohoId = logRow["ZohoJournalID"] == DBNull.Value ? "" : logRow["ZohoJournalID"].ToString();
+
+            if (pushStatus == "Pushed" && !string.IsNullOrEmpty(zohoId))
+            {
+                string zno = logRow["ZohoJournalNo"] == DBNull.Value ? "" : logRow["ZohoJournalNo"].ToString();
+                string label = string.IsNullOrEmpty(zno) ? "Pushed" : Server.HtmlEncode(zno);
+                return "<span class='badge badge-zoho-pushed' title='Pushed to Zoho Books'>" + label + "</span>";
+            }
+            if (pushStatus == "Error")
+                return "<span class='badge badge-zoho-error' title='Push failed — open the journal for details'>Error</span>";
+
+            return "<span class='badge badge-zoho-notpushed'>—</span>";
+        }
+
+        /// <summary>
+        /// Populate the "Zoho Books" section inside the detail card.
+        /// Shows the current push state (never pushed / pushed / error),
+        /// exposes the Push / Retry buttons via WireDetailActionButtons.
+        /// Only meaningful for POSTED journals — hidden for DRAFT/NEW/REVERSED.
+        /// </summary>
+        void RefreshZohoSection()
+        {
+            string st = CurrentStatus();
+            // Only POSTED journals can be pushed. DRAFT: no point. REVERSED:
+            // the contra is its own journal and is pushed separately; we
+            // still show the section so the user sees this one was already
+            // handled before reversal (if it was).
+            if (st != "POSTED" && st != "REVERSED")
+            {
+                pnlZohoSection.Visible = false;
+                return;
+            }
+
+            DataRow log = FINDatabaseHelper.GetJournalLog(JournalID);
+
+            if (log == null)
+            {
+                if (st == "POSTED")
+                {
+                    pnlZohoSection.Visible = true;
+                    litZohoStatus.Text = "<span class='badge badge-zoho-notpushed'>Not pushed</span> "
+                        + "&nbsp; This journal has not been sent to Zoho Books yet.";
+                }
+                else
+                {
+                    pnlZohoSection.Visible = false;
+                }
+                return;
+            }
+
+            string pushStatus = log["PushStatus"].ToString();
+            string zohoId = log["ZohoJournalID"] == DBNull.Value ? "" : log["ZohoJournalID"].ToString();
+            string zohoNo = log["ZohoJournalNo"] == DBNull.Value ? "" : log["ZohoJournalNo"].ToString();
+            string pushedAt = log["PushedAt"] == DBNull.Value
+                ? "" : Convert.ToDateTime(log["PushedAt"]).ToString("dd MMM yyyy HH:mm");
+
+            pnlZohoSection.Visible = true;
+            var sb = new System.Text.StringBuilder();
+
+            if (pushStatus == "Pushed" && !string.IsNullOrEmpty(zohoId))
+            {
+                sb.Append("<span class='badge badge-zoho-pushed'>Pushed</span> &nbsp; ");
+                sb.Append("Zoho entry <b>").Append(Server.HtmlEncode(zohoNo)).Append("</b> ");
+                if (!string.IsNullOrEmpty(pushedAt))
+                    sb.Append("on ").Append(pushedAt).Append(". ");
+                sb.Append("<span style='color:var(--text-dim);'>(id: ").Append(Server.HtmlEncode(zohoId)).Append(")</span>");
+            }
+            else if (pushStatus == "Error")
+            {
+                sb.Append("<span class='badge badge-zoho-error'>Error</span> &nbsp; ");
+                sb.Append("Last attempt ");
+                if (!string.IsNullOrEmpty(pushedAt)) sb.Append("at ").Append(pushedAt).Append(" ");
+                sb.Append("failed.");
+                string errMsg = log["ErrorMessage"] == DBNull.Value ? "" : log["ErrorMessage"].ToString();
+                if (!string.IsNullOrEmpty(errMsg))
+                    sb.Append("<span class='zoho-error'>").Append(Server.HtmlEncode(errMsg)).Append("</span>");
+            }
+            else
+            {
+                sb.Append("<span class='badge badge-zoho-notpushed'>").Append(Server.HtmlEncode(pushStatus)).Append("</span>");
+            }
+
+            litZohoStatus.Text = sb.ToString();
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -563,7 +679,7 @@ namespace FINApp
             // Visibility matrix:
             //   NEW      → Cancel, Save draft, Post
             //   DRAFT    → Cancel, Save draft, Post, Delete
-            //   POSTED   → Cancel (= back to list), Reverse
+            //   POSTED   → Cancel (= back to list), Reverse, [Push to Zoho | Retry Zoho push]
             //   REVERSED → Cancel (= back to list) — everything else hidden
             bool isNew = (st == "NEW");
             bool isDraft = (st == "DRAFT");
@@ -576,6 +692,31 @@ namespace FINApp
             btnDelete.Visible    = IsFinance && isDraft;
             btnReverse.Visible   = IsFinance && isPosted;
             btnAddLine.Visible   = IsFinance && (isNew || isDraft);
+
+            // Zoho push buttons — only for POSTED, only for Finance role
+            btnPushToZoho.Visible = false;
+            btnRepushToZoho.Visible = false;
+            if (IsFinance && isPosted)
+            {
+                DataRow log = FINDatabaseHelper.GetJournalLog(JournalID);
+                bool alreadyPushed = log != null
+                    && log["ZohoJournalID"] != DBNull.Value
+                    && !string.IsNullOrEmpty(log["ZohoJournalID"].ToString());
+                bool priorError = log != null && log["PushStatus"].ToString() == "Error";
+
+                if (alreadyPushed)
+                {
+                    // Already in Zoho — neither button. Chip in RefreshZohoSection tells the story.
+                }
+                else if (priorError)
+                {
+                    btnRepushToZoho.Visible = true;
+                }
+                else
+                {
+                    btnPushToZoho.Visible = true;
+                }
+            }
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -755,6 +896,43 @@ namespace FINApp
             }
         }
 
+        /// <summary>
+        /// Shared handler for both btnPushToZoho (first attempt) and
+        /// btnRepushToZoho (retry after prior error).  The underlying
+        /// PushJournalToZoho is idempotent, so the same code path handles
+        /// both cases safely.
+        /// </summary>
+        protected void btnPushToZoho_Click(object s, EventArgs e)
+        {
+            if (!IsFinance) { ShowBanner("Only Finance users can push journals to Zoho.", "error"); return; }
+            if (JournalID == 0) { ShowBanner("Save and post the journal first.", "error"); return; }
+
+            try
+            {
+                var result = FINDatabaseHelper.PushJournalToZoho(JournalID, CurrentUserId);
+                if (result.Success)
+                {
+                    string msg = result.AlreadyPushed
+                        ? "Already in Zoho as " + (result.ZohoJournalNo ?? "") + "."
+                        : "Pushed to Zoho as " + (result.ZohoJournalNo ?? "(draft)") + ".";
+                    Response.Redirect("FINJournal.aspx?id=" + JournalID + "&zpushed=1");
+                }
+                else
+                {
+                    // Stay on the page so the user sees the error context (and can retry).
+                    ShowBanner("Push to Zoho failed: " + result.Message, "error");
+                    RefreshZohoSection();
+                    WireDetailActionButtons();
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowBanner("Push to Zoho failed: " + ex.Message, "error");
+                RefreshZohoSection();
+                WireDetailActionButtons();
+            }
+        }
+
         // ══════════════════════════════════════════════════════════════
         //  HELPERS
         // ══════════════════════════════════════════════════════════════
@@ -821,6 +999,8 @@ namespace FINApp
                 ShowBanner("Original entry reversed. This is the contra journal.", "success");
             else if (!string.IsNullOrEmpty(Request.QueryString["deleted"]))
                 ShowBanner("Draft deleted.", "success");
+            else if (!string.IsNullOrEmpty(Request.QueryString["zpushed"]))
+                ShowBanner("Journal pushed to Zoho Books.", "success");
         }
     }
 }

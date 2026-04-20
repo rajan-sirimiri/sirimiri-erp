@@ -80,6 +80,23 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .badge-posted{background:#e8f7f1;color:#0f6e56;}
 .badge-reversed{background:#fef5eb;color:#b9770e;}
 
+/* Zoho push status chips (used in list + detail) */
+.badge-zoho-notpushed{background:#f0f0f0;color:#666;}
+.badge-zoho-pushed{background:#d4edda;color:#1e7e34;}
+.badge-zoho-error{background:#f8d7da;color:#721c24;}
+.col-zoho{width:110px;text-align:center;}
+
+/* Zoho section inside detail card */
+.zoho-section{padding:16px 24px;border-top:1px solid var(--border);background:#fafafa;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.zoho-section .zoho-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);font-weight:600;}
+.zoho-section .zoho-info{font-size:12px;color:var(--text-muted);flex:1;}
+.zoho-section .zoho-info b{color:var(--text);font-family:'Courier New',monospace;}
+.zoho-section .zoho-error{color:var(--danger);font-size:11px;font-style:italic;margin-top:4px;display:block;}
+.btn-zoho{background:#d35400;color:#fff;}
+.btn-zoho:hover{background:#a04000;}
+.btn-zoho-retry{background:#fef5eb;color:#d35400;border:1px solid #f5cba7;}
+.btn-zoho-retry:hover{background:#d35400;color:#fff;}
+
 .empty-state{text-align:center;padding:48px 20px;color:var(--text-muted);font-size:13px;}
 .empty-state strong{display:block;font-size:16px;color:var(--text);margin-bottom:6px;}
 
@@ -266,6 +283,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="bal"><asp:Literal ID="litBalance" runat="server"/></div>
             </div>
 
+            <asp:Panel ID="pnlZohoSection" runat="server" CssClass="zoho-section" Visible="false">
+                <div class="zoho-label">Zoho Books</div>
+                <div class="zoho-info">
+                    <asp:Literal ID="litZohoStatus" runat="server"/>
+                </div>
+            </asp:Panel>
+
             <div class="detail-actions">
                 <asp:LinkButton ID="btnCancel"    runat="server" CssClass="btn btn-ghost"  OnClick="btnCancel_Click">Cancel</asp:LinkButton>
                 <asp:LinkButton ID="btnSaveDraft" runat="server" CssClass="btn btn-ghost"  OnClick="btnSaveDraft_Click">Save draft</asp:LinkButton>
@@ -275,6 +299,10 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                     OnClientClick="return confirm('Delete this draft? This cannot be undone.');">Delete draft</asp:LinkButton>
                 <asp:LinkButton ID="btnReverse"   runat="server" CssClass="btn btn-warn"   OnClick="btnReverse_Click"
                     OnClientClick="return confirm('Reverse this posted entry? This will create a contra journal that flips every debit/credit.');">Reverse entry</asp:LinkButton>
+                <asp:LinkButton ID="btnPushToZoho" runat="server" CssClass="btn btn-zoho" OnClick="btnPushToZoho_Click" Visible="false"
+                    OnClientClick="return confirm('Push this journal to Zoho Books? This is idempotent — if already pushed, nothing new will be created.');">&#x2197; Push to Zoho</asp:LinkButton>
+                <asp:LinkButton ID="btnRepushToZoho" runat="server" CssClass="btn btn-zoho-retry" OnClick="btnPushToZoho_Click" Visible="false"
+                    OnClientClick="return confirm('Retry push to Zoho Books? The previous attempt failed.');">&#x21BB; Retry Zoho push</asp:LinkButton>
             </div>
         </div>
 

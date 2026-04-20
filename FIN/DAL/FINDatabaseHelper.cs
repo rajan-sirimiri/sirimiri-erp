@@ -1509,6 +1509,14 @@ namespace FINApp.DAL
             return FINApp.DAL.FINZohoHelper.CreateBillFromGRN(grnId, grnType, userId);
         }
 
+        /// <summary>Thin wrapper — delegates to FINZohoHelper which owns the Zoho API client
+        /// and party auto-create logic. UI code should call through this wrapper rather than
+        /// referencing FINZohoHelper directly (mirrors the PushGRNToZoho pattern).</summary>
+        public static FINApp.DAL.ZohoJournalPushResult PushJournalToZoho(int journalId, int userId)
+        {
+            return FINApp.DAL.FINZohoHelper.PushJournalToZoho(journalId, userId);
+        }
+
         /// <summary>Summary counts for the GRN-to-Zoho dashboard tabs.
         /// Returns a row per GRN type with PendingCount, PushedCount, ErrorCount.</summary>
         public static DataTable GetGRNBillingTabSummary(DateTime? fromDate, DateTime? toDate)
@@ -2232,6 +2240,45 @@ namespace FINApp.DAL
                 dt.Load(cmd.ExecuteReader());
                 return dt.Rows.Count > 0 ? dt.Rows[0] : null;
             }
+        }
+
+        /// <summary>
+        /// Batch companion to GetJournalLog — fetches zoho_journallog rows
+        /// for a set of JournalIDs in one query, keyed by JournalID.  Used
+        /// by the list view to avoid N+1 queries when decorating ~500 rows
+        /// with their Zoho push status.
+        /// </summary>
+        public static System.Collections.Generic.Dictionary<int, DataRow> GetJournalLogsForList(
+            System.Collections.Generic.IEnumerable<int> journalIds)
+        {
+            var result = new System.Collections.Generic.Dictionary<int, DataRow>();
+            if (journalIds == null) return result;
+
+            // Build a comma-separated list of validated integers — safe against injection
+            // because we parse each one as an int before concatenating.
+            var idList = new System.Collections.Generic.List<int>();
+            foreach (int id in journalIds)
+                if (id > 0) idList.Add(id);
+            if (idList.Count == 0) return result;
+
+            string inClause = string.Join(",", idList);
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT * FROM zoho_journallog WHERE JournalID IN (" + inClause + ")", conn))
+            {
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                foreach (DataRow r in dt.Rows)
+                {
+                    int jid = Convert.ToInt32(r["JournalID"]);
+                    // One row per journal — if somehow there are dupes, keep the newest
+                    // (unique key on JournalID prevents this in practice).
+                    if (!result.ContainsKey(jid))
+                        result[jid] = r;
+                }
+            }
+            return result;
         }
 
         /// <summary>
