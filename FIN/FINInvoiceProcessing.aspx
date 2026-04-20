@@ -219,7 +219,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             <asp:Button ID="btnDownloadAllInvoices" runat="server" Text="&#x1F4E5; Download All Invoices"
                 CssClass="btn btn-secondary" OnClick="btnDownloadAllInvoices_Click" CausesValidation="false" />
             <asp:Button ID="btnMarkReady" runat="server" Text="Mark Consignment READY"
-                CssClass="btn btn-success" OnClientClick="return confirmMarkReady();"
+                CssClass="btn btn-success" OnClientClick="return confirmMarkReady(this);"
                 OnClick="btnMarkReady_Click" CausesValidation="false" Visible="false" />
             <asp:Button ID="btnOpenDispatch" runat="server" Text="&#x1F69A; Dispatch Consignment"
                 CssClass="btn btn-primary" OnClick="btnOpenDispatch_Click" CausesValidation="false" Visible="false" />
@@ -238,7 +238,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <asp:TextBox ID="txtVehicleNo" runat="server" placeholder="TN 01 AB 1234" />
             </div>
             <asp:Button ID="btnConfirmDispatch" runat="server" Text="Confirm Dispatch"
-                CssClass="btn btn-success" OnClientClick="return confirmDispatch();"
+                CssClass="btn btn-success" OnClientClick="return confirmDispatch(this);"
                 OnClick="btnConfirmDispatch_Click" CausesValidation="false" />
         </asp:Panel>
 
@@ -341,15 +341,37 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 <asp:HiddenField ID="hfActiveDCID" runat="server" Value="0" />
 
 <script>
-function confirmMarkReady(){ return confirm('Mark this consignment READY for dispatch?\n\nAll DCs must be FINALISED. No more DCs can be added after this.'); }
-function confirmDispatch(){
-    var v=document.getElementById('<%= txtVehicleNo.ClientID %>').value.trim();
-    if(!v){ alert('Please enter a vehicle number.'); return false; }
-    return confirm('Dispatch this consignment with vehicle ' + v.toUpperCase() + '?\n\nAll contained DCs will be marked CLOSED and cannot be edited further from the PK module.');
+/* All three helpers use the shared erp-modal.js API.
+   erpConfirmLink returns false (cancels postback) and, on OK,
+   re-fires the postback via its internal eval of the __doPostBack href.
+   The alert-only path in confirmDispatch uses erpAlert and returns false. */
+
+function confirmMarkReady(btn){
+    return erpConfirmLink(btn,
+        'Mark this consignment READY for dispatch?<br><br>All DCs must be FINALISED. No more DCs can be added after this.',
+        { title:'Mark READY', okText:'Mark READY', btnClass:'success', type:'warn' });
 }
-function confirmDeleteLine(){ return confirm('Delete this line from the DC? This will recompute the invoice amount. Zoho invoice will need re-sync.'); }
+
+function confirmDispatch(btn){
+    var v = document.getElementById('<%= txtVehicleNo.ClientID %>').value.trim();
+    if (!v){
+        erpAlert('Please enter a vehicle number before dispatching.',
+            { title:'Vehicle number required', type:'warn' });
+        return false;
+    }
+    return erpConfirmLink(btn,
+        'Dispatch this consignment with vehicle <b>' + v.toUpperCase() + '</b>?<br><br>All contained DCs will be marked CLOSED and cannot be edited further from the PK module.',
+        { title:'Dispatch Consignment', okText:'Dispatch', btnClass:'success', type:'warn' });
+}
+
+function confirmDeleteLine(btn){
+    return erpConfirmLink(btn,
+        'Delete this line from the DC? This will recompute the invoice amount. Zoho invoice will need re-sync.',
+        { title:'Delete Line', okText:'Delete', btnClass:'danger', type:'danger' });
+}
 </script>
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

@@ -539,7 +539,7 @@ namespace FINApp
                     btnDel.CssClass = "btn btn-danger";
                     btnDel.Text = "🗑 Delete";
                     btnDel.CausesValidation = false;
-                    btnDel.OnClientClick = "return confirmDeleteLine();";
+                    btnDel.OnClientClick = "return confirmDeleteLine(this);";
                     lineStrip.Controls.Add(btnDel);
 
                     actionsPnl.Controls.Add(lineStrip);
@@ -886,7 +886,7 @@ namespace FINApp
                         {
                             CommandName = "CancelEWB", CommandArgument = dcId.ToString(),
                             CssClass = "einv-link", Text = "✗ EWB", CausesValidation = false,
-                            OnClientClick = "return confirm('Mark EWB as cancelled? Cancel it in Zoho/IRP separately.');"
+                            OnClientClick = "return erpConfirmLink(this,'Mark EWB as cancelled? Cancel it in Zoho/IRP separately.',{title:'Cancel EWB',okText:'Mark cancelled',btnClass:'danger',type:'warn'});"
                         };
                         ph.Controls.Add(btnEWBCancel);
                     }

@@ -116,7 +116,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         </div>
         <div class="meta-action">
             <asp:LinkButton ID="btnSync" runat="server" CssClass="btn btn-primary"
-                OnClick="btnSync_Click" OnClientClick="return confirm('Pull latest chart of accounts from Zoho? This may take 5-15 seconds.');">
+                OnClick="btnSync_Click" OnClientClick="return erpConfirmLink(this,'Pull latest chart of accounts from Zoho? This may take 5-15 seconds.',{title:'Sync Chart of Accounts',okText:'Sync',btnClass:'primary',type:'info'});">
                 &#x1F504; Sync from Zoho
             </asp:LinkButton>
         </div>
@@ -151,6 +151,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 </div>
 
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

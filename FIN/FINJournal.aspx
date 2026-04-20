@@ -294,15 +294,15 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <asp:LinkButton ID="btnCancel"    runat="server" CssClass="btn btn-ghost"  OnClick="btnCancel_Click">Cancel</asp:LinkButton>
                 <asp:LinkButton ID="btnSaveDraft" runat="server" CssClass="btn btn-ghost"  OnClick="btnSaveDraft_Click">Save draft</asp:LinkButton>
                 <asp:LinkButton ID="btnPost"      runat="server" CssClass="btn btn-teal"   OnClick="btnPost_Click"
-                    OnClientClick="return confirm('Post this entry? Once posted it cannot be edited — only reversed.');">Post entry</asp:LinkButton>
+                    OnClientClick="return erpConfirmLink(this,'Post this entry? Once posted it cannot be edited — only reversed.',{title:'Post Entry',okText:'Post',btnClass:'success',type:'warn'});">Post entry</asp:LinkButton>
                 <asp:LinkButton ID="btnDelete"    runat="server" CssClass="btn btn-danger" OnClick="btnDelete_Click"
-                    OnClientClick="return confirm('Delete this draft? This cannot be undone.');">Delete draft</asp:LinkButton>
+                    OnClientClick="return erpConfirmLink(this,'Delete this draft? This cannot be undone.',{title:'Delete Draft',okText:'Delete',btnClass:'danger',type:'danger'});">Delete draft</asp:LinkButton>
                 <asp:LinkButton ID="btnReverse"   runat="server" CssClass="btn btn-warn"   OnClick="btnReverse_Click"
-                    OnClientClick="return confirm('Reverse this posted entry? This will create a contra journal that flips every debit/credit.');">Reverse entry</asp:LinkButton>
+                    OnClientClick="return erpConfirmLink(this,'Reverse this posted entry? This will create a contra journal that flips every debit/credit.',{title:'Reverse Entry',okText:'Reverse',btnClass:'primary',type:'warn'});">Reverse entry</asp:LinkButton>
                 <asp:LinkButton ID="btnPushToZoho" runat="server" CssClass="btn btn-zoho" OnClick="btnPushToZoho_Click" Visible="false"
-                    OnClientClick="return confirm('Push this journal to Zoho Books? This is idempotent — if already pushed, nothing new will be created.');">&#x2197; Push to Zoho</asp:LinkButton>
+                    OnClientClick="return erpConfirmLink(this,'Push this journal to Zoho Books? This is idempotent — if already pushed, nothing new will be created.',{title:'Push to Zoho',okText:'Push',btnClass:'primary',type:'info'});">&#x2197; Push to Zoho</asp:LinkButton>
                 <asp:LinkButton ID="btnRepushToZoho" runat="server" CssClass="btn btn-zoho-retry" OnClick="btnPushToZoho_Click" Visible="false"
-                    OnClientClick="return confirm('Retry push to Zoho Books? The previous attempt failed.');">&#x21BB; Retry Zoho push</asp:LinkButton>
+                    OnClientClick="return erpConfirmLink(this,'Retry push to Zoho Books? The previous attempt failed.',{title:'Retry Zoho Push',okText:'Retry',btnClass:'primary',type:'info'});">&#x21BB; Retry Zoho push</asp:LinkButton>
             </div>
         </div>
 
@@ -311,6 +311,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 </div>
 
 </form>
+<script src="/StockApp/erp-modal.js"></script>
 <script src="/StockApp/erp-keepalive.js"></script>
 <script>
 /*  wireJournalPartyPrompt — nudge the user to pick a Party when an AP/AR account is selected.

@@ -173,7 +173,7 @@ table.grn-table tbody tr:hover{background:#fcfbfa;}
         <div class="flex-spacer"></div>
         <asp:Button ID="btnPushSelected" runat="server" Text="&#x26A1; Push Selected to Zoho"
             CssClass="btn btn-primary" OnClick="btnPushSelected_Click" CausesValidation="false"
-            OnClientClick="return confirmPushSelected();" style="align-self:flex-end;" />
+            OnClientClick="return confirmPushSelected(this);" style="align-self:flex-end;" />
     </div>
 
     <!-- ── Tabs ── -->
@@ -224,18 +224,27 @@ table.grn-table tbody tr:hover{background:#fcfbfa;}
 
 </div>
 
+<script src="/StockApp/erp-modal.js"></script>
 <script type="text/javascript">
-    function confirmPushSelected() {
+    /* Uses the shared erp-modal.js API (erpConfirmLink / erpAlert).
+       The count-of-selected is computed at click time and woven into
+       the message; erpConfirmLink handles the postback on OK. */
+    function confirmPushSelected(btn) {
         var boxes = document.querySelectorAll('input[type=checkbox][name*="chkPush"]:checked');
         if (boxes.length === 0) {
-            alert('Select at least one GRN to push.');
+            erpAlert('Select at least one GRN to push.', { title: 'No GRNs selected', type: 'warn' });
             return false;
         }
-        return confirm('Push ' + boxes.length + ' GRN(s) to Zoho Books as Bills? This will:\n\n' +
-            '• Auto-create vendors in Zoho if not already mapped\n' +
-            '• Auto-create items in Zoho for any new raw/packing material\n' +
-            '• Create one Bill per selected GRN\n\n' +
-            'Continue?');
+        var msg = 'Push ' + boxes.length + ' GRN(s) to Zoho Books as Bills?<br><br>'
+                + '&bull; Auto-create vendors in Zoho if not already mapped<br>'
+                + '&bull; Auto-create items in Zoho for any new raw/packing material<br>'
+                + '&bull; Create one Bill per selected GRN';
+        return erpConfirmLink(btn, msg, {
+            title: 'Push to Zoho Books',
+            okText: 'Push ' + boxes.length + ' GRN(s)',
+            btnClass: 'primary',
+            type: 'info'
+        });
     }
 </script>
 
