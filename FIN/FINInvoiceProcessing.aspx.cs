@@ -672,7 +672,7 @@ namespace FINApp
             try
             {
                 var r = FINDatabaseHelper.SyncSingleDCFromZoho(dcId);
-                var single = new System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> { r };
+                var single = new System.Collections.Generic.List<FINApp.DAL.ZohoSyncBackResult> { r };
                 RenderSyncResults(single, "Sync — DC #" + dcId);
                 RefreshCurrentConsignment();
             }
@@ -682,7 +682,7 @@ namespace FINApp
         /// <summary>Format a list of sync results into the result panel. Mirrors PK's display
         /// approach — per-DC row with icon + invoice number + change list + stock alerts,
         /// followed by a summary line.</summary>
-        void RenderSyncResults(System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> results, string title)
+        void RenderSyncResults(System.Collections.Generic.List<FINApp.DAL.ZohoSyncBackResult> results, string title)
         {
             var sb = new System.Text.StringBuilder();
             sb.Append("<div style='font-size:12px;'>")
@@ -817,8 +817,8 @@ namespace FINApp
 
         void DownloadSingleInvoice(int dcId)
         {
-            // Placeholder — same as bulk. Zoho PDF URL lookup would go here; the PK side uses
-            // StockApp.DAL.ZohoHelper but it's a separate assembly we don't reference from FIN.
+            // Placeholder — Zoho PDF URL lookup would go here. FINZohoHelper has the
+            // scaffolding but we haven't exposed the per-invoice PDF download yet.
             ShowAlert("Per-DC invoice download is pending — view the invoice directly in Zoho for now.", "alert-info");
         }
 

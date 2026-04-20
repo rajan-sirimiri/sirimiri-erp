@@ -378,7 +378,7 @@ namespace FINApp
             int grnId; if (!int.TryParse(parts[0], out grnId)) return;
             string grnType = parts[1];
 
-            var results = new System.Collections.Generic.List<StockApp.DAL.ZohoBillPushResult>();
+            var results = new System.Collections.Generic.List<FINApp.DAL.ZohoBillPushResult>();
             results.Add(SafePush(grnId, grnType));
             RenderPushResults(results);
 
@@ -412,7 +412,7 @@ namespace FINApp
                 return;
             }
 
-            var results = new System.Collections.Generic.List<StockApp.DAL.ZohoBillPushResult>();
+            var results = new System.Collections.Generic.List<FINApp.DAL.ZohoBillPushResult>();
             foreach (int grnId in selected)
                 results.Add(SafePush(grnId, ActiveTab));
 
@@ -421,13 +421,13 @@ namespace FINApp
             RenderActiveList();
         }
 
-        StockApp.DAL.ZohoBillPushResult SafePush(int grnId, string grnType)
+        FINApp.DAL.ZohoBillPushResult SafePush(int grnId, string grnType)
         {
             try { return FINDatabaseHelper.PushGRNToZoho(grnId, grnType, UserID); }
-            catch (Exception ex) { return new StockApp.DAL.ZohoBillPushResult { GRNID = grnId, GRNType = grnType, Success = false, Message = ex.Message }; }
+            catch (Exception ex) { return new FINApp.DAL.ZohoBillPushResult { GRNID = grnId, GRNType = grnType, Success = false, Message = ex.Message }; }
         }
 
-        void RenderPushResults(System.Collections.Generic.List<StockApp.DAL.ZohoBillPushResult> results)
+        void RenderPushResults(System.Collections.Generic.List<FINApp.DAL.ZohoBillPushResult> results)
         {
             int ok = 0, already = 0, err = 0;
             var sb = new System.Text.StringBuilder();

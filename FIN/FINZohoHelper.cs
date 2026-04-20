@@ -9,14 +9,20 @@ using System.Text;
 using System.Web.Script.Serialization;
 using MySql.Data.MySqlClient;
 
-namespace StockApp.DAL
+namespace FINApp.DAL
 {
     /// <summary>
-    /// Zoho Books API helper — token management, HTTP calls, master sync.
-    /// All methods are static; token auto-refreshes when expired.
-    /// India domain: zohoapis.in / accounts.zoho.in
+    /// Zoho Books API helper for FIN — token management, HTTP calls, master sync,
+    /// invoice push/sync, GRN → Bill push. All methods are static; token auto-refreshes
+    /// when expired. India domain: zohoapis.in / accounts.zoho.in.
+    ///
+    /// This is the FIN-owned copy of what originally lived in the PK project as
+    /// StockApp.DAL.ZohoHelper. Moving it into FINApp.DAL avoids the cross-assembly
+    /// namespace confusion that came from compiling a file called ZohoHelper_PK.cs
+    /// inside the FIN project while also referencing PKApp.dll. See callers in
+    /// FINDatabaseHelper, FINInvoiceProcessing, and FINGRNToZoho.
     /// </summary>
-    public static class ZohoHelper
+    public static class FINZohoHelper
     {
         private static string ConnStr =>
             ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
@@ -1710,7 +1716,11 @@ namespace StockApp.DAL
                     billDate = Convert.ToDateTime(g["InwardDate"]);
 
                 string supState2 = g["SupState"] != DBNull.Value ? g["SupState"].ToString().Trim() : "";
-                string placeOfSupply = GetStateCode(supState2);
+                // For BILLS, Zoho Books India wants source_of_supply (vendor's state) and
+                // destination_of_supply (org's state). place_of_supply is for UAE/GCC only
+                // and Zoho's Bill API rejects it with "Invalid Element place_of_supply".
+                string sourceOfSupply = GetStateCode(supState2);
+                string destOfSupply = "TN"; // Sirimiri is in Tamil Nadu
 
                 var bill = new Dictionary<string, object>
                 {
@@ -1723,8 +1733,9 @@ namespace StockApp.DAL
                     { "is_inclusive_tax", false },
                     { "line_items", new List<Dictionary<string, object>> { lineItem } }
                 };
-                if (!string.IsNullOrEmpty(placeOfSupply))
-                    bill["place_of_supply"] = placeOfSupply;
+                if (!string.IsNullOrEmpty(sourceOfSupply))
+                    bill["source_of_supply"] = sourceOfSupply;
+                bill["destination_of_supply"] = destOfSupply;
 
                 // Log the bill JSON for debugging before firing
                 var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();

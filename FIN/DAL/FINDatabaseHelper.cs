@@ -1381,7 +1381,7 @@ namespace FINApp.DAL
         // ══════════════════════════════════════════════════════════════
         // SYNC FROM ZOHO
         // ══════════════════════════════════════════════════════════════
-        // Wraps the existing PK-side StockApp.DAL.ZohoHelper.SyncConsignmentBack so
+        // Wraps the existing PK-side FINApp.DAL.FINZohoHelper.SyncConsignmentBack so
         // FIN doesn't duplicate the sync logic. The PK helper walks every DC in the
         // consignment, fetches the latest invoice from Zoho, and overwrites ERP
         // header + line item data when it differs (with stock alerts when qty changes
@@ -1393,16 +1393,16 @@ namespace FINApp.DAL
 
         /// <summary>Sync every DC in a consignment back from Zoho — header + line items.
         /// Wrapper that delegates to PK's existing implementation.</summary>
-        public static System.Collections.Generic.List<StockApp.DAL.ZohoSyncBackResult> SyncConsignmentFromZoho(int consignmentId)
+        public static System.Collections.Generic.List<FINApp.DAL.ZohoSyncBackResult> SyncConsignmentFromZoho(int consignmentId)
         {
-            return StockApp.DAL.ZohoHelper.SyncConsignmentBack(consignmentId);
+            return FINApp.DAL.FINZohoHelper.SyncConsignmentBack(consignmentId);
         }
 
         /// <summary>Sync a single DC back from Zoho — header + line items for that one DC.
         /// Used by the per-DC "Sync" button.</summary>
-        public static StockApp.DAL.ZohoSyncBackResult SyncSingleDCFromZoho(int dcId)
+        public static FINApp.DAL.ZohoSyncBackResult SyncSingleDCFromZoho(int dcId)
         {
-            return StockApp.DAL.ZohoHelper.SyncInvoiceBack(dcId);
+            return FINApp.DAL.FINZohoHelper.SyncInvoiceBack(dcId);
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -1504,9 +1504,9 @@ namespace FINApp.DAL
 
         /// <summary>Thin wrapper — delegates to the PK helper which owns the Zoho API client
         /// and the auto-create logic for vendors and items.</summary>
-        public static StockApp.DAL.ZohoBillPushResult PushGRNToZoho(int grnId, string grnType, int userId)
+        public static FINApp.DAL.ZohoBillPushResult PushGRNToZoho(int grnId, string grnType, int userId)
         {
-            return StockApp.DAL.ZohoHelper.CreateBillFromGRN(grnId, grnType, userId);
+            return FINApp.DAL.FINZohoHelper.CreateBillFromGRN(grnId, grnType, userId);
         }
 
         /// <summary>Summary counts for the GRN-to-Zoho dashboard tabs.

@@ -45,12 +45,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\PK\bin\ClosedXML.dll</HintPath>
     </Reference>
-    <!-- PKApp.dll lives in the PK project; we reference it for its StockApp.DAL.ZohoHelper
-         (Zoho Books client + SyncConsignmentBack). Build PK before FIN. -->
-    <Reference Include="PKApp">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\PK\bin\PKApp.dll</HintPath>
-    </Reference>
     <Reference Include="DocumentFormat.OpenXml, Version=2.12.3.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
       <HintPath>..\files\packages\DocumentFormat.OpenXml.2.12.3\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
     </Reference>
@@ -91,7 +85,8 @@
       <DependentUpon>FINTallyMapping.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="ZohoHelper_PK.cs" />
+    <Compile Include="DAL\FINZohoHelper.cs" />
+    <Compile Include="FINZohoHelper.cs" />
     <Content Include="FINHome.aspx" />
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />
