@@ -60,13 +60,6 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 
     <div class="section-head">Tally Integration</div>
     <div class="menu-grid">
-        <a id="lnkConsignments" runat="server" href="FINConsignments.aspx" class="menu-card" style="border-color:#d7bde2;">
-            <div class="menu-icon">&#x1F69A;</div>
-            <div>
-                <div class="menu-title">Consignments</div>
-                <div class="menu-desc">Review outbound consignments — invoice verification, DC approval, dispatch release, and delivery tracking</div>
-            </div>
-        </a>
         <a id="lnkMapping" runat="server" href="FINTallyMapping.aspx" class="menu-card">
             <div class="menu-icon">&#x1F517;</div>
             <div>
@@ -120,6 +113,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 
     <div class="section-head">Zoho Integration</div>
     <div class="menu-grid">
+        <a id="lnkConsignments" runat="server" href="FINConsignments.aspx" class="menu-card" style="border-color:#d7bde2;">
+            <div class="menu-icon">&#x1F69A;</div>
+            <div>
+                <div class="menu-title">Consignments</div>
+                <div class="menu-desc">Review outbound consignments — invoice verification, DC approval, dispatch release, and delivery tracking</div>
+            </div>
+        </a>
         <a id="lnkGRNToZoho" runat="server" href="FINGRNToZoho.aspx" class="menu-card" style="border-color:#f5c9a7;">
             <div class="menu-icon">&#x1F4E6;</div>
             <div>
