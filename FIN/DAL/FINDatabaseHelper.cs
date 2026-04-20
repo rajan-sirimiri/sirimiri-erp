@@ -1763,7 +1763,68 @@ namespace FINApp.DAL
             public decimal Debit;
             public decimal Credit;
             public string LineDescription;
-            public string ContactID;
+            public string ContactID;   // stores "SUP:<SupplierID>" or "CUS:<CustomerID>" or NULL
+        }
+
+        /// <summary>
+        /// Combined party list (MM Suppliers + PK Customers) for the Journal Party picker.
+        /// PartyKey is the canonical value stored in FIN_JournalLine.ContactID:
+        ///   "SUP:88" for MM_Suppliers.SupplierID=88
+        ///   "CUS:793" for PK_Customers.CustomerID=793
+        /// Sorted by display name.
+        /// Only active parties returned.
+        /// </summary>
+        public static DataTable GetPartyList()
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT CONCAT('SUP:', SupplierID) AS PartyKey, 'SUP' AS PartyType, " +
+                "  SupplierID AS PartyID, SupplierCode AS PartyCode, SupplierName AS PartyName, " +
+                "  GSTNo AS GSTNo, City, State " +
+                "FROM MM_Suppliers WHERE IsActive = 1 " +
+                "UNION ALL " +
+                "SELECT CONCAT('CUS:', CustomerID) AS PartyKey, 'CUS' AS PartyType, " +
+                "  CustomerID AS PartyID, CustomerCode AS PartyCode, CustomerName AS PartyName, " +
+                "  GSTIN AS GSTNo, City, State " +
+                "FROM PK_Customers WHERE IsActive = 1 " +
+                "ORDER BY PartyName", conn))
+            {
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Look up the display name for a single party key like "SUP:88" or "CUS:793".
+        /// Used in view/posted mode to show the party name without the dropdown.
+        /// Returns empty string if not found or if key is null/malformed.
+        /// </summary>
+        public static string GetPartyDisplayName(string partyKey)
+        {
+            if (string.IsNullOrEmpty(partyKey)) return "";
+            var parts = partyKey.Split(':');
+            if (parts.Length != 2) return "";
+            int pid;
+            if (!int.TryParse(parts[1], out pid)) return "";
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                string sql = parts[0] == "SUP"
+                    ? "SELECT SupplierName FROM MM_Suppliers WHERE SupplierID = ?pid"
+                    : parts[0] == "CUS"
+                        ? "SELECT CustomerName FROM PK_Customers WHERE CustomerID = ?pid"
+                        : null;
+                if (sql == null) return "";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("?pid", pid);
+                    object r = cmd.ExecuteScalar();
+                    return r == null || r == DBNull.Value ? "" : r.ToString();
+                }
+            }
         }
 
         /// <summary>

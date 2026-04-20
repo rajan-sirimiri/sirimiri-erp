@@ -129,6 +129,24 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         </a>
     </div>
 
+    <div class="section-head">Accounting</div>
+    <div class="menu-grid">
+        <a id="lnkJournal" runat="server" href="FINJournal.aspx" class="menu-card" style="border-color:#aed6f1;">
+            <div class="menu-icon">&#x1F4D3;</div>
+            <div>
+                <div class="menu-title">Journal Entries</div>
+                <div class="menu-desc">Manual double-entry bookings — expenses, accruals, reclassifications, reversals</div>
+            </div>
+        </a>
+        <a id="lnkChartOfAccounts" runat="server" href="FINChartOfAccounts.aspx" class="menu-card" style="border-color:#a9dfbf;">
+            <div class="menu-icon">&#x1F4D2;</div>
+            <div>
+                <div class="menu-title">Chart of Accounts</div>
+                <div class="menu-desc">Ledger master mirrored from Zoho Books — sync when accounts change in Zoho</div>
+            </div>
+        </a>
+    </div>
+
 </div>
 </form>
 <script src="/StockApp/erp-keepalive.js"></script>
