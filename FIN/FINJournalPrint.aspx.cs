@@ -250,7 +250,17 @@ namespace FINApp
             foreach (DataRow r in Chart.Rows)
             {
                 if (r["ZohoAccountID"].ToString() == zohoAccountId)
-                    return ((r["AccountTypeName"] ?? r["AccountType"] ?? "").ToString()).ToLowerInvariant();
+                {
+                    // Prefer the human-readable name; fall back to the machine token
+                    // ("accounts_payable") if the name hasn't been synced.  Note: the
+                    // ?? operator DOES NOT treat DBNull.Value as null, so we must check
+                    // explicitly.  This was the bug that caused AP lines to print
+                    // straight through without the party-name swap.
+                    string name = r["AccountTypeName"] == DBNull.Value ? "" : r["AccountTypeName"].ToString();
+                    if (string.IsNullOrEmpty(name))
+                        name = r["AccountType"] == DBNull.Value ? "" : r["AccountType"].ToString();
+                    return name.ToLowerInvariant();
+                }
             }
             return "";
         }
