@@ -165,10 +165,10 @@ namespace PPApp
                 pnlStages.Visible = true;
 
                 DateTime startTime = Convert.ToDateTime(activeShift["StartTime"]);
-                int displayNum = activeShift.Table.Columns.Contains("DisplayNumber")
-                    && activeShift["DisplayNumber"] != DBNull.Value
-                    ? Convert.ToInt32(activeShift["DisplayNumber"]) : 0;
-                lblShiftInfo.Text = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
+                int shiftNum = activeShift.Table.Columns.Contains("ShiftNumber")
+                    && activeShift["ShiftNumber"] != DBNull.Value
+                    ? Convert.ToInt32(activeShift["ShiftNumber"]) : 0;
+                lblShiftInfo.Text = shiftNum > 0 ? "Shift " + shiftNum : "Shift ID " + shiftId;
                 lblShiftStartTime.Text = startTime.ToString("hh:mm tt");
                 lblShiftStartedBy.Text = activeShift["StartedByName"] != DBNull.Value
                     ? activeShift["StartedByName"].ToString() : "—";
@@ -287,8 +287,8 @@ namespace PPApp
             {
                 int shiftId = PPDatabaseHelper.StartPreprocessShift(productId, UserID);
                 hfShiftID.Value = shiftId.ToString();
-                int displayNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
-                string label = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
+                int shiftNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
+                string label = shiftNum > 0 ? "Shift " + shiftNum : "Shift ID " + shiftId;
                 ShowAlert(label + " started.", true);
                 CheckShiftState(productId);
             }
@@ -404,11 +404,10 @@ namespace PPApp
             // End the shift
             try
             {
-                // Capture display number BEFORE ending (still valid after, but computed on live data)
-                int displayNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
+                int shiftNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
                 PPDatabaseHelper.EndPreprocessShift(shiftId, UserID);
                 hfShiftID.Value = "0";
-                string label = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
+                string label = shiftNum > 0 ? "Shift " + shiftNum : "Shift ID " + shiftId;
                 string msg = label + " ended.";
                 if (scrapCount > 0) msg += " " + scrapCount + " scrap entries recorded.";
                 ShowAlert(msg, true);
