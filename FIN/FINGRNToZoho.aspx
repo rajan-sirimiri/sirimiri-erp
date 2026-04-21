@@ -111,6 +111,47 @@ table.grn-table tbody tr:hover{background:#fcfbfa;}
     table.grn-table{font-size:12px;}
     table.grn-table thead th, table.grn-table tbody td{padding:8px 10px;}
 }
+
+/* ── GRN expand row (Finance verification view) ── */
+.grn-no-link{background:none;border:none;padding:0;color:var(--text);font-weight:600;font-family:'Roboto Mono','Courier New',monospace;font-size:12px;cursor:pointer;text-decoration:none;}
+.grn-no-link:hover{color:var(--accent);text-decoration:underline;}
+.grn-no-link .caret{display:inline-block;width:10px;font-size:10px;color:var(--text-muted);margin-right:2px;transition:transform .12s;}
+.grn-no-link.expanded .caret{transform:rotate(90deg);color:var(--accent);}
+tr.grn-detail{display:none;background:#fcfbf7;}
+tr.grn-detail.shown{display:table-row;}
+tr.grn-detail>td{padding:0!important;border-bottom:2px solid var(--accent-light)!important;}
+.grn-detail-wrap{padding:16px 20px;}
+.grn-detail-section{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:10px;}
+.grn-detail-section.zoho{border-color:#f0d6a0;background:#fffdf5;}
+.grn-detail-section h4{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;border-bottom:1px solid var(--accent-light);padding-bottom:4px;}
+.grn-detail-section.other h4{color:var(--text-muted);border-bottom-color:var(--border);}
+.dl-grid{display:grid;grid-template-columns:150px 1fr 150px 1fr;gap:6px 14px;font-size:12.5px;}
+.dl-grid .dt{color:var(--text-muted);font-weight:500;}
+.dl-grid .dd{color:var(--text);font-weight:500;}
+.dl-grid .dd .mono{font-family:'Roboto Mono',monospace;}
+.dl-grid .dd .amt{font-family:'Roboto Mono',monospace;font-weight:600;}
+.dl-grid .dd-full{grid-column:2 / -1;}
+.bill-total-row{margin-top:10px;padding-top:10px;border-top:1px dashed #d6b97a;display:flex;justify-content:space-between;align-items:center;font-size:14px;}
+.bill-total-row .label{color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;}
+.bill-total-row .val{font-size:16px;font-weight:700;color:var(--accent-dark);font-family:'Roboto Mono',monospace;}
+
+/* Validation chips */
+.vchips{margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;}
+.vchip{font-size:11.5px;padding:4px 10px;border-radius:12px;font-weight:500;display:inline-flex;align-items:center;gap:4px;}
+.vchip.err{background:#fde2e2;color:#b22222;border:1px solid #f5b5b5;}
+.vchip.warn{background:#fff3d6;color:#996515;border:1px solid #f0d48a;}
+.vchip.info{background:#e3f0fb;color:#1a5b8c;border:1px solid #b8d4ec;}
+.vchip.ok{background:#e4f5e4;color:#2d7a2d;border:1px solid #b8deb8;}
+
+/* Disabled push button */
+.btn.btn-push:disabled, .btn.btn-push.disabled{opacity:.45;cursor:not-allowed;background:#ccc;}
+
+/* Other-fields toggle */
+.other-toggle{background:none;border:1px dashed var(--border);color:var(--text-muted);padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;text-align:left;font-family:inherit;}
+.other-toggle:hover{border-color:var(--accent);color:var(--accent);}
+.other-toggle .caret{display:inline-block;width:10px;margin-right:6px;transition:transform .12s;}
+.other-toggle.expanded .caret{transform:rotate(90deg);}
+
 </style>
 </head>
 <body>
@@ -240,6 +281,34 @@ table.grn-table tbody tr:hover{background:#fcfbfa;}
     }
 </script>
 
+<script>
+function toggleGrnDetail(grnId) {
+    var link = document.getElementById('lnkGrn_' + grnId);
+    var row = document.getElementById('detail_' + grnId);
+    if (!row) return false;
+    if (row.classList.contains('shown')) {
+        row.classList.remove('shown');
+        link.classList.remove('expanded');
+    } else {
+        row.classList.add('shown');
+        link.classList.add('expanded');
+    }
+    return false; // keep page from jumping
+}
+function toggleOther(grnId) {
+    var blk = document.getElementById('other_' + grnId);
+    var btn = document.getElementById('otherBtn_' + grnId);
+    if (!blk) return false;
+    if (blk.style.display === 'block') {
+        blk.style.display = 'none';
+        btn.classList.remove('expanded');
+    } else {
+        blk.style.display = 'block';
+        btn.classList.add('expanded');
+    }
+    return false;
+}
+</script>
 </form>
 </body>
 </html>

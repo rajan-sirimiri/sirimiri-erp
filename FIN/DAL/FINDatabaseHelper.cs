@@ -1423,12 +1423,19 @@ namespace FINApp.DAL
                 "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
                 " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
                 " i.RMID, rm.RMName, rm.RMCode, rm.HSNCode AS RMHSN, " +
-                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " u.Abbreviation AS Unit, " +
+                " i.Quantity, i.QtyActualReceived, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " i.PONo, i.Remarks, i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
+                " i.LoadingCharges, i.UnloadingCharges, i.ShortageQty, i.ShortageValue, " +
+                " i.QtyVerified, i.QualityCheck, i.CreatedBy, i.CreatedAt, " +
+                " usr.FullName AS CreatedByName, " +
                 " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
                 " bl.PushedAt, bl.BillTotal " +
                 "FROM mm_rawinward i " +
                 "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
                 "JOIN mm_rawmaterials rm ON rm.RMID = i.RMID " +
+                "LEFT JOIN mm_uom u ON u.UOMID = rm.UOMID " +
+                "LEFT JOIN Users usr ON usr.UserID = i.CreatedBy " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'RAW' " +
                 "WHERE i.SupplierID <> 306 " +
                 "  AND i.GRNNo NOT LIKE 'INT-%' " +
@@ -1467,12 +1474,19 @@ namespace FINApp.DAL
                 "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
                 " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
                 " i.PMID, pm.PMName, pm.PMCode, pm.PMCategory, pm.HSNCode AS PMHSN, " +
-                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " u.Abbreviation AS Unit, " +
+                " i.Quantity, i.QtyActualReceived, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " i.PONo, i.Remarks, i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
+                " i.LoadingCharges, i.UnloadingCharges, i.ShortageQty, i.ShortageValue, " +
+                " i.QtyVerified, i.QualityCheck, i.CreatedBy, i.CreatedAt, " +
+                " usr.FullName AS CreatedByName, " +
                 " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
                 " bl.PushedAt, bl.BillTotal " +
                 "FROM mm_packinginward i " +
                 "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
                 "JOIN mm_packingmaterials pm ON pm.PMID = i.PMID " +
+                "LEFT JOIN mm_uom u ON u.UOMID = pm.UOMID " +
+                "LEFT JOIN Users usr ON usr.UserID = i.CreatedBy " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'PACKING' " +
                 "WHERE i.SupplierID <> 306 " +
                 "  AND i.GRNNo NOT LIKE 'INT-%' " +
@@ -1511,12 +1525,19 @@ namespace FINApp.DAL
                 "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
                 " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
                 " i.ConsumableID, c.ConsumableName, c.ConsumableCode, c.HSNCode AS ConsumableHSN, " +
-                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " u.Abbreviation AS Unit, " +
+                " i.Quantity, i.QtyActualReceived, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " i.PONo, i.Remarks, i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
+                " i.LoadingCharges, i.UnloadingCharges, i.ShortageQty, i.ShortageValue, " +
+                " i.QtyVerified, i.QualityCheck, i.CreatedBy, i.CreatedAt, " +
+                " usr.FullName AS CreatedByName, " +
                 " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
                 " bl.PushedAt, bl.BillTotal " +
                 "FROM mm_consumableinward i " +
                 "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
                 "JOIN mm_consumables c ON c.ConsumableID = i.ConsumableID " +
+                "LEFT JOIN mm_uom u ON u.UOMID = c.UOMID " +
+                "LEFT JOIN Users usr ON usr.UserID = i.CreatedBy " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'CONSUMABLE' " +
                 "WHERE i.SupplierID <> 306 " +
                 "  AND i.GRNNo NOT LIKE 'INT-%' " +
@@ -1556,12 +1577,19 @@ namespace FINApp.DAL
                 "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
                 " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
                 " i.StationaryID, st.StationaryName, st.StationaryCode, st.HSNCode AS StationaryHSN, " +
-                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " u.Abbreviation AS Unit, " +
+                " i.Quantity, i.QtyActualReceived, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " i.PONo, i.Remarks, i.TransportCost, i.TransportInInvoice, i.TransportInGST, " +
+                " i.LoadingCharges, i.UnloadingCharges, i.ShortageQty, i.ShortageValue, " +
+                " i.QtyVerified, i.QualityCheck, i.CreatedBy, i.CreatedAt, " +
+                " usr.FullName AS CreatedByName, " +
                 " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
                 " bl.PushedAt, bl.BillTotal " +
                 "FROM mm_stationaryinward i " +
                 "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
                 "JOIN mm_stationaries st ON st.StationaryID = i.StationaryID " +
+                "LEFT JOIN mm_uom u ON u.UOMID = st.UOMID " +
+                "LEFT JOIN Users usr ON usr.UserID = i.CreatedBy " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'STATIONARY' " +
                 "WHERE i.SupplierID <> 306 " +
                 "  AND i.GRNNo NOT LIKE 'INT-%' " +
