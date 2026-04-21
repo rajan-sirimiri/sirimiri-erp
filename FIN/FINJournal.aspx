@@ -128,6 +128,15 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .line-row .line-main{display:grid;grid-template-columns:30px 1fr 130px 130px 1fr 40px;gap:10px;align-items:center;}
 .line-row .line-desc{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center;margin-top:6px;}
 .line-row .line-desc .desc-lbl{font-size:10px;color:var(--text-dim);text-align:right;padding-right:4px;text-transform:uppercase;letter-spacing:.05em;}
+
+/* Natural-language caption under a line: "↳ Credits Highland Valley (via Accounts Payable)"
+   Only rendered for AP/AR lines that have a party attached.  Second row is a small
+   diagnostic showing the raw party key for debugging the Zoho push. */
+.line-row .line-caption{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:4px;}
+.line-row .line-caption .cap-body{font-size:11px;color:var(--text-muted);line-height:1.4;}
+.line-row .line-caption .cap-body .cap-party{font-weight:600;color:var(--text);}
+.line-row .line-caption .cap-body .cap-via{color:var(--text-dim);}
+.line-row .line-caption .cap-body .cap-diag{display:block;font-size:10px;color:var(--text-dim);font-family:'Courier New',monospace;margin-top:1px;letter-spacing:.02em;}
 .line-row .idx{color:var(--text-dim);font-size:13px;text-align:center;}
 .line-row select, .line-row input{height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
 .line-row select{width:100%;}

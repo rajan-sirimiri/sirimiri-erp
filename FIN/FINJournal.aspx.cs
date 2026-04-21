@@ -580,6 +580,16 @@ namespace FINApp
                 descWrap.Controls.Add(txtDesc);
                 row.Controls.Add(descWrap);
 
+                // ── Third row (optional): natural-language caption for AP/AR-with-party lines.
+                //     Makes the control-account pattern readable as "Credits <Party> (via AP)".
+                //     Rendered from whichever values the line currently holds (posted form
+                //     values on postback, ViewState on first render).  In edit mode the
+                //     caption is static until the next postback — matches the wireJournal-
+                //     PartyPrompt JS pattern.
+                string captionHtml = BuildLineCaption(accVal, partyVal, drVal, crVal);
+                if (!string.IsNullOrEmpty(captionHtml))
+                    row.Controls.Add(new LiteralControl(captionHtml));
+
                 phLines.Controls.Add(row);
             }
 
@@ -596,7 +606,12 @@ namespace FINApp
                     if (!first) sb.Append(",");
                     first = false;
                     string zid = (r["ZohoAccountID"] ?? "").ToString().Replace("'", "\\'");
-                    string atype = ((r["AccountTypeName"] ?? r["AccountType"] ?? "").ToString()).ToLowerInvariant().Replace("'", "\\'");
+                    // DBNull-safe: the ?? operator doesn't treat DBNull.Value as null,
+                    // so we must check explicitly.  Same bug pattern as FINJournalPrint.
+                    string atype = r["AccountTypeName"] == DBNull.Value ? "" : r["AccountTypeName"].ToString();
+                    if (string.IsNullOrEmpty(atype))
+                        atype = r["AccountType"] == DBNull.Value ? "" : r["AccountType"].ToString();
+                    atype = atype.ToLowerInvariant().Replace("'", "\\'");
                     sb.Append("'").Append(zid).Append("':'").Append(atype).Append("'");
                 }
                 sb.Append("};if(window.wireJournalPartyPrompt)window.wireJournalPartyPrompt();</script>");
@@ -627,6 +642,108 @@ namespace FINApp
             if (!decimal.TryParse(s ?? "", out d)) return "";
             if (d == 0) return "";
             return d.ToString("F2");
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  LINE CAPTION HELPERS
+        //  Produce the "↳ Credits Highland Valley (via Accounts Payable)"
+        //  caption shown under AP/AR-with-party lines in the detail view.
+        //  Rendered in both edit (DRAFT) and read-only (POSTED/REVERSED)
+        //  modes from whichever values the line currently holds (posted
+        //  form values on postback, ViewState on initial render).
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Lookup the account-type token for an account, used to detect
+        /// AP/AR lines.  DBNull-safe fallback from AccountTypeName to
+        /// AccountType (the machine token like "accounts_payable").
+        /// </summary>
+        string GetAccountTypeName(string zohoAccountId)
+        {
+            if (string.IsNullOrEmpty(zohoAccountId)) return "";
+            foreach (DataRow r in Chart.Rows)
+            {
+                if (r["ZohoAccountID"].ToString() == zohoAccountId)
+                {
+                    // Same DBNull-vs-null trap as FINJournalPrint.  The ?? operator
+                    // does NOT treat DBNull.Value as null — must check explicitly.
+                    string name = r["AccountTypeName"] == DBNull.Value ? "" : r["AccountTypeName"].ToString();
+                    if (string.IsNullOrEmpty(name))
+                        name = r["AccountType"] == DBNull.Value ? "" : r["AccountType"].ToString();
+                    return name.ToLowerInvariant();
+                }
+            }
+            return "";
+        }
+
+        /// <summary>Lookup an account's human display name from the chart cache.</summary>
+        string GetAccountDisplayName(string zohoAccountId)
+        {
+            if (string.IsNullOrEmpty(zohoAccountId)) return "";
+            foreach (DataRow r in Chart.Rows)
+            {
+                if (r["ZohoAccountID"].ToString() == zohoAccountId)
+                    return (r["AccountName"] ?? "").ToString();
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// Resolve SUP:47 / CUS:793 → "Highland Valley Corporation Pvt Ltd".
+        /// Uses the request-scoped Parties cache, falls back to DAL for
+        /// inactive parties.
+        /// </summary>
+        string ResolvePartyName(string partyKey)
+        {
+            if (string.IsNullOrEmpty(partyKey)) return "";
+            var found = Parties.Select("PartyKey = '" + partyKey.Replace("'", "''") + "'");
+            if (found.Length > 0) return (found[0]["PartyName"] ?? "").ToString();
+            return FINDatabaseHelper.GetPartyDisplayName(partyKey);
+        }
+
+        /// <summary>
+        /// Build the HTML caption for a single journal line.  Returns empty
+        /// string when there's nothing interesting to say (non-AP/AR account,
+        /// or no party attached).  Chooses "Debits" / "Credits" verb from
+        /// whichever side has a non-zero amount.
+        /// </summary>
+        string BuildLineCaption(string accountId, string partyKey, string drStr, string crStr)
+        {
+            if (string.IsNullOrEmpty(accountId) || string.IsNullOrEmpty(partyKey))
+                return "";
+
+            string accTypeName = GetAccountTypeName(accountId);
+            bool isPartyAccount = accTypeName.Contains("payable") || accTypeName.Contains("receivable");
+            if (!isPartyAccount) return "";
+
+            string partyName = ResolvePartyName(partyKey);
+            if (string.IsNullOrEmpty(partyName)) return "";
+
+            string accDisplayName = GetAccountDisplayName(accountId);
+
+            // "Debits" / "Credits" based on which side has a positive amount
+            decimal dr, cr;
+            decimal.TryParse(drStr ?? "", out dr);
+            decimal.TryParse(crStr ?? "", out cr);
+            string verb = dr > 0 ? "Debits" : (cr > 0 ? "Credits" : "Posts to");
+
+            // Diagnostic: "SUP #47" / "CUS #793"
+            var parsed = FINDatabaseHelper.ParsePartyKey(partyKey);
+            string ptype = parsed.Item1;
+            int pid      = parsed.Item2;
+            string diag = "";
+            if (!string.IsNullOrEmpty(ptype) && pid > 0)
+                diag = "<span class='cap-diag'>" + ptype + " #" + pid + " \u00b7 linked as contact on Zoho push</span>";
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<div class='line-caption'><div></div><div class='cap-body'>");
+            sb.Append("&#x21B3; ").Append(verb).Append(" ");
+            sb.Append("<span class='cap-party'>").Append(Server.HtmlEncode(partyName)).Append("</span>");
+            if (!string.IsNullOrEmpty(accDisplayName))
+                sb.Append(" <span class='cap-via'>(via ").Append(Server.HtmlEncode(accDisplayName)).Append(")</span>");
+            sb.Append(diag);
+            sb.Append("</div></div>");
+            return sb.ToString();
         }
 
         bool IsEditable()
