@@ -1502,6 +1502,95 @@ namespace FINApp.DAL
             }
         }
 
+        /// <summary>List consumable GRNs that are real vendor purchases.
+        /// Mirrors GetRawGRNsForBilling. Phase 2 addition.</summary>
+        public static DataTable GetConsumableGRNsForBilling(DateTime? fromDate, DateTime? toDate, string pushFilter)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(
+                "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
+                " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
+                " i.ConsumableID, c.ConsumableName, c.ConsumableCode, c.HSNCode AS ConsumableHSN, " +
+                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
+                " bl.PushedAt, bl.BillTotal " +
+                "FROM mm_consumableinward i " +
+                "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
+                "JOIN mm_consumables c ON c.ConsumableID = i.ConsumableID " +
+                "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'CONSUMABLE' " +
+                "WHERE i.SupplierID <> 306 " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND i.GRNNo NOT LIKE 'PREP-%' " +
+                "  AND i.GRNNo NOT LIKE 'PRE-%' ");
+
+            if (fromDate.HasValue) sb.Append(" AND i.InwardDate >= ?fd ");
+            if (toDate.HasValue)   sb.Append(" AND i.InwardDate <= ?td ");
+            if (pushFilter == "Pending")
+                sb.Append(" AND (bl.ZohoBillID IS NULL OR bl.ZohoBillID = '') ");
+            else if (pushFilter == "Pushed")
+                sb.Append(" AND bl.ZohoBillID IS NOT NULL AND bl.ZohoBillID <> '' ");
+            else if (pushFilter == "Error")
+                sb.Append(" AND bl.PushStatus = 'Error' ");
+
+            sb.Append("ORDER BY i.InwardDate DESC, i.InwardID DESC;");
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(sb.ToString(), conn))
+            {
+                if (fromDate.HasValue) cmd.Parameters.AddWithValue("?fd", fromDate.Value);
+                if (toDate.HasValue) cmd.Parameters.AddWithValue("?td", toDate.Value);
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt;
+            }
+        }
+
+        /// <summary>List stationary GRNs that are real vendor purchases.
+        /// Mirrors GetRawGRNsForBilling. Phase 2 addition.
+        /// Note: underlying table and column use DB spelling "Stationary".</summary>
+        public static DataTable GetStationaryGRNsForBilling(DateTime? fromDate, DateTime? toDate, string pushFilter)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(
+                "SELECT i.InwardID, i.GRNNo, i.InvoiceNo, i.InvoiceDate, i.InwardDate, " +
+                " i.SupplierID, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
+                " i.StationaryID, st.StationaryName, st.StationaryCode, st.HSNCode AS StationaryHSN, " +
+                " i.Quantity, i.Rate, i.HSNCode, i.GSTRate, i.GSTAmount, i.Amount, i.Status, " +
+                " bl.ZohoBillID, bl.ZohoBillNo, bl.ZohoStatus, bl.PushStatus, bl.ErrorMessage, " +
+                " bl.PushedAt, bl.BillTotal " +
+                "FROM mm_stationaryinward i " +
+                "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
+                "JOIN mm_stationaries st ON st.StationaryID = i.StationaryID " +
+                "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'STATIONARY' " +
+                "WHERE i.SupplierID <> 306 " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND i.GRNNo NOT LIKE 'PREP-%' " +
+                "  AND i.GRNNo NOT LIKE 'PRE-%' ");
+
+            if (fromDate.HasValue) sb.Append(" AND i.InwardDate >= ?fd ");
+            if (toDate.HasValue)   sb.Append(" AND i.InwardDate <= ?td ");
+            if (pushFilter == "Pending")
+                sb.Append(" AND (bl.ZohoBillID IS NULL OR bl.ZohoBillID = '') ");
+            else if (pushFilter == "Pushed")
+                sb.Append(" AND bl.ZohoBillID IS NOT NULL AND bl.ZohoBillID <> '' ");
+            else if (pushFilter == "Error")
+                sb.Append(" AND bl.PushStatus = 'Error' ");
+
+            sb.Append("ORDER BY i.InwardDate DESC, i.InwardID DESC;");
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(sb.ToString(), conn))
+            {
+                if (fromDate.HasValue) cmd.Parameters.AddWithValue("?fd", fromDate.Value);
+                if (toDate.HasValue) cmd.Parameters.AddWithValue("?td", toDate.Value);
+                var dt = new DataTable();
+                conn.Open();
+                dt.Load(cmd.ExecuteReader());
+                return dt;
+            }
+        }
+
         /// <summary>Thin wrapper — delegates to the PK helper which owns the Zoho API client
         /// and the auto-create logic for vendors and items.</summary>
         public static FINApp.DAL.ZohoBillPushResult PushGRNToZoho(int grnId, string grnType, int userId)
@@ -1518,7 +1607,8 @@ namespace FINApp.DAL
         }
 
         /// <summary>Summary counts for the GRN-to-Zoho dashboard tabs.
-        /// Returns a row per GRN type with PendingCount, PushedCount, ErrorCount.</summary>
+        /// Returns a row per GRN type with PendingCount, PushedCount, ErrorCount.
+        /// Phase 2: now covers RAW, PACKING, CONSUMABLE, STATIONARY.</summary>
         public static DataTable GetGRNBillingTabSummary(DateTime? fromDate, DateTime? toDate)
         {
             // Union query — one row per type. We keep the filter conditions identical to
@@ -1532,23 +1622,32 @@ namespace FINApp.DAL
                 "   AND i.GRNNo NOT LIKE 'PREP-%' " +
                 "   AND i.GRNNo NOT LIKE 'PRE-%' ";
 
-            string sql =
-                "SELECT 'RAW' AS GRNType, " +
+            // One SELECT per type. Parameters ?fd / ?td are shared across all 4 blocks.
+            string countCols =
                 "  SUM(CASE WHEN bl.ZohoBillID IS NULL OR bl.ZohoBillID = '' THEN 1 ELSE 0 END) AS PendingCount, " +
                 "  SUM(CASE WHEN bl.ZohoBillID IS NOT NULL AND bl.ZohoBillID <> '' THEN 1 ELSE 0 END) AS PushedCount, " +
                 "  SUM(CASE WHEN bl.PushStatus = 'Error' THEN 1 ELSE 0 END) AS ErrorCount, " +
-                "  COUNT(*) AS TotalCount " +
+                "  COUNT(*) AS TotalCount ";
+
+            string sql =
+                "SELECT 'RAW' AS GRNType, " + countCols +
                 "FROM mm_rawinward i " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'RAW' " +
                 exclFilter + dateFilter +
                 "UNION ALL " +
-                "SELECT 'PACKING' AS GRNType, " +
-                "  SUM(CASE WHEN bl.ZohoBillID IS NULL OR bl.ZohoBillID = '' THEN 1 ELSE 0 END), " +
-                "  SUM(CASE WHEN bl.ZohoBillID IS NOT NULL AND bl.ZohoBillID <> '' THEN 1 ELSE 0 END), " +
-                "  SUM(CASE WHEN bl.PushStatus = 'Error' THEN 1 ELSE 0 END), " +
-                "  COUNT(*) " +
+                "SELECT 'PACKING' AS GRNType, " + countCols +
                 "FROM mm_packinginward i " +
                 "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'PACKING' " +
+                exclFilter + dateFilter +
+                "UNION ALL " +
+                "SELECT 'CONSUMABLE' AS GRNType, " + countCols +
+                "FROM mm_consumableinward i " +
+                "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'CONSUMABLE' " +
+                exclFilter + dateFilter +
+                "UNION ALL " +
+                "SELECT 'STATIONARY' AS GRNType, " + countCols +
+                "FROM mm_stationaryinward i " +
+                "LEFT JOIN zoho_billlog bl ON bl.GRNID = i.InwardID AND bl.GRNType = 'STATIONARY' " +
                 exclFilter + dateFilter +
                 ";";
 
@@ -1565,7 +1664,7 @@ namespace FINApp.DAL
         }
 
         /// <summary>List distinct suppliers that appear in the filtered GRN lists — for
-        /// the supplier dropdown filter on the dashboard.</summary>
+        /// the supplier dropdown filter on the dashboard. Phase 2: now includes all 4 inward tables.</summary>
         public static DataTable GetSuppliersWithGRNs()
         {
             string sql =
@@ -1575,6 +1674,10 @@ namespace FINApp.DAL
                 "  EXISTS (SELECT 1 FROM mm_rawinward i WHERE i.SupplierID = s.SupplierID " +
                 "     AND i.GRNNo NOT LIKE 'INT-%' AND i.GRNNo NOT LIKE 'PREP-%' AND i.GRNNo NOT LIKE 'PRE-%') OR " +
                 "  EXISTS (SELECT 1 FROM mm_packinginward i WHERE i.SupplierID = s.SupplierID " +
+                "     AND i.GRNNo NOT LIKE 'INT-%' AND i.GRNNo NOT LIKE 'PREP-%' AND i.GRNNo NOT LIKE 'PRE-%') OR " +
+                "  EXISTS (SELECT 1 FROM mm_consumableinward i WHERE i.SupplierID = s.SupplierID " +
+                "     AND i.GRNNo NOT LIKE 'INT-%' AND i.GRNNo NOT LIKE 'PREP-%' AND i.GRNNo NOT LIKE 'PRE-%') OR " +
+                "  EXISTS (SELECT 1 FROM mm_stationaryinward i WHERE i.SupplierID = s.SupplierID " +
                 "     AND i.GRNNo NOT LIKE 'INT-%' AND i.GRNNo NOT LIKE 'PREP-%' AND i.GRNNo NOT LIKE 'PRE-%') " +
                 ") ORDER BY s.SupplierName;";
             using (var conn = new MySqlConnection(ConnectionString))

@@ -9,15 +9,16 @@ namespace FINApp
 {
     /// <summary>
     /// GRN-to-Zoho dashboard. Four tabs (Raw / Packing / Consumables / Stationery).
-    /// Phase 1: Raw + Packing are live; the other two show a placeholder.
-    /// Each row in the active tab has a checkbox + per-row Push button.
-    /// Bulk "Push Selected" pushes all checked rows one by one.
+    /// Phase 2: all four tabs are live. Each row in the active tab has a checkbox
+    /// and a per-row Push button. Bulk "Push Selected" pushes all checked rows one
+    /// by one. Stationary is stored under the DB spelling "Stationary" but shown
+    /// in UI as "Stationery".
     /// </summary>
     public partial class FINGRNToZoho : Page
     {
         protected Label lblNavUser;
         protected Panel pnlReadOnly, pnlAlert, pnlActiveList, pnlPlaceholder, pnlEmpty;
-        protected Literal litAlert, litResultInfo, litRawCount, litPackingCount, litPlaceholderLabel;
+        protected Literal litAlert, litResultInfo, litRawCount, litPackingCount, litConsumableCount, litStationeryCount, litPlaceholderLabel;
         protected LinkButton tabRaw, tabPacking, tabConsumable, tabStationery;
         protected DropDownList ddlSupplier, ddlStatusFilter;
         protected TextBox txtFromDate, txtToDate;
@@ -28,8 +29,9 @@ namespace FINApp
         private string UserRole => Session["FIN_Role"]?.ToString() ?? "";
         private bool IsFinance => FINConsignments.IsFinanceRole(UserRole);
 
-        /// <summary>Which tab is currently active — "RAW", "PACKING", "CONSUMABLE", "STATIONERY".
-        /// Stored in ViewState so it survives postbacks without needing a hidden field.</summary>
+        /// <summary>Which tab is currently active — "RAW", "PACKING", "CONSUMABLE", "STATIONARY".
+        /// Stored in ViewState so it survives postbacks without needing a hidden field.
+        /// Note: uses "STATIONARY" (DB spelling) not "STATIONERY" — matches zoho_billlog.GRNType.</summary>
         protected string ActiveTab
         {
             get { return (ViewState["ActiveTab"] as string) ?? "RAW"; }
@@ -90,23 +92,20 @@ namespace FINApp
         protected void tabRaw_Click(object s, EventArgs e)       { ActiveTab = "RAW";       RenderTabState(); RenderActiveList(); }
         protected void tabPacking_Click(object s, EventArgs e)   { ActiveTab = "PACKING";   RenderTabState(); RenderActiveList(); }
         protected void tabConsumable_Click(object s, EventArgs e){ ActiveTab = "CONSUMABLE";RenderTabState(); RenderActiveList(); }
-        protected void tabStationery_Click(object s, EventArgs e){ ActiveTab = "STATIONERY";RenderTabState(); RenderActiveList(); }
+        protected void tabStationery_Click(object s, EventArgs e){ ActiveTab = "STATIONARY";RenderTabState(); RenderActiveList(); }
 
-        /// <summary>Paint the active tab's underline + count badge, and toggle placeholder vs. list panel.</summary>
+        /// <summary>Paint the active tab's underline + count badge. Phase 2: all 4 tabs are live,
+        /// so the placeholder panel is never shown.</summary>
         void RenderTabState()
         {
             tabRaw.CssClass        = "tab" + (ActiveTab == "RAW"        ? " tab-active" : "");
             tabPacking.CssClass    = "tab" + (ActiveTab == "PACKING"    ? " tab-active" : "");
-            tabConsumable.CssClass = "tab tab-disabled" + (ActiveTab == "CONSUMABLE" ? " tab-active" : "");
-            tabStationery.CssClass = "tab tab-disabled" + (ActiveTab == "STATIONERY" ? " tab-active" : "");
+            tabConsumable.CssClass = "tab" + (ActiveTab == "CONSUMABLE" ? " tab-active" : "");
+            tabStationery.CssClass = "tab" + (ActiveTab == "STATIONARY" ? " tab-active" : "");
 
-            bool isActiveType = (ActiveTab == "RAW" || ActiveTab == "PACKING");
-            pnlActiveList.Visible = isActiveType;
-            pnlPlaceholder.Visible = !isActiveType;
-            btnPushSelected.Visible = IsFinance && isActiveType;
-
-            if (!isActiveType)
-                litPlaceholderLabel.Text = ActiveTab == "CONSUMABLE" ? "Consumables GRNs" : "Stationery GRNs";
+            pnlActiveList.Visible = true;
+            pnlPlaceholder.Visible = false;
+            btnPushSelected.Visible = IsFinance;
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -148,8 +147,11 @@ namespace FINApp
                 {
                     string type = r["GRNType"].ToString();
                     int total = r["TotalCount"] != DBNull.Value ? Convert.ToInt32(r["TotalCount"]) : 0;
-                    if (type == "RAW")     litRawCount.Text     = "<span class='count'>" + total + "</span>";
-                    if (type == "PACKING") litPackingCount.Text = "<span class='count'>" + total + "</span>";
+                    string badge = "<span class='count'>" + total + "</span>";
+                    if (type == "RAW")         litRawCount.Text         = badge;
+                    if (type == "PACKING")     litPackingCount.Text     = badge;
+                    if (type == "CONSUMABLE")  litConsumableCount.Text  = badge;
+                    if (type == "STATIONARY")  litStationeryCount.Text  = badge;
                 }
             }
             catch { /* tab counts are decoration; don't fail the page on count errors */ }
@@ -164,7 +166,8 @@ namespace FINApp
             phTable.Controls.Clear();
             pnlEmpty.Visible = false;
 
-            if (ActiveTab != "RAW" && ActiveTab != "PACKING")
+            if (ActiveTab != "RAW" && ActiveTab != "PACKING" &&
+                ActiveTab != "CONSUMABLE" && ActiveTab != "STATIONARY")
             {
                 litResultInfo.Text = "";
                 return;
@@ -175,9 +178,15 @@ namespace FINApp
             string statusF   = ddlStatusFilter.SelectedValue;
             int supId        = SelectedSupplierId;
 
-            DataTable dt = (ActiveTab == "RAW")
-                ? FINDatabaseHelper.GetRawGRNsForBilling(fromDt, toDt, statusF)
-                : FINDatabaseHelper.GetPackingGRNsForBilling(fromDt, toDt, statusF);
+            DataTable dt;
+            if (ActiveTab == "RAW")
+                dt = FINDatabaseHelper.GetRawGRNsForBilling(fromDt, toDt, statusF);
+            else if (ActiveTab == "PACKING")
+                dt = FINDatabaseHelper.GetPackingGRNsForBilling(fromDt, toDt, statusF);
+            else if (ActiveTab == "CONSUMABLE")
+                dt = FINDatabaseHelper.GetConsumableGRNsForBilling(fromDt, toDt, statusF);
+            else // STATIONARY
+                dt = FINDatabaseHelper.GetStationaryGRNsForBilling(fromDt, toDt, statusF);
 
             // In-memory supplier filter — avoids a second SQL variant per tab
             if (supId > 0)
@@ -248,8 +257,11 @@ namespace FINApp
                 int grnId = Convert.ToInt32(r["InwardID"]);
                 string grnNo = r["GRNNo"].ToString();
                 string supName = r["SupplierName"].ToString();
-                string matName = grnType == "RAW" ? r["RMName"].ToString() : r["PMName"].ToString();
-                string matCode = grnType == "RAW" ? r["RMCode"].ToString() : r["PMCode"].ToString();
+                string matName, matCode;
+                if (grnType == "RAW")            { matName = r["RMName"].ToString();          matCode = r["RMCode"].ToString(); }
+                else if (grnType == "PACKING")   { matName = r["PMName"].ToString();          matCode = r["PMCode"].ToString(); }
+                else if (grnType == "CONSUMABLE"){ matName = r["ConsumableName"].ToString();  matCode = r["ConsumableCode"].ToString(); }
+                else /* STATIONARY */            { matName = r["StationaryName"].ToString();  matCode = r["StationaryCode"].ToString(); }
                 string invNo = r["InvoiceNo"] != DBNull.Value ? r["InvoiceNo"].ToString() : "";
                 DateTime? invDt = r["InvoiceDate"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(r["InvoiceDate"]) : null;
                 DateTime inwDt = Convert.ToDateTime(r["InwardDate"]);

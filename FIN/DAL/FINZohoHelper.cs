@@ -1613,10 +1613,11 @@ namespace FINApp.DAL
             try
             {
                 grnType = (grnType ?? "").ToUpper();
-                if (grnType != "RAW" && grnType != "PACKING")
+                if (grnType != "RAW" && grnType != "PACKING" &&
+                    grnType != "CONSUMABLE" && grnType != "STATIONARY")
                 {
                     res.Success = false;
-                    res.Message = grnType + " GRNs are not yet supported for Zoho bill push.";
+                    res.Message = grnType + " GRNs are not supported for Zoho bill push.";
                     return res;
                 }
 
@@ -1646,8 +1647,12 @@ namespace FINApp.DAL
                 DataRow g;
                 if (grnType == "RAW")
                     g = GetRawInwardRowForBill(grnId);
-                else
+                else if (grnType == "PACKING")
                     g = GetPackingInwardRowForBill(grnId);
+                else if (grnType == "CONSUMABLE")
+                    g = GetConsumableInwardRowForBill(grnId);
+                else
+                    g = GetStationaryInwardRowForBill(grnId);
 
                 if (g == null) { res.Success = false; res.Message = "GRN not found."; return res; }
 
@@ -1670,11 +1675,23 @@ namespace FINApp.DAL
                     zohoItemId = EnsureRMItem(rmId);
                     itemNameForNotes = g["RMName"].ToString();
                 }
-                else
+                else if (grnType == "PACKING")
                 {
                     int pmId = Convert.ToInt32(g["PMID"]);
                     zohoItemId = EnsurePMItem(pmId);
                     itemNameForNotes = g["PMName"].ToString();
+                }
+                else if (grnType == "CONSUMABLE")
+                {
+                    int cId = Convert.ToInt32(g["ConsumableID"]);
+                    zohoItemId = EnsureConsumableItem(cId);
+                    itemNameForNotes = g["ConsumableName"].ToString();
+                }
+                else // STATIONARY
+                {
+                    int sId = Convert.ToInt32(g["StationaryID"]);
+                    zohoItemId = EnsureStationaryItem(sId);
+                    itemNameForNotes = g["StationaryName"].ToString();
                 }
 
                 // GST / interstate detection — supplier state vs Tamil Nadu (org state)
@@ -1838,6 +1855,211 @@ namespace FINApp.DAL
                 conn.Open(); dt.Load(cmd.ExecuteReader());
             }
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        /// <summary>Row reader for mm_consumableinward. Phase 2 addition.</summary>
+        private static DataRow GetConsumableInwardRowForBill(int inwardId)
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT i.*, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
+                " c.ConsumableName, c.ConsumableCode " +
+                "FROM mm_consumableinward i " +
+                "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
+                "JOIN mm_consumables c ON c.ConsumableID = i.ConsumableID " +
+                "WHERE i.InwardID = ?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", inwardId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        /// <summary>Row reader for mm_stationaryinward. Phase 2 addition.</summary>
+        private static DataRow GetStationaryInwardRowForBill(int inwardId)
+        {
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT i.*, s.SupplierName, s.State AS SupState, s.GSTNo AS SupGSTIN, " +
+                " st.StationaryName, st.StationaryCode " +
+                "FROM mm_stationaryinward i " +
+                "JOIN mm_suppliers s ON s.SupplierID = i.SupplierID " +
+                "JOIN mm_stationaries st ON st.StationaryID = i.StationaryID " +
+                "WHERE i.InwardID = ?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", inwardId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        // ── Consumable / Stationary item-map accessors (mirror RM/PM pattern) ──
+
+        public static string GetZohoConsItemId(int consumableId)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT ZohoItemID FROM zoho_consitemmap WHERE ConsumableID=?id LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", consumableId);
+                conn.Open();
+                var o = cmd.ExecuteScalar();
+                return o == null || o == DBNull.Value ? "" : o.ToString();
+            }
+        }
+
+        public static string GetZohoStatItemId(int stationaryId)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT ZohoItemID FROM zoho_statitemmap WHERE StationaryID=?id LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", stationaryId);
+                conn.Open();
+                var o = cmd.ExecuteScalar();
+                return o == null || o == DBNull.Value ? "" : o.ToString();
+            }
+        }
+
+        private static void SaveConsItemMap(int consumableId, string zohoItemId, string zohoName, string status)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO zoho_consitemmap (ConsumableID, ZohoItemID, ZohoItemName, SyncStatus, LastSyncAt) " +
+                "VALUES(?id, ?zid, ?zn, ?st, NOW()) " +
+                "ON DUPLICATE KEY UPDATE ZohoItemID=?zid, ZohoItemName=?zn, SyncStatus=?st, LastSyncAt=NOW();", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", consumableId);
+                cmd.Parameters.AddWithValue("?zid", zohoItemId);
+                cmd.Parameters.AddWithValue("?zn", zohoName);
+                cmd.Parameters.AddWithValue("?st", status);
+                conn.Open(); cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static void SaveStatItemMap(int stationaryId, string zohoItemId, string zohoName, string status)
+        {
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO zoho_statitemmap (StationaryID, ZohoItemID, ZohoItemName, SyncStatus, LastSyncAt) " +
+                "VALUES(?id, ?zid, ?zn, ?st, NOW()) " +
+                "ON DUPLICATE KEY UPDATE ZohoItemID=?zid, ZohoItemName=?zn, SyncStatus=?st, LastSyncAt=NOW();", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", stationaryId);
+                cmd.Parameters.AddWithValue("?zid", zohoItemId);
+                cmd.Parameters.AddWithValue("?zn", zohoName);
+                cmd.Parameters.AddWithValue("?st", status);
+                conn.Open(); cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>Ensure a consumable is registered as a Zoho Books item.
+        /// Mirrors EnsureRMItem — creates on first call, caches mapping.</summary>
+        public static string EnsureConsumableItem(int consumableId)
+        {
+            string existing = GetZohoConsItemId(consumableId);
+            if (!string.IsNullOrEmpty(existing)) return existing;
+
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT c.ConsumableID, c.ConsumableCode, c.ConsumableName, c.Description, c.HSNCode, c.GSTRate, " +
+                " u.Abbreviation AS Unit " +
+                "FROM mm_consumables c " +
+                "JOIN mm_uom u ON u.UOMID = c.UOMID " +
+                "WHERE c.ConsumableID = ?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", consumableId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            if (dt.Rows.Count == 0) throw new Exception("Consumable " + consumableId + " not found");
+            var r = dt.Rows[0];
+
+            var item = new Dictionary<string, object>
+            {
+                { "name", r["ConsumableName"].ToString() },
+                { "sku", r["ConsumableCode"].ToString() },
+                { "description", r["Description"] != DBNull.Value ? r["Description"].ToString() : "" },
+                { "rate", 0 },
+                { "unit", r["Unit"] != DBNull.Value ? r["Unit"].ToString() : "" },
+                { "product_type", "goods" },
+                { "is_taxable", true },
+                { "hsn_or_sac", r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "" },
+                // Consumables are purchase-only items — they don't typically get resold.
+                { "item_type", "sales_and_purchases" }
+            };
+
+            var result = ZohoPost("items", item);
+            int code = Convert.ToInt32(result["code"]);
+            if (code != 0)
+            {
+                string msg = result.ContainsKey("message") ? result["message"].ToString() : "Unknown error";
+                LogSync("EnsureItem", "CONSUMABLE", consumableId.ToString(), null, "Error", msg);
+                throw new Exception("Zoho item create failed: " + msg);
+            }
+
+            var zohoItem = result["item"] as Dictionary<string, object>;
+            string zohoItemId = zohoItem["item_id"].ToString();
+            string zohoName = zohoItem["name"].ToString();
+            SaveConsItemMap(consumableId, zohoItemId, zohoName, "Synced");
+            LogSync("EnsureItem", "CONSUMABLE", consumableId.ToString(), zohoItemId, "Success",
+                "Auto-created for GRN push: " + zohoName);
+            return zohoItemId;
+        }
+
+        /// <summary>Ensure a stationary item is registered as a Zoho Books item.
+        /// Mirrors EnsureRMItem — creates on first call, caches mapping.</summary>
+        public static string EnsureStationaryItem(int stationaryId)
+        {
+            string existing = GetZohoStatItemId(stationaryId);
+            if (!string.IsNullOrEmpty(existing)) return existing;
+
+            var dt = new DataTable();
+            using (var conn = new MySqlConnection(ConnStr))
+            using (var cmd = new MySqlCommand(
+                "SELECT st.StationaryID, st.StationaryCode, st.StationaryName, st.Description, st.HSNCode, st.GSTRate, " +
+                " u.Abbreviation AS Unit " +
+                "FROM mm_stationaries st " +
+                "JOIN mm_uom u ON u.UOMID = st.UOMID " +
+                "WHERE st.StationaryID = ?id;", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", stationaryId);
+                conn.Open(); dt.Load(cmd.ExecuteReader());
+            }
+            if (dt.Rows.Count == 0) throw new Exception("Stationary " + stationaryId + " not found");
+            var r = dt.Rows[0];
+
+            var item = new Dictionary<string, object>
+            {
+                { "name", r["StationaryName"].ToString() },
+                { "sku", r["StationaryCode"].ToString() },
+                { "description", r["Description"] != DBNull.Value ? r["Description"].ToString() : "" },
+                { "rate", 0 },
+                { "unit", r["Unit"] != DBNull.Value ? r["Unit"].ToString() : "" },
+                { "product_type", "goods" },
+                { "is_taxable", true },
+                { "hsn_or_sac", r["HSNCode"] != DBNull.Value ? r["HSNCode"].ToString() : "" },
+                { "item_type", "sales_and_purchases" }
+            };
+
+            var result = ZohoPost("items", item);
+            int code = Convert.ToInt32(result["code"]);
+            if (code != 0)
+            {
+                string msg = result.ContainsKey("message") ? result["message"].ToString() : "Unknown error";
+                LogSync("EnsureItem", "STATIONARY", stationaryId.ToString(), null, "Error", msg);
+                throw new Exception("Zoho item create failed: " + msg);
+            }
+
+            var zohoItem = result["item"] as Dictionary<string, object>;
+            string zohoItemId = zohoItem["item_id"].ToString();
+            string zohoName = zohoItem["name"].ToString();
+            SaveStatItemMap(stationaryId, zohoItemId, zohoName, "Synced");
+            LogSync("EnsureItem", "STATIONARY", stationaryId.ToString(), zohoItemId, "Success",
+                "Auto-created for GRN push: " + zohoName);
+            return zohoItemId;
         }
 
         // ── mapping accessors (mirror SaveItemMap / GetZohoItemId pattern) ──
