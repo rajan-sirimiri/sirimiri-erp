@@ -178,18 +178,10 @@ table.grn-table tbody tr:hover{background:#fcfbfa;}
 
     <!-- ── Tabs ── -->
     <div class="tabs">
-        <asp:LinkButton ID="tabRaw" runat="server" OnClick="tabRaw_Click" CssClass="tab" CausesValidation="false">
-            <span>Raw Materials</span> <asp:Literal ID="litRawCount" runat="server" />
-        </asp:LinkButton>
-        <asp:LinkButton ID="tabPacking" runat="server" OnClick="tabPacking_Click" CssClass="tab" CausesValidation="false">
-            <span>Packing Materials</span> <asp:Literal ID="litPackingCount" runat="server" />
-        </asp:LinkButton>
-        <asp:LinkButton ID="tabConsumable" runat="server" OnClick="tabConsumable_Click" CssClass="tab" CausesValidation="false">
-            <span>Consumables</span> <asp:Literal ID="litConsumableCount" runat="server" />
-        </asp:LinkButton>
-        <asp:LinkButton ID="tabStationery" runat="server" OnClick="tabStationery_Click" CssClass="tab" CausesValidation="false">
-            <span>Stationery</span> <asp:Literal ID="litStationeryCount" runat="server" />
-        </asp:LinkButton>
+        <asp:LinkButton ID="tabRaw" runat="server" OnClick="tabRaw_Click" CssClass="tab" CausesValidation="false" />
+        <asp:LinkButton ID="tabPacking" runat="server" OnClick="tabPacking_Click" CssClass="tab" CausesValidation="false" />
+        <asp:LinkButton ID="tabConsumable" runat="server" OnClick="tabConsumable_Click" CssClass="tab" CausesValidation="false" />
+        <asp:LinkButton ID="tabStationery" runat="server" OnClick="tabStationery_Click" CssClass="tab" CausesValidation="false" />
     </div>
 
     <!-- ── Tab content ── -->

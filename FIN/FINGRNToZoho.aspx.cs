@@ -18,7 +18,7 @@ namespace FINApp
     {
         protected Label lblNavUser;
         protected Panel pnlReadOnly, pnlAlert, pnlActiveList, pnlPlaceholder, pnlEmpty;
-        protected Literal litAlert, litResultInfo, litRawCount, litPackingCount, litConsumableCount, litStationeryCount, litPlaceholderLabel;
+        protected Literal litAlert, litResultInfo, litPlaceholderLabel;
         protected LinkButton tabRaw, tabPacking, tabConsumable, tabStationery;
         protected DropDownList ddlSupplier, ddlStatusFilter;
         protected TextBox txtFromDate, txtToDate;
@@ -94,8 +94,10 @@ namespace FINApp
         protected void tabConsumable_Click(object s, EventArgs e){ ActiveTab = "CONSUMABLE";RenderTabState(); RenderActiveList(); }
         protected void tabStationery_Click(object s, EventArgs e){ ActiveTab = "STATIONARY";RenderTabState(); RenderActiveList(); }
 
-        /// <summary>Paint the active tab's underline + count badge. Phase 2: all 4 tabs are live,
-        /// so the placeholder panel is never shown.</summary>
+        /// <summary>Paint each tab: set CssClass (active underline) and Text (label + count badge).
+        /// Text is set programmatically — declarative inner markup on LinkButtons does not
+        /// round-trip through ViewState reliably on postbacks.
+        /// Phase 2: all 4 tabs are live, so the placeholder panel is never shown.</summary>
         void RenderTabState()
         {
             tabRaw.CssClass        = "tab" + (ActiveTab == "RAW"        ? " tab-active" : "");
@@ -103,9 +105,19 @@ namespace FINApp
             tabConsumable.CssClass = "tab" + (ActiveTab == "CONSUMABLE" ? " tab-active" : "");
             tabStationery.CssClass = "tab" + (ActiveTab == "STATIONARY" ? " tab-active" : "");
 
+            tabRaw.Text        = TabLabel("Raw Materials",     _cntRaw);
+            tabPacking.Text    = TabLabel("Packing Materials", _cntPacking);
+            tabConsumable.Text = TabLabel("Consumables",       _cntConsumable);
+            tabStationery.Text = TabLabel("Stationery",        _cntStationary);
+
             pnlActiveList.Visible = true;
             pnlPlaceholder.Visible = false;
             btnPushSelected.Visible = IsFinance;
+        }
+
+        static string TabLabel(string name, int count)
+        {
+            return "<span>" + name + "</span> <span class='count'>" + count + "</span>";
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -136,8 +148,15 @@ namespace FINApp
             get { int v; return int.TryParse(ddlSupplier.SelectedValue, out v) ? v : 0; }
         }
 
+        // Tab counts, populated by RefreshTabCounts — used by RenderTabState to
+        // render tab labels with inline count badges. We store instead of pushing
+        // to Literals because LinkButton inner content (span + literal) does not
+        // survive ASP.NET round-tripping reliably on postbacks.
+        int _cntRaw, _cntPacking, _cntConsumable, _cntStationary;
+
         void RefreshTabCounts()
         {
+            _cntRaw = _cntPacking = _cntConsumable = _cntStationary = 0;
             try
             {
                 var dt = FINDatabaseHelper.GetGRNBillingTabSummary(
@@ -147,11 +166,10 @@ namespace FINApp
                 {
                     string type = r["GRNType"].ToString();
                     int total = r["TotalCount"] != DBNull.Value ? Convert.ToInt32(r["TotalCount"]) : 0;
-                    string badge = "<span class='count'>" + total + "</span>";
-                    if (type == "RAW")         litRawCount.Text         = badge;
-                    if (type == "PACKING")     litPackingCount.Text     = badge;
-                    if (type == "CONSUMABLE")  litConsumableCount.Text  = badge;
-                    if (type == "STATIONARY")  litStationeryCount.Text  = badge;
+                    if (type == "RAW")         _cntRaw         = total;
+                    if (type == "PACKING")     _cntPacking     = total;
+                    if (type == "CONSUMABLE")  _cntConsumable  = total;
+                    if (type == "STATIONARY")  _cntStationary  = total;
                 }
             }
             catch { /* tab counts are decoration; don't fail the page on count errors */ }
