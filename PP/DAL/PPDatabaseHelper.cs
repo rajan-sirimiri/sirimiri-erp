@@ -1254,7 +1254,8 @@ namespace PPApp.DAL
             }
             else if (stage == 4)
             {
-                // Stage 4: Add to Stage 4 RM — independent of Stage 3 stock
+                // Stage 4: Add to Stage 4 RM AND deduct 1:1 from Stage 3 RM pool.
+                // Pooled across shifts — balance is whatever Stage 3 RM shows in MM.
                 // stageLabel = Stage 4 RM name
 
                 // Look up Stage 4 RM
@@ -1265,6 +1266,30 @@ namespace PPApp.DAL
                 if (rmRow4 == null)
                     throw new Exception("Stage 4 RM '" + stageLabel + "' not found in Raw Materials.");
                 int rmId4 = Convert.ToInt32(rmRow4["RMID"]);
+
+                // ── STAGE 3 POOL CHECK & DEDUCTION ──
+                // Stage 4 consumes from the Stage 3 RM pool 1:1. Block if insufficient.
+                var stage3Row = ExecuteQueryRow(
+                    "SELECT Stage3Label FROM PP_PreprocessStages WHERE ProductID=?pid;",
+                    new MySqlParameter("?pid", productId));
+                string stage3Label = stage3Row != null && stage3Row["Stage3Label"] != DBNull.Value
+                    ? stage3Row["Stage3Label"].ToString() : "";
+                if (string.IsNullOrEmpty(stage3Label))
+                    throw new Exception("Stage 3 is not configured for this product. " +
+                        "Cannot record Stage 4 without a Stage 3 pool to draw from.");
+
+                var s3Rm = ExecuteQueryRow(
+                    "SELECT RMID FROM MM_RawMaterials" +
+                    " WHERE LOWER(TRIM(RMName))=LOWER(TRIM(?name)) AND IsActive=1 LIMIT 1;",
+                    new MySqlParameter("?name", stage3Label));
+                if (s3Rm == null)
+                    throw new Exception("Stage 3 RM '" + stage3Label + "' not found in Raw Materials.");
+                int s3RmId = Convert.ToInt32(s3Rm["RMID"]);
+
+                decimal s3Available = GetAvailableStock(s3RmId);
+                if (qty > s3Available + 0.001m)
+                    throw new Exception("STOCK_SHORTFALL:" + stage3Label + " available: " +
+                        s3Available.ToString("0.###") + ", requested: " + qty.ToString("0.###"));
 
                 // ── PRICING CALCULATION for Pre Processed RM ──
                 decimal rate = 0;
@@ -1350,7 +1375,16 @@ namespace PPApp.DAL
                     new MySqlParameter("?rem",  remarks + (rate > 0 ? " | Rate=₹" + rate.ToString("0.00") + "/unit" : "")),
                     new MySqlParameter("?by",   userId));
 
-                // Stage 3 and Stage 4 are independent — no deduction from Stage 3 stock
+                // Deduct from Stage 3 RM pool (BatchNo=3 convention = "consumed at Stage 3")
+                ExecuteNonQuery(
+                    "INSERT INTO MM_StockConsumption" +
+                    " (ExecutionID, OrderID, BatchNo, RMID, SourceType, SourceID, QtyConsumed, ConsumedAt, CreatedBy)" +
+                    " VALUES (0, ?pid, 3, ?rmid, 'PREPROCESS', 0, ?qty, ?now, ?by);",
+                    new MySqlParameter("?pid",  productId),
+                    new MySqlParameter("?rmid", s3RmId),
+                    new MySqlParameter("?qty",  qty),
+                    new MySqlParameter("?now",  NowIST()),
+                    new MySqlParameter("?by",   userId));
 
                 // Log Stage 4 for tracking
                 ExecuteNonQuery(
