@@ -145,6 +145,20 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">Ledger master mirrored from Zoho Books — sync when accounts change in Zoho</div>
             </div>
         </a>
+        <a id="lnkAccountStatement" runat="server" href="FINAccountStatement.aspx" class="menu-card" style="border-color:#f5cba7;">
+            <div class="menu-icon">&#x1F4C4;</div>
+            <div>
+                <div class="menu-title">Account Statement</div>
+                <div class="menu-desc">Party ledger with opening balance, transactions, and running Dr/Cr balance</div>
+            </div>
+        </a>
+        <a id="lnkPartyOpeningBalance" runat="server" href="FINPartyOpeningBalance.aspx" class="menu-card" style="border-color:#d7bde2;">
+            <div class="menu-icon">&#x2699;</div>
+            <div>
+                <div class="menu-title">Party Opening Balance</div>
+                <div class="menu-desc">Set as-of-FY-start opening balances for customers and suppliers (Super role)</div>
+            </div>
+        </a>
     </div>
 
 </div>
