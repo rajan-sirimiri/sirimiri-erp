@@ -1,15 +1,16 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="FINPartyOpeningBalance.aspx.cs"
-    Inherits="Sirimiri.FIN.FINPartyOpeningBalance" %>
+    Inherits="FINApp.FINPartyOpeningBalance" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <title>Party Opening Balance — FIN</title>
-    <link rel="stylesheet" href="FINStyles.css" />
+    <link rel="stylesheet" href="../erp-tablet.css" />
     <style>
-        .opening-card { border:1px solid #ccc; padding:12px; margin:12px 0; background:#f9f9f9; }
+        .page-container { max-width:900px; margin:16px auto; padding:12px; font-family:Segoe UI,Arial,sans-serif; }
+        .opening-card { border:1px solid #ccc; padding:12px; margin:12px 0; background:#f9f9f9; border-radius:4px; }
         .opening-card.exists { background:#fff7e6; border-color:#d4a017; }
-        .form-row { margin:8px 0; }
+        .form-row { margin:10px 0; }
         .form-row label { display:inline-block; min-width:140px; font-weight:600; }
         .audit-table { width:100%; border-collapse:collapse; margin-top:16px; font-size:13px; }
         .audit-table th, .audit-table td { border:1px solid #ddd; padding:6px 8px; text-align:left; }
@@ -18,22 +19,26 @@
         .err { color:#b00; font-weight:600; }
         .ok  { color:#060; font-weight:600; }
         .access-denied { padding:30px; text-align:center; color:#b00; font-size:16px; }
+        .btn-primary { padding:6px 18px; background:#1a6e1a; color:#fff; border:0; border-radius:3px; cursor:pointer; }
+        .btn-primary:hover { background:#125012; }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
-        <%-- FIN nav strip --%>
-        <asp:PlaceHolder ID="phNav" runat="server" />
-
         <div class="page-container">
+            <div style="margin-bottom:8px;">
+                <a href="FINHome.aspx">← FIN Home</a>
+                &nbsp;|&nbsp;
+                <span>Logged in: <asp:Label ID="lblNavUser" runat="server" /></span>
+            </div>
             <h2>FIN › Party Opening Balance</h2>
 
             <asp:Panel ID="pnlDenied" runat="server" Visible="false" CssClass="access-denied">
-                <p>This page requires admin access.</p>
+                <p>This page requires the <strong>Super</strong> role.</p>
             </asp:Panel>
 
             <asp:Panel ID="pnlMain" runat="server">
-                <asp:Label ID="lblMsg" runat="server" CssClass="err" />
+                <asp:Label ID="lblMsg" runat="server" />
 
                 <div class="form-row">
                     <label>Party Type:</label>
@@ -58,7 +63,7 @@
                     <asp:Label ID="lblAsOfDate" runat="server" Font-Bold="true" />
                 </div>
 
-                <asp:Panel ID="pnlCurrent" runat="server" CssClass="opening-card" Visible="false">
+                <asp:Panel ID="pnlCurrent" runat="server" CssClass="opening-card exists" Visible="false">
                     <strong>Current Opening:</strong>
                     <asp:Label ID="lblCurrentAmount" runat="server" />
                     <br />
@@ -99,33 +104,7 @@
                 </div>
 
                 <h3>Audit History</h3>
-                <asp:Panel ID="pnlAuditEmpty" runat="server" Visible="false">
-                    <em>No history yet.</em>
-                </asp:Panel>
-                <asp:Repeater ID="rptAudit" runat="server" Visible="false">
-                    <HeaderTemplate>
-                        <table class="audit-table">
-                            <tr>
-                                <th>Changed On</th>
-                                <th>Action</th>
-                                <th>Old</th>
-                                <th>New</th>
-                                <th>By</th>
-                                <th>Reason</th>
-                            </tr>
-                    </HeaderTemplate>
-                    <ItemTemplate>
-                        <tr>
-                            <td><%# Eval("ChangedOn", "{0:dd-MMM-yyyy HH:mm}") %></td>
-                            <td><%# Eval("ActionType") %></td>
-                            <td class="amt"><%# FormatOld(Container.DataItem) %></td>
-                            <td class="amt"><%# FormatNew(Container.DataItem) %></td>
-                            <td><%# Eval("ChangedBy") %></td>
-                            <td><%# Eval("Reason") ?? "" %></td>
-                        </tr>
-                    </ItemTemplate>
-                    <FooterTemplate></table></FooterTemplate>
-                </asp:Repeater>
+                <asp:PlaceHolder ID="phAudit" runat="server" />
             </asp:Panel>
         </div>
     </form>

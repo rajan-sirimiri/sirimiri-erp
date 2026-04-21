@@ -1,25 +1,41 @@
 using System;
+using System.Data;
 using System.Globalization;
+using System.Text;
 using System.Web.UI;
-using Sirimiri.FIN.DAL;
+using System.Web.UI.WebControls;
+using FINApp.DAL;
 
-namespace Sirimiri.FIN
+namespace FINApp
 {
-    public partial class FINPartyOpeningBalance : Page
+    public partial class FINPartyOpeningBalance : System.Web.UI.Page
     {
-        private readonly FINDatabaseHelper _db = new FINDatabaseHelper();
+        // Controls declared in the aspx markup
+        protected Label lblNavUser;
+        protected Panel pnlDenied, pnlMain, pnlCurrent, pnlNone;
+        protected Label lblMsg, lblAsOfDate, lblCurrentAmount, lblCreatedOn,
+                        lblCreatedBy, lblLastModified, lblFYEcho;
+        protected RadioButtonList rblPartyType, rblDrCr;
+        protected DropDownList ddlParty, ddlFY;
+        protected TextBox txtAmount, txtReason;
+        protected Button btnSave;
+        protected PlaceHolder phAudit;
+
+        private static readonly CultureInfo _ci = new CultureInfo("en-IN");
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Access control
-            if (Session["UserID"] == null)
+            // Auth
+            if (Session["FIN_UserID"] == null)
             {
-                Response.Redirect("~/FIN/FINLogin.aspx");
+                Response.Redirect("FINLogin.aspx");
                 return;
             }
+            lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
 
-            bool isAdmin = Session["IsAdmin"] != null && Convert.ToBoolean(Session["IsAdmin"]);
-            if (!isAdmin)
+            // Super-role gate
+            string role = Session["FIN_Role"]?.ToString() ?? "";
+            if (!string.Equals(role, "Super", StringComparison.OrdinalIgnoreCase))
             {
                 pnlMain.Visible = false;
                 pnlDenied.Visible = true;
@@ -35,9 +51,7 @@ namespace Sirimiri.FIN
             }
         }
 
-        // -------------------------------------------------------------
-        // Dropdown loaders
-        // -------------------------------------------------------------
+        // ── Dropdown loaders ─────────────────────────────────────────
         private void LoadFYDropdown()
         {
             ddlFY.Items.Clear();
@@ -51,40 +65,39 @@ namespace Sirimiri.FIN
                 string fy = y + "-" + ((y + 1) % 100).ToString("D2");
                 ddlFY.Items.Add(fy);
             }
-            ddlFY.SelectedValue = currentFYStartYear + "-" + ((currentFYStartYear + 1) % 100).ToString("D2");
+            ddlFY.SelectedValue = currentFYStartYear + "-" +
+                ((currentFYStartYear + 1) % 100).ToString("D2");
         }
 
         private void LoadPartyDropdown()
         {
             string partyType = rblPartyType.SelectedValue;
-            var parties = _db.ListAllParties(partyType);
+            DataTable dt = FINDatabaseHelper.ListAllParties(partyType);
 
             ddlParty.Items.Clear();
-            ddlParty.Items.Add(new System.Web.UI.WebControls.ListItem("-- Select --", ""));
-            foreach (var p in parties)
+            ddlParty.Items.Add(new ListItem("-- Select --", ""));
+            foreach (DataRow r in dt.Rows)
             {
-                string text = p.Name + (p.IsActive ? "" : " (inactive)");
-                ddlParty.Items.Add(new System.Web.UI.WebControls.ListItem(text, p.PartyID.ToString()));
+                string name = r["Name"].ToString();
+                bool isActive = r["IsActive"] != DBNull.Value && Convert.ToBoolean(r["IsActive"]);
+                string text = name + (isActive ? "" : " (inactive)");
+                ddlParty.Items.Add(new ListItem(text, r["PartyID"].ToString()));
             }
         }
 
         private void UpdateAsOfDate()
         {
-            // FY "2026-27" → AsOfDate = 01-Apr-2026
             string fy = ddlFY.SelectedValue;
             if (string.IsNullOrEmpty(fy)) { lblAsOfDate.Text = ""; return; }
             int startYear = int.Parse(fy.Substring(0, 4));
-            DateTime asOf = new DateTime(startYear, 4, 1);
-            lblAsOfDate.Text = asOf.ToString("dd-MMM-yyyy");
+            lblAsOfDate.Text = new DateTime(startYear, 4, 1).ToString("dd-MMM-yyyy");
         }
 
-        // -------------------------------------------------------------
-        // Events
-        // -------------------------------------------------------------
+        // ── Events ───────────────────────────────────────────────────
         protected void rblPartyType_Changed(object sender, EventArgs e)
         {
             LoadPartyDropdown();
-            ClearCurrentDisplay();
+            ClearDisplay();
         }
 
         protected void ddlParty_Changed(object sender, EventArgs e)
@@ -110,8 +123,8 @@ namespace Sirimiri.FIN
             }
 
             decimal amount;
-            if (!decimal.TryParse(txtAmount.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out amount)
-                || amount < 0)
+            if (!decimal.TryParse(txtAmount.Text.Trim(), NumberStyles.Any,
+                    CultureInfo.InvariantCulture, out amount) || amount < 0)
             {
                 lblMsg.Text = "Enter a valid non-negative amount.";
                 return;
@@ -124,10 +137,10 @@ namespace Sirimiri.FIN
             DateTime asOf = new DateTime(startYear, 4, 1);
             string drcr = rblDrCr.SelectedValue;
             string reason = txtReason.Text.Trim();
-            string user = Session["UserID"].ToString();
+            string user = Session["FIN_FullName"]?.ToString() ?? ("UID:" + Session["FIN_UserID"]);
 
-            // Is this an update? (row already exists)
-            var existing = _db.GetOpeningBalance(partyType, partyID, fy);
+            // Is this an update? (row already exists) → Reason required
+            DataRow existing = FINDatabaseHelper.GetOpeningBalance(partyType, partyID, fy);
             if (existing != null && string.IsNullOrEmpty(reason))
             {
                 lblMsg.Text = "Reason is required when editing an existing opening balance.";
@@ -136,7 +149,8 @@ namespace Sirimiri.FIN
 
             try
             {
-                _db.SaveOpeningBalance(partyType, partyID, fy, asOf, amount, drcr, reason, user);
+                FINDatabaseHelper.SaveOpeningBalance(partyType, partyID, fy,
+                    asOf, amount, drcr, string.IsNullOrEmpty(reason) ? null : reason, user);
                 lblMsg.CssClass = "ok";
                 lblMsg.Text = "Opening balance saved.";
                 LoadCurrentAndAudit();
@@ -147,15 +161,12 @@ namespace Sirimiri.FIN
             }
         }
 
-        // -------------------------------------------------------------
-        // Display refresh
-        // -------------------------------------------------------------
-        private void ClearCurrentDisplay()
+        // ── Display refresh ──────────────────────────────────────────
+        private void ClearDisplay()
         {
             pnlCurrent.Visible = false;
             pnlNone.Visible = false;
-            rptAudit.Visible = false;
-            pnlAuditEmpty.Visible = false;
+            phAudit.Controls.Clear();
             txtAmount.Text = "0.00";
             txtReason.Text = "";
             rblDrCr.SelectedValue = "Dr";
@@ -163,7 +174,7 @@ namespace Sirimiri.FIN
 
         private void LoadCurrentAndAudit()
         {
-            ClearCurrentDisplay();
+            ClearDisplay();
 
             if (string.IsNullOrEmpty(ddlParty.SelectedValue)) return;
 
@@ -171,27 +182,31 @@ namespace Sirimiri.FIN
             int partyID = int.Parse(ddlParty.SelectedValue);
             string fy = ddlFY.SelectedValue;
 
-            var existing = _db.GetOpeningBalance(partyType, partyID, fy);
+            DataRow existing = FINDatabaseHelper.GetOpeningBalance(partyType, partyID, fy);
             if (existing != null)
             {
                 pnlCurrent.Visible = true;
-                lblCurrentAmount.Text = FormatIndian(existing.Amount) + " " + existing.DrCr;
-                lblCreatedOn.Text = existing.CreatedOn.ToString("dd-MMM-yyyy HH:mm");
-                lblCreatedBy.Text = existing.CreatedBy;
-                if (existing.LastModifiedOn.HasValue)
+                decimal amt = Convert.ToDecimal(existing["Amount"]);
+                string drcr = existing["DrCr"].ToString();
+                lblCurrentAmount.Text = FormatIndian(amt) + " " + drcr;
+                lblCreatedOn.Text = Convert.ToDateTime(existing["CreatedOn"])
+                    .ToString("dd-MMM-yyyy HH:mm");
+                lblCreatedBy.Text = existing["CreatedBy"].ToString();
+
+                if (existing["LastModifiedOn"] != DBNull.Value)
                 {
                     lblLastModified.Text = " | Last edited " +
-                        existing.LastModifiedOn.Value.ToString("dd-MMM-yyyy HH:mm") +
-                        " by " + existing.LastModifiedBy;
+                        Convert.ToDateTime(existing["LastModifiedOn"]).ToString("dd-MMM-yyyy HH:mm") +
+                        " by " + existing["LastModifiedBy"];
                 }
                 else
                 {
                     lblLastModified.Text = "";
                 }
 
-                // Prefill edit form with current values
-                txtAmount.Text = existing.Amount.ToString("0.00", CultureInfo.InvariantCulture);
-                rblDrCr.SelectedValue = existing.DrCr;
+                // Prefill edit form
+                txtAmount.Text = amt.ToString("0.00", CultureInfo.InvariantCulture);
+                rblDrCr.SelectedValue = drcr;
                 txtReason.Text = "";
             }
             else
@@ -203,41 +218,47 @@ namespace Sirimiri.FIN
                 txtReason.Text = "";
             }
 
-            // Audit
-            var audit = _db.GetOpeningBalanceAudit(partyType, partyID, fy);
-            if (audit.Count == 0)
+            RenderAudit(partyType, partyID, fy);
+        }
+
+        private void RenderAudit(string partyType, int partyID, string fy)
+        {
+            DataTable dt = FINDatabaseHelper.GetOpeningBalanceAudit(partyType, partyID, fy);
+            if (dt.Rows.Count == 0)
             {
-                pnlAuditEmpty.Visible = true;
+                phAudit.Controls.Add(new LiteralControl("<p><em>No history yet.</em></p>"));
+                return;
             }
-            else
+
+            var sb = new StringBuilder();
+            sb.Append("<table class='audit-table'>");
+            sb.Append("<tr><th>Changed On</th><th>Action</th><th>Old</th><th>New</th>" +
+                      "<th>By</th><th>Reason</th></tr>");
+            foreach (DataRow r in dt.Rows)
             {
-                rptAudit.Visible = true;
-                rptAudit.DataSource = audit;
-                rptAudit.DataBind();
+                string oldStr = r["OldAmount"] == DBNull.Value
+                    ? "—"
+                    : FormatIndian(Convert.ToDecimal(r["OldAmount"])) + " " + r["OldDrCr"];
+                string newStr = FormatIndian(Convert.ToDecimal(r["NewAmount"])) +
+                    " " + r["NewDrCr"];
+                string reason = r["Reason"] == DBNull.Value ? "" : Server.HtmlEncode(r["Reason"].ToString());
+
+                sb.Append("<tr>")
+                  .Append("<td>").Append(Convert.ToDateTime(r["ChangedOn"]).ToString("dd-MMM-yyyy HH:mm")).Append("</td>")
+                  .Append("<td>").Append(r["ActionType"]).Append("</td>")
+                  .Append("<td class='amt'>").Append(oldStr).Append("</td>")
+                  .Append("<td class='amt'>").Append(newStr).Append("</td>")
+                  .Append("<td>").Append(Server.HtmlEncode(r["ChangedBy"].ToString())).Append("</td>")
+                  .Append("<td>").Append(reason).Append("</td>")
+                  .Append("</tr>");
             }
+            sb.Append("</table>");
+            phAudit.Controls.Add(new LiteralControl(sb.ToString()));
         }
 
-        // -------------------------------------------------------------
-        // Formatting helpers (used by Repeater templates)
-        // -------------------------------------------------------------
-        public string FormatOld(object row)
+        private static string FormatIndian(decimal amount)
         {
-            var a = (FINDatabaseHelper.PartyOpeningAudit)row;
-            if (!a.OldAmount.HasValue) return "—";
-            return FormatIndian(a.OldAmount.Value) + " " + a.OldDrCr;
-        }
-
-        public string FormatNew(object row)
-        {
-            var a = (FINDatabaseHelper.PartyOpeningAudit)row;
-            return FormatIndian(a.NewAmount) + " " + a.NewDrCr;
-        }
-
-        public static string FormatIndian(decimal amount)
-        {
-            // Indian grouping: 1,05,432.50
-            var ci = new CultureInfo("en-IN");
-            return amount.ToString("N2", ci);
+            return amount.ToString("N2", _ci);
         }
     }
 }

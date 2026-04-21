@@ -2389,5 +2389,307 @@ namespace FINApp.DAL
                 return Tuple.Create<string, int>(null, 0);
             return Tuple.Create(ptype, pid);
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ACCOUNT STATEMENT + PARTY OPENING BALANCE
+        // Added 2026-04-21 for FINAccountStatement and FINPartyOpeningBalance pages.
+        // ═══════════════════════════════════════════════════════════════
+
+        // ── PARTY OPENING BALANCE ──
+
+        public static DataRow GetOpeningBalance(string partyType, int partyID, string fy)
+        {
+            return ExecuteQueryRow(
+                "SELECT OpeningID, PartyType, PartyID, FY, AsOfDate, Amount, DrCr," +
+                " Reason, CreatedBy, CreatedOn, LastModifiedBy, LastModifiedOn" +
+                " FROM fin_partyopeningbalance" +
+                " WHERE PartyType=?pt AND PartyID=?pid AND FY=?fy LIMIT 1;",
+                new MySqlParameter("?pt", partyType),
+                new MySqlParameter("?pid", partyID),
+                new MySqlParameter("?fy", fy));
+        }
+
+        /// <summary>
+        /// Insert or update opening balance for (partyType, partyID, fy).
+        /// Writes a before/after audit row in the same transaction.
+        /// Caller enforces that Reason is non-empty on update.
+        /// </summary>
+        public static long SaveOpeningBalance(string partyType, int partyID, string fy,
+                                              DateTime asOfDate, decimal amount, string drCr,
+                                              string reason, string user)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    long openingID = 0;
+                    decimal? oldAmount = null;
+                    string oldDrCr = null;
+
+                    using (var cmd = new MySqlCommand(
+                        "SELECT OpeningID, Amount, DrCr FROM fin_partyopeningbalance" +
+                        " WHERE PartyType=?pt AND PartyID=?pid AND FY=?fy LIMIT 1;", conn, tx))
+                    {
+                        cmd.Parameters.Add(new MySqlParameter("?pt", partyType));
+                        cmd.Parameters.Add(new MySqlParameter("?pid", partyID));
+                        cmd.Parameters.Add(new MySqlParameter("?fy", fy));
+                        using (var rdr = cmd.ExecuteReader())
+                        {
+                            if (rdr.Read())
+                            {
+                                openingID = Convert.ToInt64(rdr["OpeningID"]);
+                                oldAmount = Convert.ToDecimal(rdr["Amount"]);
+                                oldDrCr = rdr["DrCr"].ToString();
+                            }
+                        }
+                    }
+
+                    string actionType;
+                    if (openingID == 0)
+                    {
+                        actionType = "INSERT";
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO fin_partyopeningbalance" +
+                            " (PartyType, PartyID, FY, AsOfDate, Amount, DrCr, Reason, CreatedBy, CreatedOn)" +
+                            " VALUES (?pt, ?pid, ?fy, ?asof, ?amt, ?drcr, ?reason, ?user, NOW());" +
+                            " SELECT LAST_INSERT_ID();", conn, tx))
+                        {
+                            cmd.Parameters.Add(new MySqlParameter("?pt", partyType));
+                            cmd.Parameters.Add(new MySqlParameter("?pid", partyID));
+                            cmd.Parameters.Add(new MySqlParameter("?fy", fy));
+                            cmd.Parameters.Add(new MySqlParameter("?asof", asOfDate));
+                            cmd.Parameters.Add(new MySqlParameter("?amt", amount));
+                            cmd.Parameters.Add(new MySqlParameter("?drcr", drCr));
+                            cmd.Parameters.Add(new MySqlParameter("?reason", (object)reason ?? DBNull.Value));
+                            cmd.Parameters.Add(new MySqlParameter("?user", user));
+                            openingID = Convert.ToInt64(cmd.ExecuteScalar());
+                        }
+                    }
+                    else
+                    {
+                        actionType = "UPDATE";
+                        using (var cmd = new MySqlCommand(
+                            "UPDATE fin_partyopeningbalance" +
+                            " SET AsOfDate=?asof, Amount=?amt, DrCr=?drcr, Reason=?reason," +
+                            "     LastModifiedBy=?user, LastModifiedOn=NOW()" +
+                            " WHERE OpeningID=?oid;", conn, tx))
+                        {
+                            cmd.Parameters.Add(new MySqlParameter("?asof", asOfDate));
+                            cmd.Parameters.Add(new MySqlParameter("?amt", amount));
+                            cmd.Parameters.Add(new MySqlParameter("?drcr", drCr));
+                            cmd.Parameters.Add(new MySqlParameter("?reason", (object)reason ?? DBNull.Value));
+                            cmd.Parameters.Add(new MySqlParameter("?user", user));
+                            cmd.Parameters.Add(new MySqlParameter("?oid", openingID));
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    using (var cmd = new MySqlCommand(
+                        "INSERT INTO fin_partyopeningbalance_audit" +
+                        " (OpeningID, PartyType, PartyID, FY, ActionType," +
+                        "  OldAmount, OldDrCr, NewAmount, NewDrCr, Reason, ChangedBy, ChangedOn)" +
+                        " VALUES (?oid, ?pt, ?pid, ?fy, ?act," +
+                        "         ?oldamt, ?olddrcr, ?newamt, ?newdrcr, ?reason, ?user, NOW());", conn, tx))
+                    {
+                        cmd.Parameters.Add(new MySqlParameter("?oid", openingID));
+                        cmd.Parameters.Add(new MySqlParameter("?pt", partyType));
+                        cmd.Parameters.Add(new MySqlParameter("?pid", partyID));
+                        cmd.Parameters.Add(new MySqlParameter("?fy", fy));
+                        cmd.Parameters.Add(new MySqlParameter("?act", actionType));
+                        cmd.Parameters.Add(new MySqlParameter("?oldamt", (object)oldAmount ?? DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("?olddrcr", (object)oldDrCr ?? DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("?newamt", amount));
+                        cmd.Parameters.Add(new MySqlParameter("?newdrcr", drCr));
+                        cmd.Parameters.Add(new MySqlParameter("?reason", (object)reason ?? DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("?user", user));
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    tx.Commit();
+                    return openingID;
+                }
+            }
+        }
+
+        public static DataTable GetOpeningBalanceAudit(string partyType, int partyID, string fy)
+        {
+            return ExecuteQuery(
+                "SELECT AuditID, ActionType, OldAmount, OldDrCr, NewAmount, NewDrCr," +
+                " Reason, ChangedBy, ChangedOn" +
+                " FROM fin_partyopeningbalance_audit" +
+                " WHERE PartyType=?pt AND PartyID=?pid AND FY=?fy" +
+                " ORDER BY ChangedOn DESC, AuditID DESC;",
+                new MySqlParameter("?pt", partyType),
+                new MySqlParameter("?pid", partyID),
+                new MySqlParameter("?fy", fy));
+        }
+
+        // ── PARTY DROPDOWNS (used by Account Statement + Opening Balance setter) ──
+
+        /// <summary>
+        /// All customers or all suppliers (active + inactive) — used by the
+        /// opening-balance setter. PartyType: "CUS" or "SUP".
+        /// </summary>
+        public static DataTable ListAllParties(string partyType)
+        {
+            if (partyType == "CUS")
+            {
+                return ExecuteQuery(
+                    "SELECT CustomerID AS PartyID, CustomerName AS Name," +
+                    " CustomerCode AS Code, GSTIN, IsActive" +
+                    " FROM pk_customers ORDER BY CustomerName;");
+            }
+            return ExecuteQuery(
+                "SELECT SupplierID AS PartyID, SupplierName AS Name," +
+                " SupplierCode AS Code, GSTNo AS GSTIN, IsActive" +
+                " FROM mm_suppliers ORDER BY SupplierName;");
+        }
+
+        /// <summary>
+        /// Parties with any activity in the selected date range OR any non-zero
+        /// opening balance. Used by Account Statement dropdown.
+        /// </summary>
+        public static DataTable ListPartiesWithActivity(string partyType, DateTime fromDate, DateTime toDate)
+        {
+            if (partyType == "CUS")
+            {
+                return ExecuteQuery(
+                    "SELECT c.CustomerID AS PartyID, c.CustomerName AS Name," +
+                    " c.CustomerCode AS Code, c.GSTIN, c.IsActive" +
+                    " FROM pk_customers c" +
+                    " WHERE c.CustomerID IN (" +
+                    "   SELECT DISTINCT CustomerID FROM fin_salesinvoice" +
+                    "    WHERE CustomerID IS NOT NULL AND InvoiceDate BETWEEN ?s AND ?e" +
+                    "   UNION" +
+                    "   SELECT DISTINCT CustomerID FROM fin_receipt" +
+                    "    WHERE CustomerID IS NOT NULL AND ReceiptDate BETWEEN ?s AND ?e" +
+                    "   UNION" +
+                    "   SELECT DISTINCT CAST(SUBSTRING(jl.ContactID,5) AS UNSIGNED)" +
+                    "    FROM fin_journalline jl INNER JOIN fin_journal j ON jl.JournalID=j.JournalID" +
+                    "    WHERE jl.ContactID LIKE 'CUS:%'" +
+                    "      AND j.Status='POSTED' AND j.JournalDate BETWEEN ?s AND ?e" +
+                    "   UNION" +
+                    "   SELECT DISTINCT PartyID FROM fin_partyopeningbalance" +
+                    "    WHERE PartyType='CUS' AND Amount <> 0" +
+                    " )" +
+                    " ORDER BY c.CustomerName;",
+                    new MySqlParameter("?s", fromDate),
+                    new MySqlParameter("?e", toDate));
+            }
+            return ExecuteQuery(
+                "SELECT s.SupplierID AS PartyID, s.SupplierName AS Name," +
+                " s.SupplierCode AS Code, s.GSTNo AS GSTIN, s.IsActive" +
+                " FROM mm_suppliers s" +
+                " WHERE s.SupplierID IN (" +
+                "   SELECT DISTINCT SupplierID FROM fin_purchaseinvoice" +
+                "    WHERE SupplierID IS NOT NULL AND InvoiceDate BETWEEN ?s AND ?e" +
+                "   UNION" +
+                "   SELECT DISTINCT CAST(SUBSTRING(jl.ContactID,5) AS UNSIGNED)" +
+                "    FROM fin_journalline jl INNER JOIN fin_journal j ON jl.JournalID=j.JournalID" +
+                "    WHERE jl.ContactID LIKE 'SUP:%'" +
+                "      AND j.Status='POSTED' AND j.JournalDate BETWEEN ?s AND ?e" +
+                "   UNION" +
+                "   SELECT DISTINCT PartyID FROM fin_partyopeningbalance" +
+                "    WHERE PartyType='SUP' AND Amount <> 0" +
+                " )" +
+                " ORDER BY s.SupplierName;",
+                new MySqlParameter("?s", fromDate),
+                new MySqlParameter("?e", toDate));
+        }
+
+        public static DataRow GetParty(string partyType, int partyID)
+        {
+            if (partyType == "CUS")
+            {
+                return ExecuteQueryRow(
+                    "SELECT CustomerID AS PartyID, CustomerName AS Name," +
+                    " CustomerCode AS Code, GSTIN, IsActive" +
+                    " FROM pk_customers WHERE CustomerID=?id LIMIT 1;",
+                    new MySqlParameter("?id", partyID));
+            }
+            return ExecuteQueryRow(
+                "SELECT SupplierID AS PartyID, SupplierName AS Name," +
+                " SupplierCode AS Code, GSTNo AS GSTIN, IsActive" +
+                " FROM mm_suppliers WHERE SupplierID=?id LIMIT 1;",
+                new MySqlParameter("?id", partyID));
+        }
+
+        // ── PARTY STATEMENT ──
+
+        /// <summary>
+        /// Returns a DataTable with columns:
+        ///   TxnDate (DateTime), VoucherNo (string), Particulars (string),
+        ///   Debit (decimal), Credit (decimal), SourceTable (string)
+        /// Ordered by date, then voucher. Only POSTED journals are included.
+        /// Debit increases the running balance; Credit decreases.
+        /// </summary>
+        public static DataTable GetPartyStatement(string partyType, int partyID,
+                                                  DateTime fromDate, DateTime toDate)
+        {
+            string contactID = partyType + ":" + partyID;
+            DateTime toEnd = toDate.Date.AddDays(1).AddSeconds(-1);
+
+            string sql;
+            if (partyType == "CUS")
+            {
+                sql =
+                    "SELECT InvoiceDate AS TxnDate, VoucherNo AS VoucherNo," +
+                    " CONCAT('Sales Invoice', IFNULL(CONCAT(' — ', TallyCustomerName),'')) AS Particulars," +
+                    " TotalValue AS Debit, 0 AS Credit, 'fin_salesinvoice' AS SourceTable" +
+                    " FROM fin_salesinvoice" +
+                    " WHERE CustomerID=?pid AND InvoiceDate BETWEEN ?s AND ?e" +
+
+                    " UNION ALL" +
+
+                    " SELECT ReceiptDate AS TxnDate, VoucherNo AS VoucherNo," +
+                    " CONCAT('Receipt', IFNULL(CONCAT(' — ', TallyName),''),' [',ReceiptType,']') AS Particulars," +
+                    " 0 AS Debit, Amount AS Credit, 'fin_receipt' AS SourceTable" +
+                    " FROM fin_receipt" +
+                    " WHERE CustomerID=?pid AND ReceiptDate BETWEEN ?s AND ?e" +
+
+                    " UNION ALL" +
+
+                    " SELECT j.JournalDate AS TxnDate, j.JournalNumber AS VoucherNo," +
+                    " CONCAT('Journal', IFNULL(CONCAT(' — ', COALESCE(jl.LineDescription, j.Narration)),'')) AS Particulars," +
+                    " jl.Debit AS Debit, jl.Credit AS Credit, 'fin_journal' AS SourceTable" +
+                    " FROM fin_journalline jl" +
+                    " INNER JOIN fin_journal j ON jl.JournalID = j.JournalID" +
+                    " WHERE jl.ContactID=?cid" +
+                    "   AND j.Status='POSTED'" +
+                    "   AND j.JournalDate BETWEEN ?s AND ?e" +
+
+                    " ORDER BY TxnDate, VoucherNo;";
+            }
+            else
+            {
+                sql =
+                    "SELECT InvoiceDate AS TxnDate, SupplierInvNo AS VoucherNo," +
+                    " CONCAT('Purchase Invoice', IFNULL(CONCAT(' — ', TallySupplierName),'')) AS Particulars," +
+                    " 0 AS Debit, TotalValue AS Credit, 'fin_purchaseinvoice' AS SourceTable" +
+                    " FROM fin_purchaseinvoice" +
+                    " WHERE SupplierID=?pid AND InvoiceDate BETWEEN ?s AND ?e" +
+
+                    " UNION ALL" +
+
+                    " SELECT j.JournalDate AS TxnDate, j.JournalNumber AS VoucherNo," +
+                    " CONCAT('Journal', IFNULL(CONCAT(' — ', COALESCE(jl.LineDescription, j.Narration)),'')) AS Particulars," +
+                    " jl.Debit AS Debit, jl.Credit AS Credit, 'fin_journal' AS SourceTable" +
+                    " FROM fin_journalline jl" +
+                    " INNER JOIN fin_journal j ON jl.JournalID = j.JournalID" +
+                    " WHERE jl.ContactID=?cid" +
+                    "   AND j.Status='POSTED'" +
+                    "   AND j.JournalDate BETWEEN ?s AND ?e" +
+
+                    " ORDER BY TxnDate, VoucherNo;";
+            }
+
+            return ExecuteQuery(sql,
+                new MySqlParameter("?pid", partyID),
+                new MySqlParameter("?cid", contactID),
+                new MySqlParameter("?s", fromDate),
+                new MySqlParameter("?e", toEnd));
+        }
+
     }
 }

@@ -1,16 +1,17 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="FINAccountStatement.aspx.cs"
-    Inherits="Sirimiri.FIN.FINAccountStatement" %>
+    Inherits="FINApp.FINAccountStatement" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <title>Account Statement — FIN</title>
-    <link rel="stylesheet" href="FINStyles.css" />
+    <link rel="stylesheet" href="../erp-tablet.css" />
     <style>
-        .filter-bar { padding:10px; background:#f3f3f3; border:1px solid #ddd; margin-bottom:12px; }
+        .page-container { max-width:1100px; margin:16px auto; padding:12px; font-family:Segoe UI,Arial,sans-serif; }
+        .filter-bar { padding:10px; background:#f3f3f3; border:1px solid #ddd; margin-bottom:12px; border-radius:4px; }
         .filter-bar label { margin-right:6px; font-weight:600; }
-        .filter-bar .ctrl { margin-right:16px; }
-        .party-header { padding:10px 12px; border:1px solid #ccc; background:#fafafa; margin-bottom:8px; }
+        .filter-bar .ctrl { margin-right:16px; display:inline-block; }
+        .party-header { padding:10px 12px; border:1px solid #ccc; background:#fafafa; margin-bottom:8px; border-radius:4px; }
         .party-header strong { font-size:15px; }
         .stmt-table { width:100%; border-collapse:collapse; font-size:13px; }
         .stmt-table th, .stmt-table td { border:1px solid #ccc; padding:6px 8px; vertical-align:top; }
@@ -19,15 +20,21 @@
         .stmt-table tr.opening { background:#fff9e0; font-weight:600; }
         .stmt-table tr.totals { background:#f0f0f0; font-weight:600; }
         .stmt-table tr.closing { background:#e8f4ff; font-weight:700; }
-        .err { color:#b00; }
+        .err { color:#b00; font-weight:600; }
         .hint { color:#888; font-size:12px; margin-left:8px; }
+        .btn-primary, .btn-secondary { padding:5px 14px; border:0; border-radius:3px; cursor:pointer; margin-left:4px; }
+        .btn-primary { background:#1a6e1a; color:#fff; }
+        .btn-secondary { background:#555; color:#fff; }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
-        <asp:PlaceHolder ID="phNav" runat="server" />
-
         <div class="page-container">
+            <div style="margin-bottom:8px;">
+                <a href="FINHome.aspx">← FIN Home</a>
+                &nbsp;|&nbsp;
+                <span>Logged in: <asp:Label ID="lblNavUser" runat="server" /></span>
+            </div>
             <h2>FIN › Account Statement</h2>
 
             <asp:Label ID="lblMsg" runat="server" CssClass="err" />
@@ -77,40 +84,22 @@
                 <table class="stmt-table">
                     <thead>
                         <tr>
-                            <th style="width:90px;">Date</th>
-                            <th style="width:110px;">Voucher</th>
+                            <th style="width:100px;">Date</th>
+                            <th style="width:120px;">Voucher</th>
                             <th>Particulars</th>
                             <th style="width:110px;text-align:right;">Debit</th>
                             <th style="width:110px;text-align:right;">Credit</th>
-                            <th style="width:130px;text-align:right;">Balance</th>
+                            <th style="width:140px;text-align:right;">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <%-- Opening balance row --%>
-                        <asp:PlaceHolder ID="phOpening" runat="server" />
-
-                        <%-- Transaction rows --%>
-                        <asp:Repeater ID="rptLines" runat="server">
-                            <ItemTemplate>
-                                <tr>
-                                    <td><%# Eval("TxnDate", "{0:dd-MMM-yyyy}") %></td>
-                                    <td><%# Eval("VoucherNo") %></td>
-                                    <td><%# Eval("Particulars") %></td>
-                                    <td class="amt"><%# FormatAmt((decimal)Eval("Debit")) %></td>
-                                    <td class="amt"><%# FormatAmt((decimal)Eval("Credit")) %></td>
-                                    <td class="amt"><%# FormatBalance(Container.DataItem) %></td>
-                                </tr>
-                            </ItemTemplate>
-                        </asp:Repeater>
-
-                        <%-- Totals and closing --%>
-                        <asp:PlaceHolder ID="phFooter" runat="server" />
+                        <asp:PlaceHolder ID="phBody" runat="server" />
                     </tbody>
                 </table>
             </asp:Panel>
 
             <asp:Panel ID="pnlEmpty" runat="server" Visible="false">
-                <p><em>No transactions in the selected range.</em></p>
+                <p><em>No transactions and no opening balance for this party in the selected range.</em></p>
             </asp:Panel>
         </div>
     </form>

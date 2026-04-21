@@ -1,28 +1,38 @@
 using System;
-using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
+using System.Text;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using Sirimiri.FIN.DAL;
+using FINApp.DAL;
 
-namespace Sirimiri.FIN
+namespace FINApp
 {
-    public partial class FINAccountStatement : Page
+    public partial class FINAccountStatement : System.Web.UI.Page
     {
-        private readonly FINDatabaseHelper _db = new FINDatabaseHelper();
+        // Controls declared in markup
+        protected Label lblNavUser, lblMsg, lblPartyName, lblPartyGSTIN, lblPeriod;
+        protected RadioButtonList rblPartyType;
+        protected DropDownList ddlParty;
+        protected TextBox txtFrom, txtTo;
+        protected Button btnRefresh, btnPrint;
+        protected Panel pnlStatement, pnlEmpty;
+        protected PlaceHolder phBody;
+
         private static readonly CultureInfo _ci = new CultureInfo("en-IN");
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["UserID"] == null)
+            if (Session["FIN_UserID"] == null)
             {
-                Response.Redirect("~/FIN/FINLogin.aspx");
+                Response.Redirect("FINLogin.aspx");
                 return;
             }
+            lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
 
             if (!IsPostBack)
             {
-                // Default From = 1 Apr current FY, To = today
+                // Default: From = 1 Apr current FY, To = today
                 DateTime today = DateTime.Today;
                 int fyStartYear = today.Month >= 4 ? today.Year : today.Year - 1;
                 txtFrom.Text = new DateTime(fyStartYear, 4, 1).ToString("dd-MMM-yyyy");
@@ -32,22 +42,22 @@ namespace Sirimiri.FIN
             }
         }
 
-        // -------------------------------------------------------------
-        // Dropdown
-        // -------------------------------------------------------------
+        // ── Dropdown ─────────────────────────────────────────────────
         private void LoadPartyDropdown()
         {
             string partyType = rblPartyType.SelectedValue;
             DateTime fromDate, toDate;
             if (!TryParseDates(out fromDate, out toDate)) return;
 
-            var parties = _db.ListPartiesWithActivity(partyType, fromDate, toDate);
+            DataTable dt = FINDatabaseHelper.ListPartiesWithActivity(partyType, fromDate, toDate);
             ddlParty.Items.Clear();
             ddlParty.Items.Add(new ListItem("-- Select --", ""));
-            foreach (var p in parties)
+            foreach (DataRow r in dt.Rows)
             {
-                string text = p.Name + (p.IsActive ? "" : " (inactive)");
-                ddlParty.Items.Add(new ListItem(text, p.PartyID.ToString()));
+                string name = r["Name"].ToString();
+                bool isActive = r["IsActive"] != DBNull.Value && Convert.ToBoolean(r["IsActive"]);
+                string text = name + (isActive ? "" : " (inactive)");
+                ddlParty.Items.Add(new ListItem(text, r["PartyID"].ToString()));
             }
         }
 
@@ -76,9 +86,7 @@ namespace Sirimiri.FIN
             return true;
         }
 
-        // -------------------------------------------------------------
-        // Events
-        // -------------------------------------------------------------
+        // ── Events ───────────────────────────────────────────────────
         protected void rblPartyType_Changed(object sender, EventArgs e)
         {
             LoadPartyDropdown();
@@ -88,7 +96,7 @@ namespace Sirimiri.FIN
 
         protected void ddlParty_Changed(object sender, EventArgs e)
         {
-            LoadStatement();  // auto-load on party select
+            LoadStatement();
         }
 
         protected void btnRefresh_Click(object sender, EventArgs e)
@@ -114,15 +122,12 @@ namespace Sirimiri.FIN
                 "window.open('" + url + "', '_blank');", true);
         }
 
-        // -------------------------------------------------------------
-        // Render statement
-        // -------------------------------------------------------------
+        // ── Render statement ─────────────────────────────────────────
         private void LoadStatement()
         {
             pnlStatement.Visible = false;
             pnlEmpty.Visible = false;
-            phOpening.Controls.Clear();
-            phFooter.Controls.Clear();
+            phBody.Controls.Clear();
 
             if (string.IsNullOrEmpty(ddlParty.SelectedValue)) return;
 
@@ -132,92 +137,94 @@ namespace Sirimiri.FIN
             string partyType = rblPartyType.SelectedValue;
             int partyID = int.Parse(ddlParty.SelectedValue);
 
-            var party = _db.GetParty(partyType, partyID);
+            DataRow party = FINDatabaseHelper.GetParty(partyType, partyID);
             if (party == null) { lblMsg.Text = "Party not found."; return; }
 
-            // Determine FY from fromDate (used to fetch opening balance)
+            // FY derived from fromDate
             int fyStartYear = fromDate.Month >= 4 ? fromDate.Year : fromDate.Year - 1;
             string fy = fyStartYear + "-" + ((fyStartYear + 1) % 100).ToString("D2");
 
-            var opening = _db.GetOpeningBalance(partyType, partyID, fy);
-            decimal openingSigned = 0m;  // positive = Dr, negative = Cr
+            DataRow opening = FINDatabaseHelper.GetOpeningBalance(partyType, partyID, fy);
+            decimal openingSigned = 0m;  // positive=Dr, negative=Cr
+            DateTime? openingDate = null;
+            decimal openingAmt = 0m;
+            string openingDrCr = "Dr";
             if (opening != null)
             {
-                openingSigned = opening.DrCr == "Dr" ? opening.Amount : -opening.Amount;
+                openingAmt = Convert.ToDecimal(opening["Amount"]);
+                openingDrCr = opening["DrCr"].ToString();
+                openingDate = Convert.ToDateTime(opening["AsOfDate"]);
+                openingSigned = openingDrCr == "Dr" ? openingAmt : -openingAmt;
             }
 
-            var lines = _db.GetPartyStatement(partyType, partyID, fromDate, toDate);
-
-            // Compute running balance (Dr positive, Cr negative)
-            decimal running = openingSigned;
-            decimal totalDebit = 0m, totalCredit = 0m;
-            foreach (var ln in lines)
-            {
-                running += ln.Debit - ln.Credit;
-                totalDebit += ln.Debit;
-                totalCredit += ln.Credit;
-                ln.RunningBalance = Math.Abs(running);
-                ln.RunningDrCr = running >= 0 ? "Dr" : "Cr";
-            }
+            DataTable lines = FINDatabaseHelper.GetPartyStatement(partyType, partyID, fromDate, toDate);
 
             // Header
-            lblPartyName.Text = party.Name + " (" + partyType + ":" + party.PartyID + ")";
-            lblPartyGSTIN.Text = string.IsNullOrEmpty(party.GSTIN) ? "" : "  •  GSTIN " + party.GSTIN;
+            lblPartyName.Text = party["Name"].ToString() + " (" + partyType + ":" + party["PartyID"] + ")";
+            string gstin = party["GSTIN"] == DBNull.Value ? "" : party["GSTIN"].ToString();
+            lblPartyGSTIN.Text = string.IsNullOrEmpty(gstin) ? "" : "  •  GSTIN " + gstin;
             lblPeriod.Text = fromDate.ToString("dd-MMM-yyyy") + " to " + toDate.ToString("dd-MMM-yyyy");
+
+            // Build body
+            var sb = new StringBuilder();
 
             // Opening row
             string openingDisplay = opening == null
-                ? FormatAmt(0m) + " (no opening set)"
-                : FormatAmt(opening.Amount) + " " + opening.DrCr;
-            phOpening.Controls.Add(new LiteralControl(
-                "<tr class='opening'>" +
-                "<td>" + (opening != null ? opening.AsOfDate.ToString("dd-MMM-yyyy") : "") + "</td>" +
-                "<td></td>" +
-                "<td>Opening Balance</td>" +
-                "<td class='amt'></td>" +
-                "<td class='amt'></td>" +
-                "<td class='amt'>" + openingDisplay + "</td>" +
-                "</tr>"));
+                ? "0.00 (no opening set)"
+                : FormatIndian(openingAmt) + " " + openingDrCr;
+            sb.Append("<tr class='opening'>")
+              .Append("<td>").Append(openingDate.HasValue ? openingDate.Value.ToString("dd-MMM-yyyy") : "").Append("</td>")
+              .Append("<td></td><td>Opening Balance</td>")
+              .Append("<td class='amt'></td><td class='amt'></td>")
+              .Append("<td class='amt'>").Append(openingDisplay).Append("</td>")
+              .Append("</tr>");
 
-            // Lines
-            rptLines.DataSource = lines;
-            rptLines.DataBind();
+            // Transaction rows
+            decimal running = openingSigned;
+            decimal totalDebit = 0m, totalCredit = 0m;
+            foreach (DataRow r in lines.Rows)
+            {
+                decimal debit = Convert.ToDecimal(r["Debit"]);
+                decimal credit = Convert.ToDecimal(r["Credit"]);
+                running += debit - credit;
+                totalDebit += debit;
+                totalCredit += credit;
+                string bal = FormatIndian(Math.Abs(running)) + " " + (running >= 0 ? "Dr" : "Cr");
 
-            // Footer (totals + closing)
-            string closingDisplay = FormatAmt(Math.Abs(running)) + " " + (running >= 0 ? "Dr" : "Cr");
-            phFooter.Controls.Add(new LiteralControl(
-                "<tr class='totals'>" +
-                "<td></td><td></td><td>Period Totals</td>" +
-                "<td class='amt'>" + FormatAmt(totalDebit) + "</td>" +
-                "<td class='amt'>" + FormatAmt(totalCredit) + "</td>" +
-                "<td class='amt'></td>" +
-                "</tr>" +
-                "<tr class='closing'>" +
-                "<td></td><td></td><td>Closing Balance</td>" +
-                "<td class='amt'></td><td class='amt'></td>" +
-                "<td class='amt'>" + closingDisplay + "</td>" +
-                "</tr>"));
+                sb.Append("<tr>")
+                  .Append("<td>").Append(Convert.ToDateTime(r["TxnDate"]).ToString("dd-MMM-yyyy")).Append("</td>")
+                  .Append("<td>").Append(Server.HtmlEncode(r["VoucherNo"].ToString())).Append("</td>")
+                  .Append("<td>").Append(Server.HtmlEncode(r["Particulars"].ToString())).Append("</td>")
+                  .Append("<td class='amt'>").Append(debit == 0 ? "" : FormatIndian(debit)).Append("</td>")
+                  .Append("<td class='amt'>").Append(credit == 0 ? "" : FormatIndian(credit)).Append("</td>")
+                  .Append("<td class='amt'>").Append(bal).Append("</td>")
+                  .Append("</tr>");
+            }
 
+            // Totals + closing
+            string closingDisplay = FormatIndian(Math.Abs(running)) + " " + (running >= 0 ? "Dr" : "Cr");
+            sb.Append("<tr class='totals'>")
+              .Append("<td></td><td></td><td>Period Totals</td>")
+              .Append("<td class='amt'>").Append(FormatIndian(totalDebit)).Append("</td>")
+              .Append("<td class='amt'>").Append(FormatIndian(totalCredit)).Append("</td>")
+              .Append("<td class='amt'></td></tr>");
+            sb.Append("<tr class='closing'>")
+              .Append("<td></td><td></td><td>Closing Balance</td>")
+              .Append("<td class='amt'></td><td class='amt'></td>")
+              .Append("<td class='amt'>").Append(closingDisplay).Append("</td></tr>");
+
+            phBody.Controls.Add(new LiteralControl(sb.ToString()));
             pnlStatement.Visible = true;
-            if (lines.Count == 0 && opening == null)
+
+            if (lines.Rows.Count == 0 && opening == null)
             {
                 pnlEmpty.Visible = true;
             }
         }
 
-        // -------------------------------------------------------------
-        // Formatting helpers (used by Repeater templates)
-        // -------------------------------------------------------------
-        public static string FormatAmt(decimal amt)
+        private static string FormatIndian(decimal amount)
         {
-            if (amt == 0) return "";
-            return amt.ToString("N2", _ci);
-        }
-
-        public string FormatBalance(object row)
-        {
-            var ln = (FINDatabaseHelper.StatementLine)row;
-            return ln.RunningBalance.ToString("N2", _ci) + " " + ln.RunningDrCr;
+            return amount.ToString("N2", _ci);
         }
     }
 }

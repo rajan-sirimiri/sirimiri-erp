@@ -1,5 +1,5 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="FINAccountStatementPrint.aspx.cs"
-    Inherits="Sirimiri.FIN.FINAccountStatementPrint" %>
+    Inherits="FINApp.FINAccountStatementPrint" %>
 
 <!DOCTYPE html>
 <html>
@@ -9,28 +9,17 @@
         @page { size: A4; margin: 12mm; }
         body {
             font-family: 'Calibri', 'Segoe UI', sans-serif;
-            font-size: 11pt;
-            color: #000;
-            margin: 0;
+            font-size: 11pt; color: #000; margin: 0;
         }
         .letterhead {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 8px;
-            margin-bottom: 10px;
+            text-align: center; border-bottom: 2px solid #000;
+            padding-bottom: 8px; margin-bottom: 10px;
         }
-        .letterhead h1 {
-            margin: 0; font-size: 18pt; letter-spacing: 1px;
-        }
-        .letterhead .sub {
-            font-size: 9pt; color: #333;
-        }
+        .letterhead h1 { margin: 0; font-size: 18pt; letter-spacing: 1px; }
+        .letterhead .sub { font-size: 9pt; color: #333; }
         .title-bar {
-            text-align: center;
-            font-weight: bold;
-            font-size: 13pt;
-            margin: 8px 0 4px 0;
-            text-transform: uppercase;
+            text-align: center; font-weight: bold; font-size: 13pt;
+            margin: 8px 0 4px 0; text-transform: uppercase;
         }
         .party-block {
             display: table; width: 100%; margin-bottom: 8px;
@@ -41,26 +30,22 @@
         }
         .party-block .cell.right { text-align: right; width: 40%; }
         .party-block .label { font-size: 9pt; color: #555; }
-        table.stmt {
-            width: 100%; border-collapse: collapse;
-            font-size: 10pt;
-        }
+        table.stmt { width: 100%; border-collapse: collapse; font-size: 10pt; }
         table.stmt th, table.stmt td {
             border: 1px solid #000; padding: 4px 6px; vertical-align: top;
         }
         table.stmt th { background: #eee; text-align: left; }
-        table.stmt td.amt { text-align: right; font-family: 'Consolas', monospace; white-space: nowrap; }
+        table.stmt td.amt {
+            text-align: right; font-family: 'Consolas', monospace; white-space: nowrap;
+        }
         tr.opening, tr.totals, tr.closing { font-weight: bold; }
         tr.opening { background: #fffbe0; }
         tr.totals  { background: #f0f0f0; }
         tr.closing { background: #e8f4ff; }
-        .signature {
-            margin-top: 40px;
-            display: table; width: 100%;
-        }
+        .signature { margin-top: 40px; display: table; width: 100%; }
         .signature .sig-cell {
-            display: table-cell; width: 50%; vertical-align: bottom; padding-top: 30px;
-            text-align: center; font-size: 10pt;
+            display: table-cell; width: 50%; vertical-align: bottom;
+            padding-top: 30px; text-align: center; font-size: 10pt;
         }
         .signature .sig-line {
             border-top: 1px solid #000; margin: 0 auto; width: 70%; padding-top: 4px;
@@ -69,9 +54,7 @@
             position: fixed; top: 10px; right: 10px;
             padding: 6px 14px; font-size: 11pt;
         }
-        @media print {
-            .print-btn { display: none; }
-        }
+        @media print { .print-btn { display: none; } }
     </style>
 </head>
 <body>
@@ -107,8 +90,8 @@
         <table class="stmt">
             <thead>
                 <tr>
-                    <th style="width:80px;">Date</th>
-                    <th style="width:100px;">Voucher</th>
+                    <th style="width:85px;">Date</th>
+                    <th style="width:110px;">Voucher</th>
                     <th>Particulars</th>
                     <th style="width:90px;text-align:right;">Debit</th>
                     <th style="width:90px;text-align:right;">Credit</th>
