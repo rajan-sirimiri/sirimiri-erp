@@ -1449,7 +1449,13 @@ namespace PPApp.DAL
             // Check no active shift exists for this product
             var existing = GetActivePreprocessShift(productId);
             if (existing != null)
-                throw new Exception("An active shift already exists for this product (Shift #" + existing["ShiftID"] + ").");
+            {
+                int existingNum = existing.Table.Columns.Contains("DisplayNumber")
+                    && existing["DisplayNumber"] != DBNull.Value
+                    ? Convert.ToInt32(existing["DisplayNumber"]) : 0;
+                string label = existingNum > 0 ? "Shift " + existingNum : "Shift ID " + existing["ShiftID"];
+                throw new Exception("An active shift already exists for this product (" + label + ").");
+            }
 
             ExecuteNonQuery(
                 "INSERT INTO PP_PreprocessShift (ProductID, ShiftDate, StartTime, StartedBy, Status)" +
@@ -1459,6 +1465,24 @@ namespace PPApp.DAL
                 new MySqlParameter("?now", NowIST()),
                 new MySqlParameter("?by",  userId));
             return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        /// <summary>
+        /// Returns the 1-based display number for a shift among today's shifts for the same product,
+        /// ordered by StartTime. Shift 1 = first started today, Shift 2 = second, etc.
+        /// Returns 0 if the shift isn't found or isn't from today.
+        /// </summary>
+        public static int GetPreprocessShiftDisplayNumber(int shiftId)
+        {
+            object val = ExecuteScalar(
+                "SELECT rn FROM (" +
+                "  SELECT s.ShiftID, ROW_NUMBER() OVER (PARTITION BY s.ProductID, s.ShiftDate ORDER BY s.StartTime, s.ShiftID) AS rn" +
+                "  FROM PP_PreprocessShift s" +
+                "  WHERE s.ShiftDate = (SELECT ShiftDate FROM PP_PreprocessShift WHERE ShiftID=?sid)" +
+                "    AND s.ProductID  = (SELECT ProductID  FROM PP_PreprocessShift WHERE ShiftID=?sid)" +
+                ") t WHERE t.ShiftID=?sid;",
+                new MySqlParameter("?sid", shiftId));
+            return val == null || val == DBNull.Value ? 0 : Convert.ToInt32(val);
         }
 
         public static void EndPreprocessShift(int shiftId, int userId)
@@ -1475,7 +1499,12 @@ namespace PPApp.DAL
         {
             return ExecuteQueryRow(
                 "SELECT s.ShiftID, s.ProductID, s.ShiftDate, s.StartTime, s.StartedBy," +
-                " IFNULL(u.FullName, '') AS StartedByName" +
+                " IFNULL(u.FullName, '') AS StartedByName," +
+                " (SELECT COUNT(*) FROM PP_PreprocessShift x" +
+                "   WHERE x.ProductID = s.ProductID" +
+                "     AND x.ShiftDate = s.ShiftDate" +
+                "     AND (x.StartTime < s.StartTime OR (x.StartTime = s.StartTime AND x.ShiftID <= s.ShiftID))" +
+                " ) AS DisplayNumber" +
                 " FROM PP_PreprocessShift s" +
                 " LEFT JOIN Users u ON u.UserID = s.StartedBy" +
                 " WHERE s.ProductID=?pid AND s.Status='Active' LIMIT 1;",

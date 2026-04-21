@@ -165,7 +165,10 @@ namespace PPApp
                 pnlStages.Visible = true;
 
                 DateTime startTime = Convert.ToDateTime(activeShift["StartTime"]);
-                lblShiftInfo.Text = "Shift #" + shiftId;
+                int displayNum = activeShift.Table.Columns.Contains("DisplayNumber")
+                    && activeShift["DisplayNumber"] != DBNull.Value
+                    ? Convert.ToInt32(activeShift["DisplayNumber"]) : 0;
+                lblShiftInfo.Text = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
                 lblShiftStartTime.Text = startTime.ToString("hh:mm tt");
                 lblShiftStartedBy.Text = activeShift["StartedByName"] != DBNull.Value
                     ? activeShift["StartedByName"].ToString() : "—";
@@ -284,7 +287,9 @@ namespace PPApp
             {
                 int shiftId = PPDatabaseHelper.StartPreprocessShift(productId, UserID);
                 hfShiftID.Value = shiftId.ToString();
-                ShowAlert("Shift #" + shiftId + " started.", true);
+                int displayNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
+                string label = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
+                ShowAlert(label + " started.", true);
                 CheckShiftState(productId);
             }
             catch (Exception ex) { ShowAlert("Error starting shift: " + ex.Message, false); }
@@ -399,9 +404,12 @@ namespace PPApp
             // End the shift
             try
             {
+                // Capture display number BEFORE ending (still valid after, but computed on live data)
+                int displayNum = PPDatabaseHelper.GetPreprocessShiftDisplayNumber(shiftId);
                 PPDatabaseHelper.EndPreprocessShift(shiftId, UserID);
                 hfShiftID.Value = "0";
-                string msg = "Shift #" + shiftId + " ended.";
+                string label = displayNum > 0 ? "Shift " + displayNum : "Shift ID " + shiftId;
+                string msg = label + " ended.";
                 if (scrapCount > 0) msg += " " + scrapCount + " scrap entries recorded.";
                 ShowAlert(msg, true);
 
