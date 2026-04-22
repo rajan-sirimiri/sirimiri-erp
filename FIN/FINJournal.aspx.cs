@@ -650,10 +650,10 @@ namespace FINApp
                 {
                     if (!firstP) sb.Append(",");
                     firstP = false;
-                    string pkey  = (rp["PartyKey"]  ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
-                    string pname = (rp["PartyName"] ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
-                    string pcode = (rp["PartyCode"] ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
-                    string ptype = (rp["PartyType"] ?? "").ToString();
+                    string pkey  = JsEscape((rp["PartyKey"]  ?? "").ToString());
+                    string pname = JsEscape((rp["PartyName"] ?? "").ToString());
+                    string pcode = JsEscape((rp["PartyCode"] ?? "").ToString());
+                    string ptype = JsEscape((rp["PartyType"] ?? "").ToString());
                     sb.Append("{k:\"").Append(pkey).Append("\",n:\"").Append(pname)
                       .Append("\",t:\"").Append(ptype).Append("\",c:\"").Append(pcode).Append("\"}");
                 }
@@ -1180,5 +1180,34 @@ namespace FINApp
             else if (!string.IsNullOrEmpty(Request.QueryString["zpushed"]))
                 ShowBanner("Journal pushed to Zoho Books.", "success");
         }
+        /// <summary>Escape a string for safe embedding in a JS string literal.
+        /// Handles backslash, quote, newline, carriage return, tab, and also
+        /// U+2028/U+2029 which JS treats as line terminators.</summary>
+        static string JsEscape(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder(s.Length + 4);
+            foreach (char ch in s)
+            {
+                switch (ch)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '"':   sb.Append("\\\""); break;
+                    case '\n':   sb.Append("\\n"); break;
+                    case '\r':   sb.Append("\\r"); break;
+                    case '\t':   sb.Append("\\t"); break;
+                    case '\b':   sb.Append("\\b"); break;
+                    case '\f':   sb.Append("\\f"); break;
+                    case '\u2028': sb.Append("\\u2028"); break;
+                    case '\u2029': sb.Append("\\u2029"); break;
+                    default:
+                        if (ch < 0x20) sb.Append("\\u").Append(((int)ch).ToString("X4"));
+                        else sb.Append(ch);
+                        break;
+                }
+            }
+            return sb.ToString();
+        }
+
     }
 }
