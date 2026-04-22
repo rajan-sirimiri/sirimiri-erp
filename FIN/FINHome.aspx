@@ -53,10 +53,67 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 <div class="page-header">
     <div class="page-icon">&#x1F4B0;</div>
     <div class="page-title">FINANCE <span>MODULE</span></div>
-    <div class="page-sub">Tally data import, mapping, reconciliation and financial reports</div>
+    <div class="page-sub">Journal entries, party ledgers, Zoho Books sync and Tally data import</div>
 </div>
 
 <div class="container">
+
+    <div class="section-head">Accounting</div>
+    <div class="menu-grid">
+        <a id="lnkJournal" runat="server" href="FINJournal.aspx" class="menu-card" style="border-color:#aed6f1;">
+            <div class="menu-icon">&#x1F4D3;</div>
+            <div>
+                <div class="menu-title">Journal Entries</div>
+                <div class="menu-desc">Manual double-entry bookings — expenses, accruals, reclassifications, reversals</div>
+            </div>
+        </a>
+        <a id="lnkChartOfAccounts" runat="server" href="FINChartOfAccounts.aspx" class="menu-card" style="border-color:#a9dfbf;">
+            <div class="menu-icon">&#x1F4D2;</div>
+            <div>
+                <div class="menu-title">Chart of Accounts</div>
+                <div class="menu-desc">Ledger master mirrored from Zoho Books — sync when accounts change in Zoho</div>
+            </div>
+        </a>
+        <a id="lnkAccountStatement" runat="server" href="FINAccountStatement.aspx" class="menu-card" style="border-color:#f5cba7;">
+            <div class="menu-icon">&#x1F4C4;</div>
+            <div>
+                <div class="menu-title">Account Statement</div>
+                <div class="menu-desc">Party ledger with opening balance, transactions, and running Dr/Cr balance</div>
+            </div>
+        </a>
+        <a id="lnkPartyOpeningBalance" runat="server" href="FINPartyOpeningBalance.aspx" class="menu-card" style="border-color:#d7bde2;">
+            <div class="menu-icon">&#x2699;</div>
+            <div>
+                <div class="menu-title">Party Opening Balance</div>
+                <div class="menu-desc">Set as-of-FY-start opening balances for customers and suppliers (Super role)</div>
+            </div>
+        </a>
+        <a id="lnkServiceProviderReg" runat="server" href="FINServiceProviderReg.aspx" class="menu-card" style="border-color:#c8b6e2;">
+            <div class="menu-icon">&#x1F6E0;</div>
+            <div>
+                <div class="menu-title">Service Providers</div>
+                <div class="menu-desc">Register vendors that provide services (Pest Control, Security, Maintenance) &mdash; billed via JV</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="section-head">Zoho Integration</div>
+    <div class="menu-grid">
+        <a id="lnkConsignments" runat="server" href="FINConsignments.aspx" class="menu-card" style="border-color:#d7bde2;">
+            <div class="menu-icon">&#x1F69A;</div>
+            <div>
+                <div class="menu-title">Consignments</div>
+                <div class="menu-desc">Review outbound consignments — invoice verification, DC approval, dispatch release, and delivery tracking</div>
+            </div>
+        </a>
+        <a id="lnkGRNToZoho" runat="server" href="FINGRNToZoho.aspx" class="menu-card" style="border-color:#f5c9a7;">
+            <div class="menu-icon">&#x1F4E6;</div>
+            <div>
+                <div class="menu-title">GRN to Zoho</div>
+                <div class="menu-desc">Push vendor-purchase GRNs to Zoho Books as Bills — Raw &amp; Packing materials (Phase 1)</div>
+            </div>
+        </a>
+    </div>
 
     <div class="section-head">Tally Integration</div>
     <div class="menu-grid">
@@ -107,63 +164,6 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             <div>
                 <div class="menu-title">Invoice<br/>Outstanding</div>
                 <div class="menu-desc">Invoice-level payment tracking — FIFO receipt allocation, aging analysis</div>
-            </div>
-        </a>
-    </div>
-
-    <div class="section-head">Zoho Integration</div>
-    <div class="menu-grid">
-        <a id="lnkConsignments" runat="server" href="FINConsignments.aspx" class="menu-card" style="border-color:#d7bde2;">
-            <div class="menu-icon">&#x1F69A;</div>
-            <div>
-                <div class="menu-title">Consignments</div>
-                <div class="menu-desc">Review outbound consignments — invoice verification, DC approval, dispatch release, and delivery tracking</div>
-            </div>
-        </a>
-        <a id="lnkGRNToZoho" runat="server" href="FINGRNToZoho.aspx" class="menu-card" style="border-color:#f5c9a7;">
-            <div class="menu-icon">&#x1F4E6;</div>
-            <div>
-                <div class="menu-title">GRN to Zoho</div>
-                <div class="menu-desc">Push vendor-purchase GRNs to Zoho Books as Bills — Raw &amp; Packing materials (Phase 1)</div>
-            </div>
-        </a>
-    </div>
-
-    <div class="section-head">Accounting</div>
-    <div class="menu-grid">
-        <a id="lnkJournal" runat="server" href="FINJournal.aspx" class="menu-card" style="border-color:#aed6f1;">
-            <div class="menu-icon">&#x1F4D3;</div>
-            <div>
-                <div class="menu-title">Journal Entries</div>
-                <div class="menu-desc">Manual double-entry bookings — expenses, accruals, reclassifications, reversals</div>
-            </div>
-        </a>
-        <a id="lnkChartOfAccounts" runat="server" href="FINChartOfAccounts.aspx" class="menu-card" style="border-color:#a9dfbf;">
-            <div class="menu-icon">&#x1F4D2;</div>
-            <div>
-                <div class="menu-title">Chart of Accounts</div>
-                <div class="menu-desc">Ledger master mirrored from Zoho Books — sync when accounts change in Zoho</div>
-            </div>
-        </a>
-        <a id="lnkAccountStatement" runat="server" href="FINAccountStatement.aspx" class="menu-card" style="border-color:#f5cba7;">
-            <div class="menu-icon">&#x1F4C4;</div>
-            <div>
-                <div class="menu-title">Account Statement</div>
-                <div class="menu-desc">Party ledger with opening balance, transactions, and running Dr/Cr balance</div>
-            </div>
-        </a>
-        <a id="lnkPartyOpeningBalance" runat="server" href="FINPartyOpeningBalance.aspx" class="menu-card" style="border-color:#d7bde2;">
-            <div class="menu-icon">&#x2699;</div>
-            <div>
-                <div class="menu-title">Party Opening Balance</div>
-                <div class="menu-desc">Set as-of-FY-start opening balances for customers and suppliers (Super role)</div>
-            </div>
-        </a>
-        <a id="lnkServiceProviderReg" runat="server" href="FINServiceProviderReg.aspx" class="menu-card" style="border-color:#c8b6e2;">
-            <div class="menu-icon">&#x1F6E0;</div>
-            <div>
-                <div class="menu-title">Service Providers</div>
-                <div class="menu-desc">Register vendors that provide services (Pest Control, Security, Maintenance) &mdash; billed via JV</div>
             </div>
         </a>
     </div>
