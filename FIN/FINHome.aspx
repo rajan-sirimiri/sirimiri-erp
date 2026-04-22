@@ -159,6 +159,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">Set as-of-FY-start opening balances for customers and suppliers (Super role)</div>
             </div>
         </a>
+        <a id="lnkServiceProviderReg" runat="server" href="FINServiceProviderReg.aspx" class="menu-card" style="border-color:#c8b6e2;">
+            <div class="menu-icon">&#x1F6E0;</div>
+            <div>
+                <div class="menu-title">Service Providers</div>
+                <div class="menu-desc">Register vendors that provide services (Pest Control, Security, Maintenance) &mdash; billed via JV</div>
+            </div>
+        </a>
     </div>
 
 </div>

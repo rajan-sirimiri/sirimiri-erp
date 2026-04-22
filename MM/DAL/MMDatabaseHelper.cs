@@ -197,13 +197,16 @@ namespace MMApp.DAL
             return ExecuteQuery(
                 "SELECT SupplierID, SupplierCode, SupplierName, ContactPerson, Phone, Email, " +
                 "GSTNo, PAN, Address, City, State, PinCode, IsActive, CreatedAt " +
-                "FROM MM_Suppliers ORDER BY SupplierName;");
+                "FROM MM_Suppliers " +
+                "WHERE PartyType='SUPPLIER' " +
+                "ORDER BY SupplierName;");
         }
 
         public static DataTable GetActiveSuppliers()
         {
             return ExecuteQuery(
-                "SELECT SupplierID, SupplierCode, SupplierName FROM MM_Suppliers WHERE IsActive=1 ORDER BY SupplierName;");
+                "SELECT SupplierID, SupplierCode, SupplierName FROM MM_Suppliers " +
+                "WHERE IsActive=1 AND PartyType='SUPPLIER' ORDER BY SupplierName;");
         }
 
         /// Get suppliers sorted: those who supplied this material first, then the rest.
@@ -224,7 +227,7 @@ namespace MMApp.DAL
                 "   FROM " + inwardTable +
                 "   WHERE " + matColumn + "=?mid" +
                 "   GROUP BY SupplierID) hist ON hist.SupplierID = s.SupplierID" +
-                " WHERE s.IsActive=1" +
+                " WHERE s.IsActive=1 AND s.PartyType='SUPPLIER'" +
                 " ORDER BY IFNULL(hist.PurchaseCount,0) DESC, s.SupplierName;",
                 new MySqlParameter("?mid", materialId));
         }
@@ -251,8 +254,8 @@ namespace MMApp.DAL
             string code = GenerateSupplierCode();
             ExecuteNonQuery(
                 "INSERT INTO MM_Suppliers (SupplierCode, SupplierName, ContactPerson, Phone, Email, " +
-                "GSTNo, PAN, Address, City, State, PinCode, IsActive, CreatedAt) " +
-                "VALUES (?code,?name,?cp,?ph,?em,?gst,?pan,?addr,?city,?state,?pin,1,NOW());",
+                "GSTNo, PAN, Address, City, State, PinCode, IsActive, CreatedAt, PartyType) " +
+                "VALUES (?code,?name,?cp,?ph,?em,?gst,?pan,?addr,?city,?state,?pin,1,NOW(),'SUPPLIER');",
                 new MySqlParameter("code", code),
                 new MySqlParameter("name", name),
                 new MySqlParameter("cp",   contactPerson),

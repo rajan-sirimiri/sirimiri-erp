@@ -2674,7 +2674,7 @@ namespace FINApp.DAL
             return ExecuteQuery(
                 "SELECT SupplierID AS PartyID, SupplierName AS Name," +
                 " SupplierCode AS Code, GSTNo AS GSTIN, IsActive" +
-                " FROM mm_suppliers ORDER BY SupplierName;");
+                " FROM mm_suppliers WHERE PartyType='SUPPLIER' ORDER BY SupplierName;");
         }
 
         /// <summary>
@@ -2712,7 +2712,7 @@ namespace FINApp.DAL
                 "SELECT s.SupplierID AS PartyID, s.SupplierName AS Name," +
                 " s.SupplierCode AS Code, s.GSTNo AS GSTIN, s.IsActive" +
                 " FROM mm_suppliers s" +
-                " WHERE s.SupplierID IN (" +
+                " WHERE s.PartyType='SUPPLIER' AND s.SupplierID IN (" +
                 "   SELECT DISTINCT SupplierID FROM fin_purchaseinvoice" +
                 "    WHERE SupplierID IS NOT NULL AND InvoiceDate BETWEEN ?s AND ?e" +
                 "   UNION" +
@@ -2820,6 +2820,111 @@ namespace FINApp.DAL
                 new MySqlParameter("?cid", contactID),
                 new MySqlParameter("?s", fromDate),
                 new MySqlParameter("?e", toEnd));
+        }
+
+
+        // ══════════════════════════════════════════════════════════════
+        //  SERVICE PROVIDERS — stored on mm_suppliers with PartyType='SERVICE'
+        // ══════════════════════════════════════════════════════════════
+        //  Reuses the existing suppliers table so the code generator,
+        //  Zoho vendor sync, and party-ledger scaffolding work unchanged.
+        //  These parties never appear in GRN flows — all GRN list queries
+        //  filter PartyType='SUPPLIER'. Service-provider transactions flow
+        //  through Journal Entries (FINJournal).
+        // ══════════════════════════════════════════════════════════════
+
+        public static DataTable GetAllServiceProviders()
+        {
+            return ExecuteQuery(
+                "SELECT SupplierID, SupplierCode, SupplierName, ContactPerson, Phone, Email," +
+                " GSTNo, PAN, Address, City, State, PinCode, IsActive, CreatedAt, ServiceCategory" +
+                " FROM mm_suppliers" +
+                " WHERE PartyType='SERVICE'" +
+                " ORDER BY SupplierName;");
+        }
+
+        public static DataTable GetActiveServiceProviders()
+        {
+            return ExecuteQuery(
+                "SELECT SupplierID, SupplierCode, SupplierName, ServiceCategory" +
+                " FROM mm_suppliers" +
+                " WHERE PartyType='SERVICE' AND IsActive=1" +
+                " ORDER BY SupplierName;");
+        }
+
+        public static DataRow GetServiceProviderById(int providerId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM mm_suppliers WHERE SupplierID=?id AND PartyType='SERVICE' LIMIT 1;",
+                new MySqlParameter("?id", providerId));
+        }
+
+        /// <summary>SRV-0001, SRV-0002, ... — separate sequence from supplier S-0001.
+        /// Scans only rows whose code matches the SRV- pattern.</summary>
+        public static string GenerateServiceProviderCode()
+        {
+            var result = ExecuteScalar(
+                "SELECT IFNULL(MAX(CAST(SUBSTRING(SupplierCode, 5) AS UNSIGNED)), 0) + 1" +
+                " FROM mm_suppliers WHERE SupplierCode REGEXP '^SRV-[0-9]+$';");
+            int next = Convert.ToInt32(Convert.ToString(result));
+            return string.Format("SRV-{0:D4}", next);
+        }
+
+        public static int AddServiceProvider(string name, string contactPerson, string phone,
+            string email, string gstNo, string pan, string address, string city,
+            string state, string pinCode, string serviceCategory)
+        {
+            string code = GenerateServiceProviderCode();
+            ExecuteNonQuery(
+                "INSERT INTO mm_suppliers (SupplierCode, SupplierName, ContactPerson, Phone, Email," +
+                " GSTNo, PAN, Address, City, State, PinCode, IsActive, CreatedAt, PartyType, ServiceCategory)" +
+                " VALUES (?code, ?name, ?cp, ?ph, ?em, ?gst, ?pan, ?addr, ?city, ?state, ?pin, 1, NOW(), 'SERVICE', ?cat);",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?name", name),
+                new MySqlParameter("?cp",   contactPerson ?? ""),
+                new MySqlParameter("?ph",   phone ?? ""),
+                new MySqlParameter("?em",   email ?? ""),
+                new MySqlParameter("?gst",  gstNo ?? ""),
+                new MySqlParameter("?pan",  pan ?? ""),
+                new MySqlParameter("?addr", address ?? ""),
+                new MySqlParameter("?city", city ?? ""),
+                new MySqlParameter("?state",state ?? ""),
+                new MySqlParameter("?pin",  pinCode ?? ""),
+                new MySqlParameter("?cat",  serviceCategory ?? ""));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static void UpdateServiceProvider(int providerId, string name, string contactPerson,
+            string phone, string email, string gstNo, string pan, string address,
+            string city, string state, string pinCode, string serviceCategory)
+        {
+            ExecuteNonQuery(
+                "UPDATE mm_suppliers SET" +
+                " SupplierName=?name, ContactPerson=?cp," +
+                " Phone=?ph, Email=?em, GSTNo=?gst, PAN=?pan," +
+                " Address=?addr, City=?city, State=?state, PinCode=?pin," +
+                " ServiceCategory=?cat" +
+                " WHERE SupplierID=?id AND PartyType='SERVICE';",
+                new MySqlParameter("?name", name),
+                new MySqlParameter("?cp",   contactPerson ?? ""),
+                new MySqlParameter("?ph",   phone ?? ""),
+                new MySqlParameter("?em",   email ?? ""),
+                new MySqlParameter("?gst",  gstNo ?? ""),
+                new MySqlParameter("?pan",  pan ?? ""),
+                new MySqlParameter("?addr", address ?? ""),
+                new MySqlParameter("?city", city ?? ""),
+                new MySqlParameter("?state",state ?? ""),
+                new MySqlParameter("?pin",  pinCode ?? ""),
+                new MySqlParameter("?cat",  serviceCategory ?? ""),
+                new MySqlParameter("?id",   providerId));
+        }
+
+        public static void ToggleServiceProviderActive(int providerId, bool isActive)
+        {
+            ExecuteNonQuery(
+                "UPDATE mm_suppliers SET IsActive=?a WHERE SupplierID=?id AND PartyType='SERVICE';",
+                new MySqlParameter("?a",  isActive ? 1 : 0),
+                new MySqlParameter("?id", providerId));
         }
 
     }
