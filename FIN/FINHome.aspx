@@ -67,6 +67,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 <div class="menu-desc">Manual double-entry bookings — expenses, accruals, reclassifications, reversals</div>
             </div>
         </a>
+        <a id="lnkBankPostings" runat="server" href="FINBankPostings.aspx" class="menu-card" style="border-color:#a3e4d7;">
+            <div class="menu-icon">&#x1F3E6;</div>
+            <div>
+                <div class="menu-title">Bank Postings</div>
+                <div class="menu-desc">Upload bank statements — payments and receipts posted from bank side, pushed to Zoho</div>
+            </div>
+        </a>
         <a id="lnkChartOfAccounts" runat="server" href="FINChartOfAccounts.aspx" class="menu-card" style="border-color:#a9dfbf;">
             <div class="menu-icon">&#x1F4D2;</div>
             <div>

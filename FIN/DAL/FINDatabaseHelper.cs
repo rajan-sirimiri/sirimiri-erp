@@ -3055,5 +3055,261 @@ namespace FINApp.DAL
             return o == null || o == DBNull.Value ? 0 : Convert.ToInt32(o);
         }
 
+
+        // ══════════════════════════════════════════════════════════════
+        //  BANK POSTINGS — bank accounts + layouts + statements + lines
+        //
+        //  Workflow:
+        //    1. User defines a bank in fin_bankaccounts (links to a Zoho
+        //       Chart of Accounts entry).
+        //    2. User configures the XLSX column layout in fin_banklayouts
+        //       (one row per bank — what column is the Date, Debit, etc.).
+        //    3. User uploads a bank statement — parsed rows go into
+        //       fin_bankstatementlines with a dedup fingerprint.
+        //    4. (Phase 2) Each row gets posted as a JV to ERP and Zoho.
+        // ══════════════════════════════════════════════════════════════
+
+        // ── Bank account master ───────────────────────────────────────
+
+        public static DataTable GetAllBankAccounts()
+        {
+            return ExecuteQuery(
+                "SELECT BankID, BankCode, BankName, AccountNumber, Branch," +
+                " ZohoAccountID, ZohoAccountName, IsActive, CreatedAt" +
+                " FROM fin_bankaccounts" +
+                " ORDER BY BankName;");
+        }
+
+        public static DataTable GetActiveBankAccounts()
+        {
+            return ExecuteQuery(
+                "SELECT BankID, BankCode, BankName, AccountNumber" +
+                " FROM fin_bankaccounts" +
+                " WHERE IsActive = 1" +
+                " ORDER BY BankName;");
+        }
+
+        public static DataRow GetBankAccountById(int bankId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM fin_bankaccounts WHERE BankID=?id;",
+                new MySqlParameter("?id", bankId));
+        }
+
+        /// <summary>Generate next BNK-NNN code (fills gaps).</summary>
+        public static string GenerateBankCode()
+        {
+            var o = ExecuteScalar(
+                "SELECT IFNULL(MAX(CAST(SUBSTRING(BankCode, 5) AS UNSIGNED)), 0) + 1" +
+                " FROM fin_bankaccounts WHERE BankCode REGEXP '^BNK-[0-9]+$';");
+            int next = Convert.ToInt32(Convert.ToString(o));
+            return string.Format("BNK-{0:D3}", next);
+        }
+
+        public static int AddBankAccount(string bankName, string accountNo, string branch,
+                                          string zohoAccountId, string zohoAccountName,
+                                          int createdByUserId)
+        {
+            if (string.IsNullOrEmpty(bankName)) throw new ArgumentException("Bank name required");
+            string code = GenerateBankCode();
+            ExecuteNonQuery(
+                "INSERT INTO fin_bankaccounts" +
+                " (BankCode, BankName, AccountNumber, Branch, ZohoAccountID, ZohoAccountName, IsActive, CreatedBy)" +
+                " VALUES (?code, ?name, ?acct, ?br, ?zid, ?zname, 1, ?uid);",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?name", bankName.Trim()),
+                new MySqlParameter("?acct", string.IsNullOrEmpty(accountNo) ? (object)DBNull.Value : accountNo.Trim()),
+                new MySqlParameter("?br",   string.IsNullOrEmpty(branch)    ? (object)DBNull.Value : branch.Trim()),
+                new MySqlParameter("?zid",  string.IsNullOrEmpty(zohoAccountId) ? (object)DBNull.Value : zohoAccountId.Trim()),
+                new MySqlParameter("?zname",string.IsNullOrEmpty(zohoAccountName) ? (object)DBNull.Value : zohoAccountName.Trim()),
+                new MySqlParameter("?uid",  createdByUserId));
+            var r = ExecuteScalar("SELECT LAST_INSERT_ID();");
+            int bankId = Convert.ToInt32(r);
+
+            // Seed an empty layout row so the layout editor can UPDATE it.
+            ExecuteNonQuery(
+                "INSERT INTO fin_banklayouts (BankID, AmountMode, IsConfigured) VALUES (?bid, \'TWO_COL\', 0);",
+                new MySqlParameter("?bid", bankId));
+
+            return bankId;
+        }
+
+        public static void UpdateBankAccount(int bankId, string bankName, string accountNo, string branch,
+                                              string zohoAccountId, string zohoAccountName)
+        {
+            if (string.IsNullOrEmpty(bankName)) throw new ArgumentException("Bank name required");
+            ExecuteNonQuery(
+                "UPDATE fin_bankaccounts SET" +
+                " BankName=?name, AccountNumber=?acct, Branch=?br," +
+                " ZohoAccountID=?zid, ZohoAccountName=?zname" +
+                " WHERE BankID=?id;",
+                new MySqlParameter("?name", bankName.Trim()),
+                new MySqlParameter("?acct", string.IsNullOrEmpty(accountNo) ? (object)DBNull.Value : accountNo.Trim()),
+                new MySqlParameter("?br",   string.IsNullOrEmpty(branch)    ? (object)DBNull.Value : branch.Trim()),
+                new MySqlParameter("?zid",  string.IsNullOrEmpty(zohoAccountId) ? (object)DBNull.Value : zohoAccountId.Trim()),
+                new MySqlParameter("?zname",string.IsNullOrEmpty(zohoAccountName) ? (object)DBNull.Value : zohoAccountName.Trim()),
+                new MySqlParameter("?id",   bankId));
+        }
+
+        public static void ToggleBankAccountActive(int bankId, bool isActive)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_bankaccounts SET IsActive=?a WHERE BankID=?id;",
+                new MySqlParameter("?a",  isActive ? 1 : 0),
+                new MySqlParameter("?id", bankId));
+        }
+
+        // ── XLSX column layout ────────────────────────────────────────
+
+        public static DataRow GetBankLayout(int bankId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM fin_banklayouts WHERE BankID=?id;",
+                new MySqlParameter("?id", bankId));
+        }
+
+        /// <summary>Save/overwrite the XLSX layout for a bank.
+        /// The layout row is pre-seeded at bank creation, so this is always an UPDATE.</summary>
+        public static void SaveBankLayout(int bankId, int headerRow, int firstDataRow,
+                                           string dateCol, string descCol, string refCol,
+                                           string amountMode,
+                                           string debitCol, string creditCol,
+                                           string amountCol, string flagCol,
+                                           string balanceCol, string dateFormat)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_banklayouts SET" +
+                " HeaderRow=?h, FirstDataRow=?f," +
+                " DateCol=?dc, DescCol=?dsc, RefCol=?rc," +
+                " AmountMode=?am, DebitCol=?deb, CreditCol=?crd," +
+                " AmountCol=?amt, FlagCol=?flg, BalanceCol=?bal," +
+                " DateFormat=?df, IsConfigured=1" +
+                " WHERE BankID=?id;",
+                new MySqlParameter("?h", headerRow),
+                new MySqlParameter("?f", firstDataRow),
+                new MySqlParameter("?dc",  string.IsNullOrEmpty(dateCol)   ? (object)DBNull.Value : dateCol.ToUpperInvariant()),
+                new MySqlParameter("?dsc", string.IsNullOrEmpty(descCol)   ? (object)DBNull.Value : descCol.ToUpperInvariant()),
+                new MySqlParameter("?rc",  string.IsNullOrEmpty(refCol)    ? (object)DBNull.Value : refCol.ToUpperInvariant()),
+                new MySqlParameter("?am", amountMode),
+                new MySqlParameter("?deb", string.IsNullOrEmpty(debitCol)  ? (object)DBNull.Value : debitCol.ToUpperInvariant()),
+                new MySqlParameter("?crd", string.IsNullOrEmpty(creditCol) ? (object)DBNull.Value : creditCol.ToUpperInvariant()),
+                new MySqlParameter("?amt", string.IsNullOrEmpty(amountCol) ? (object)DBNull.Value : amountCol.ToUpperInvariant()),
+                new MySqlParameter("?flg", string.IsNullOrEmpty(flagCol)   ? (object)DBNull.Value : flagCol.ToUpperInvariant()),
+                new MySqlParameter("?bal", string.IsNullOrEmpty(balanceCol)? (object)DBNull.Value : balanceCol.ToUpperInvariant()),
+                new MySqlParameter("?df",  string.IsNullOrEmpty(dateFormat)? "dd/MM/yyyy" : dateFormat),
+                new MySqlParameter("?id",  bankId));
+        }
+
+        // ── Statements ────────────────────────────────────────────────
+
+        /// <summary>Create a statement header row. Returns new StatementID.</summary>
+        public static int CreateBankStatement(int bankId, string fileName,
+                                               DateTime? periodStart, DateTime? periodEnd,
+                                               decimal? openBal, decimal? closeBal,
+                                               int uploadedBy)
+        {
+            ExecuteNonQuery(
+                "INSERT INTO fin_bankstatements" +
+                " (BankID, FileName, PeriodStart, PeriodEnd, OpeningBalance, ClosingBalance, RowCount, DuplicateCount, UploadedBy)" +
+                " VALUES (?bid, ?fn, ?ps, ?pe, ?ob, ?cb, 0, 0, ?uid);",
+                new MySqlParameter("?bid", bankId),
+                new MySqlParameter("?fn",  fileName),
+                new MySqlParameter("?ps",  (object)periodStart ?? DBNull.Value),
+                new MySqlParameter("?pe",  (object)periodEnd   ?? DBNull.Value),
+                new MySqlParameter("?ob",  (object)openBal     ?? DBNull.Value),
+                new MySqlParameter("?cb",  (object)closeBal    ?? DBNull.Value),
+                new MySqlParameter("?uid", uploadedBy));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        /// <summary>Insert one parsed statement line. Uses INSERT IGNORE so exact-duplicate
+        /// rows (same fingerprint per the unique index) are silently skipped.
+        /// Returns 1 if inserted, 0 if skipped as duplicate.</summary>
+        public static int InsertBankLine(int statementId, int bankId, int rowSeq,
+                                          DateTime txnDate, string description, string reference,
+                                          decimal debit, decimal credit, decimal? balance)
+        {
+            string descClean = string.IsNullOrEmpty(description) ? "" : description.Trim();
+            // Hash for dedup — part of the unique index so same-amount same-date
+            // rows with different descriptions are treated as distinct.
+            string descHash;
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            {
+                var bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(descClean));
+                var sb = new System.Text.StringBuilder();
+                foreach (var b in bytes) sb.Append(b.ToString("x2"));
+                descHash = sb.ToString();
+            }
+
+            // Use raw connection so we can read AffectedRows to detect dedup skip
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(
+                "INSERT IGNORE INTO fin_bankstatementlines" +
+                " (StatementID, BankID, RowSeq, TxnDate, Description, Reference, Debit, Credit, Balance, DescHash)" +
+                " VALUES (?sid, ?bid, ?seq, ?dt, ?desc, ?ref, ?deb, ?crd, ?bal, ?dh);", conn))
+            {
+                cmd.Parameters.AddWithValue("?sid",  statementId);
+                cmd.Parameters.AddWithValue("?bid",  bankId);
+                cmd.Parameters.AddWithValue("?seq",  rowSeq);
+                cmd.Parameters.AddWithValue("?dt",   txnDate);
+                cmd.Parameters.AddWithValue("?desc", (object)descClean ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?ref",  string.IsNullOrEmpty(reference) ? (object)DBNull.Value : reference.Trim());
+                cmd.Parameters.AddWithValue("?deb",  debit);
+                cmd.Parameters.AddWithValue("?crd",  credit);
+                cmd.Parameters.AddWithValue("?bal",  (object)balance ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("?dh",   descHash);
+                int affected = cmd.ExecuteNonQuery();
+                return affected; // 0 = duplicate (skipped), 1 = inserted
+            }
+        }
+
+        public static void UpdateStatementCounts(int statementId, int rowCount, int duplicateCount)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_bankstatements SET RowCount=?rc, DuplicateCount=?dc WHERE StatementID=?id;",
+                new MySqlParameter("?rc", rowCount),
+                new MySqlParameter("?dc", duplicateCount),
+                new MySqlParameter("?id", statementId));
+        }
+
+        public static DataTable ListBankStatements(int? bankId)
+        {
+            string sql =
+                "SELECT s.StatementID, s.BankID, b.BankCode, b.BankName," +
+                " s.FileName, s.PeriodStart, s.PeriodEnd," +
+                " s.OpeningBalance, s.ClosingBalance," +
+                " s.RowCount, s.DuplicateCount, s.UploadedAt," +
+                " u.FullName AS UploadedByName" +
+                " FROM fin_bankstatements s" +
+                " JOIN fin_bankaccounts b ON b.BankID = s.BankID" +
+                " LEFT JOIN Users u ON u.UserID = s.UploadedBy" +
+                (bankId.HasValue ? " WHERE s.BankID = ?bid" : "") +
+                " ORDER BY s.UploadedAt DESC;";
+            if (bankId.HasValue)
+                return ExecuteQuery(sql, new MySqlParameter("?bid", bankId.Value));
+            return ExecuteQuery(sql);
+        }
+
+        public static DataTable GetStatementLines(int statementId)
+        {
+            return ExecuteQuery(
+                "SELECT LineID, RowSeq, TxnDate, Description, Reference," +
+                " Debit, Credit, Balance, Status, JournalID" +
+                " FROM fin_bankstatementlines" +
+                " WHERE StatementID = ?sid" +
+                " ORDER BY RowSeq;",
+                new MySqlParameter("?sid", statementId));
+        }
+
+        public static DataRow GetBankStatementHeader(int statementId)
+        {
+            return ExecuteQueryRow(
+                "SELECT s.*, b.BankCode, b.BankName" +
+                " FROM fin_bankstatements s" +
+                " JOIN fin_bankaccounts b ON b.BankID = s.BankID" +
+                " WHERE s.StatementID = ?id;",
+                new MySqlParameter("?id", statementId));
+        }
+
     }
 }

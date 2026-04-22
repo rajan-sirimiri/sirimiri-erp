@@ -101,6 +101,17 @@
       <DependentUpon>FINPurchaseImport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="FINServiceCatalog.aspx.cs">
+      <DependentUpon>FINServiceCatalog.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="FINBankAccounts.aspx.cs">
+      <DependentUpon>FINBankAccounts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="FINBankPostings.aspx.cs">
+      <DependentUpon>FINBankPostings.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="FINServiceCategoryManage.aspx.cs">
       <DependentUpon>FINServiceCategoryManage.aspx</DependentUpon>
     </Compile>
@@ -119,6 +130,9 @@
     <Content Include="FINLogout.aspx" />
     <Content Include="FINPartyOpeningBalance.aspx" />
     <Content Include="FINPurchaseImport.aspx" />
+    <Content Include="FINServiceCatalog.aspx" />
+    <Content Include="FINBankAccounts.aspx" />
+    <Content Include="FINBankPostings.aspx" />
     <Content Include="FINServiceCategoryManage.aspx" />
     <Content Include="FINServiceProviderReg.aspx" />
     <Content Include="FINTallyMapping.aspx" />
