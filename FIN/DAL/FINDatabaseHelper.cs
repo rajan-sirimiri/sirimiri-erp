@@ -3057,13 +3057,166 @@ namespace FINApp.DAL
 
 
         // ══════════════════════════════════════════════════════════════
+        //  SERVICE CATALOG — master list + many-to-many with providers
+        //
+        //  fin_services: flat list of services a Service Provider can offer.
+        //  fin_serviceprovider_services: many-to-many junction (ProviderID ↔ ServiceID).
+        //
+        //  SupplierID is used as ProviderID because Service Providers live in
+        //  mm_suppliers with PartyType='SERVICE'.
+        // ══════════════════════════════════════════════════════════════
+
+        public static DataTable GetAllServices()
+        {
+            return ExecuteQuery(
+                "SELECT ServiceID, ServiceCode, ServiceName, Description, HSNCode," +
+                " GSTRate, IsActive, CreatedAt FROM fin_services ORDER BY ServiceName;");
+        }
+
+        public static DataTable GetActiveServices()
+        {
+            return ExecuteQuery(
+                "SELECT ServiceID, ServiceCode, ServiceName, HSNCode, GSTRate" +
+                " FROM fin_services WHERE IsActive = 1 ORDER BY ServiceName;");
+        }
+
+        public static DataRow GetServiceById(int serviceId)
+        {
+            return ExecuteQueryRow(
+                "SELECT * FROM fin_services WHERE ServiceID = ?id;",
+                new MySqlParameter("?id", serviceId));
+        }
+
+        public static string GenerateServiceCode()
+        {
+            var o = ExecuteScalar(
+                "SELECT IFNULL(MAX(CAST(SUBSTRING(ServiceCode, 5) AS UNSIGNED)), 0) + 1" +
+                " FROM fin_services WHERE ServiceCode REGEXP '^SVC-[0-9]+$';");
+            int next = Convert.ToInt32(Convert.ToString(o));
+            return string.Format("SVC-{0:D4}", next);
+        }
+
+        public static int AddService(string name, string description, string hsn, decimal? gstRate)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentException("Service name required");
+            string code = GenerateServiceCode();
+            ExecuteNonQuery(
+                "INSERT INTO fin_services (ServiceCode, ServiceName, Description, HSNCode, GSTRate, IsActive)" +
+                " VALUES (?code, ?name, ?desc, ?hsn, ?gst, 1);",
+                new MySqlParameter("?code", code),
+                new MySqlParameter("?name", name.Trim()),
+                new MySqlParameter("?desc", string.IsNullOrEmpty(description) ? (object)DBNull.Value : description.Trim()),
+                new MySqlParameter("?hsn",  string.IsNullOrEmpty(hsn)         ? (object)DBNull.Value : hsn.Trim()),
+                new MySqlParameter("?gst",  (object)gstRate ?? DBNull.Value));
+            return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+        }
+
+        public static void UpdateService(int serviceId, string name, string description, string hsn, decimal? gstRate)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentException("Service name required");
+            ExecuteNonQuery(
+                "UPDATE fin_services SET ServiceName=?name, Description=?desc, HSNCode=?hsn, GSTRate=?gst" +
+                " WHERE ServiceID=?id;",
+                new MySqlParameter("?name", name.Trim()),
+                new MySqlParameter("?desc", string.IsNullOrEmpty(description) ? (object)DBNull.Value : description.Trim()),
+                new MySqlParameter("?hsn",  string.IsNullOrEmpty(hsn)         ? (object)DBNull.Value : hsn.Trim()),
+                new MySqlParameter("?gst",  (object)gstRate ?? DBNull.Value),
+                new MySqlParameter("?id",   serviceId));
+        }
+
+        public static void ToggleServiceActive(int serviceId, bool isActive)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_services SET IsActive=?a WHERE ServiceID=?id;",
+                new MySqlParameter("?a",  isActive ? 1 : 0),
+                new MySqlParameter("?id", serviceId));
+        }
+
+        public static int GetProviderCountForService(int serviceId)
+        {
+            var o = ExecuteScalar(
+                "SELECT COUNT(*) FROM fin_serviceprovider_services WHERE ServiceID = ?id;",
+                new MySqlParameter("?id", serviceId));
+            return Convert.ToInt32(o);
+        }
+
+        public static DataTable GetServicesWithUsage()
+        {
+            return ExecuteQuery(
+                "SELECT s.ServiceID, s.ServiceCode, s.ServiceName, s.Description," +
+                " s.HSNCode, s.GSTRate, s.IsActive," +
+                " (SELECT COUNT(*) FROM fin_serviceprovider_services WHERE ServiceID = s.ServiceID) AS ProviderCount" +
+                " FROM fin_services s ORDER BY s.ServiceName;");
+        }
+
+        // ── Junction (provider ↔ services) ───────────────────────────
+
+        /// <summary>List services linked to a given Service Provider (SupplierID with PartyType='SERVICE').</summary>
+        public static DataTable GetServicesForProvider(int providerId)
+        {
+            return ExecuteQuery(
+                "SELECT s.ServiceID, s.ServiceCode, s.ServiceName, s.HSNCode, s.GSTRate" +
+                " FROM fin_services s" +
+                " JOIN fin_serviceprovider_services j ON j.ServiceID = s.ServiceID" +
+                " WHERE j.ProviderID = ?pid" +
+                " ORDER BY s.ServiceName;",
+                new MySqlParameter("?pid", providerId));
+        }
+
+        /// <summary>Replace the junction rows for a provider in one shot.
+        /// Uses DELETE+INSERT inside a transaction so the set is atomic.</summary>
+        public static void SaveProviderServices(int providerId, System.Collections.Generic.IEnumerable<int> serviceIds)
+        {
+            using (var conn = OpenConnection())
+            using (var tx = conn.BeginTransaction())
+            {
+                using (var cmd = new MySqlCommand(
+                    "DELETE FROM fin_serviceprovider_services WHERE ProviderID = ?pid;", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("?pid", providerId);
+                    cmd.ExecuteNonQuery();
+                }
+                if (serviceIds != null)
+                {
+                    foreach (int sid in serviceIds)
+                    {
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO fin_serviceprovider_services (ProviderID, ServiceID) VALUES (?pid, ?sid);", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("?pid", providerId);
+                            cmd.Parameters.AddWithValue("?sid", sid);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <summary>Summary of providers with concatenated service names (for a list view).</summary>
+        public static DataTable GetProvidersWithServiceSummary()
+        {
+            return ExecuteQuery(
+                "SELECT sp.SupplierID AS ProviderID, sp.SupplierCode AS ProviderCode," +
+                " sp.SupplierName AS ProviderName, sp.ContactPerson, sp.Phone, sp.Email," +
+                " sp.ServiceCategory, sp.IsActive," +
+                " GROUP_CONCAT(s.ServiceName ORDER BY s.ServiceName SEPARATOR ', ') AS Services" +
+                " FROM mm_suppliers sp" +
+                " LEFT JOIN fin_serviceprovider_services j ON j.ProviderID = sp.SupplierID" +
+                " LEFT JOIN fin_services s ON s.ServiceID = j.ServiceID" +
+                " WHERE sp.PartyType = 'SERVICE'" +
+                " GROUP BY sp.SupplierID, sp.SupplierCode, sp.SupplierName, sp.ContactPerson," +
+                " sp.Phone, sp.Email, sp.ServiceCategory, sp.IsActive" +
+                " ORDER BY sp.SupplierName;");
+        }
+
+
+        // ══════════════════════════════════════════════════════════════
         //  BANK POSTINGS — bank accounts + layouts + statements + lines
         //
         //  Workflow:
-        //    1. User defines a bank in fin_bankaccounts (links to a Zoho
-        //       Chart of Accounts entry).
-        //    2. User configures the XLSX column layout in fin_banklayouts
-        //       (one row per bank — what column is the Date, Debit, etc.).
+        //    1. User defines a bank in fin_bankaccounts (links to Zoho Chart of Accounts).
+        //    2. User configures the XLSX column layout in fin_banklayouts (1:1 per bank).
         //    3. User uploads a bank statement — parsed rows go into
         //       fin_bankstatementlines with a dedup fingerprint.
         //    4. (Phase 2) Each row gets posted as a JV to ERP and Zoho.
@@ -3076,17 +3229,14 @@ namespace FINApp.DAL
             return ExecuteQuery(
                 "SELECT BankID, BankCode, BankName, AccountNumber, Branch," +
                 " ZohoAccountID, ZohoAccountName, IsActive, CreatedAt" +
-                " FROM fin_bankaccounts" +
-                " ORDER BY BankName;");
+                " FROM fin_bankaccounts ORDER BY BankName;");
         }
 
         public static DataTable GetActiveBankAccounts()
         {
             return ExecuteQuery(
                 "SELECT BankID, BankCode, BankName, AccountNumber" +
-                " FROM fin_bankaccounts" +
-                " WHERE IsActive = 1" +
-                " ORDER BY BankName;");
+                " FROM fin_bankaccounts WHERE IsActive = 1 ORDER BY BankName;");
         }
 
         public static DataRow GetBankAccountById(int bankId)
@@ -3096,7 +3246,6 @@ namespace FINApp.DAL
                 new MySqlParameter("?id", bankId));
         }
 
-        /// <summary>Generate next BNK-NNN code (fills gaps).</summary>
         public static string GenerateBankCode()
         {
             var o = ExecuteScalar(
@@ -3128,7 +3277,7 @@ namespace FINApp.DAL
 
             // Seed an empty layout row so the layout editor can UPDATE it.
             ExecuteNonQuery(
-                "INSERT INTO fin_banklayouts (BankID, AmountMode, IsConfigured) VALUES (?bid, \'TWO_COL\', 0);",
+                "INSERT INTO fin_banklayouts (BankID, AmountMode, IsConfigured) VALUES (?bid, 'TWO_COL', 0);",
                 new MySqlParameter("?bid", bankId));
 
             return bankId;
@@ -3168,8 +3317,6 @@ namespace FINApp.DAL
                 new MySqlParameter("?id", bankId));
         }
 
-        /// <summary>Save/overwrite the XLSX layout for a bank.
-        /// The layout row is pre-seeded at bank creation, so this is always an UPDATE.</summary>
         public static void SaveBankLayout(int bankId, int headerRow, int firstDataRow,
                                            string dateCol, string descCol, string refCol,
                                            string amountMode,
@@ -3202,7 +3349,6 @@ namespace FINApp.DAL
 
         // ── Statements ────────────────────────────────────────────────
 
-        /// <summary>Create a statement header row. Returns new StatementID.</summary>
         public static int CreateBankStatement(int bankId, string fileName,
                                                DateTime? periodStart, DateTime? periodEnd,
                                                decimal? openBal, decimal? closeBal,
@@ -3222,16 +3368,13 @@ namespace FINApp.DAL
             return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
         }
 
-        /// <summary>Insert one parsed statement line. Uses INSERT IGNORE so exact-duplicate
-        /// rows (same fingerprint per the unique index) are silently skipped.
-        /// Returns 1 if inserted, 0 if skipped as duplicate.</summary>
+        /// <summary>Insert one parsed line. Uses INSERT IGNORE so exact-duplicate
+        /// rows are silently skipped. Returns 1 if inserted, 0 if skipped.</summary>
         public static int InsertBankLine(int statementId, int bankId, int rowSeq,
                                           DateTime txnDate, string description, string reference,
                                           decimal debit, decimal credit, decimal? balance)
         {
             string descClean = string.IsNullOrEmpty(description) ? "" : description.Trim();
-            // Hash for dedup — part of the unique index so same-amount same-date
-            // rows with different descriptions are treated as distinct.
             string descHash;
             using (var md5 = System.Security.Cryptography.MD5.Create())
             {
@@ -3241,7 +3384,6 @@ namespace FINApp.DAL
                 descHash = sb.ToString();
             }
 
-            // Use raw connection so we can read AffectedRows to detect dedup skip
             using (var conn = OpenConnection())
             using (var cmd = new MySqlCommand(
                 "INSERT IGNORE INTO fin_bankstatementlines" +
@@ -3258,8 +3400,7 @@ namespace FINApp.DAL
                 cmd.Parameters.AddWithValue("?crd",  credit);
                 cmd.Parameters.AddWithValue("?bal",  (object)balance ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("?dh",   descHash);
-                int affected = cmd.ExecuteNonQuery();
-                return affected; // 0 = duplicate (skipped), 1 = inserted
+                return cmd.ExecuteNonQuery();
             }
         }
 
@@ -3296,8 +3437,7 @@ namespace FINApp.DAL
                 "SELECT LineID, RowSeq, TxnDate, Description, Reference," +
                 " Debit, Credit, Balance, Status, JournalID" +
                 " FROM fin_bankstatementlines" +
-                " WHERE StatementID = ?sid" +
-                " ORDER BY RowSeq;",
+                " WHERE StatementID = ?sid ORDER BY RowSeq;",
                 new MySqlParameter("?sid", statementId));
         }
 
