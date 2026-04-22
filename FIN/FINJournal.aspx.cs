@@ -289,7 +289,17 @@ namespace FINApp
             {
                 string zno = logRow["ZohoJournalNo"] == DBNull.Value ? "" : logRow["ZohoJournalNo"].ToString();
                 string label = string.IsNullOrEmpty(zno) ? "Pushed" : Server.HtmlEncode(zno);
-                return "<span class='badge badge-zoho-pushed' title='Pushed to Zoho Books'>" + label + "</span>";
+                string zohoOrgId = FINDatabaseHelper.GetZohoOrgID();
+                if (string.IsNullOrEmpty(zohoOrgId))
+                {
+                    // No org id — fall back to a non-linked badge
+                    return "<span class='badge badge-zoho-pushed' title='Pushed to Zoho Books'>" + label + "</span>";
+                }
+                string url = "https://books.zoho.in/app/" + Server.HtmlEncode(zohoOrgId)
+                           + "#/accountant/journals/" + Server.HtmlEncode(zohoId);
+                return "<a class='zoho-link' target='_blank' rel='noopener' href='" + url + "' "
+                     + "title='Open in Zoho Books' onclick='event.stopPropagation();'>"
+                     + "<span class='badge badge-zoho-pushed'>" + label + " &#x2197;</span></a>";
             }
             if (pushStatus == "Error")
                 return "<span class='badge badge-zoho-error' title='Push failed — open the journal for details'>Error</span>";
@@ -345,7 +355,20 @@ namespace FINApp
             if (pushStatus == "Pushed" && !string.IsNullOrEmpty(zohoId))
             {
                 sb.Append("<span class='badge badge-zoho-pushed'>Pushed</span> &nbsp; ");
-                sb.Append("Zoho entry <b>").Append(Server.HtmlEncode(zohoNo)).Append("</b> ");
+                string zohoOrgIdDet = FINDatabaseHelper.GetZohoOrgID();
+                if (!string.IsNullOrEmpty(zohoOrgIdDet))
+                {
+                    string urlDet = "https://books.zoho.in/app/" + Server.HtmlEncode(zohoOrgIdDet)
+                                  + "#/accountant/journals/" + Server.HtmlEncode(zohoId);
+                    sb.Append("Zoho entry ")
+                      .Append("<a class='zoho-link' target='_blank' rel='noopener' href='")
+                      .Append(urlDet).Append("' title='Open in Zoho Books'><b>")
+                      .Append(Server.HtmlEncode(zohoNo)).Append("</b> &#x2197;</a> ");
+                }
+                else
+                {
+                    sb.Append("Zoho entry <b>").Append(Server.HtmlEncode(zohoNo)).Append("</b> ");
+                }
                 if (!string.IsNullOrEmpty(pushedAt))
                     sb.Append("on ").Append(pushedAt).Append(". ");
                 sb.Append("<span style='color:var(--text-dim);'>(id: ").Append(Server.HtmlEncode(zohoId)).Append(")</span>");

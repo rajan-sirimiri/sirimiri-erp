@@ -84,6 +84,9 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .badge-zoho-notpushed{background:#f0f0f0;color:#666;}
 .badge-zoho-pushed{background:#d4edda;color:#1e7e34;}
 .badge-zoho-error{background:#f8d7da;color:#721c24;}
+.zoho-link{text-decoration:none;display:inline-block;}
+.zoho-link:hover .badge-zoho-pushed{background:#c3e6cb;}
+.zoho-link b{color:inherit;}
 .col-zoho{width:110px;text-align:center;}
 
 /* Zoho section inside detail card */
