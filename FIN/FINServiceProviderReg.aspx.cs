@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
@@ -9,28 +10,37 @@ namespace FINApp
 {
     /// <summary>
     /// Service Provider registration — vendors that supply SERVICES rather than materials.
-    /// Stored on mm_suppliers with PartyType='SERVICE' so the code generator,
-    /// Zoho vendor sync and party-ledger infrastructure can be reused.
-    /// These parties never appear on GRN dropdowns (all GRN queries filter PartyType='SUPPLIER').
-    /// Their transactions flow through Journal Entries (FINJournal) instead.
+    /// Stored on mm_suppliers with PartyType='SERVICE'. Each provider can offer
+    /// MULTIPLE services from the fin_services catalog (many-to-many via
+    /// fin_serviceprovider_services junction table).
+    ///
+    /// The legacy mm_suppliers.ServiceCategory column is repurposed as a
+    /// free-text Notes field in this UI.
     /// </summary>
     public partial class FINServiceProviderReg : System.Web.UI.Page
     {
         // Nav + alerts
-        protected Label lblNavUser;
-        protected Label lblFormTitle;
-        protected Label lblAlert;
-        protected Label lblCount;
+        protected Label lblNavUser, lblFormTitle, lblAlert, lblCount;
         protected HtmlGenericControl alertBox;
-        protected Panel pnlAlert, pnlEmpty;
+        protected Panel pnlAlert, pnlEmpty, pnlNoServices;
 
         // Form state
         protected HiddenField hfProviderID;
 
         // Form fields
         protected TextBox txtCode, txtName, txtContact, txtPhone, txtEmail, txtGST, txtPAN;
-        protected TextBox txtAddress, txtCity, txtState, txtPinCode, txtOtherCategory;
-        protected DropDownList ddlCategory;
+        protected TextBox txtAddress, txtCity, txtState, txtPinCode, txtNotes;
+
+        // Services chip-picker — rendered manually via Literal
+        protected Literal litServices;
+        // The set of currently-checked service IDs. Tracked between postbacks via ViewState
+        // because Request.Form only tells us what's checked right now — we need to know what
+        // was checked last time too (for re-render with correct state).
+        private System.Collections.Generic.HashSet<int> CheckedServiceIds
+        {
+            get { return ViewState["_svcChecked"] as System.Collections.Generic.HashSet<int> ?? new System.Collections.Generic.HashSet<int>(); }
+            set { ViewState["_svcChecked"] = value; }
+        }
 
         // Buttons
         protected Button btnSave, btnClear, btnToggleActive;
@@ -49,10 +59,8 @@ namespace FINApp
                 Response.Redirect("FINLogin.aspx?returnUrl=" + Server.UrlEncode(Request.RawUrl));
                 return;
             }
-
             if (!IsFinance)
             {
-                // Finance / Super roles only — no silent fallback
                 Response.Redirect("FINHome.aspx");
                 return;
             }
@@ -60,9 +68,13 @@ namespace FINApp
             if (lblNavUser != null)
                 lblNavUser.Text = Session["FIN_FullName"]?.ToString() ?? "";
 
+            // ViewState doesn't preserve CheckBoxList items populated programmatically unless
+            // we re-bind on EVERY request (before event dispatch). Otherwise checkbox state
+            // is lost on postback.
+            LoadServicesPicker(preserveSelection: true);
+
             if (!IsPostBack)
             {
-                LoadCategories();
                 LoadProviders();
                 SetFormMode(false);
             }
@@ -72,30 +84,9 @@ namespace FINApp
         // List
         // ══════════════════════════════════════════════════════════════
 
-        /// <summary>Populate the category dropdown from seed list + DISTINCT values
-        /// already in use. Preserves any existing selection across postbacks.</summary>
-        private void LoadCategories()
-        {
-            string previouslySelected = ddlCategory.SelectedValue;
-
-            ddlCategory.Items.Clear();
-            ddlCategory.Items.Add(new ListItem("-- Select --", ""));
-            foreach (var cat in FINDatabaseHelper.GetServiceCategories())
-            {
-                ddlCategory.Items.Add(new ListItem(cat, cat));
-            }
-
-            // Restore selection if it still exists in the list
-            if (!string.IsNullOrEmpty(previouslySelected))
-            {
-                ListItem li = ddlCategory.Items.FindByValue(previouslySelected);
-                if (li != null) ddlCategory.SelectedValue = previouslySelected;
-            }
-        }
-
         private void LoadProviders()
         {
-            DataTable dt = FINDatabaseHelper.GetAllServiceProviders();
+            DataTable dt = FINDatabaseHelper.GetProvidersWithServiceSummary();
             if (dt.Rows.Count > 0)
             {
                 rptProviders.DataSource = dt;
@@ -110,6 +101,137 @@ namespace FINApp
                 pnlEmpty.Visible = true;
                 lblCount.Text = "0 records";
             }
+        }
+
+        /// <summary>Bound via Eval in the repeater — renders the GROUP_CONCAT'd
+        /// "SVC-0001 Pest Control, SVC-0003 Security" string as colored chip pills.</summary>
+        protected string RenderServiceChips(object servicesTextObj)
+        {
+            if (servicesTextObj == null || servicesTextObj == DBNull.Value) return "<span style='color:var(--text-dim);font-size:11px;'>no services</span>";
+            string txt = servicesTextObj.ToString();
+            if (string.IsNullOrEmpty(txt)) return "<span style='color:var(--text-dim);font-size:11px;'>no services</span>";
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<div class='svc-chips'>");
+            foreach (string item in txt.Split(','))
+            {
+                string trimmed = item.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                sb.Append("<span class='svc-chip'>").Append(Server.HtmlEncode(trimmed)).Append("</span>");
+            }
+            sb.Append("</div>");
+            return sb.ToString();
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // Services chip-picker
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Render the services chip picker. Each checkbox has name="svcChk_<id>".
+        /// The "checked" state comes from:
+        ///   - Request.Form["svcChk_<id>"] if this is a postback (user's current state)
+        ///   - CheckedServiceIds ViewState otherwise (loaded from DB on Edit)
+        /// </summary>
+        private void LoadServicesPicker(bool preserveSelection)
+        {
+            // Defensive: surface clear diagnostics if any server control is missing
+            if (litServices == null)
+                throw new InvalidOperationException("litServices control is null — aspx/code-behind mismatch.");
+            if (pnlNoServices == null)
+                throw new InvalidOperationException("pnlNoServices control is null — aspx/code-behind mismatch.");
+
+            DataTable dt = null;
+            try
+            {
+                dt = FINDatabaseHelper.GetActiveServices();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("GetActiveServices() failed: " + ex.Message, ex);
+            }
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                pnlNoServices.Visible = true;
+                litServices.Text = "";
+                return;
+            }
+            pnlNoServices.Visible = false;
+
+            // Decide source of truth for which IDs are checked
+            HashSet<int> checkedIds;
+            if (preserveSelection && IsPostBack)
+            {
+                // Read current form state — user may have toggled checkboxes
+                checkedIds = new HashSet<int>();
+                foreach (DataRow r in dt.Rows)
+                {
+                    if (r["ServiceID"] == null || r["ServiceID"] == DBNull.Value) continue;
+                    int sid = Convert.ToInt32(r["ServiceID"]);
+                    if (Request != null && Request.Form != null && Request.Form["svcChk_" + sid] != null)
+                        checkedIds.Add(sid);
+                }
+                CheckedServiceIds = checkedIds;
+            }
+            else
+            {
+                checkedIds = CheckedServiceIds ?? new HashSet<int>();
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<ul class=\"svc-cbl\">");
+            foreach (DataRow r in dt.Rows)
+            {
+                if (r["ServiceID"] == null || r["ServiceID"] == DBNull.Value) continue;
+                int sid   = Convert.ToInt32(r["ServiceID"]);
+                string code = r["ServiceCode"] == DBNull.Value ? "" : (r["ServiceCode"] ?? "").ToString();
+                string name = r["ServiceName"] == DBNull.Value ? "" : (r["ServiceName"] ?? "").ToString();
+                decimal gst = r["GSTRate"] == DBNull.Value ? 0m : Convert.ToDecimal(r["GSTRate"]);
+
+                string inputId = "svcChk_" + sid;
+                bool isChecked = checkedIds.Contains(sid);
+
+                sb.Append("<li>")
+                  .Append("<input type=\"checkbox\" id=\"").Append(inputId).Append("\" name=\"").Append(inputId).Append("\" value=\"1\"")
+                  .Append(isChecked ? " checked=\"checked\"" : "").Append(" />")
+                  .Append("<label for=\"").Append(inputId).Append("\">")
+                  .Append("<span class=\"svc-code\">").Append(Server.HtmlEncode(code)).Append("</span>")
+                  .Append("<span class=\"svc-name\">").Append(Server.HtmlEncode(name)).Append("</span>")
+                  .Append("<span class=\"svc-meta\">\u00b7 ").Append(gst.ToString("0.##")).Append("% GST</span>")
+                  .Append("</label></li>");
+            }
+            sb.Append("</ul>");
+            litServices.Text = sb.ToString();
+        }
+
+        /// <summary>Read selected service IDs directly from the form (Request.Form)
+        /// so we get the latest user toggles, not stale ViewState.</summary>
+        private List<int> GetSelectedServiceIds()
+        {
+            var ids = new List<int>();
+            DataTable dt = FINDatabaseHelper.GetActiveServices();
+            foreach (DataRow r in dt.Rows)
+            {
+                int sid = Convert.ToInt32(r["ServiceID"]);
+                if (Request.Form["svcChk_" + sid] != null) ids.Add(sid);
+            }
+            return ids;
+        }
+
+        /// <summary>Set the picker's checked state (used when Edit loads a provider).
+        /// Stores in ViewState and re-renders.</summary>
+        private void SetSelectedServiceIds(IEnumerable<int> ids)
+        {
+            var set = new HashSet<int>();
+            foreach (int id in ids) set.Add(id);
+            CheckedServiceIds = set;
+            LoadServicesPicker(preserveSelection: false);
+        }
+
+        private void ClearServicePicker()
+        {
+            CheckedServiceIds = new HashSet<int>();
+            LoadServicesPicker(preserveSelection: false);
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -143,21 +265,9 @@ namespace FINApp
             txtCity.Text = "";
             txtState.Text = "";
             txtPinCode.Text = "";
-            ddlCategory.SelectedValue = "";
-            txtOtherCategory.Text = "";
+            if (txtNotes != null) txtNotes.Text = "";
+            ClearServicePicker();
             SetFormMode(false);
-        }
-
-        /// <summary>Resolve the category value to save. If "Other" is picked, use the free-text field.</summary>
-        private string ResolveCategory()
-        {
-            string pick = ddlCategory.SelectedValue ?? "";
-            if (pick == "Other")
-            {
-                string custom = txtOtherCategory.Text.Trim();
-                return string.IsNullOrEmpty(custom) ? "Other" : custom;
-            }
-            return pick;
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -167,18 +277,21 @@ namespace FINApp
         protected void btnSave_Click(object sender, EventArgs e)
         {
             string name = txtName.Text.Trim();
-            string category = ResolveCategory();
-
             if (string.IsNullOrEmpty(name))
             {
                 ShowAlert("Name is required.", false);
                 return;
             }
-            if (string.IsNullOrEmpty(category))
+
+            List<int> selectedSvc = GetSelectedServiceIds();
+            if (selectedSvc.Count == 0)
             {
-                ShowAlert("Service Category is required.", false);
+                ShowAlert("Pick at least one service this provider offers. If the service isn't in the list, add it in the catalog.", false);
                 return;
             }
+
+            // Notes (formerly ServiceCategory column — keep as free-text)
+            string notesText = txtNotes != null ? txtNotes.Text.Trim() : "";
 
             int providerId = Convert.ToInt32(hfProviderID.Value);
 
@@ -186,14 +299,16 @@ namespace FINApp
             {
                 if (providerId == 0)
                 {
-                    FINDatabaseHelper.AddServiceProvider(
+                    providerId = FINDatabaseHelper.AddServiceProvider(
                         name,
                         txtContact.Text.Trim(), txtPhone.Text.Trim(), txtEmail.Text.Trim(),
                         txtGST.Text.Trim(), txtPAN.Text.Trim(),
                         txtAddress.Text.Trim(), txtCity.Text.Trim(),
                         txtState.Text.Trim(), txtPinCode.Text.Trim(),
-                        category);
-                    ShowAlert("Service Provider '" + name + "' added.", true);
+                        notesText);   // ← repurposed column, now carries Notes
+                    FINDatabaseHelper.SaveProviderServices(providerId, selectedSvc);
+                    ShowAlert("Service Provider '" + name + "' added with " + selectedSvc.Count
+                        + " service" + (selectedSvc.Count == 1 ? "" : "s") + ".", true);
                 }
                 else
                 {
@@ -203,12 +318,12 @@ namespace FINApp
                         txtGST.Text.Trim(), txtPAN.Text.Trim(),
                         txtAddress.Text.Trim(), txtCity.Text.Trim(),
                         txtState.Text.Trim(), txtPinCode.Text.Trim(),
-                        category);
+                        notesText);
+                    FINDatabaseHelper.SaveProviderServices(providerId, selectedSvc);
                     ShowAlert("Service Provider '" + name + "' updated.", true);
                 }
 
                 ClearForm();
-                LoadCategories();  // picks up any newly-added custom category
                 LoadProviders();
             }
             catch (Exception ex)
@@ -235,7 +350,6 @@ namespace FINApp
             FINDatabaseHelper.ToggleServiceProviderActive(providerId, !currentlyActive);
             ShowAlert("Service Provider " + (currentlyActive ? "deactivated" : "activated") + ".", true);
             ClearForm();
-            LoadCategories();
             LoadProviders();
         }
 
@@ -264,34 +378,20 @@ namespace FINApp
                 txtState.Text    = dr["State"]         == DBNull.Value ? "" : dr["State"].ToString();
                 txtPinCode.Text  = dr["PinCode"]       == DBNull.Value ? "" : dr["PinCode"].ToString();
 
-                // Set category — the dropdown is populated from DB + seed list, so
-                // anything saved in the past should appear there. Fall back to
-                // "Other" + free-text for edge cases where a category was renamed away.
-                string cat = dr["ServiceCategory"] == DBNull.Value ? "" : dr["ServiceCategory"].ToString();
-                if (string.IsNullOrEmpty(cat))
-                {
-                    ddlCategory.SelectedValue = "";
-                    txtOtherCategory.Text = "";
-                }
-                else if (ddlCategory.Items.FindByValue(cat) != null)
-                {
-                    ddlCategory.SelectedValue = cat;
-                    txtOtherCategory.Text = "";
-                }
-                else
-                {
-                    ddlCategory.SelectedValue = "Other";
-                    txtOtherCategory.Text = cat;
-                }
+                // Notes (kept in ServiceCategory column)
+                if (txtNotes != null)
+                    txtNotes.Text = dr["ServiceCategory"] == DBNull.Value ? "" : dr["ServiceCategory"].ToString();
+
+                // Check the services this provider currently offers
+                DataTable svcDt = FINDatabaseHelper.GetServicesForProvider(providerId);
+                var ids = new List<int>();
+                foreach (DataRow srow in svcDt.Rows) ids.Add(Convert.ToInt32(srow["ServiceID"]));
+                SetSelectedServiceIds(ids);
 
                 bool isActive = Convert.ToBoolean(dr["IsActive"]);
                 btnToggleActive.Text = isActive ? "Deactivate" : "Activate";
                 SetFormMode(true);
                 pnlAlert.Visible = false;
-
-                // Force the JS toggle to match the loaded category
-                ClientScript.RegisterStartupScript(GetType(), "toggleOtherCat",
-                    "if (window.toggleOtherCat) toggleOtherCat();", true);
             }
         }
     }
