@@ -1940,23 +1940,25 @@ namespace FINApp.DAL
         /// </summary>
         public static DataTable GetPartyList()
         {
+            // NOTE: columns in WHERE are table-qualified (s.PartyType) to avoid any
+            // parser ambiguity with the 'SUP'/'SRV'/'CUS' literal aliases in the SELECT list.
             var dt = new DataTable();
             using (var conn = new MySqlConnection(ConnectionString))
             using (var cmd = new MySqlCommand(
-                "SELECT CONCAT('SUP:', SupplierID) AS PartyKey, 'SUP' AS PartyType, " +
-                "  SupplierID AS PartyID, SupplierCode AS PartyCode, SupplierName AS PartyName, " +
-                "  GSTNo AS GSTNo, City, State " +
-                "FROM mm_suppliers WHERE IsActive = 1 AND PartyType = 'SUPPLIER' " +
+                "SELECT CONCAT('SUP:', s.SupplierID) AS PartyKey, 'SUP' AS PartyType, " +
+                "  s.SupplierID AS PartyID, s.SupplierCode AS PartyCode, s.SupplierName AS PartyName, " +
+                "  s.GSTNo AS GSTNo, s.City, s.State " +
+                "FROM mm_suppliers s WHERE s.IsActive = 1 AND s.PartyType = 'SUPPLIER' " +
                 "UNION ALL " +
-                "SELECT CONCAT('SRV:', SupplierID) AS PartyKey, 'SRV' AS PartyType, " +
-                "  SupplierID AS PartyID, SupplierCode AS PartyCode, SupplierName AS PartyName, " +
-                "  GSTNo AS GSTNo, City, State " +
-                "FROM mm_suppliers WHERE IsActive = 1 AND PartyType = 'SERVICE' " +
+                "SELECT CONCAT('SRV:', s.SupplierID) AS PartyKey, 'SRV' AS PartyType, " +
+                "  s.SupplierID AS PartyID, s.SupplierCode AS PartyCode, s.SupplierName AS PartyName, " +
+                "  s.GSTNo AS GSTNo, s.City, s.State " +
+                "FROM mm_suppliers s WHERE s.IsActive = 1 AND s.PartyType = 'SERVICE' " +
                 "UNION ALL " +
-                "SELECT CONCAT('CUS:', CustomerID) AS PartyKey, 'CUS' AS PartyType, " +
-                "  CustomerID AS PartyID, CustomerCode AS PartyCode, CustomerName AS PartyName, " +
-                "  GSTIN AS GSTNo, City, State " +
-                "FROM pk_customers WHERE IsActive = 1 " +
+                "SELECT CONCAT('CUS:', c.CustomerID) AS PartyKey, 'CUS' AS PartyType, " +
+                "  c.CustomerID AS PartyID, c.CustomerCode AS PartyCode, c.CustomerName AS PartyName, " +
+                "  c.GSTIN AS GSTNo, c.City, c.State " +
+                "FROM pk_customers c WHERE c.IsActive = 1 " +
                 "ORDER BY PartyName", conn))
             {
                 conn.Open();
