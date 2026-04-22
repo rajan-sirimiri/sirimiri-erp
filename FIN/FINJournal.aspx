@@ -167,6 +167,44 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 
 .reversal-notice{background:#fef5eb;border:1px solid #f5cba7;border-radius:8px;padding:10px 14px;margin:16px 24px;font-size:12px;color:#b9770e;}
 .reversal-notice a{color:#b9770e;font-weight:600;text-decoration:underline;}
+
+/* ── Party picker: legend + colored combobox ── */
+.party-legend{display:flex;gap:14px;align-items:center;padding:6px 16px 0;font-size:11px;color:var(--text-muted);flex-wrap:wrap;}
+.party-legend .hint{margin-right:6px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;color:var(--text-dim);}
+.party-legend .chip{display:inline-flex;align-items:center;gap:6px;font-weight:500;color:var(--text);}
+.party-legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.party-legend .dot.sup{background:#ea7c3a;border:1px solid #c2410c;}
+.party-legend .dot.cus{background:#3b82f6;border:1px solid #1e40af;}
+.party-legend .dot.srv{background:#22c55e;border:1px solid #15803d;}
+
+/* Combobox overlay: native select is hidden, our shell + popup takes over */
+.pp-wrap{position:relative;width:100%;}
+.pp-wrap select[data-party-picker="1"]{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;}
+.pp-shell{display:flex;align-items:center;width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;cursor:pointer;gap:8px;min-height:32px;color:var(--text);font-family:inherit;}
+.pp-shell:hover{border-color:var(--accent);}
+.pp-shell.party-prompt{border-color:#e67e22;background:#fef5eb;}
+.pp-shell .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pp-shell .name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pp-shell .chev{color:var(--text-dim);font-size:10px;flex-shrink:0;}
+.pp-shell.placeholder .name{color:var(--text-dim);}
+.pp-dot-sup{background:#ea7c3a;}
+.pp-dot-cus{background:#3b82f6;}
+.pp-dot-srv{background:#22c55e;}
+
+.pp-pop{position:absolute;top:100%;left:0;right:0;z-index:50;margin-top:4px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.14);min-width:260px;max-width:380px;display:none;}
+.pp-pop.open{display:block;}
+.pp-search-wrap{padding:8px 10px;border-bottom:1px solid var(--border);}
+.pp-search{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;outline:none;font-family:inherit;}
+.pp-search:focus{border-color:var(--accent);}
+.pp-list{max-height:260px;overflow-y:auto;padding:4px 0;}
+.pp-opt{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;}
+.pp-opt:hover, .pp-opt.active{background:var(--accent-light);}
+.pp-opt.selected{background:#eef5fb;}
+.pp-opt .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pp-opt .name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pp-opt .code{font-size:10px;color:var(--text-dim);font-family:"Roboto Mono",monospace;}
+.pp-opt .clear{color:var(--text-muted);font-style:italic;}
+.pp-none{padding:14px 12px;text-align:center;color:var(--text-dim);font-size:12px;}
 </style>
 </head>
 <body>
@@ -270,6 +308,13 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                 </div>
             </div>
 
+            <div class="party-legend">
+                <span class="hint">Party colors:</span>
+                <span class="chip"><span class="dot sup"></span>Supplier</span>
+                <span class="chip"><span class="dot cus"></span>Customer</span>
+                <span class="chip"><span class="dot srv"></span>Service Provider</span>
+            </div>
+
             <div class="lines-hdr">
                 <div>#</div>
                 <div>Account</div>
@@ -359,6 +404,7 @@ window.wireJournalPartyPrompt = function(){
                     partyEl.classList.remove('party-prompt');
                     partyEl.title = '';
                 }
+                if (typeof partyEl._ppRefresh === 'function') partyEl._ppRefresh();
             };
         })(el, partySel);
 
@@ -379,6 +425,175 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.wireJournalPartyPrompt);
 } else {
     window.wireJournalPartyPrompt();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ *  Party Picker — searchable combobox over the hidden <select>
+ *  The native <select> stays in the DOM (postback reads its value);
+ *  this widget is a visual overlay + keyboard search. One picker per line.
+ *  wirePartyPickers() is called after every server render (from the
+ *  _acctTypes/_parties emission block) to attach to newly rendered selects.
+ * ═══════════════════════════════════════════════════════════════ */
+window.wirePartyPickers = function(){
+    var parties = window._parties || [];
+    // Fast type lookup by key — used for rendering the selected chip
+    var typeByKey = {};
+    for (var i = 0; i < parties.length; i++) typeByKey[parties[i].k] = parties[i].t;
+
+    var selects = document.querySelectorAll('select[data-party-picker="1"]');
+    for (var si = 0; si < selects.length; si++) {
+        var sel = selects[si];
+        if (sel._ppWired) continue; // already wrapped
+        wrapOne(sel);
+    }
+
+    function typeDotClass(t){
+        if (t === 'SUP') return 'pp-dot-sup';
+        if (t === 'CUS') return 'pp-dot-cus';
+        if (t === 'SRV') return 'pp-dot-srv';
+        return '';
+    }
+    function typeLabel(t){
+        if (t === 'SUP') return 'Supplier';
+        if (t === 'CUS') return 'Customer';
+        if (t === 'SRV') return 'Service Provider';
+        return '';
+    }
+
+    function wrapOne(sel){
+        sel._ppWired = true;
+
+        // Wrap the native select in a positioned container
+        var wrap = document.createElement('div');
+        wrap.className = 'pp-wrap';
+        sel.parentNode.insertBefore(wrap, sel);
+        wrap.appendChild(sel);
+
+        // Visible shell (button-like)
+        var shell = document.createElement('button');
+        shell.type = 'button';
+        shell.className = 'pp-shell';
+        shell.innerHTML = '<span class="dot"></span><span class="name">— none —</span><span class="chev">▾</span>';
+        wrap.appendChild(shell);
+
+        // Popup
+        var pop = document.createElement('div');
+        pop.className = 'pp-pop';
+        pop.innerHTML = ''
+            + '<div class="pp-search-wrap"><input type="text" class="pp-search" placeholder="Search party…" /></div>'
+            + '<div class="pp-list"></div>';
+        wrap.appendChild(pop);
+
+        var input = pop.querySelector('.pp-search');
+        var list  = pop.querySelector('.pp-list');
+
+        function renderShell(){
+            var key = sel.value;
+            var dot = shell.querySelector('.dot');
+            var nm  = shell.querySelector('.name');
+            if (!key) {
+                shell.classList.add('placeholder');
+                dot.className = 'dot';
+                nm.textContent = '— none —';
+            } else {
+                shell.classList.remove('placeholder');
+                // Look up selected party's name from the <option> label (cheap + handles
+                // the case where the selected key is not in _parties for some reason)
+                var opt = sel.options[sel.selectedIndex];
+                var t = typeByKey[key] || (opt ? (opt.getAttribute('data-type') || '') : '');
+                dot.className = 'dot ' + typeDotClass(t);
+                nm.textContent = opt ? opt.text : key;
+            }
+            // Mirror the party-prompt class (from wireJournalPartyPrompt) onto the shell
+            if (sel.classList.contains('party-prompt')) shell.classList.add('party-prompt');
+            else shell.classList.remove('party-prompt');
+        }
+
+        function renderList(filter){
+            filter = (filter || '').trim().toLowerCase();
+            var html = '';
+            // Always offer a clear option at top
+            html += '<div class="pp-opt" data-key=""><span class="dot"></span><span class="name clear">— none —</span></div>';
+            var shown = 0;
+            for (var i = 0; i < parties.length; i++) {
+                var p = parties[i];
+                if (filter && p.n.toLowerCase().indexOf(filter) === -1 && p.c.toLowerCase().indexOf(filter) === -1) continue;
+                shown++;
+                if (shown > 200) break; // cap DOM size; user can narrow search
+                html += '<div class="pp-opt' + (p.k === sel.value ? ' selected' : '') + '" data-key="' + p.k + '">'
+                     +    '<span class="dot ' + typeDotClass(p.t) + '"></span>'
+                     +    '<span class="name">' + escapeHtml(p.n) + '</span>'
+                     +    '<span class="code">' + escapeHtml(p.c || '') + '</span>'
+                     +  '</div>';
+            }
+            if (shown === 0 && filter) html += '<div class="pp-none">No matches for "' + escapeHtml(filter) + '"</div>';
+            list.innerHTML = html;
+        }
+
+        function open(){
+            // Close other open pickers
+            var all = document.querySelectorAll('.pp-pop.open');
+            for (var j = 0; j < all.length; j++) all[j].classList.remove('open');
+            input.value = '';
+            renderList('');
+            pop.classList.add('open');
+            setTimeout(function(){ input.focus(); }, 0);
+        }
+        function close(){
+            pop.classList.remove('open');
+        }
+
+        shell.addEventListener('click', function(ev){
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (pop.classList.contains('open')) close(); else open();
+        });
+
+        input.addEventListener('input', function(){ renderList(input.value); });
+        input.addEventListener('keydown', function(ev){
+            if (ev.key === 'Escape') { close(); shell.focus(); }
+            else if (ev.key === 'Enter') {
+                var first = list.querySelector('.pp-opt');
+                if (first) { ev.preventDefault(); first.click(); }
+            }
+        });
+
+        list.addEventListener('click', function(ev){
+            var opt = ev.target.closest('.pp-opt');
+            if (!opt) return;
+            var key = opt.getAttribute('data-key') || '';
+            sel.value = key;
+            // Fire native change so wireJournalPartyPrompt + ASP.NET ViewState both see it
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, false);
+            sel.dispatchEvent(evt);
+            renderShell();
+            close();
+        });
+
+        // Close when clicking outside this wrap
+        document.addEventListener('click', function(ev){
+            if (pop.classList.contains('open') && !wrap.contains(ev.target)) close();
+        });
+
+        // Keep shell in sync if some other code updates the select programmatically
+        sel.addEventListener('change', renderShell);
+        sel._ppRefresh = renderShell; // let wireJournalPartyPrompt poke us
+
+        renderShell();
+    }
+
+    function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, function(c){
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.wirePartyPickers);
+} else {
+    window.wirePartyPickers();
 }
 </script>
 </body>

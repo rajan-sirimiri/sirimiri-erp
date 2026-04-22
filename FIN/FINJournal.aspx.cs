@@ -518,14 +518,17 @@ namespace FINApp
                 if (editable)
                 {
                     var ddlParty = new DropDownList { ID = "ln_party_" + i };
+                    ddlParty.Attributes["data-party-picker"] = "1";
                     ddlParty.Items.Add(new ListItem("— none —", ""));
                     foreach (DataRow r in Parties.Rows)
                     {
                         string pkey = r["PartyKey"].ToString();
-                        string ptype = r["PartyType"].ToString();      // SUP or CUS
+                        string ptype = r["PartyType"].ToString();      // SUP | CUS | SRV
                         string pname = (r["PartyName"] ?? "").ToString();
-                        string label = "[" + ptype + "] " + pname;
-                        ddlParty.Items.Add(new ListItem(label, pkey));
+                        var li = new ListItem(pname, pkey);
+                        // data-type drives the color dot in the custom picker overlay
+                        li.Attributes["data-type"] = ptype;
+                        ddlParty.Items.Add(li);
                     }
                     if (!string.IsNullOrEmpty(partyVal) && ddlParty.Items.FindByValue(partyVal) != null)
                         ddlParty.SelectedValue = partyVal;
@@ -614,7 +617,28 @@ namespace FINApp
                     atype = atype.ToLowerInvariant().Replace("'", "\\'");
                     sb.Append("'").Append(zid).Append("':'").Append(atype).Append("'");
                 }
-                sb.Append("};if(window.wireJournalPartyPrompt)window.wireJournalPartyPrompt();</script>");
+                sb.Append("};");
+
+                // Emit _parties payload for the custom searchable combobox.
+                // Each entry: key, name, type (SUP|SRV|CUS), code (for disambiguation)
+                sb.Append("window._parties=[");
+                bool firstP = true;
+                foreach (DataRow rp in Parties.Rows)
+                {
+                    if (!firstP) sb.Append(",");
+                    firstP = false;
+                    string pkey  = (rp["PartyKey"]  ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    string pname = (rp["PartyName"] ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    string pcode = (rp["PartyCode"] ?? "").ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    string ptype = (rp["PartyType"] ?? "").ToString();
+                    sb.Append("{k:\"").Append(pkey).Append("\",n:\"").Append(pname)
+                      .Append("\",t:\"").Append(ptype).Append("\",c:\"").Append(pcode).Append("\"}");
+                }
+                sb.Append("];");
+
+                sb.Append("if(window.wireJournalPartyPrompt)window.wireJournalPartyPrompt();");
+                sb.Append("if(window.wirePartyPickers)window.wirePartyPickers();");
+                sb.Append("</script>");
                 phLines.Controls.Add(new LiteralControl(sb.ToString()));
             }
         }

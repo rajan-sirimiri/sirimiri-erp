@@ -1946,12 +1946,17 @@ namespace FINApp.DAL
                 "SELECT CONCAT('SUP:', SupplierID) AS PartyKey, 'SUP' AS PartyType, " +
                 "  SupplierID AS PartyID, SupplierCode AS PartyCode, SupplierName AS PartyName, " +
                 "  GSTNo AS GSTNo, City, State " +
-                "FROM MM_Suppliers WHERE IsActive = 1 " +
+                "FROM mm_suppliers WHERE IsActive = 1 AND PartyType = 'SUPPLIER' " +
+                "UNION ALL " +
+                "SELECT CONCAT('SRV:', SupplierID) AS PartyKey, 'SRV' AS PartyType, " +
+                "  SupplierID AS PartyID, SupplierCode AS PartyCode, SupplierName AS PartyName, " +
+                "  GSTNo AS GSTNo, City, State " +
+                "FROM mm_suppliers WHERE IsActive = 1 AND PartyType = 'SERVICE' " +
                 "UNION ALL " +
                 "SELECT CONCAT('CUS:', CustomerID) AS PartyKey, 'CUS' AS PartyType, " +
                 "  CustomerID AS PartyID, CustomerCode AS PartyCode, CustomerName AS PartyName, " +
                 "  GSTIN AS GSTNo, City, State " +
-                "FROM PK_Customers WHERE IsActive = 1 " +
+                "FROM pk_customers WHERE IsActive = 1 " +
                 "ORDER BY PartyName", conn))
             {
                 conn.Open();
@@ -1976,10 +1981,10 @@ namespace FINApp.DAL
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                string sql = parts[0] == "SUP"
-                    ? "SELECT SupplierName FROM MM_Suppliers WHERE SupplierID = ?pid"
+                string sql = (parts[0] == "SUP" || parts[0] == "SRV")
+                    ? "SELECT SupplierName FROM mm_suppliers WHERE SupplierID = ?pid"
                     : parts[0] == "CUS"
-                        ? "SELECT CustomerName FROM PK_Customers WHERE CustomerID = ?pid"
+                        ? "SELECT CustomerName FROM pk_customers WHERE CustomerID = ?pid"
                         : null;
                 if (sql == null) return "";
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -2514,7 +2519,7 @@ namespace FINApp.DAL
             var parts = partyKey.Split(':');
             if (parts.Length != 2) return Tuple.Create<string, int>(null, 0);
             string ptype = parts[0].ToUpperInvariant();
-            if (ptype != "SUP" && ptype != "CUS") return Tuple.Create<string, int>(null, 0);
+            if (ptype != "SUP" && ptype != "CUS" && ptype != "SRV") return Tuple.Create<string, int>(null, 0);
             int pid;
             if (!int.TryParse(parts[1], out pid) || pid <= 0)
                 return Tuple.Create<string, int>(null, 0);
