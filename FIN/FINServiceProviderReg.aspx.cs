@@ -62,6 +62,7 @@ namespace FINApp
 
             if (!IsPostBack)
             {
+                LoadCategories();
                 LoadProviders();
                 SetFormMode(false);
             }
@@ -70,6 +71,27 @@ namespace FINApp
         // ══════════════════════════════════════════════════════════════
         // List
         // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Populate the category dropdown from seed list + DISTINCT values
+        /// already in use. Preserves any existing selection across postbacks.</summary>
+        private void LoadCategories()
+        {
+            string previouslySelected = ddlCategory.SelectedValue;
+
+            ddlCategory.Items.Clear();
+            ddlCategory.Items.Add(new ListItem("-- Select --", ""));
+            foreach (var cat in FINDatabaseHelper.GetServiceCategories())
+            {
+                ddlCategory.Items.Add(new ListItem(cat, cat));
+            }
+
+            // Restore selection if it still exists in the list
+            if (!string.IsNullOrEmpty(previouslySelected))
+            {
+                ListItem li = ddlCategory.Items.FindByValue(previouslySelected);
+                if (li != null) ddlCategory.SelectedValue = previouslySelected;
+            }
+        }
 
         private void LoadProviders()
         {
@@ -186,6 +208,7 @@ namespace FINApp
                 }
 
                 ClearForm();
+                LoadCategories();  // picks up any newly-added custom category
                 LoadProviders();
             }
             catch (Exception ex)
@@ -212,6 +235,7 @@ namespace FINApp
             FINDatabaseHelper.ToggleServiceProviderActive(providerId, !currentlyActive);
             ShowAlert("Service Provider " + (currentlyActive ? "deactivated" : "activated") + ".", true);
             ClearForm();
+            LoadCategories();
             LoadProviders();
         }
 
@@ -240,27 +264,24 @@ namespace FINApp
                 txtState.Text    = dr["State"]         == DBNull.Value ? "" : dr["State"].ToString();
                 txtPinCode.Text  = dr["PinCode"]       == DBNull.Value ? "" : dr["PinCode"].ToString();
 
-                // Set category; if not in the fixed list, fall back to "Other" + free-text
+                // Set category — the dropdown is populated from DB + seed list, so
+                // anything saved in the past should appear there. Fall back to
+                // "Other" + free-text for edge cases where a category was renamed away.
                 string cat = dr["ServiceCategory"] == DBNull.Value ? "" : dr["ServiceCategory"].ToString();
-                bool inFixedList = false;
-                foreach (ListItem li in ddlCategory.Items)
+                if (string.IsNullOrEmpty(cat))
                 {
-                    if (li.Value == cat) { inFixedList = true; break; }
+                    ddlCategory.SelectedValue = "";
+                    txtOtherCategory.Text = "";
                 }
-                if (inFixedList)
+                else if (ddlCategory.Items.FindByValue(cat) != null)
                 {
                     ddlCategory.SelectedValue = cat;
                     txtOtherCategory.Text = "";
                 }
-                else if (!string.IsNullOrEmpty(cat))
+                else
                 {
                     ddlCategory.SelectedValue = "Other";
                     txtOtherCategory.Text = cat;
-                }
-                else
-                {
-                    ddlCategory.SelectedValue = "";
-                    txtOtherCategory.Text = "";
                 }
 
                 bool isActive = Convert.ToBoolean(dr["IsActive"]);

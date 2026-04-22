@@ -156,9 +156,16 @@
             </asp:Panel>
 
             <div class="card">
-                <div class="card-title">
-                    <asp:Label ID="lblFormTitle" runat="server" Text="New Service Provider" />
-                    <asp:HiddenField ID="hfProviderID" runat="server" Value="0" />
+                <div class="card-title" style="justify-content:space-between;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <asp:Label ID="lblFormTitle" runat="server" Text="New Service Provider" />
+                        <asp:HiddenField ID="hfProviderID" runat="server" Value="0" />
+                    </div>
+                    <a href="FINServiceCategoryManage.aspx"
+                       style="font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;border:1.5px solid var(--accent-light);border-radius:6px;letter-spacing:.03em;"
+                       onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+                        Manage Categories &rarr;
+                    </a>
                 </div>
 
                 <div class="form-section">Identification</div>
@@ -174,17 +181,8 @@
                     </div>
                     <div class="form-group">
                         <label>Service Category <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlCategory" runat="server" onchange="toggleOtherCat();">
-                            <asp:ListItem Value="" Text="-- Select --" />
-                            <asp:ListItem Value="Pest Control" />
-                            <asp:ListItem Value="Security" />
-                            <asp:ListItem Value="Housekeeping" />
-                            <asp:ListItem Value="Maintenance" />
-                            <asp:ListItem Value="Transport" />
-                            <asp:ListItem Value="Professional Services" />
-                            <asp:ListItem Value="Utilities" />
-                            <asp:ListItem Value="Other" />
-                        </asp:DropDownList>
+                        <asp:DropDownList ID="ddlCategory" runat="server" onchange="toggleOtherCat();" />
+                        <span class="field-hint">Pick "Other" to enter a new category &mdash; it will appear in the list for future use.</span>
                     </div>
                     <div class="form-group" id="otherCatWrap" style="display:none;">
                         <label>Other Category (free text)</label>

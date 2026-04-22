@@ -2927,5 +2927,118 @@ namespace FINApp.DAL
                 new MySqlParameter("?id", providerId));
         }
 
+
+        // ══════════════════════════════════════════════════════════════
+        //  SERVICE CATEGORIES (derived from mm_suppliers.ServiceCategory)
+        // ══════════════════════════════════════════════════════════════
+        //  Categories have no dedicated table — the column itself is the
+        //  source of truth. GetServiceCategories() merges a seed list
+        //  (for cold starts) with SELECT DISTINCT from mm_suppliers.
+        //  A mass-rename on this column is how categories are renamed or
+        //  merged from the management UI.
+        // ══════════════════════════════════════════════════════════════
+
+        // Seed list used when no providers exist yet. Once providers start
+        // picking these, SELECT DISTINCT takes over and seeds become redundant.
+        private static readonly string[] SeedServiceCategories = new[]
+        {
+            "Pest Control", "Security", "Housekeeping", "Maintenance",
+            "Transport", "Professional Services", "Utilities", "Other"
+        };
+
+        /// <summary>Union of seed categories and distinct categories actually in use.
+        /// Sorted alphabetically with "Other" pinned last. Empty / null values skipped.</summary>
+        public static System.Collections.Generic.List<string> GetServiceCategories()
+        {
+            var set = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var seed in SeedServiceCategories)
+                set.Add(seed);
+
+            var dt = ExecuteQuery(
+                "SELECT DISTINCT TRIM(ServiceCategory) AS cat" +
+                " FROM mm_suppliers" +
+                " WHERE PartyType='SERVICE'" +
+                "   AND ServiceCategory IS NOT NULL" +
+                "   AND TRIM(ServiceCategory) <> '';");
+            foreach (DataRow r in dt.Rows)
+            {
+                string cat = r["cat"].ToString();
+                if (!string.IsNullOrEmpty(cat)) set.Add(cat);
+            }
+
+            var list = new System.Collections.Generic.List<string>(set);
+            list.Sort(StringComparer.OrdinalIgnoreCase);
+            // Pin "Other" at the end so operators scan the real options first
+            if (list.Remove("Other")) list.Add("Other");
+            return list;
+        }
+
+        /// <summary>For the Manage Categories screen: each category + count of providers
+        /// currently using it. Seed categories with zero usage are included too.</summary>
+        public static DataTable GetCategoryUsageCounts()
+        {
+            // Pull actual usage counts from the table
+            DataTable used = ExecuteQuery(
+                "SELECT TRIM(ServiceCategory) AS Category, COUNT(*) AS ProviderCount" +
+                " FROM mm_suppliers" +
+                " WHERE PartyType='SERVICE'" +
+                "   AND ServiceCategory IS NOT NULL" +
+                "   AND TRIM(ServiceCategory) <> ''" +
+                " GROUP BY TRIM(ServiceCategory)" +
+                " ORDER BY Category;");
+
+            // Build final table: all known categories (seed + used), usage counts filled in
+            var result = new DataTable();
+            result.Columns.Add("Category",      typeof(string));
+            result.Columns.Add("ProviderCount", typeof(int));
+            result.Columns.Add("IsSeed",        typeof(bool));
+
+            var usedMap = new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow r in used.Rows)
+                usedMap[r["Category"].ToString()] = Convert.ToInt32(r["ProviderCount"]);
+
+            var allCategories = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in SeedServiceCategories) allCategories.Add(s);
+            foreach (var k in usedMap.Keys)          allCategories.Add(k);
+
+            var sorted = new System.Collections.Generic.List<string>(allCategories);
+            sorted.Sort(StringComparer.OrdinalIgnoreCase);
+            if (sorted.Remove("Other")) sorted.Add("Other");
+
+            foreach (var cat in sorted)
+            {
+                bool isSeed = false;
+                foreach (var s in SeedServiceCategories)
+                    if (string.Equals(s, cat, StringComparison.OrdinalIgnoreCase)) { isSeed = true; break; }
+
+                int count = usedMap.ContainsKey(cat) ? usedMap[cat] : 0;
+                result.Rows.Add(cat, count, isSeed);
+            }
+            return result;
+        }
+
+        /// <summary>Mass-rename a category across all service providers.
+        /// Also used for merges — pass an existing category as the new name and rows are merged.
+        /// Returns number of rows updated.</summary>
+        public static int RenameServiceCategory(string oldName, string newName)
+        {
+            if (string.IsNullOrEmpty(oldName)) throw new ArgumentException("oldName required");
+            if (string.IsNullOrEmpty(newName)) throw new ArgumentException("newName required");
+
+            ExecuteNonQuery(
+                "UPDATE mm_suppliers SET ServiceCategory=?new" +
+                " WHERE PartyType='SERVICE' AND TRIM(ServiceCategory)=?old;",
+                new MySqlParameter("?new", newName.Trim()),
+                new MySqlParameter("?old", oldName.Trim()));
+            // Return count via a separate query — MySqlCommand.ExecuteNonQuery returns row count,
+            // but our ExecuteNonQuery helper doesn't expose it. We recompute for the caller.
+            var o = ExecuteScalar(
+                "SELECT COUNT(*) FROM mm_suppliers" +
+                " WHERE PartyType='SERVICE' AND TRIM(ServiceCategory)=?new;",
+                new MySqlParameter("?new", newName.Trim()));
+            return o == null || o == DBNull.Value ? 0 : Convert.ToInt32(o);
+        }
+
     }
 }

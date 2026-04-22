@@ -77,6 +77,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DAL\FINDatabaseHelper.cs" />
+    <Compile Include="FINAccountStatement.aspx.cs">
+      <DependentUpon>FINAccountStatement.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="FINAccountStatementPrint.aspx.cs">
+      <DependentUpon>FINAccountStatementPrint.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="FINHome.aspx.cs">
       <DependentUpon>FINHome.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -85,19 +93,34 @@
       <DependentUpon>FINLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="FINPartyOpeningBalance.aspx.cs">
+      <DependentUpon>FINPartyOpeningBalance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="FINPurchaseImport.aspx.cs">
       <DependentUpon>FINPurchaseImport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="FINServiceCategoryManage.aspx.cs">
+      <DependentUpon>FINServiceCategoryManage.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="FINServiceProviderReg.aspx.cs">
+      <DependentUpon>FINServiceProviderReg.aspx</DependentUpon>
     </Compile>
     <Compile Include="FINTallyMapping.aspx.cs">
       <DependentUpon>FINTallyMapping.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="DAL\FINZohoHelper.cs" />
+    <Content Include="FINAccountStatement.aspx" />
+    <Content Include="FINAccountStatementPrint.aspx" />
     <Content Include="FINHome.aspx" />
     <Content Include="FINLogin.aspx" />
     <Content Include="FINLogout.aspx" />
+    <Content Include="FINPartyOpeningBalance.aspx" />
     <Content Include="FINPurchaseImport.aspx" />
+    <Content Include="FINServiceCategoryManage.aspx" />
+    <Content Include="FINServiceProviderReg.aspx" />
     <Content Include="FINTallyMapping.aspx" />
     <Content Include="FINSalesImport.aspx" />
     <Compile Include="FINSalesImport.aspx.cs">
