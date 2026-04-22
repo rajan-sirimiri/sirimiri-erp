@@ -42,6 +42,12 @@ namespace PPApp.DAL
         {
             var conn = new MySqlConnection(ConnStr);
             conn.Open();
+            // Force IST for every query — NOW() / CURRENT_TIMESTAMP in SQL
+            // must return Indian time regardless of what the VPS clock is set to.
+            using (var tzCmd = new MySqlCommand("SET time_zone='+05:30';", conn))
+            {
+                tzCmd.ExecuteNonQuery();
+            }
             return conn;
         }
 

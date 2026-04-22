@@ -11,13 +11,24 @@ namespace UAApp.DAL
     {
         private static string ConnStr => ConfigurationManager.ConnectionStrings["StockDB"].ConnectionString;
 
+        /// <summary>Open a connection and force MySQL session time zone to IST
+        /// so NOW() / CURRENT_TIMESTAMP return Indian time regardless of VPS clock.</summary>
+        internal static MySqlConnection OpenConnection()
+        {
+            var conn = new MySqlConnection(ConnStr);
+            conn.Open();
+            using (var tz = new MySqlCommand("SET time_zone='+05:30';", conn))
+                tz.ExecuteNonQuery();
+            return conn;
+        }
+
         private static DataTable ExecuteQuery(string sql, params MySqlParameter[] prms)
         {
             var dt = new DataTable();
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd = new MySqlCommand(sql, conn))
             using (var da = new MySqlDataAdapter(cmd))
-            { if (prms != null) cmd.Parameters.AddRange(prms); conn.Open(); da.Fill(dt); }
+            { if (prms != null) cmd.Parameters.AddRange(prms); da.Fill(dt); }
             return dt;
         }
 
@@ -26,16 +37,16 @@ namespace UAApp.DAL
 
         private static object ExecuteScalar(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd = new MySqlCommand(sql, conn))
-            { if (prms != null) cmd.Parameters.AddRange(prms); conn.Open(); return cmd.ExecuteScalar(); }
+            { if (prms != null) cmd.Parameters.AddRange(prms); return cmd.ExecuteScalar(); }
         }
 
         private static void ExecuteNonQuery(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd = new MySqlCommand(sql, conn))
-            { if (prms != null) cmd.Parameters.AddRange(prms); conn.Open(); cmd.ExecuteNonQuery(); }
+            { if (prms != null) cmd.Parameters.AddRange(prms); cmd.ExecuteNonQuery(); }
         }
 
         public static DataRow ValidateUser(string username, string passwordHash)

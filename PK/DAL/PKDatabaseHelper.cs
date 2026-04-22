@@ -27,12 +27,23 @@ namespace PKApp.DAL
                 new MySqlParameter("?p", hash));
         }
 
+        /// <summary>Open a connection and force MySQL session time zone to IST
+        /// so NOW() / CURRENT_TIMESTAMP return Indian time regardless of VPS clock.</summary>
+        internal static MySqlConnection OpenConnection()
+        {
+            var conn = new MySqlConnection(ConnStr);
+            conn.Open();
+            using (var tz = new MySqlCommand("SET time_zone='+05:30';", conn))
+                tz.ExecuteNonQuery();
+            return conn;
+        }
+
         private static DataTable ExecuteQuery(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd  = new MySqlCommand(sql, conn))
             {
-                conn.Open(); foreach (var p in prms) cmd.Parameters.Add(p);
+                foreach (var p in prms) cmd.Parameters.Add(p);
                 var dt = new DataTable(); new MySqlDataAdapter(cmd).Fill(dt); return dt;
             }
         }
@@ -45,20 +56,20 @@ namespace PKApp.DAL
 
         private static void ExecuteNonQuery(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd  = new MySqlCommand(sql, conn))
             {
-                conn.Open(); foreach (var p in prms) cmd.Parameters.Add(p);
+                foreach (var p in prms) cmd.Parameters.Add(p);
                 cmd.ExecuteNonQuery();
             }
         }
 
         public static object ExecuteScalar(string sql, params MySqlParameter[] prms)
         {
-            using (var conn = new MySqlConnection(ConnStr))
+            using (var conn = OpenConnection())
             using (var cmd  = new MySqlCommand(sql, conn))
             {
-                conn.Open(); foreach (var p in prms) cmd.Parameters.Add(p);
+                foreach (var p in prms) cmd.Parameters.Add(p);
                 return cmd.ExecuteScalar();
             }
         }

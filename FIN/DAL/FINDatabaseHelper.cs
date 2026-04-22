@@ -19,45 +19,53 @@ namespace FINApp.DAL
         public static DateTime TodayIST() => NowIST().Date;
 
         // ── PRIVATE HELPERS ──
+
+        /// <summary>Central connection opener. Opens the connection and sets the
+        /// MySQL session time zone to IST (+05:30) so NOW() / CURRENT_TIMESTAMP
+        /// return Indian time regardless of the VPS server clock.
+        /// Use this for any new code — existing scattered `new MySqlConnection`
+        /// sites should be migrated over time.</summary>
+        internal static MySqlConnection OpenConnection()
+        {
+            var conn = new MySqlConnection(ConnectionString);
+            conn.Open();
+            using (var tzCmd = new MySqlCommand("SET time_zone='+05:30';", conn))
+            {
+                tzCmd.ExecuteNonQuery();
+            }
+            return conn;
+        }
+
         private static DataTable ExecuteQuery(string sql, params MySqlParameter[] parms)
         {
-            using (var conn = new MySqlConnection(ConnectionString))
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(sql, conn))
             {
-                conn.Open();
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    if (parms != null) cmd.Parameters.AddRange(parms);
-                    var da = new MySqlDataAdapter(cmd);
-                    var dt = new DataTable();
-                    da.Fill(dt);
-                    return dt;
-                }
+                if (parms != null) cmd.Parameters.AddRange(parms);
+                var da = new MySqlDataAdapter(cmd);
+                var dt = new DataTable();
+                da.Fill(dt);
+                return dt;
             }
         }
 
         private static void ExecuteNonQuery(string sql, params MySqlParameter[] parms)
         {
-            using (var conn = new MySqlConnection(ConnectionString))
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(sql, conn))
             {
-                conn.Open();
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    if (parms != null) cmd.Parameters.AddRange(parms);
-                    cmd.ExecuteNonQuery();
-                }
+                if (parms != null) cmd.Parameters.AddRange(parms);
+                cmd.ExecuteNonQuery();
             }
         }
 
         private static object ExecuteScalar(string sql, params MySqlParameter[] parms)
         {
-            using (var conn = new MySqlConnection(ConnectionString))
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(sql, conn))
             {
-                conn.Open();
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    if (parms != null) cmd.Parameters.AddRange(parms);
-                    return cmd.ExecuteScalar();
-                }
+                if (parms != null) cmd.Parameters.AddRange(parms);
+                return cmd.ExecuteScalar();
             }
         }
 
