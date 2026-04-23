@@ -115,22 +115,33 @@
             <!-- UPLOAD CARD -->
             <div class="card">
                 <div class="card-title">Upload Statement</div>
-                <div class="upload-grid">
+                <div style="background:var(--accent-light);padding:10px 14px;border-radius:8px;font-size:12px;color:var(--accent-dark);margin-bottom:14px;">
+                    <b>Auto-detect:</b> Just pick the XLSX or PDF. The system scans the file for each configured bank's signature text and matches automatically. Scanned PDFs are not supported &mdash; export a native-text PDF from net-banking.
+                </div>
+                <div class="upload-grid" style="grid-template-columns:1fr auto;">
                     <div class="form-group">
-                        <label>Bank</label>
-                        <asp:DropDownList ID="ddlBank" runat="server" />
-                    </div>
-                    <div class="form-group">
-                        <label>Statement File (XLSX)</label>
-                        <asp:FileUpload ID="fuStatement" runat="server" accept=".xlsx" />
+                        <label>Statement File (XLSX or PDF)</label>
+                        <asp:FileUpload ID="fuStatement" runat="server" accept=".xlsx,.pdf" />
                     </div>
                     <div>
                         <asp:Button ID="btnUpload" runat="server" Text="Upload &amp; Parse" CssClass="btn btn-primary" OnClick="btnUpload_Click" />
                     </div>
                 </div>
+
+                <!-- Fallback: shown only when auto-detect fails or user cleared selection -->
+                <asp:Panel ID="pnlManualBank" runat="server" Visible="false" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">
+                    <div class="alert alert-danger" style="margin-bottom:12px;">
+                        Couldn't identify the bank automatically. Pick one below and click <b>Upload &amp; Parse</b> again.
+                    </div>
+                    <div class="form-group" style="max-width:400px;">
+                        <label>Bank (manual override)</label>
+                        <asp:DropDownList ID="ddlBank" runat="server" />
+                    </div>
+                </asp:Panel>
+
                 <asp:Panel ID="pnlNoLayout" runat="server" Visible="false">
                     <div class="alert alert-danger" style="margin-top:14px;">
-                        The selected bank has no XLSX layout configured yet.
+                        The matched bank has no XLSX layout configured yet.
                         <a href="FINBankAccounts.aspx" style="color:inherit;font-weight:700;">Configure it here</a> before uploading.
                     </div>
                 </asp:Panel>

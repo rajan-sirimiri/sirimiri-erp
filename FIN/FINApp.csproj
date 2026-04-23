@@ -112,6 +112,7 @@
       <DependentUpon>FINBankPostings.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="PdfStatementExtractor.cs" />
     <Compile Include="FINServiceCategoryManage.aspx.cs">
       <DependentUpon>FINServiceCategoryManage.aspx</DependentUpon>
     </Compile>

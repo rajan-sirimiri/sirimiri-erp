@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
@@ -22,7 +23,7 @@ namespace FINApp
         protected Label lblNavUser, lblAlert, lblDetailHeader;
         protected Label lblStatPeriod, lblStatOpen, lblStatClose, lblStatRows;
         protected HtmlGenericControl alertBox;
-        protected Panel pnlAlert, pnlListView, pnlDetailView, pnlNoLayout, pnlEmpty;
+        protected Panel pnlAlert, pnlListView, pnlDetailView, pnlNoLayout, pnlEmpty, pnlManualBank;
         protected DropDownList ddlBank;
         protected FileUpload fuStatement;
         protected Button btnUpload;
@@ -102,23 +103,44 @@ namespace FINApp
         {
             pnlNoLayout.Visible = false;
 
-            if (string.IsNullOrEmpty(ddlBank.SelectedValue))
-            {
-                ShowAlert("Pick a bank first.", "danger");
-                return;
-            }
             if (!fuStatement.HasFile)
             {
-                ShowAlert("Choose an XLSX file to upload.", "danger");
+                ShowAlert("Choose an XLSX or PDF file to upload.", "danger");
                 return;
             }
-            if (!fuStatement.FileName.ToLowerInvariant().EndsWith(".xlsx"))
+            string fnLower = fuStatement.FileName.ToLowerInvariant();
+            if (!fnLower.EndsWith(".xlsx") && !fnLower.EndsWith(".pdf"))
             {
-                ShowAlert("Only .xlsx files are supported. Re-save your file as XLSX if it's XLS or CSV.", "danger");
+                ShowAlert("Only .xlsx and .pdf files are supported.", "danger");
+                return;
+            }
+            bool isPdf = fnLower.EndsWith(".pdf");
+
+            byte[] fileBytes = fuStatement.FileBytes;
+            string fileName  = fuStatement.FileName;
+
+            // 1) If the user explicitly picked a bank in the manual-override dropdown, use that.
+            int bankId = 0;
+            if (pnlManualBank.Visible && !string.IsNullOrEmpty(ddlBank.SelectedValue))
+                bankId = Convert.ToInt32(ddlBank.SelectedValue);
+
+            string detectedName = null;
+
+            // 2) Otherwise try auto-detect from signatures.
+            if (bankId == 0)
+            {
+                bankId = DetectBankFromFile(fileBytes, isPdf, out detectedName);
+            }
+
+            if (bankId == 0)
+            {
+                // No match — show the fallback dropdown.
+                pnlManualBank.Visible = true;
+                LoadBankDropdown();
+                ShowAlert("Couldn't auto-detect the bank from this file. Pick one manually and try again (you'll need to re-select the file too).", "danger");
                 return;
             }
 
-            int bankId = Convert.ToInt32(ddlBank.SelectedValue);
             DataRow layout = FINDatabaseHelper.GetBankLayout(bankId);
             if (layout == null || layout["IsConfigured"] == DBNull.Value || Convert.ToInt32(layout["IsConfigured"]) != 1)
             {
@@ -128,7 +150,8 @@ namespace FINApp
 
             try
             {
-                ParseAndStore(bankId, layout, fuStatement.FileName, fuStatement.FileBytes);
+                ParseAndStore(bankId, layout, fileName, fileBytes, isPdf, detectedName);
+                pnlManualBank.Visible = false; // success — clear the fallback
             }
             catch (Exception ex)
             {
@@ -136,10 +159,65 @@ namespace FINApp
             }
         }
 
-        /// <summary>Parse the uploaded XLSX using the bank's saved column layout and
-        /// insert one fin_bankstatementlines row per statement row. Exact-duplicate
-        /// rows (already present from a prior upload) are silently skipped.</summary>
-        private void ParseAndStore(int bankId, DataRow layout, string fileName, byte[] fileBytes)
+        /// <summary>Scan the uploaded file for each configured bank's signature
+        /// text. Works for both XLSX (top N rows) and PDF (full text &mdash; the
+        /// signature is hopefully on page 1 but search all pages to be safe).
+        /// Returns the first match, or 0 if none.</summary>
+        private int DetectBankFromFile(byte[] fileBytes, bool isPdf, out string detectedBankName)
+        {
+            detectedBankName = null;
+            DataTable layouts = FINDatabaseHelper.ListConfiguredLayoutsForDetection();
+            if (layouts.Rows.Count == 0) return 0;
+
+            // Collect a big blob of text from the file &mdash; approach differs by format:
+            //   XLSX: join cells in the top N rows (N per-bank, but use max across all banks).
+            //   PDF:  full extracted text (iText7).
+            string haystack;
+            if (isPdf)
+            {
+                haystack = PdfStatementExtractor.ExtractPlainText(fileBytes);
+            }
+            else
+            {
+                // For XLSX we want to respect per-bank SignatureScanRows, so we can't just
+                // flatten once; but the cost of collecting top 30 rows is trivial, and that
+                // will satisfy any realistic scanRows setting.
+                using (var stream = new MemoryStream(fileBytes))
+                using (var wb = new XLWorkbook(stream))
+                {
+                    var ws = wb.Worksheet(1);
+                    int lastRow = ws.LastRowUsed() != null ? ws.LastRowUsed().RowNumber() : 0;
+                    int lastCol = ws.LastColumnUsed() != null ? ws.LastColumnUsed().ColumnNumber() : 0;
+                    int scanUpTo = Math.Min(30, lastRow);
+                    var sb = new System.Text.StringBuilder();
+                    for (int r = 1; r <= scanUpTo; r++)
+                        for (int col = 1; col <= lastCol; col++)
+                            sb.Append(ws.Cell(r, col).GetString() ?? "").Append(' ');
+                    haystack = sb.ToString();
+                }
+            }
+
+            string haystackUpper = haystack.ToUpperInvariant();
+            foreach (DataRow layout in layouts.Rows)
+            {
+                string sig = layout["SignatureText"] == DBNull.Value ? "" : layout["SignatureText"].ToString().Trim();
+                if (string.IsNullOrEmpty(sig)) continue;
+
+                if (haystackUpper.Contains(sig.ToUpperInvariant()))
+                {
+                    detectedBankName = layout["BankCode"] + "  " + layout["BankName"];
+                    return Convert.ToInt32(layout["BankID"]);
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>Parse the uploaded statement using the bank's saved column
+        /// layout and insert one fin_bankstatementlines row per transaction.
+        /// Works for both XLSX (direct) and PDF (via PdfStatementExtractor).
+        /// Exact-duplicate rows are silently skipped via INSERT IGNORE.</summary>
+        private void ParseAndStore(int bankId, DataRow layout, string fileName,
+                                    byte[] fileBytes, bool isPdf, string detectedBankName)
         {
             int headerRow    = layout["HeaderRow"]   == DBNull.Value ? 1 : Convert.ToInt32(layout["HeaderRow"]);
             int firstDataRow = layout["FirstDataRow"]== DBNull.Value ? headerRow + 1 : Convert.ToInt32(layout["FirstDataRow"]);
@@ -166,68 +244,100 @@ namespace FINApp
             int flagIdx = ColLetterToIndex(flagCol);
             int balIdx  = ColLetterToIndex(balCol);
 
-            // First pass: walk the worksheet, collect rows into memory so we can compute
-            // period and balances before creating the statement header. Using a temp list
-            // avoids needing a multi-statement transaction.
+            // Build a unified string grid for either file type. First-index = row
+            // (1-based), second-index = column (1-based). A cell that doesn't
+            // exist is treated as empty string.
+            List<string[]> grid;
+            if (isPdf)
+            {
+                // PDF path: iText7 extracts text spans, cluster by Y (rows) and X
+                // (columns), producing left-to-right column letters A, B, C...
+                var pdfGrid = PdfStatementExtractor.Extract(fileBytes);
+                grid = new List<string[]>();
+                foreach (var row in pdfGrid) grid.Add(row.ToArray());
+            }
+            else
+            {
+                // XLSX path: read via ClosedXML as before.
+                grid = new List<string[]>();
+                using (var stream = new MemoryStream(fileBytes))
+                using (var wb = new XLWorkbook(stream))
+                {
+                    var ws = wb.Worksheet(1);
+                    int lastRow = ws.LastRowUsed() != null ? ws.LastRowUsed().RowNumber() : 0;
+                    int lastCol = ws.LastColumnUsed() != null ? ws.LastColumnUsed().ColumnNumber() : 0;
+                    for (int r = 1; r <= lastRow; r++)
+                    {
+                        var rowArr = new string[lastCol];
+                        for (int col = 1; col <= lastCol; col++)
+                        {
+                            var cell = ws.Cell(r, col);
+                            // For dates, preserve formatted value so TryReadDateText() works
+                            if (cell.DataType == XLDataType.DateTime)
+                                rowArr[col - 1] = cell.GetDateTime().ToString("yyyy-MM-dd");
+                            else
+                                rowArr[col - 1] = cell.GetString() ?? "";
+                        }
+                        grid.Add(rowArr);
+                    }
+                }
+            }
+
+            // First pass: walk the grid, collect rows so we can compute period + balances first.
             var rows = new System.Collections.Generic.List<ParsedLine>();
             DateTime? periodStart = null, periodEnd = null;
             decimal? openBal = null, closeBal = null;
 
-            using (var stream = new MemoryStream(fileBytes))
-            using (var wb = new XLWorkbook(stream))
+            int seq = 0;
+            // Grid is 0-indexed internally; layout rows are 1-based. Start at firstDataRow - 1.
+            for (int r = firstDataRow - 1; r < grid.Count; r++)
             {
-                var ws = wb.Worksheet(1);
-                int lastRow = ws.LastRowUsed() != null ? ws.LastRowUsed().RowNumber() : 0;
-                int seq = 0;
-                for (int r = firstDataRow; r <= lastRow; r++)
+                DateTime txnDate;
+                if (!TryReadDateText(CellAt(grid, r, dateIdx), dateFmt, out txnDate)) continue;
+
+                decimal debit = 0m, credit = 0m;
+                if (mode == "TWO_COL")
                 {
-                    // Date — if blank, skip the row (might be a blank separator)
-                    var dateCell = ws.Cell(r, dateIdx);
-                    DateTime txnDate;
-                    if (!TryReadDate(dateCell, dateFmt, out txnDate)) continue;
-
-                    decimal debit = 0m, credit = 0m;
-                    if (mode == "TWO_COL")
-                    {
-                        debit  = ReadDecimalSafe(ws, r, debIdx);
-                        credit = ReadDecimalSafe(ws, r, crdIdx);
-                    }
-                    else if (mode == "FLAG")
-                    {
-                        decimal amt = ReadDecimalSafe(ws, r, amtIdx);
-                        string flag = flagIdx > 0 ? (ws.Cell(r, flagIdx).GetString() ?? "").Trim().ToUpperInvariant() : "";
-                        if (flag.StartsWith("DR") || flag.Contains("DEBIT"))      debit = Math.Abs(amt);
-                        else if (flag.StartsWith("CR") || flag.Contains("CREDIT")) credit = Math.Abs(amt);
-                        else continue;  // ambiguous — skip with no loss (user can re-check layout)
-                    }
-                    else if (mode == "SIGNED")
-                    {
-                        decimal amt = ReadDecimalSafe(ws, r, amtIdx);
-                        if (amt < 0) debit = -amt;
-                        else if (amt > 0) credit = amt;
-                        else continue;
-                    }
-
-                    if (debit == 0 && credit == 0) continue;  // non-transaction row
-
-                    string description = descIdx > 0 ? (ws.Cell(r, descIdx).GetString() ?? "").Trim() : "";
-                    string reference   = refIdx  > 0 ? (ws.Cell(r, refIdx).GetString()  ?? "").Trim() : "";
-                    decimal? balance   = balIdx  > 0 ? (decimal?)ReadDecimalSafe(ws, r, balIdx) : null;
-
-                    seq++;
-                    rows.Add(new ParsedLine {
-                        Seq = seq, Date = txnDate, Description = description,
-                        Reference = reference, Debit = debit, Credit = credit, Balance = balance
-                    });
-
-                    if (periodStart == null || txnDate < periodStart) periodStart = txnDate;
-                    if (periodEnd   == null || txnDate > periodEnd)   periodEnd   = txnDate;
+                    debit  = ParseDecimalText(CellAt(grid, r, debIdx));
+                    credit = ParseDecimalText(CellAt(grid, r, crdIdx));
                 }
+                else if (mode == "FLAG")
+                {
+                    decimal amt = ParseDecimalText(CellAt(grid, r, amtIdx));
+                    string flag = (CellAt(grid, r, flagIdx) ?? "").Trim().ToUpperInvariant();
+                    if (flag.StartsWith("DR") || flag.Contains("DEBIT"))      debit = Math.Abs(amt);
+                    else if (flag.StartsWith("CR") || flag.Contains("CREDIT")) credit = Math.Abs(amt);
+                    else continue;
+                }
+                else if (mode == "SIGNED")
+                {
+                    decimal amt = ParseDecimalText(CellAt(grid, r, amtIdx));
+                    if (amt < 0) debit = -amt;
+                    else if (amt > 0) credit = amt;
+                    else continue;
+                }
+
+                if (debit == 0 && credit == 0) continue;
+
+                string description = CellAt(grid, r, descIdx);
+                string reference   = CellAt(grid, r, refIdx);
+                decimal? balance   = balIdx > 0 ? (decimal?)ParseDecimalText(CellAt(grid, r, balIdx)) : null;
+
+                seq++;
+                rows.Add(new ParsedLine {
+                    Seq = seq, Date = txnDate,
+                    Description = description == null ? "" : description.Trim(),
+                    Reference   = reference   == null ? "" : reference.Trim(),
+                    Debit = debit, Credit = credit, Balance = balance
+                });
+
+                if (periodStart == null || txnDate < periodStart) periodStart = txnDate;
+                if (periodEnd   == null || txnDate > periodEnd)   periodEnd   = txnDate;
             }
 
             if (rows.Count == 0)
             {
-                ShowAlert("No data rows recognised. Check the XLSX layout for this bank — the parser might be looking at the wrong columns.", "danger");
+                ShowAlert("No data rows recognised. The parser could not match your layout to rows in the file. For PDFs, verify the file is native-text (not scanned). For XLSX, check the column letters in the bank layout.", "danger");
                 return;
             }
 
@@ -253,7 +363,10 @@ namespace FINApp
 
             FINDatabaseHelper.UpdateStatementCounts(statementId, inserted, duplicates);
 
-            string msg = "Uploaded. Inserted " + inserted + " new rows";
+            string msg = "";
+            if (!string.IsNullOrEmpty(detectedBankName))
+                msg = "Auto-detected as <b>" + detectedBankName + "</b>. ";
+            msg += "Inserted " + inserted + " new rows";
             if (duplicates > 0) msg += ", skipped " + duplicates + " exact duplicate(s)";
             msg += ".";
             ShowAlert(msg, "success");
@@ -292,6 +405,57 @@ namespace FINApp
                 idx = idx * 26 + (c - 'A' + 1);
             }
             return idx;
+        }
+
+        /// <summary>Fetch a cell from the grid (1-based col). Returns empty
+        /// if the cell is out of bounds, which can happen when PDFs are sparse.</summary>
+        private static string CellAt(List<string[]> grid, int rowZeroBased, int colOneBased)
+        {
+            if (colOneBased <= 0) return "";
+            if (rowZeroBased < 0 || rowZeroBased >= grid.Count) return "";
+            var row = grid[rowZeroBased];
+            if (colOneBased > row.Length) return "";
+            return row[colOneBased - 1] ?? "";
+        }
+
+        /// <summary>Parse a decimal from a cell string. Handles Indian currency
+        /// formats (with comma separators, rupee symbols), CR/DR suffixes, and
+        /// parentheses (accounting negative).</summary>
+        private static decimal ParseDecimalText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0m;
+            string s = text.Trim();
+            // Strip CR / DR suffixes &mdash; caller handles sign separately
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*(CR|DR|Cr|Dr|cr|dr)\s*$", "").Trim();
+            // Accounting negative: (1,234.56) -> -1234.56
+            bool negParen = s.StartsWith("(") && s.EndsWith(")");
+            if (negParen) s = s.Substring(1, s.Length - 2);
+            s = s.Replace(",", "").Replace("\u20B9", "").Replace("Rs.", "").Replace("Rs", "").Trim();
+            if (string.IsNullOrEmpty(s)) return 0m;
+            decimal d;
+            if (decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out d))
+                return negParen ? -d : d;
+            return 0m;
+        }
+
+        /// <summary>Text-based date reader used by the unified grid parser.
+        /// Tries the layout's configured format first, then a list of common
+        /// Indian bank formats.</summary>
+        private static bool TryReadDateText(string text, string format, out DateTime result)
+        {
+            result = DateTime.MinValue;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string s = text.Trim();
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (DateTime.TryParseExact(s, format, inv, System.Globalization.DateTimeStyles.None, out result)) return true;
+            string[] tryFormats = new[] {
+                "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "dd-MMM-yyyy", "dd/MMM/yyyy",
+                "dd/MM/yy", "dd-MM-yy", "d/M/yyyy", "d-MMM-yyyy", "dd.MM.yyyy",
+                "dd MMM yyyy", "dd-MMM-yy"
+            };
+            foreach (var f in tryFormats)
+                if (DateTime.TryParseExact(s, f, inv, System.Globalization.DateTimeStyles.None, out result)) return true;
+            return DateTime.TryParse(s, out result);
         }
 
         private static decimal ReadDecimalSafe(IXLWorksheet ws, int row, int colIdx)
