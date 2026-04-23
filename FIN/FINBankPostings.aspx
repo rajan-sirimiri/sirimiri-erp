@@ -234,60 +234,6 @@
                 </div>
             </div>
 
-            <!-- ═════════════════ POST BANK LINE MODAL ═════════════════ -->
-            <asp:Panel ID="pnlPostModal" runat="server" Visible="false" CssClass="modal-overlay">
-                <div class="modal-card">
-                    <div class="modal-header">
-                        <div class="modal-title">Post Bank Line as Journal</div>
-                        <asp:LinkButton ID="lnkCloseModal" runat="server" Text="&times;" CssClass="modal-close" OnClick="lnkCloseModal_Click" CausesValidation="false" />
-                    </div>
-                    <div class="modal-body">
-                        <asp:HiddenField ID="hfPostLineID" runat="server" />
-
-                        <!-- Bank line summary -->
-                        <div class="summary-grid">
-                            <div><label>Date</label><asp:Label ID="lblPostDate" runat="server" /></div>
-                            <div><label>Amount</label><asp:Label ID="lblPostAmount" runat="server" CssClass="amt" /></div>
-                            <div><label>Direction</label><asp:Label ID="lblPostDirection" runat="server" /></div>
-                            <div class="full"><label>Description</label><asp:Label ID="lblPostDesc" runat="server" CssClass="desc" /></div>
-                        </div>
-
-                        <!-- Journal preview -->
-                        <div class="jv-preview">
-                            <div class="section-lbl">Journal Entry Preview</div>
-                            <table>
-                                <thead><tr><th>Account</th><th>Party</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
-                                <tbody>
-                                    <tr>
-                                        <td><asp:Label ID="lblJvLine1Account" runat="server" /></td>
-                                        <td><asp:Label ID="lblJvLine1Party"   runat="server" CssClass="party-cell" /></td>
-                                        <td class="num"><asp:Label ID="lblJvLine1Debit"  runat="server" /></td>
-                                        <td class="num"><asp:Label ID="lblJvLine1Credit" runat="server" /></td>
-                                    </tr>
-                                    <tr>
-                                        <td><asp:Label ID="lblJvLine2Account" runat="server" /></td>
-                                        <td><asp:Label ID="lblJvLine2Party"   runat="server" CssClass="party-cell" /></td>
-                                        <td class="num"><asp:Label ID="lblJvLine2Debit"  runat="server" /></td>
-                                        <td class="num"><asp:Label ID="lblJvLine2Credit" runat="server" /></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Party picker -->
-                        <div class="party-picker">
-                            <label>Party <span style="color:var(--danger);">*</span></label>
-                            <asp:DropDownList ID="ddlPostParty" runat="server" CssClass="party-dd" />
-                            <asp:Label ID="lblSuggestHint" runat="server" CssClass="field-hint" />
-                        </div>
-
-                        <div class="modal-actions">
-                            <asp:Button ID="btnCancelPost" runat="server" Text="Cancel" CssClass="btn btn-secondary" OnClick="lnkCloseModal_Click" CausesValidation="false" />
-                            <asp:Button ID="btnConfirmPost" runat="server" Text="Create Journal" CssClass="btn btn-primary" OnClick="btnConfirmPost_Click" CausesValidation="false" />
-                        </div>
-                    </div>
-                </div>
-            </asp:Panel>
 
         </asp:Panel>
 
@@ -368,6 +314,62 @@
                 </div>
             </div>
         </asp:Panel>
+
+        <!-- ═════════════════ POST BANK LINE MODAL ═════════════════ -->
+        <asp:Panel ID="pnlPostModal" runat="server" Visible="false" CssClass="modal-overlay">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <div class="modal-title">Post Bank Line as Journal</div>
+                    <asp:LinkButton ID="lnkCloseModal" runat="server" Text="&times;" CssClass="modal-close" OnClick="lnkCloseModal_Click" CausesValidation="false" />
+                </div>
+                <div class="modal-body">
+                    <asp:HiddenField ID="hfPostLineID" runat="server" />
+
+                    <!-- Bank line summary -->
+                    <div class="summary-grid">
+                        <div><label>Date</label><asp:Label ID="lblPostDate" runat="server" /></div>
+                        <div><label>Amount</label><asp:Label ID="lblPostAmount" runat="server" CssClass="amt" /></div>
+                        <div><label>Direction</label><asp:Label ID="lblPostDirection" runat="server" /></div>
+                        <div class="full"><label>Description</label><asp:Label ID="lblPostDesc" runat="server" CssClass="desc" /></div>
+                    </div>
+
+                    <!-- Journal preview -->
+                    <div class="jv-preview">
+                        <div class="section-lbl">Journal Entry Preview</div>
+                        <table>
+                            <thead><tr><th>Account</th><th>Party</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td><asp:Label ID="lblJvLine1Account" runat="server" /></td>
+                                    <td><asp:Label ID="lblJvLine1Party"   runat="server" CssClass="party-cell" /></td>
+                                    <td class="num"><asp:Label ID="lblJvLine1Debit"  runat="server" /></td>
+                                    <td class="num"><asp:Label ID="lblJvLine1Credit" runat="server" /></td>
+                                </tr>
+                                <tr>
+                                    <td><asp:Label ID="lblJvLine2Account" runat="server" /></td>
+                                    <td><asp:Label ID="lblJvLine2Party"   runat="server" CssClass="party-cell" /></td>
+                                    <td class="num"><asp:Label ID="lblJvLine2Debit"  runat="server" /></td>
+                                    <td class="num"><asp:Label ID="lblJvLine2Credit" runat="server" /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Party picker -->
+                    <div class="party-picker">
+                        <label>Party <span style="color:var(--danger);">*</span></label>
+                        <asp:DropDownList ID="ddlPostParty" runat="server" CssClass="party-dd" />
+                        <asp:Label ID="lblSuggestHint" runat="server" CssClass="field-hint" />
+                    </div>
+
+                    <div class="modal-actions">
+                        <asp:Button ID="btnCancelPost" runat="server" Text="Cancel" CssClass="btn btn-secondary" OnClick="lnkCloseModal_Click" CausesValidation="false" />
+                        <asp:Button ID="btnConfirmPost" runat="server" Text="Create Journal" CssClass="btn btn-primary" OnClick="btnConfirmPost_Click" CausesValidation="false" />
+                    </div>
+                </div>
+            </div>
+        </asp:Panel>
+
 
     </div>
 
