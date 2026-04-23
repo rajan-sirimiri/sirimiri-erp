@@ -44,14 +44,27 @@ namespace FINApp
 
         // ── Public API ────────────────────────────────────────────────
 
-        /// <summary>Extract a row-grid from a PDF. Returns empty list if nothing parseable.</summary>
+        /// <summary>Extract a row-grid from a PDF. Returns empty list if nothing parseable.
+        ///
+        /// Strategy (simplified, after over-clever two-pass attempt broke things):
+        ///   1. Cluster column boundaries using ALL spans. This picks up the
+        ///      real data table's columns reliably.
+        ///   2. Build grid for ALL rows found on all pages.
+        ///   3. Merge continuation lines (description wraps) into their parent row.
+        ///   4. Filter: only keep rows that contain a date-like cell. This drops
+        ///      the meta-info box at the top (Customer ID, Branch, Address, etc.)
+        ///      AND the page-footer lines (e.g., "Closing Balance") that have no date.
+        ///
+        /// This prioritises NOT losing transaction data over perfectly clean
+        /// column clustering. Meta-box may cause clustering to find an extra
+        /// column or two; transaction data will still land in correct columns.</summary>
         public static List<List<string>> Extract(byte[] pdfBytes)
         {
             var allSpans = CollectAllSpans(pdfBytes);
             if (allSpans.Count == 0) return new List<List<string>>();
 
-            // Column boundaries are best discovered using ALL spans (headers +
-            // data), not just data rows &mdash; so we cluster on everything.
+            // Column boundaries from all spans — includes meta-box columns but
+            // the data table's own columns dominate if there are enough rows.
             var columnBoundaries = DiscoverColumnBoundaries(allSpans);
             if (columnBoundaries.Count == 0) return new List<List<string>>();
 
@@ -63,8 +76,24 @@ namespace FINApp
                 if (row != null) grid.Add(row);
             }
 
+            // Merge continuation lines BEFORE filtering — so a date-row with its
+            // continuation absorbs the orphan text.
             MergeOrphanContinuations(grid);
-            return grid;
+
+            // Final filter: only rows that have a date survive. This cleanly
+            // drops the meta-info box (has no dates), column headers ("Date",
+            // "Particulars" etc. — no dates), and footer lines ("Closing Balance"
+            // — no date).
+            var filtered = new List<List<string>>();
+            foreach (var row in grid)
+            {
+                if (row.Any(cell => LooksLikeDate(cell))) filtered.Add(row);
+            }
+
+            // If the date filter removed EVERYTHING (e.g., PDF uses a date
+            // format my regex doesn't catch), return the unfiltered grid so
+            // user has something to diagnose with.
+            return filtered.Count > 0 ? filtered : grid;
         }
 
         /// <summary>Flatten the row-grid into a single block of text &mdash;
@@ -261,8 +290,10 @@ namespace FINApp
         // ── Post-processing: merge multi-line descriptions ────────────
 
         /// <summary>Banks often split a long description across 2-3 lines.
-        /// A continuation row has a description but no numeric amount and no
-        /// date-like value &mdash; merge it into the previous row's description.</summary>
+        /// A continuation row has text but no date and no amount-like value.
+        /// Merge it into the previous row, concatenating all non-empty cells
+        /// into whichever cell in the previous row looks most like "description"
+        /// (first non-date, non-numeric cell).</summary>
         private static void MergeOrphanContinuations(List<List<string>> grid)
         {
             int i = 0;
@@ -275,19 +306,35 @@ namespace FINApp
 
                 if (!hasDate && !hasAmount && hasAnyText && i > 0)
                 {
-                    // Find the last non-empty column in the orphan row and append
-                    // its content to the corresponding column of the previous row.
                     var prev = grid[i - 1];
-                    for (int c = 0; c < row.Count && c < prev.Count; c++)
+
+                    // Find the prev row's "description column" — first column
+                    // that is neither date-like nor amount-like. Usually col 1 (B).
+                    int descColIdx = -1;
+                    for (int c = 0; c < prev.Count; c++)
                     {
-                        if (!string.IsNullOrEmpty(row[c]))
-                        {
-                            if (!string.IsNullOrEmpty(prev[c])) prev[c] += " " + row[c];
-                            else                                prev[c]  = row[c];
-                        }
+                        var txt = prev[c];
+                        if (string.IsNullOrEmpty(txt)) continue;
+                        if (LooksLikeDate(txt) || LooksLikeAmount(txt)) continue;
+                        descColIdx = c;
+                        break;
                     }
+
+                    // Concat ALL non-empty cells of the orphan row into the prev
+                    // row's description column (not into their own columns, which
+                    // may be wrong due to sub-pixel X-drift on continuation lines).
+                    var extras = row.Where(s => !string.IsNullOrEmpty(s)).ToList();
+                    if (descColIdx >= 0 && extras.Count > 0)
+                    {
+                        string addendum = string.Join(" ", extras);
+                        if (!string.IsNullOrEmpty(prev[descColIdx]))
+                            prev[descColIdx] = prev[descColIdx] + " " + addendum;
+                        else
+                            prev[descColIdx] = addendum;
+                    }
+
                     grid.RemoveAt(i);
-                    continue; // don't increment &mdash; next row has shifted into this slot
+                    continue;
                 }
                 i++;
             }
