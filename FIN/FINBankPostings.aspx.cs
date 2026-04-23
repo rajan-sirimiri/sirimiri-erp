@@ -109,6 +109,11 @@ namespace FINApp
                 return;
             }
             string fnLower = fuStatement.FileName.ToLowerInvariant();
+            if (fnLower.EndsWith(".xls") && !fnLower.EndsWith(".xlsx"))
+            {
+                ShowAlert("Older .xls (Excel 97-2003) format is not supported. Open the file in Excel and use <i>Save As &rarr; Excel Workbook (.xlsx)</i>, then upload the .xlsx.", "danger");
+                return;
+            }
             if (!fnLower.EndsWith(".xlsx") && !fnLower.EndsWith(".pdf"))
             {
                 ShowAlert("Only .xlsx and .pdf files are supported.", "danger");

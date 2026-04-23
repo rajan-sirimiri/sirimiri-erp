@@ -165,8 +165,15 @@
                 <asp:Panel ID="pnlLayout" runat="server" Visible="false" CssClass="layout-section shown">
                     <div class="form-section">XLSX Column Layout</div>
                     <div class="layout-intro">
-                        Tell the parser where to find each field in this bank's statement XLSX.
+                        Tell the parser where to find each field in this bank's statement.
                         Use column letters (<b>A, B, C</b>…) and 1-based row numbers.
+                        <br/><br/>
+                        <b>File formats:</b>
+                        <ul style="margin:6px 0 0 18px;padding:0;">
+                            <li><b>XLSX</b> &mdash; column letters refer to the actual columns in your spreadsheet.</li>
+                            <li><b>XLS (older Excel)</b> &mdash; not supported directly. Open in Excel and <i>Save As &rarr; Excel Workbook (.xlsx)</i> first, then upload.</li>
+                            <li><b>PDF</b> &mdash; the parser auto-discovers columns left-to-right. Column <b>A</b> = leftmost text block, <b>B</b> = next, and so on. Use the visible column order in the PDF to set your layout. Header / first-data row are usually 1 / 2 for PDFs.</li>
+                        </ul>
                     </div>
 
                     <div class="form-grid">
@@ -238,6 +245,23 @@
                         <div class="form-group">
                             <label>Balance Column</label>
                             <asp:TextBox ID="txtBalanceCol" runat="server" MaxLength="3" placeholder="F" />
+                        </div>
+                    </div>
+
+                    <div class="form-section">Auto-Detection Signature</div>
+                    <div class="layout-intro" style="background:#fff8e1;color:#8a6d00;border:1px solid rgba(220,180,0,0.2);">
+                        When a user uploads a statement without picking a bank, the system scans the top rows for a text that uniquely identifies this bank. Keep it short and distinctive &mdash; e.g. <b>HDFC BANK</b>, <b>ICICI Bank Ltd</b>, <b>Kotak Mahindra</b>.
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label>Signature Text</label>
+                            <asp:TextBox ID="txtSignatureText" runat="server" MaxLength="200" placeholder="e.g. HDFC BANK" />
+                            <span class="field-hint">Case-insensitive substring match. Leave blank to skip auto-detect for this bank.</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Scan Top N Rows</label>
+                            <asp:TextBox ID="txtSignatureRows" runat="server" MaxLength="3" placeholder="15" />
+                            <span class="field-hint">How many rows from the top to search</span>
                         </div>
                     </div>
 

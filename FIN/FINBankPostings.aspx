@@ -116,7 +116,13 @@
             <div class="card">
                 <div class="card-title">Upload Statement</div>
                 <div style="background:var(--accent-light);padding:10px 14px;border-radius:8px;font-size:12px;color:var(--accent-dark);margin-bottom:14px;">
-                    <b>Auto-detect:</b> Just pick the XLSX or PDF. The system scans the file for each configured bank's signature text and matches automatically. Scanned PDFs are not supported &mdash; export a native-text PDF from net-banking.
+                    <b>Auto-detect:</b> Pick an XLSX or PDF. The system scans the file for each configured bank's signature text and matches automatically.
+                    <br/><br/>
+                    <b>Notes:</b>
+                    <ul style="margin:6px 0 0 18px;padding:0;font-size:12px;">
+                        <li>Older <b>.xls</b> (Excel 97-2003) is not supported &mdash; open in Excel and <i>Save As &rarr; .xlsx</i> first.</li>
+                        <li><b>Scanned PDFs</b> are not supported (no text to extract). Use the native-text PDF your net-banking exports.</li>
+                    </ul>
                 </div>
                 <div class="upload-grid" style="grid-template-columns:1fr auto;">
                     <div class="form-group">
