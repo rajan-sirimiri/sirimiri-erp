@@ -63,6 +63,17 @@ namespace FINApp
                 LoadBankDropdown();
                 LoadStatementList();
             }
+            else if (ViewState["StatementID"] != null)
+            {
+                // On postback (e.g. user clicked "Post" on a bank line), keep the
+                // detail view visible and rebind the lines grid. Without this the
+                // LinkButton event cannot find its parent in the control tree.
+                pnlListView.Visible = false;
+                pnlDetailView.Visible = true;
+                int stmtId = Convert.ToInt32(ViewState["StatementID"]);
+                rptLines.DataSource = FINDatabaseHelper.GetStatementLines(stmtId);
+                rptLines.DataBind();
+            }
         }
 
         private void LoadBankDropdown()
