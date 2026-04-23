@@ -347,14 +347,14 @@
                                 <td class="num"><%# FormatMoney(Eval("Credit")) %></td>
                                 <td class="num"><%# FormatMoney(Eval("Balance")) %></td>
                                 <td>
-                                    <asp:LinkButton runat="server"
+                                    <asp:LinkButton ID="lnkPost" runat="server"
                                         Text="Post"
                                         CssClass="post-link"
                                         CommandName="PostLine"
                                         CommandArgument='<%# Eval("LineID") %>'
                                         Visible='<%# Eval("Status").ToString() != "Posted" %>'
                                         CausesValidation="false" />
-                                    <asp:HyperLink runat="server"
+                                    <asp:HyperLink ID="lnkJv" runat="server"
                                         CssClass="jv-link"
                                         NavigateUrl='<%# "FINJournal.aspx?id=" + Eval("JournalID") %>'
                                         Target="_blank"

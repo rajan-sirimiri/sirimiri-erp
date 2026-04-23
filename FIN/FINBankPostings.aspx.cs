@@ -633,9 +633,18 @@ namespace FINApp
         /// <summary>Repeater item-command handler for Post link clicks.</summary>
         protected void rptLines_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            if (e.CommandName != "PostLine") return;
+            if (e.CommandName != "PostLine")
+            {
+                ShowAlert("Got unexpected CommandName: " + e.CommandName, "warning");
+                return;
+            }
+            string argStr = Convert.ToString(e.CommandArgument);
             long lineId;
-            if (!long.TryParse(Convert.ToString(e.CommandArgument), out lineId)) return;
+            if (!long.TryParse(argStr, out lineId))
+            {
+                ShowAlert("Bank line ID missing from the Post click (raw value: '" + argStr + "'). Please refresh and try again.", "danger");
+                return;
+            }
             OpenPostModal(lineId);
         }
 
