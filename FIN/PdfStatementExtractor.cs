@@ -181,7 +181,7 @@ namespace FINApp
             // Keep only buckets with enough hits to suggest a real column
             // (at least 3 spans aligned here). Small PDFs might need lower,
             // but 3 is a reasonable floor.
-            const int minHitsForColumn = 3;
+            const int minHitsForColumn = 5;
             var popularXs = xHits
                 .Where(kv => kv.Value >= minHitsForColumn)
                 .Select(kv => (double)kv.Key)
@@ -194,8 +194,10 @@ namespace FINApp
                 popularXs = xHits.Keys.Select(k => (double)k).OrderBy(x => x).ToList();
             }
 
-            // Merge near-duplicates (columns within 8pt of each other are one column).
-            const double mergeWithin = 8.0;
+            // Merge near-duplicates. Description columns in particular have
+            // sub-pixel X-drift across rows that creates many phantom "columns".
+            // Using a wider merge window (30pt) coalesces these into one real column.
+            const double mergeWithin = 30.0;
             var merged = new List<double>();
             foreach (var x in popularXs)
             {
@@ -307,26 +309,40 @@ namespace FINApp
                 if (!hasDate && !hasAmount && hasAnyText && i > 0)
                 {
                     var prev = grid[i - 1];
-
-                    // Find the prev row's "description column" — first column
-                    // that is neither date-like nor amount-like. Usually col 1 (B).
-                    int descColIdx = -1;
-                    for (int c = 0; c < prev.Count; c++)
-                    {
-                        var txt = prev[c];
-                        if (string.IsNullOrEmpty(txt)) continue;
-                        if (LooksLikeDate(txt) || LooksLikeAmount(txt)) continue;
-                        descColIdx = c;
-                        break;
-                    }
-
-                    // Concat ALL non-empty cells of the orphan row into the prev
-                    // row's description column (not into their own columns, which
-                    // may be wrong due to sub-pixel X-drift on continuation lines).
                     var extras = row.Where(s => !string.IsNullOrEmpty(s)).ToList();
-                    if (descColIdx >= 0 && extras.Count > 0)
+
+                    if (extras.Count > 0)
                     {
                         string addendum = string.Join(" ", extras);
+
+                        // Find the prev row's "description column" — first column
+                        // that is neither date-like nor amount-like. Usually col 1 (B).
+                        int descColIdx = -1;
+                        for (int c = 0; c < prev.Count; c++)
+                        {
+                            var txt = prev[c];
+                            if (string.IsNullOrEmpty(txt)) continue;
+                            if (LooksLikeDate(txt) || LooksLikeAmount(txt)) continue;
+                            descColIdx = c;
+                            break;
+                        }
+
+                        // If the prev row has no description column yet, create
+                        // one in the column immediately after the date cell.
+                        if (descColIdx < 0)
+                        {
+                            for (int c = 0; c < prev.Count; c++)
+                            {
+                                if (!string.IsNullOrEmpty(prev[c]) && LooksLikeDate(prev[c]))
+                                {
+                                    if (c + 1 < prev.Count) { descColIdx = c + 1; break; }
+                                }
+                            }
+                        }
+
+                        // Last-resort fallback: use column 1 (second column), or 0 if row has only one column.
+                        if (descColIdx < 0) descColIdx = prev.Count > 1 ? 1 : 0;
+
                         if (!string.IsNullOrEmpty(prev[descColIdx]))
                             prev[descColIdx] = prev[descColIdx] + " " + addendum;
                         else
