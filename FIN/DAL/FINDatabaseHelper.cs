@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace FINApp.DAL
 {
