@@ -163,18 +163,22 @@
 
                 <!-- XLSX Layout (shown only on edit) -->
                 <asp:Panel ID="pnlLayout" runat="server" Visible="false" CssClass="layout-section shown">
-                    <div class="form-section">XLSX Column Layout</div>
+
                     <div class="layout-intro">
-                        Tell the parser where to find each field in this bank's statement.
+                        <b>Two layouts per bank &mdash; one for XLSX, one for PDF.</b>
+                        Each statement format has different columns, so configure each independently.
                         Use column letters (<b>A, B, C</b>…) and 1-based row numbers.
                         <br/><br/>
-                        <b>File formats:</b>
+                        <b>File format notes:</b>
                         <ul style="margin:6px 0 0 18px;padding:0;">
                             <li><b>XLSX</b> &mdash; column letters refer to the actual columns in your spreadsheet.</li>
-                            <li><b>XLS (older Excel)</b> &mdash; not supported directly. Open in Excel and <i>Save As &rarr; Excel Workbook (.xlsx)</i> first, then upload.</li>
-                            <li><b>PDF</b> &mdash; the parser auto-discovers columns left-to-right. Column <b>A</b> = leftmost text block, <b>B</b> = next, and so on. Use the visible column order in the PDF to set your layout. Header / first-data row are usually 1 / 2 for PDFs.</li>
+                            <li><b>XLS (older Excel)</b> &mdash; not supported directly. Open in Excel, <i>Save As &rarr; Excel Workbook (.xlsx)</i>, then upload.</li>
+                            <li><b>PDF</b> &mdash; the parser converts the PDF into a grid and auto-numbers columns left-to-right. Column <b>A</b> = leftmost text block, <b>B</b> = next, and so on. Header / first-data row are usually 1 / 2 for PDFs.</li>
                         </ul>
                     </div>
+
+                    <!-- ═════════════════ XLSX LAYOUT ═════════════════ -->
+                    <div class="form-section" style="color:var(--accent);">XLSX Column Layout</div>
 
                     <div class="form-grid">
                         <div class="form-group">
@@ -205,7 +209,7 @@
                         </div>
                     </div>
 
-                    <div class="form-section">Amount Structure</div>
+                    <div class="form-section" style="margin-top:12px;">XLSX Amount Structure</div>
                     <div class="amt-modes">
                         <label>
                             <asp:RadioButton ID="rbModeTwoCol" runat="server" GroupName="amtMode" />
@@ -248,9 +252,93 @@
                         </div>
                     </div>
 
-                    <div class="form-section">Auto-Detection Signature</div>
+                    <div class="btn-row">
+                        <asp:Button ID="btnSaveLayoutXlsx" runat="server" Text="Save XLSX Layout" CssClass="btn btn-primary" OnClick="btnSaveLayoutXlsx_Click" CausesValidation="false" />
+                    </div>
+
+                    <!-- ═════════════════ PDF LAYOUT ═════════════════ -->
+                    <div class="form-section" style="color:var(--accent);margin-top:32px;">PDF Column Layout</div>
+                    <div class="layout-intro" style="background:#fef5ef;color:#a04000;border:1px solid rgba(204,100,50,0.2);">
+                        The PDF parser auto-discovers columns left-to-right, then your layout mapping applies.
+                        Upload a sample PDF first (the detail view will show you what columns landed where),
+                        then come back here and set the letters accordingly.
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Header Row</label>
+                            <asp:TextBox ID="txtPdfHeaderRow" runat="server" MaxLength="4" placeholder="1" />
+                        </div>
+                        <div class="form-group">
+                            <label>First Data Row</label>
+                            <asp:TextBox ID="txtPdfFirstData" runat="server" MaxLength="4" placeholder="2" />
+                        </div>
+                        <div class="form-group">
+                            <label>Date Column</label>
+                            <asp:TextBox ID="txtPdfDateCol" runat="server" MaxLength="3" placeholder="A" />
+                        </div>
+                        <div class="form-group">
+                            <label>Date Format</label>
+                            <asp:TextBox ID="txtPdfDateFormat" runat="server" MaxLength="30" placeholder="dd/MM/yyyy" />
+                            <span class="field-hint">Date pattern in the PDF (e.g. dd/MM/yyyy)</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Description Column</label>
+                            <asp:TextBox ID="txtPdfDescCol" runat="server" MaxLength="3" placeholder="B" />
+                        </div>
+                        <div class="form-group">
+                            <label>Reference Column</label>
+                            <asp:TextBox ID="txtPdfRefCol" runat="server" MaxLength="3" placeholder="C (optional)" />
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="margin-top:12px;">PDF Amount Structure</div>
+                    <div class="amt-modes">
+                        <label>
+                            <asp:RadioButton ID="rbPdfModeTwoCol" runat="server" GroupName="pdfAmtMode" />
+                            <span>Two columns (Debit &amp; Credit)</span>
+                        </label>
+                        <label>
+                            <asp:RadioButton ID="rbPdfModeFlag" runat="server" GroupName="pdfAmtMode" />
+                            <span>Amount + DR/CR flag</span>
+                        </label>
+                        <label>
+                            <asp:RadioButton ID="rbPdfModeSigned" runat="server" GroupName="pdfAmtMode" />
+                            <span>Signed amount (&minus; = debit)</span>
+                        </label>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Debit Column</label>
+                            <asp:TextBox ID="txtPdfDebitCol" runat="server" MaxLength="3" placeholder="D" />
+                        </div>
+                        <div class="form-group">
+                            <label>Credit Column</label>
+                            <asp:TextBox ID="txtPdfCreditCol" runat="server" MaxLength="3" placeholder="E" />
+                        </div>
+                        <div class="form-group">
+                            <label>Amount Column</label>
+                            <asp:TextBox ID="txtPdfAmountCol" runat="server" MaxLength="3" placeholder="D" />
+                        </div>
+                        <div class="form-group">
+                            <label>Flag Column (DR/CR)</label>
+                            <asp:TextBox ID="txtPdfFlagCol" runat="server" MaxLength="3" placeholder="E" />
+                        </div>
+                        <div class="form-group">
+                            <label>Balance Column</label>
+                            <asp:TextBox ID="txtPdfBalanceCol" runat="server" MaxLength="3" placeholder="F" />
+                        </div>
+                    </div>
+
+                    <div class="btn-row">
+                        <asp:Button ID="btnSaveLayoutPdf" runat="server" Text="Save PDF Layout" CssClass="btn btn-primary" OnClick="btnSaveLayoutPdf_Click" CausesValidation="false" />
+                    </div>
+
+                    <!-- ═════════════════ SHARED SIGNATURE ═════════════════ -->
+                    <div class="form-section" style="margin-top:32px;">Auto-Detection Signature</div>
                     <div class="layout-intro" style="background:#fff8e1;color:#8a6d00;border:1px solid rgba(220,180,0,0.2);">
-                        When a user uploads a statement without picking a bank, the system scans the top rows for a text that uniquely identifies this bank. Keep it short and distinctive &mdash; e.g. <b>HDFC BANK</b>, <b>ICICI Bank Ltd</b>, <b>Kotak Mahindra</b>.
+                        Shared between XLSX and PDF. When a user uploads a statement without picking a bank, the system scans the top rows for a text that uniquely identifies this bank. Keep it short and distinctive &mdash; e.g. <b>HDFC BANK</b>, <b>ICICI Bank Ltd</b>, <b>Kotak Mahindra</b>.
                     </div>
                     <div class="form-grid">
                         <div class="form-group full">
@@ -266,8 +354,9 @@
                     </div>
 
                     <div class="btn-row">
-                        <asp:Button ID="btnSaveLayout" runat="server" Text="Save Layout" CssClass="btn btn-primary" OnClick="btnSaveLayout_Click" CausesValidation="false" />
+                        <asp:Button ID="btnSaveSignature" runat="server" Text="Save Signature" CssClass="btn btn-secondary" OnClick="btnSaveSignature_Click" CausesValidation="false" />
                     </div>
+
                 </asp:Panel>
 
             </div>

@@ -3096,18 +3096,19 @@ namespace FINApp.DAL
             return string.Format("SVC-{0:D4}", next);
         }
 
-        public static int AddService(string name, string description, string hsn, decimal? gstRate)
+        public static int AddService(string name, string description, string hsn, decimal? gstRate, int createdByUserId)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentException("Service name required");
             string code = GenerateServiceCode();
             ExecuteNonQuery(
-                "INSERT INTO fin_services (ServiceCode, ServiceName, Description, HSNCode, GSTRate, IsActive)" +
-                " VALUES (?code, ?name, ?desc, ?hsn, ?gst, 1);",
+                "INSERT INTO fin_services (ServiceCode, ServiceName, Description, HSNCode, GSTRate, IsActive, CreatedBy)" +
+                " VALUES (?code, ?name, ?desc, ?hsn, ?gst, 1, ?uid);",
                 new MySqlParameter("?code", code),
                 new MySqlParameter("?name", name.Trim()),
                 new MySqlParameter("?desc", string.IsNullOrEmpty(description) ? (object)DBNull.Value : description.Trim()),
                 new MySqlParameter("?hsn",  string.IsNullOrEmpty(hsn)         ? (object)DBNull.Value : hsn.Trim()),
-                new MySqlParameter("?gst",  (object)gstRate ?? DBNull.Value));
+                new MySqlParameter("?gst",  (object)gstRate ?? DBNull.Value),
+                new MySqlParameter("?uid",  createdByUserId));
             return Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
         }
 
@@ -3158,7 +3159,7 @@ namespace FINApp.DAL
                 "SELECT s.ServiceID, s.ServiceCode, s.ServiceName, s.HSNCode, s.GSTRate" +
                 " FROM fin_services s" +
                 " JOIN fin_serviceprovider_services j ON j.ServiceID = s.ServiceID" +
-                " WHERE j.ProviderID = ?pid" +
+                " WHERE j.SupplierID = ?pid" +
                 " ORDER BY s.ServiceName;",
                 new MySqlParameter("?pid", providerId));
         }
@@ -3171,7 +3172,7 @@ namespace FINApp.DAL
             using (var tx = conn.BeginTransaction())
             {
                 using (var cmd = new MySqlCommand(
-                    "DELETE FROM fin_serviceprovider_services WHERE ProviderID = ?pid;", conn, tx))
+                    "DELETE FROM fin_serviceprovider_services WHERE SupplierID = ?pid;", conn, tx))
                 {
                     cmd.Parameters.AddWithValue("?pid", providerId);
                     cmd.ExecuteNonQuery();
@@ -3181,7 +3182,7 @@ namespace FINApp.DAL
                     foreach (int sid in serviceIds)
                     {
                         using (var cmd = new MySqlCommand(
-                            "INSERT INTO fin_serviceprovider_services (ProviderID, ServiceID) VALUES (?pid, ?sid);", conn, tx))
+                            "INSERT INTO fin_serviceprovider_services (SupplierID, ServiceID) VALUES (?pid, ?sid);", conn, tx))
                         {
                             cmd.Parameters.AddWithValue("?pid", providerId);
                             cmd.Parameters.AddWithValue("?sid", sid);
@@ -3202,7 +3203,7 @@ namespace FINApp.DAL
                 " sp.ServiceCategory, sp.IsActive," +
                 " GROUP_CONCAT(s.ServiceName ORDER BY s.ServiceName SEPARATOR ', ') AS Services" +
                 " FROM mm_suppliers sp" +
-                " LEFT JOIN fin_serviceprovider_services j ON j.ProviderID = sp.SupplierID" +
+                " LEFT JOIN fin_serviceprovider_services j ON j.SupplierID = sp.SupplierID" +
                 " LEFT JOIN fin_services s ON s.ServiceID = j.ServiceID" +
                 " WHERE sp.PartyType = 'SERVICE'" +
                 " GROUP BY sp.SupplierID, sp.SupplierCode, sp.SupplierName, sp.ContactPerson," +
@@ -3317,12 +3318,23 @@ namespace FINApp.DAL
                 new MySqlParameter("?id", bankId));
         }
 
-        public static void SaveBankLayout(int bankId, int headerRow, int firstDataRow,
+        /// <summary>Save just the auto-detection signature for a bank (no layout).</summary>
+        public static void SaveBankSignature(int bankId, string signatureText, int scanRows)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_banklayouts SET SignatureText=?sig, SignatureScanRows=?ssr WHERE BankID=?id;",
+                new MySqlParameter("?sig", string.IsNullOrEmpty(signatureText) ? (object)DBNull.Value : signatureText.Trim()),
+                new MySqlParameter("?ssr", scanRows <= 0 ? 15 : scanRows),
+                new MySqlParameter("?id",  bankId));
+        }
+
+        public static void SaveBankLayoutXlsx(int bankId, int headerRow, int firstDataRow,
                                            string dateCol, string descCol, string refCol,
                                            string amountMode,
                                            string debitCol, string creditCol,
                                            string amountCol, string flagCol,
-                                           string balanceCol, string dateFormat)
+                                           string balanceCol, string dateFormat,
+                                           string signatureText, int signatureScanRows)
         {
             ExecuteNonQuery(
                 "UPDATE fin_banklayouts SET" +
@@ -3330,7 +3342,39 @@ namespace FINApp.DAL
                 " DateCol=?dc, DescCol=?dsc, RefCol=?rc," +
                 " AmountMode=?am, DebitCol=?deb, CreditCol=?crd," +
                 " AmountCol=?amt, FlagCol=?flg, BalanceCol=?bal," +
-                " DateFormat=?df, IsConfigured=1" +
+                " DateFormat=?df, SignatureText=?sig, SignatureScanRows=?ssr, IsConfigured=1" +
+                " WHERE BankID=?id;",
+                new MySqlParameter("?h", headerRow),
+                new MySqlParameter("?f", firstDataRow),
+                new MySqlParameter("?dc",  string.IsNullOrEmpty(dateCol)   ? (object)DBNull.Value : dateCol.ToUpperInvariant()),
+                new MySqlParameter("?dsc", string.IsNullOrEmpty(descCol)   ? (object)DBNull.Value : descCol.ToUpperInvariant()),
+                new MySqlParameter("?rc",  string.IsNullOrEmpty(refCol)    ? (object)DBNull.Value : refCol.ToUpperInvariant()),
+                new MySqlParameter("?am", amountMode),
+                new MySqlParameter("?deb", string.IsNullOrEmpty(debitCol)  ? (object)DBNull.Value : debitCol.ToUpperInvariant()),
+                new MySqlParameter("?crd", string.IsNullOrEmpty(creditCol) ? (object)DBNull.Value : creditCol.ToUpperInvariant()),
+                new MySqlParameter("?amt", string.IsNullOrEmpty(amountCol) ? (object)DBNull.Value : amountCol.ToUpperInvariant()),
+                new MySqlParameter("?flg", string.IsNullOrEmpty(flagCol)   ? (object)DBNull.Value : flagCol.ToUpperInvariant()),
+                new MySqlParameter("?bal", string.IsNullOrEmpty(balanceCol)? (object)DBNull.Value : balanceCol.ToUpperInvariant()),
+                new MySqlParameter("?df",  string.IsNullOrEmpty(dateFormat)? "dd/MM/yyyy" : dateFormat),
+                new MySqlParameter("?sig", string.IsNullOrEmpty(signatureText) ? (object)DBNull.Value : signatureText.Trim()),
+                new MySqlParameter("?ssr", signatureScanRows <= 0 ? 15 : signatureScanRows),
+                new MySqlParameter("?id",  bankId));
+        }
+
+        public static void SaveBankLayoutPdf(int bankId, int headerRow, int firstDataRow,
+                                              string dateCol, string descCol, string refCol,
+                                              string amountMode,
+                                              string debitCol, string creditCol,
+                                              string amountCol, string flagCol,
+                                              string balanceCol, string dateFormat)
+        {
+            ExecuteNonQuery(
+                "UPDATE fin_banklayouts SET" +
+                " PdfHeaderRow=?h, PdfFirstDataRow=?f," +
+                " PdfDateCol=?dc, PdfDescCol=?dsc, PdfRefCol=?rc," +
+                " PdfAmountMode=?am, PdfDebitCol=?deb, PdfCreditCol=?crd," +
+                " PdfAmountCol=?amt, PdfFlagCol=?flg, PdfBalanceCol=?bal," +
+                " PdfDateFormat=?df, PdfIsConfigured=1" +
                 " WHERE BankID=?id;",
                 new MySqlParameter("?h", headerRow),
                 new MySqlParameter("?f", firstDataRow),
@@ -3345,6 +3389,21 @@ namespace FINApp.DAL
                 new MySqlParameter("?bal", string.IsNullOrEmpty(balanceCol)? (object)DBNull.Value : balanceCol.ToUpperInvariant()),
                 new MySqlParameter("?df",  string.IsNullOrEmpty(dateFormat)? "dd/MM/yyyy" : dateFormat),
                 new MySqlParameter("?id",  bankId));
+        }
+
+                /// <summary>List of all configured bank layouts with their signatures, joined to bank name.
+        /// Used by the upload page to detect which bank a freshly-uploaded file belongs to.</summary>
+        public static DataTable ListConfiguredLayoutsForDetection()
+        {
+            // Either XLSX or PDF layout being configured is enough to be auto-detectable.
+            return ExecuteQuery(
+                "SELECT bl.BankID, ba.BankCode, ba.BankName," +
+                " bl.SignatureText, bl.SignatureScanRows" +
+                " FROM fin_banklayouts bl" +
+                " JOIN fin_bankaccounts ba ON ba.BankID = bl.BankID" +
+                " WHERE (bl.IsConfigured = 1 OR bl.PdfIsConfigured = 1)" +
+                "   AND ba.IsActive = 1" +
+                " ORDER BY LENGTH(bl.SignatureText) DESC;"); // longer signatures first to avoid false positives
         }
 
         // ── Statements ────────────────────────────────────────────────

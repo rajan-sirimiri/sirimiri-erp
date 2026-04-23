@@ -147,9 +147,19 @@ namespace FINApp
             }
 
             DataRow layout = FINDatabaseHelper.GetBankLayout(bankId);
-            if (layout == null || layout["IsConfigured"] == DBNull.Value || Convert.ToInt32(layout["IsConfigured"]) != 1)
+            // Check the matching layout is configured for this file format.
+            string cfgKey = isPdf ? "PdfIsConfigured" : "IsConfigured";
+            bool configured = layout != null
+                && layout.Table.Columns.Contains(cfgKey)
+                && layout[cfgKey] != DBNull.Value
+                && Convert.ToInt32(layout[cfgKey]) == 1;
+            if (!configured)
             {
                 pnlNoLayout.Visible = true;
+                ShowAlert("The matched bank has no "
+                    + (isPdf ? "PDF" : "XLSX")
+                    + " layout configured. Open Manage Bank Accounts and set it for this format.",
+                    "danger");
                 return;
             }
 
@@ -224,18 +234,21 @@ namespace FINApp
         private void ParseAndStore(int bankId, DataRow layout, string fileName,
                                     byte[] fileBytes, bool isPdf, string detectedBankName)
         {
-            int headerRow    = layout["HeaderRow"]   == DBNull.Value ? 1 : Convert.ToInt32(layout["HeaderRow"]);
-            int firstDataRow = layout["FirstDataRow"]== DBNull.Value ? headerRow + 1 : Convert.ToInt32(layout["FirstDataRow"]);
-            string dateCol   = GetLayoutCol(layout, "DateCol");
-            string descCol   = GetLayoutCol(layout, "DescCol");
-            string refCol    = GetLayoutCol(layout, "RefCol");
-            string mode      = layout["AmountMode"] == DBNull.Value ? "TWO_COL" : layout["AmountMode"].ToString();
-            string debCol    = GetLayoutCol(layout, "DebitCol");
-            string crdCol    = GetLayoutCol(layout, "CreditCol");
-            string amtCol    = GetLayoutCol(layout, "AmountCol");
-            string flagCol   = GetLayoutCol(layout, "FlagCol");
-            string balCol    = GetLayoutCol(layout, "BalanceCol");
-            string dateFmt   = layout["DateFormat"] == DBNull.Value ? "dd/MM/yyyy" : layout["DateFormat"].ToString();
+            // Pick the column set matching the file format. Both sets live in fin_banklayouts,
+            // named *Col for XLSX and Pdf*Col for PDF.
+            string prefix = isPdf ? "Pdf" : "";
+            int headerRow    = layout[prefix + "HeaderRow"]    == DBNull.Value ? 1 : Convert.ToInt32(layout[prefix + "HeaderRow"]);
+            int firstDataRow = layout[prefix + "FirstDataRow"] == DBNull.Value ? headerRow + 1 : Convert.ToInt32(layout[prefix + "FirstDataRow"]);
+            string dateCol   = GetLayoutCol(layout, prefix + "DateCol");
+            string descCol   = GetLayoutCol(layout, prefix + "DescCol");
+            string refCol    = GetLayoutCol(layout, prefix + "RefCol");
+            string mode      = layout[prefix + "AmountMode"] == DBNull.Value ? "TWO_COL" : layout[prefix + "AmountMode"].ToString();
+            string debCol    = GetLayoutCol(layout, prefix + "DebitCol");
+            string crdCol    = GetLayoutCol(layout, prefix + "CreditCol");
+            string amtCol    = GetLayoutCol(layout, prefix + "AmountCol");
+            string flagCol   = GetLayoutCol(layout, prefix + "FlagCol");
+            string balCol    = GetLayoutCol(layout, prefix + "BalanceCol");
+            string dateFmt   = layout[prefix + "DateFormat"] == DBNull.Value ? "dd/MM/yyyy" : layout[prefix + "DateFormat"].ToString();
 
             if (string.IsNullOrEmpty(dateCol))
                 throw new Exception("Layout is missing the Date column. Edit the bank layout and set it.");

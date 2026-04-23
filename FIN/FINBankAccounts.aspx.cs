@@ -29,9 +29,17 @@ namespace FINApp
         protected TextBox txtDescCol, txtRefCol;
         protected RadioButton rbModeTwoCol, rbModeFlag, rbModeSigned;
         protected TextBox txtDebitCol, txtCreditCol, txtAmountCol, txtFlagCol, txtBalanceCol;
+        protected TextBox txtSignatureText, txtSignatureRows;
+
+        // PDF layout fields (parallel to XLSX)
+        protected TextBox txtPdfHeaderRow, txtPdfFirstData, txtPdfDateCol, txtPdfDateFormat;
+        protected TextBox txtPdfDescCol, txtPdfRefCol;
+        protected RadioButton rbPdfModeTwoCol, rbPdfModeFlag, rbPdfModeSigned;
+        protected TextBox txtPdfDebitCol, txtPdfCreditCol, txtPdfAmountCol, txtPdfFlagCol, txtPdfBalanceCol;
+        protected Button btnSaveLayoutXlsx, btnSaveLayoutPdf, btnSaveSignature;
 
         // Buttons
-        protected Button btnSave, btnClear, btnToggleActive, btnSaveLayout;
+        protected Button btnSave, btnClear, btnToggleActive;
 
         // List
         protected Repeater rptBanks;
@@ -105,18 +113,29 @@ namespace FINApp
             }
         }
 
-        /// <summary>Used by the repeater to show whether a bank has a saved XLSX layout.</summary>
+        /// <summary>Used by the repeater to show per-format layout status:
+        /// two small badges, one for XLSX, one for PDF.</summary>
         protected string RenderLayoutBadge(object bankIdObj)
         {
             if (bankIdObj == null || bankIdObj == DBNull.Value) return "";
             int bankId = Convert.ToInt32(bankIdObj);
             DataRow layout = FINDatabaseHelper.GetBankLayout(bankId);
-            bool configured = layout != null
+            bool xlsxSet = layout != null
                 && layout["IsConfigured"] != DBNull.Value
                 && Convert.ToInt32(layout["IsConfigured"]) == 1;
-            return configured
-                ? "<span class='badge-layout yes'>Configured</span>"
-                : "<span class='badge-layout no'>Not set</span>";
+            bool pdfSet = layout != null
+                && layout.Table.Columns.Contains("PdfIsConfigured")
+                && layout["PdfIsConfigured"] != DBNull.Value
+                && Convert.ToInt32(layout["PdfIsConfigured"]) == 1;
+
+            string xlsxBadge = xlsxSet
+                ? "<span class='badge-layout yes' title='XLSX configured'>XLSX</span>"
+                : "<span class='badge-layout no'  title='XLSX not set'>XLSX</span>";
+            string pdfBadge = pdfSet
+                ? "<span class='badge-layout yes' title='PDF configured'>PDF</span>"
+                : "<span class='badge-layout no'  title='PDF not set'>PDF</span>";
+
+            return xlsxBadge + " " + pdfBadge;
         }
 
         // ── Form helpers ──────────────────────────────────────────────
@@ -163,6 +182,24 @@ namespace FINApp
             txtAmountCol.Text = "";
             txtFlagCol.Text = "";
             txtBalanceCol.Text = "";
+            txtSignatureText.Text = "";
+            txtSignatureRows.Text = "15";
+
+            // PDF side
+            txtPdfHeaderRow.Text = "1";
+            txtPdfFirstData.Text = "2";
+            txtPdfDateCol.Text = "";
+            txtPdfDateFormat.Text = "dd/MM/yyyy";
+            txtPdfDescCol.Text = "";
+            txtPdfRefCol.Text = "";
+            rbPdfModeTwoCol.Checked = true;
+            rbPdfModeFlag.Checked = false;
+            rbPdfModeSigned.Checked = false;
+            txtPdfDebitCol.Text = "";
+            txtPdfCreditCol.Text = "";
+            txtPdfAmountCol.Text = "";
+            txtPdfFlagCol.Text = "";
+            txtPdfBalanceCol.Text = "";
         }
 
         private void LoadLayoutForm(int bankId)
@@ -190,6 +227,33 @@ namespace FINApp
             txtAmountCol.Text  = row["AmountCol"]  == DBNull.Value ? "" : row["AmountCol"].ToString();
             txtFlagCol.Text    = row["FlagCol"]    == DBNull.Value ? "" : row["FlagCol"].ToString();
             txtBalanceCol.Text = row["BalanceCol"] == DBNull.Value ? "" : row["BalanceCol"].ToString();
+
+            // Signature fields (added in migration 31)
+            if (row.Table.Columns.Contains("SignatureText"))
+                txtSignatureText.Text = row["SignatureText"] == DBNull.Value ? "" : row["SignatureText"].ToString();
+            if (row.Table.Columns.Contains("SignatureScanRows"))
+                txtSignatureRows.Text = row["SignatureScanRows"] == DBNull.Value ? "15" : row["SignatureScanRows"].ToString();
+
+            // PDF-side fields (added in migration 32). Guard on column existence
+            // so pre-migration rows degrade to defaults.
+            if (row.Table.Columns.Contains("PdfHeaderRow"))
+            {
+                txtPdfHeaderRow.Text = row["PdfHeaderRow"] == DBNull.Value ? "1" : row["PdfHeaderRow"].ToString();
+                txtPdfFirstData.Text = row["PdfFirstDataRow"] == DBNull.Value ? "2" : row["PdfFirstDataRow"].ToString();
+                txtPdfDateCol.Text   = row["PdfDateCol"]   == DBNull.Value ? "" : row["PdfDateCol"].ToString();
+                txtPdfDateFormat.Text= row["PdfDateFormat"]== DBNull.Value ? "dd/MM/yyyy" : row["PdfDateFormat"].ToString();
+                txtPdfDescCol.Text   = row["PdfDescCol"]   == DBNull.Value ? "" : row["PdfDescCol"].ToString();
+                txtPdfRefCol.Text    = row["PdfRefCol"]    == DBNull.Value ? "" : row["PdfRefCol"].ToString();
+                string pdfMode = row["PdfAmountMode"] == DBNull.Value ? "TWO_COL" : row["PdfAmountMode"].ToString();
+                rbPdfModeTwoCol.Checked = (pdfMode == "TWO_COL");
+                rbPdfModeFlag.Checked   = (pdfMode == "FLAG");
+                rbPdfModeSigned.Checked = (pdfMode == "SIGNED");
+                txtPdfDebitCol.Text   = row["PdfDebitCol"]   == DBNull.Value ? "" : row["PdfDebitCol"].ToString();
+                txtPdfCreditCol.Text  = row["PdfCreditCol"]  == DBNull.Value ? "" : row["PdfCreditCol"].ToString();
+                txtPdfAmountCol.Text  = row["PdfAmountCol"]  == DBNull.Value ? "" : row["PdfAmountCol"].ToString();
+                txtPdfFlagCol.Text    = row["PdfFlagCol"]    == DBNull.Value ? "" : row["PdfFlagCol"].ToString();
+                txtPdfBalanceCol.Text = row["PdfBalanceCol"] == DBNull.Value ? "" : row["PdfBalanceCol"].ToString();
+            }
         }
 
         // ── Save / clear / toggle ─────────────────────────────────────
@@ -266,7 +330,9 @@ namespace FINApp
             LoadBanks();
         }
 
-        protected void btnSaveLayout_Click(object sender, EventArgs e)
+        // ── XLSX layout save ──────────────────────────────────────────
+
+        protected void btnSaveLayoutXlsx_Click(object sender, EventArgs e)
         {
             int bankId = Convert.ToInt32(hfBankID.Value);
             if (bankId == 0)
@@ -283,44 +349,113 @@ namespace FINApp
                         : rbModeSigned.Checked ? "SIGNED"
                         : "TWO_COL";
 
-            // Basic validation per mode
-            if (mode == "TWO_COL" && (string.IsNullOrEmpty(txtDebitCol.Text) || string.IsNullOrEmpty(txtCreditCol.Text)))
-            {
-                ShowAlert("TWO_COL mode requires both Debit and Credit column letters.", false);
-                return;
-            }
-            if (mode == "FLAG" && (string.IsNullOrEmpty(txtAmountCol.Text) || string.IsNullOrEmpty(txtFlagCol.Text)))
-            {
-                ShowAlert("FLAG mode requires Amount and Flag column letters.", false);
-                return;
-            }
-            if (mode == "SIGNED" && string.IsNullOrEmpty(txtAmountCol.Text))
-            {
-                ShowAlert("SIGNED mode requires the Amount column letter.", false);
-                return;
-            }
-            if (string.IsNullOrEmpty(txtDateCol.Text))
-            {
-                ShowAlert("Date column is required.", false);
-                return;
-            }
+            string validationErr = ValidateLayout(mode,
+                txtDateCol.Text, txtDebitCol.Text, txtCreditCol.Text,
+                txtAmountCol.Text, txtFlagCol.Text, "XLSX");
+            if (validationErr != null) { ShowAlert(validationErr, false); return; }
 
             try
             {
-                FINDatabaseHelper.SaveBankLayout(bankId, headerRow, firstData,
+                int scanRows;
+                if (!int.TryParse(txtSignatureRows.Text.Trim(), out scanRows) || scanRows <= 0) scanRows = 15;
+                FINDatabaseHelper.SaveBankLayoutXlsx(bankId, headerRow, firstData,
                     txtDateCol.Text, txtDescCol.Text, txtRefCol.Text,
                     mode,
                     txtDebitCol.Text, txtCreditCol.Text,
                     txtAmountCol.Text, txtFlagCol.Text,
                     txtBalanceCol.Text,
-                    string.IsNullOrEmpty(txtDateFormat.Text) ? "dd/MM/yyyy" : txtDateFormat.Text.Trim());
-                ShowAlert("XLSX layout saved. You can now upload statements for this bank.", true);
+                    string.IsNullOrEmpty(txtDateFormat.Text) ? "dd/MM/yyyy" : txtDateFormat.Text.Trim(),
+                    txtSignatureText.Text.Trim(),
+                    scanRows);
+                ShowAlert("XLSX layout saved.", true);
                 LoadBanks();
             }
             catch (Exception ex)
             {
-                ShowAlert("Error saving layout: " + ex.Message, false);
+                ShowAlert("Error saving XLSX layout: " + ex.Message, false);
             }
+        }
+
+        // ── PDF layout save ───────────────────────────────────────────
+
+        protected void btnSaveLayoutPdf_Click(object sender, EventArgs e)
+        {
+            int bankId = Convert.ToInt32(hfBankID.Value);
+            if (bankId == 0)
+            {
+                ShowAlert("Save the bank first, then configure the layout.", false);
+                return;
+            }
+
+            int headerRow, firstData;
+            if (!int.TryParse(txtPdfHeaderRow.Text.Trim(), out headerRow) || headerRow < 1) headerRow = 1;
+            if (!int.TryParse(txtPdfFirstData.Text.Trim(), out firstData)  || firstData  < 1) firstData  = headerRow + 1;
+
+            string mode = rbPdfModeFlag.Checked ? "FLAG"
+                        : rbPdfModeSigned.Checked ? "SIGNED"
+                        : "TWO_COL";
+
+            string validationErr = ValidateLayout(mode,
+                txtPdfDateCol.Text, txtPdfDebitCol.Text, txtPdfCreditCol.Text,
+                txtPdfAmountCol.Text, txtPdfFlagCol.Text, "PDF");
+            if (validationErr != null) { ShowAlert(validationErr, false); return; }
+
+            try
+            {
+                FINDatabaseHelper.SaveBankLayoutPdf(bankId, headerRow, firstData,
+                    txtPdfDateCol.Text, txtPdfDescCol.Text, txtPdfRefCol.Text,
+                    mode,
+                    txtPdfDebitCol.Text, txtPdfCreditCol.Text,
+                    txtPdfAmountCol.Text, txtPdfFlagCol.Text,
+                    txtPdfBalanceCol.Text,
+                    string.IsNullOrEmpty(txtPdfDateFormat.Text) ? "dd/MM/yyyy" : txtPdfDateFormat.Text.Trim());
+                ShowAlert("PDF layout saved.", true);
+                LoadBanks();
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Error saving PDF layout: " + ex.Message, false);
+            }
+        }
+
+        // ── Signature save (shared between XLSX and PDF) ──────────────
+
+        protected void btnSaveSignature_Click(object sender, EventArgs e)
+        {
+            int bankId = Convert.ToInt32(hfBankID.Value);
+            if (bankId == 0)
+            {
+                ShowAlert("Save the bank first, then configure the signature.", false);
+                return;
+            }
+            int scanRows;
+            if (!int.TryParse(txtSignatureRows.Text.Trim(), out scanRows) || scanRows <= 0) scanRows = 15;
+            try
+            {
+                FINDatabaseHelper.SaveBankSignature(bankId, txtSignatureText.Text.Trim(), scanRows);
+                ShowAlert("Signature saved. Auto-detect will use this when a bank is not specified at upload.", true);
+                LoadBanks();
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Error saving signature: " + ex.Message, false);
+            }
+        }
+
+        /// <summary>Shared layout validation. Returns error string, or null on success.</summary>
+        private static string ValidateLayout(string mode,
+                                              string dateCol, string debCol, string crdCol,
+                                              string amtCol, string flagCol, string fmtLabel)
+        {
+            if (string.IsNullOrEmpty(dateCol))
+                return fmtLabel + ": Date column is required.";
+            if (mode == "TWO_COL" && (string.IsNullOrEmpty(debCol) || string.IsNullOrEmpty(crdCol)))
+                return fmtLabel + ": TWO_COL mode requires both Debit and Credit column letters.";
+            if (mode == "FLAG" && (string.IsNullOrEmpty(amtCol) || string.IsNullOrEmpty(flagCol)))
+                return fmtLabel + ": FLAG mode requires Amount and Flag column letters.";
+            if (mode == "SIGNED" && string.IsNullOrEmpty(amtCol))
+                return fmtLabel + ": SIGNED mode requires the Amount column letter.";
+            return null;
         }
 
         // ── Edit from list ────────────────────────────────────────────
