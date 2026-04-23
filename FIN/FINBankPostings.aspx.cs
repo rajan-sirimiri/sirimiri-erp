@@ -65,14 +65,14 @@ namespace FINApp
             }
             else if (ViewState["StatementID"] != null)
             {
-                // On postback (e.g. user clicked "Post" on a bank line), keep the
-                // detail view visible and rebind the lines grid. Without this the
-                // LinkButton event cannot find its parent in the control tree.
+                // On postback keep the detail view visible. DO NOT re-DataBind
+                // the rptLines repeater here — that wipes and recreates the
+                // LinkButton child controls AFTER ViewState has already been
+                // used to raise the ItemCommand event, so the event never fires.
+                // ASP.NET will restore the repeater's child controls from
+                // ViewState automatically.
                 pnlListView.Visible = false;
                 pnlDetailView.Visible = true;
-                int stmtId = Convert.ToInt32(ViewState["StatementID"]);
-                rptLines.DataSource = FINDatabaseHelper.GetStatementLines(stmtId);
-                rptLines.DataBind();
             }
         }
 
