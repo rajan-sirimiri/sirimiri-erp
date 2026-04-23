@@ -260,8 +260,30 @@
                     <div class="form-section" style="color:var(--accent);margin-top:32px;">PDF Column Layout</div>
                     <div class="layout-intro" style="background:#fef5ef;color:#a04000;border:1px solid rgba(204,100,50,0.2);">
                         The PDF parser auto-discovers columns left-to-right, then your layout mapping applies.
-                        Upload a sample PDF first (the detail view will show you what columns landed where),
-                        then come back here and set the letters accordingly.
+                        Use the <b>Sample Preview</b> below to see what columns land where, then fill in the layout fields accordingly.
+                    </div>
+
+                    <!-- Sample PDF Preview -->
+                    <div style="background:#f8f9fa;border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:18px;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">
+                            Sample Preview
+                            <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);font-size:11px;">
+                                &mdash; pick any PDF statement from this bank; the system will extract columns so you can see the layout.
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <asp:FileUpload ID="fuSamplePdf" runat="server" accept=".pdf" style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;background:#fff;font-size:13px;" />
+                            <asp:Button ID="btnAnalyzePdf" runat="server" Text="Analyze Columns" CssClass="btn btn-secondary" OnClick="btnAnalyzePdf_Click" CausesValidation="false" />
+                        </div>
+
+                        <asp:Panel ID="pnlPdfPreview" runat="server" Visible="false" style="margin-top:16px;">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+                                <b>First 20 rows as extracted from the PDF.</b> Column letters (A, B, C&hellip;) shown in the header are what you'll reference in the layout fields below.
+                            </div>
+                            <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:#fff;">
+                                <asp:Literal ID="litPdfPreview" runat="server" />
+                            </div>
+                        </asp:Panel>
                     </div>
 
                     <div class="form-grid">

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
@@ -37,6 +38,10 @@ namespace FINApp
         protected RadioButton rbPdfModeTwoCol, rbPdfModeFlag, rbPdfModeSigned;
         protected TextBox txtPdfDebitCol, txtPdfCreditCol, txtPdfAmountCol, txtPdfFlagCol, txtPdfBalanceCol;
         protected Button btnSaveLayoutXlsx, btnSaveLayoutPdf, btnSaveSignature;
+        protected FileUpload fuSamplePdf;
+        protected Button btnAnalyzePdf;
+        protected Panel pnlPdfPreview;
+        protected Literal litPdfPreview;
 
         // Buttons
         protected Button btnSave, btnClear, btnToggleActive;
@@ -489,5 +494,118 @@ namespace FINApp
                 pnlAlert.Visible = false;
             }
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  PDF SAMPLE PREVIEW — extract columns from an uploaded sample
+        //  PDF so the user can see how to set the PDF layout fields.
+        //  No DB writes, no parsing of amounts; pure raw extraction view.
+        // ══════════════════════════════════════════════════════════════
+
+        protected void btnAnalyzePdf_Click(object sender, EventArgs e)
+        {
+            if (!fuSamplePdf.HasFile)
+            {
+                ShowAlert("Choose a sample PDF to preview.", false);
+                return;
+            }
+            if (!fuSamplePdf.FileName.ToLowerInvariant().EndsWith(".pdf"))
+            {
+                ShowAlert("Only .pdf files work for the sample preview.", false);
+                return;
+            }
+
+            try
+            {
+                byte[] fileBytes = fuSamplePdf.FileBytes;
+                List<List<string>> grid = PdfStatementExtractor.Extract(fileBytes);
+
+                if (grid == null || grid.Count == 0)
+                {
+                    ShowAlert("Couldn't extract any rows from this PDF. It may be a scanned image rather than native-text PDF.", false);
+                    pnlPdfPreview.Visible = false;
+                    return;
+                }
+
+                litPdfPreview.Text = RenderPreviewTable(grid);
+                pnlPdfPreview.Visible = true;
+                ShowAlert("Preview generated: " + grid.Count + " rows, "
+                    + (grid[0] == null ? 0 : grid[0].Count) + " columns. Use the letters below to fill the PDF layout fields.", true);
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Preview failed: " + ex.Message, false);
+                pnlPdfPreview.Visible = false;
+            }
+        }
+
+        /// <summary>Render a PDF-extracted grid as an HTML table with column-letter
+        /// headers (A, B, C…). Only shows the first 20 rows to keep the page manageable.</summary>
+        private static string RenderPreviewTable(List<List<string>> grid)
+        {
+            int maxCols = 0;
+            foreach (var row in grid) if (row != null && row.Count > maxCols) maxCols = row.Count;
+            int previewCount = Math.Min(grid.Count, 20);
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<table style=\"width:100%;border-collapse:collapse;font-size:11px;font-family:\'Roboto Mono\',monospace;\">");
+
+            // Header with column letters
+            sb.Append("<thead><tr style=\"background:#f0f0f0;\">");
+            sb.Append("<th style=\"padding:6px 8px;text-align:right;width:30px;color:var(--text-dim);border-bottom:1px solid var(--border);\">#</th>");
+            for (int c = 0; c < maxCols; c++)
+            {
+                sb.Append("<th style=\"padding:6px 8px;text-align:center;color:var(--accent);font-weight:700;border-bottom:1px solid var(--border);min-width:80px;\">");
+                sb.Append(ColIndexToLetter(c + 1));
+                sb.Append("</th>");
+            }
+            sb.Append("</tr></thead>");
+
+            // Body
+            sb.Append("<tbody>");
+            for (int r = 0; r < previewCount; r++)
+            {
+                var row = grid[r];
+                sb.Append("<tr>");
+                sb.Append("<td style=\"padding:5px 8px;text-align:right;color:var(--text-dim);border-bottom:1px solid #f5f5f5;\">")
+                  .Append(r + 1)
+                  .Append("</td>");
+                for (int c = 0; c < maxCols; c++)
+                {
+                    string val = (row != null && c < row.Count) ? row[c] : "";
+                    sb.Append("<td style=\"padding:5px 8px;border-bottom:1px solid #f5f5f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;\">")
+                      .Append(System.Web.HttpUtility.HtmlEncode(val ?? ""))
+                      .Append("</td>");
+                }
+                sb.Append("</tr>");
+            }
+            sb.Append("</tbody>");
+
+            if (grid.Count > previewCount)
+            {
+                sb.Append("<tfoot><tr><td colspan=\"")
+                  .Append(maxCols + 1)
+                  .Append("\" style=\"padding:8px;text-align:center;color:var(--text-dim);font-style:italic;\">")
+                  .Append("&hellip; " + (grid.Count - previewCount) + " more rows not shown")
+                  .Append("</td></tr></tfoot>");
+            }
+
+            sb.Append("</table>");
+            return sb.ToString();
+        }
+
+        /// <summary>Convert 1-based column index to Excel-style letter (1→A, 2→B, 27→AA).</summary>
+        private static string ColIndexToLetter(int idx)
+        {
+            if (idx < 1) return "";
+            var sb = new System.Text.StringBuilder();
+            while (idx > 0)
+            {
+                int rem = (idx - 1) % 26;
+                sb.Insert(0, (char)('A' + rem));
+                idx = (idx - 1) / 26;
+            }
+            return sb.ToString();
+        }
+
     }
 }
