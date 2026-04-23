@@ -75,7 +75,38 @@
         .drill-link { color:var(--accent); text-decoration:none; font-weight:600; font-size:12px; }
         .drill-link:hover { text-decoration:underline; }
         .empty-state { text-align:center; padding:40px 20px; color:var(--text-dim); font-size:13px; }
-    </style>
+    
+        /* ── Post-bank-line modal ── */
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
+        .modal-card    { background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.3); max-width:720px; width:100%; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; }
+        .modal-header  { padding:18px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+        .modal-title   { font-size:16px; font-weight:700; color:var(--text); }
+        .modal-close   { font-size:28px; line-height:1; color:var(--text-muted); text-decoration:none; }
+        .modal-close:hover { color:var(--text); }
+        .modal-body    { padding:20px 24px; overflow-y:auto; }
+        .summary-grid  { display:grid; grid-template-columns:1fr 1fr; gap:14px 22px; margin-bottom:18px; padding:14px; background:#f8f9fa; border-radius:8px; }
+        .summary-grid .full { grid-column:1 / -1; }
+        .summary-grid label { display:block; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px; }
+        .summary-grid .amt  { font-family:'Roboto Mono',monospace; font-size:16px; font-weight:700; color:var(--accent); }
+        .summary-grid .desc { font-size:12px; color:var(--text-muted); word-break:break-all; }
+        .jv-preview    { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:18px; }
+        .jv-preview .section-lbl { padding:10px 14px; background:#f0f0f0; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); }
+        .jv-preview table { width:100%; border-collapse:collapse; font-size:13px; }
+        .jv-preview th, .jv-preview td { padding:10px 14px; text-align:left; border-top:1px solid var(--border); }
+        .jv-preview th { background:#fafafa; font-weight:600; color:var(--text-dim); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+        .jv-preview .num { text-align:right; font-family:'Roboto Mono',monospace; }
+        .jv-preview .party-cell { font-style:italic; color:var(--text-muted); }
+        .party-picker  { margin-bottom:18px; }
+        .party-picker label { display:block; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; }
+        .party-picker .party-dd { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:6px; font-size:14px; background:#fff; }
+        .party-picker .field-hint { display:block; font-size:11px; color:var(--text-muted); margin-top:6px; }
+        .modal-actions { display:flex; gap:10px; justify-content:flex-end; padding-top:8px; border-top:1px solid var(--border); margin:0 -24px -20px; padding:18px 24px 20px; }
+        /* Post link on status cell */
+        .post-link     { color:var(--accent); font-weight:600; text-decoration:none; }
+        .post-link:hover { text-decoration:underline; }
+        .jv-link       { color:var(--accent); font-family:'Roboto Mono',monospace; font-size:11px; text-decoration:none; }
+        .jv-link:hover { text-decoration:underline; }
+            </style>
 </head>
 <body>
 <form id="form1" runat="server">
@@ -202,6 +233,62 @@
                     </asp:Panel>
                 </div>
             </div>
+
+            <!-- ═════════════════ POST BANK LINE MODAL ═════════════════ -->
+            <asp:Panel ID="pnlPostModal" runat="server" Visible="false" CssClass="modal-overlay">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title">Post Bank Line as Journal</div>
+                        <asp:LinkButton ID="lnkCloseModal" runat="server" Text="&times;" CssClass="modal-close" OnClick="lnkCloseModal_Click" CausesValidation="false" />
+                    </div>
+                    <div class="modal-body">
+                        <asp:HiddenField ID="hfPostLineID" runat="server" />
+
+                        <!-- Bank line summary -->
+                        <div class="summary-grid">
+                            <div><label>Date</label><asp:Label ID="lblPostDate" runat="server" /></div>
+                            <div><label>Amount</label><asp:Label ID="lblPostAmount" runat="server" CssClass="amt" /></div>
+                            <div><label>Direction</label><asp:Label ID="lblPostDirection" runat="server" /></div>
+                            <div class="full"><label>Description</label><asp:Label ID="lblPostDesc" runat="server" CssClass="desc" /></div>
+                        </div>
+
+                        <!-- Journal preview -->
+                        <div class="jv-preview">
+                            <div class="section-lbl">Journal Entry Preview</div>
+                            <table>
+                                <thead><tr><th>Account</th><th>Party</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><asp:Label ID="lblJvLine1Account" runat="server" /></td>
+                                        <td><asp:Label ID="lblJvLine1Party"   runat="server" CssClass="party-cell" /></td>
+                                        <td class="num"><asp:Label ID="lblJvLine1Debit"  runat="server" /></td>
+                                        <td class="num"><asp:Label ID="lblJvLine1Credit" runat="server" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><asp:Label ID="lblJvLine2Account" runat="server" /></td>
+                                        <td><asp:Label ID="lblJvLine2Party"   runat="server" CssClass="party-cell" /></td>
+                                        <td class="num"><asp:Label ID="lblJvLine2Debit"  runat="server" /></td>
+                                        <td class="num"><asp:Label ID="lblJvLine2Credit" runat="server" /></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Party picker -->
+                        <div class="party-picker">
+                            <label>Party <span style="color:var(--danger);">*</span></label>
+                            <asp:DropDownList ID="ddlPostParty" runat="server" CssClass="party-dd" />
+                            <asp:Label ID="lblSuggestHint" runat="server" CssClass="field-hint" />
+                        </div>
+
+                        <div class="modal-actions">
+                            <asp:Button ID="btnCancelPost" runat="server" Text="Cancel" CssClass="btn btn-secondary" OnClick="lnkCloseModal_Click" CausesValidation="false" />
+                            <asp:Button ID="btnConfirmPost" runat="server" Text="Create Journal" CssClass="btn btn-primary" OnClick="btnConfirmPost_Click" CausesValidation="false" />
+                        </div>
+                    </div>
+                </div>
+            </asp:Panel>
+
         </asp:Panel>
 
         <!-- ═════════════════ DETAIL VIEW (drill-down) ═════════════════ -->
@@ -237,7 +324,7 @@
                 </div>
 
                 <div style="max-height:600px;overflow-y:auto;">
-                    <asp:Repeater ID="rptLines" runat="server">
+                    <asp:Repeater ID="rptLines" runat="server" OnItemCommand="rptLines_ItemCommand">
                         <HeaderTemplate>
                             <table class="line-table"><thead><tr>
                                 <th>#</th>
@@ -259,7 +346,21 @@
                                 <td class="num"><%# FormatMoney(Eval("Debit")) %></td>
                                 <td class="num"><%# FormatMoney(Eval("Credit")) %></td>
                                 <td class="num"><%# FormatMoney(Eval("Balance")) %></td>
-                                <td><span class='<%# "badge-" + Eval("Status").ToString().ToLower() %>'><%# Eval("Status") %></span></td>
+                                <td>
+                                    <asp:LinkButton runat="server"
+                                        Text="Post"
+                                        CssClass="post-link"
+                                        CommandName="PostLine"
+                                        CommandArgument='<%# Eval("LineID") %>'
+                                        Visible='<%# Eval("Status").ToString() != "Posted" %>'
+                                        CausesValidation="false" />
+                                    <asp:HyperLink runat="server"
+                                        CssClass="jv-link"
+                                        NavigateUrl='<%# "FINJournal.aspx?id=" + Eval("JournalID") %>'
+                                        Target="_blank"
+                                        Text='<%# FormatJvLink(Eval("JournalID")) %>'
+                                        Visible='<%# Eval("Status").ToString() == "Posted" %>' />
+                                </td>
                             </tr>
                         </ItemTemplate>
                         <FooterTemplate></tbody></table></FooterTemplate>

@@ -24,6 +24,15 @@ namespace FINApp
         protected Label lblStatPeriod, lblStatOpen, lblStatClose, lblStatRows;
         protected HtmlGenericControl alertBox;
         protected Panel pnlAlert, pnlListView, pnlDetailView, pnlNoLayout, pnlEmpty, pnlManualBank;
+        protected Panel pnlPostModal;
+        protected HiddenField hfPostLineID;
+        protected Label lblPostDate, lblPostAmount, lblPostDirection, lblPostDesc;
+        protected Label lblJvLine1Account, lblJvLine1Party, lblJvLine1Debit, lblJvLine1Credit;
+        protected Label lblJvLine2Account, lblJvLine2Party, lblJvLine2Debit, lblJvLine2Credit;
+        protected DropDownList ddlPostParty;
+        protected Label lblSuggestHint;
+        protected Button btnConfirmPost, btnCancelPost;
+        protected LinkButton lnkCloseModal;
         protected DropDownList ddlBank;
         protected FileUpload fuStatement;
         protected Button btnUpload;
@@ -595,5 +604,191 @@ namespace FINApp
             if (s == e) return s;
             return s + "  →  " + e;
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  POST BANK LINE AS JV — inline modal flow
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Format a JournalID as "JV-2627-0013" text for the HyperLink on Posted lines.</summary>
+        protected string FormatJvLink(object journalIdObj)
+        {
+            if (journalIdObj == null || journalIdObj == DBNull.Value) return "";
+            int jid = Convert.ToInt32(journalIdObj);
+            if (jid <= 0) return "";
+            string num = FINDatabaseHelper.GetJournalNumberById(jid);
+            return string.IsNullOrEmpty(num) ? ("JV-" + jid) : num;
+        }
+
+        /// <summary>Repeater item-command handler for Post link clicks.</summary>
+        protected void rptLines_ItemCommand(object source, RepeaterCommandEventArgs e)
+        {
+            if (e.CommandName != "PostLine") return;
+            long lineId;
+            if (!long.TryParse(Convert.ToString(e.CommandArgument), out lineId)) return;
+            OpenPostModal(lineId);
+        }
+
+        /// <summary>Open the Post modal for a given bank line. Populates summary,
+        /// JV preview, and party dropdown with auto-suggestions.</summary>
+        private void OpenPostModal(long lineId)
+        {
+            DataRow line = FINDatabaseHelper.GetBankLineById(lineId);
+            if (line == null)
+            {
+                ShowAlert("Bank line not found.", "danger");
+                return;
+            }
+
+            if (line["Status"] != DBNull.Value && line["Status"].ToString() == "Posted")
+            {
+                ShowAlert("This line has already been posted.", "danger");
+                return;
+            }
+
+            hfPostLineID.Value = lineId.ToString();
+
+            // Summary
+            DateTime txnDate = Convert.ToDateTime(line["TxnDate"]);
+            decimal debit   = line["Debit"]  == DBNull.Value ? 0m : Convert.ToDecimal(line["Debit"]);
+            decimal credit  = line["Credit"] == DBNull.Value ? 0m : Convert.ToDecimal(line["Credit"]);
+            string desc     = line["Description"] == DBNull.Value ? "" : line["Description"].ToString();
+
+            lblPostDate.Text = txnDate.ToString("dd MMM yyyy");
+            lblPostDesc.Text = System.Web.HttpUtility.HtmlEncode(desc);
+
+            bool isWithdrawal = debit > 0;
+            decimal amount = isWithdrawal ? debit : credit;
+            lblPostAmount.Text    = amount.ToString("N2");
+            lblPostDirection.Text = isWithdrawal ? "Withdrawal (money out)" : "Deposit (money in)";
+
+            // JV preview — show the account labels
+            string apAcc = FINDatabaseHelper.GetAccountsPayableZohoId();
+            string arAcc = FINDatabaseHelper.GetAccountsReceivableZohoId();
+            string bankAccName = FINDatabaseHelper.GetBankAccountName(Convert.ToInt32(line["BankID"]));
+            string apName = string.IsNullOrEmpty(apAcc) ? "Accounts Payable (not in COA)"    : "Accounts Payable";
+            string arName = string.IsNullOrEmpty(arAcc) ? "Accounts Receivable (not in COA)" : "Accounts Receivable";
+
+            if (isWithdrawal)
+            {
+                lblJvLine1Account.Text = apName;
+                lblJvLine1Party.Text   = "(select below)";
+                lblJvLine1Debit.Text   = amount.ToString("N2");
+                lblJvLine1Credit.Text  = "";
+                lblJvLine2Account.Text = bankAccName;
+                lblJvLine2Party.Text   = "";
+                lblJvLine2Debit.Text   = "";
+                lblJvLine2Credit.Text  = amount.ToString("N2");
+            }
+            else
+            {
+                lblJvLine1Account.Text = bankAccName;
+                lblJvLine1Party.Text   = "";
+                lblJvLine1Debit.Text   = amount.ToString("N2");
+                lblJvLine1Credit.Text  = "";
+                lblJvLine2Account.Text = arName;
+                lblJvLine2Party.Text   = "(select below)";
+                lblJvLine2Debit.Text   = "";
+                lblJvLine2Credit.Text  = amount.ToString("N2");
+            }
+
+            PopulatePartyDropdown(desc, isWithdrawal);
+            pnlPostModal.Visible = true;
+        }
+
+        /// <summary>Populate ddlPostParty with filtered list and preselect auto-suggested party.</summary>
+        private void PopulatePartyDropdown(string description, bool isWithdrawal)
+        {
+            // Suppliers for withdrawals, Customers for deposits
+            string targetType = isWithdrawal ? "SUP" : "CUS";
+            DataTable allParties = FINDatabaseHelper.GetPartyList();
+
+            ddlPostParty.Items.Clear();
+            ddlPostParty.Items.Add(new ListItem("-- Select " + (isWithdrawal ? "Supplier" : "Customer") + " --", ""));
+
+            foreach (DataRow r in allParties.Rows)
+            {
+                if (r["PartyType"].ToString() != targetType) continue;
+                string pkey  = r["PartyKey"].ToString();
+                string pname = r["PartyName"].ToString();
+                ddlPostParty.Items.Add(new ListItem(pname, pkey));
+            }
+
+            // Auto-suggest
+            DataTable suggestions = FINDatabaseHelper.SuggestPartiesForDescription(description, 3);
+            string suggestedKey = null;
+            foreach (DataRow s in suggestions.Rows)
+            {
+                if (s["PartyType"].ToString() == targetType)
+                {
+                    suggestedKey = s["PartyKey"].ToString();
+                    break;
+                }
+            }
+            if (suggestedKey != null)
+            {
+                var it = ddlPostParty.Items.FindByValue(suggestedKey);
+                if (it != null)
+                {
+                    ddlPostParty.SelectedValue = suggestedKey;
+                    lblSuggestHint.Text = "Auto-suggested from description. Confirm or choose differently.";
+                }
+                else
+                {
+                    lblSuggestHint.Text = "";
+                }
+            }
+            else
+            {
+                lblSuggestHint.Text = "";
+            }
+        }
+
+        protected void lnkCloseModal_Click(object sender, EventArgs e)
+        {
+            pnlPostModal.Visible = false;
+        }
+
+        protected void btnConfirmPost_Click(object sender, EventArgs e)
+        {
+            long lineId;
+            if (!long.TryParse(hfPostLineID.Value, out lineId))
+            {
+                ShowAlert("Missing bank line reference.", "danger");
+                return;
+            }
+
+            string partyKey = ddlPostParty.SelectedValue;
+            if (string.IsNullOrEmpty(partyKey))
+            {
+                ShowAlert("Please select the party before posting.", "danger");
+                return;
+            }
+
+            int userId = Convert.ToInt32(Session["FIN_UserID"] ?? 0);
+            if (userId == 0)
+            {
+                ShowAlert("Session expired — please sign in again.", "danger");
+                return;
+            }
+
+            try
+            {
+                int journalId = FINDatabaseHelper.SaveJournalFromBankLine(lineId, partyKey, userId);
+                pnlPostModal.Visible = false;
+                ShowAlert("Journal created successfully. Status updated to Posted.", "success");
+                // Refresh the current statement's lines
+                if (ViewState["StatementID"] != null)
+                {
+                    int stmtId = Convert.ToInt32(ViewState["StatementID"]);
+                    rptLines.DataSource = FINDatabaseHelper.GetStatementLines(stmtId);
+                    rptLines.DataBind();
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("Could not post: " + ex.Message, "danger");
+            }
+        }
+
     }
 }

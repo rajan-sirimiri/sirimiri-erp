@@ -2009,7 +2009,307 @@ namespace FINApp.DAL
         /// <summary>
         /// Create a new journal as DRAFT with the given lines. Returns new JournalID.
         /// </summary>
-        public static int SaveJournalAsDraft(DateTime journalDate, string narration, string reference,
+        // ══════════════════════════════════════════════════════════════
+        //  BANK POSTING — create a 2-line JV from a bank statement line
+        //  and link it back via Origin='BANK_POSTING', SourceID=bankLineId.
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Fetch a single bank line by ID. Returns null if not found.</summary>
+        public static DataRow GetBankLineById(long lineId)
+        {
+            var dt = ExecuteQuery(
+                "SELECT LineID, StatementID, BankID, TxnDate, Description, Reference," +
+                " Debit, Credit, Balance, Status, JournalID" +
+                " FROM fin_bankstatementlines WHERE LineID = ?id",
+                new MySqlParameter("?id", lineId));
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+        }
+
+        /// <summary>Bank display name (e.g. "CUB CCOD Account").</summary>
+        public static string GetBankAccountName(int bankId)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT BankName FROM fin_bankaccounts WHERE BankID=?id", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", bankId);
+                conn.Open();
+                object o = cmd.ExecuteScalar();
+                return o == null || o == DBNull.Value ? "(bank)" : o.ToString();
+            }
+        }
+
+        /// <summary>JournalNumber (e.g. "JV-2627-0013") for a given JournalID. Empty if not found.</summary>
+        public static string GetJournalNumberById(int journalId)
+        {
+            if (journalId <= 0) return "";
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT JournalNumber FROM fin_journal WHERE JournalID=?id", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", journalId);
+                conn.Open();
+                object o = cmd.ExecuteScalar();
+                return o == null || o == DBNull.Value ? "" : o.ToString();
+            }
+        }
+
+                /// <summary>Look up the "Accounts Payable" ZohoAccountID (first active one).</summary>
+        public static string GetAccountsPayableZohoId()
+        {
+            return GetAccountZohoIdByType("accounts_payable");
+        }
+
+        /// <summary>Look up the "Accounts Receivable" ZohoAccountID (first active one).</summary>
+        public static string GetAccountsReceivableZohoId()
+        {
+            return GetAccountZohoIdByType("accounts_receivable");
+        }
+
+        private static string GetAccountZohoIdByType(string accountType)
+        {
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT ZohoAccountID FROM fin_chartofaccounts " +
+                "WHERE AccountType=?t AND IsActive=1 " +
+                "ORDER BY AccountID LIMIT 1", conn))
+            {
+                cmd.Parameters.AddWithValue("?t", accountType);
+                conn.Open();
+                object o = cmd.ExecuteScalar();
+                return o == null || o == DBNull.Value ? null : o.ToString();
+            }
+        }
+
+        /// <summary>Create a 2-line JV and atomically update the bank line's status.
+        /// Inserts into fin_journal with Origin='BANK_POSTING', SourceID=bankLineId.
+        /// Debit/credit direction is determined from which amount is non-zero on the bank line:
+        ///   Bank line has DEBIT (money out)   → DR Accounts Payable / CR Bank   (paying supplier)
+        ///   Bank line has CREDIT (money in)   → DR Bank / CR Accounts Receivable (customer payment)
+        /// Returns the new JournalID.</summary>
+        public static int SaveJournalFromBankLine(long bankLineId, string partyKey, int userId)
+        {
+            // --- Load the bank line + its bank account ---------------------
+            DataRow line;
+            string bankZohoAccountId;
+            decimal lineDebit, lineCredit;
+            DateTime lineDate;
+            string lineDesc, lineRef;
+            int bankId;
+
+            using (var conn = new MySqlConnection(ConnectionString))
+            using (var cmd = new MySqlCommand(
+                "SELECT bsl.LineID, bsl.BankID, bsl.TxnDate, bsl.Description, bsl.Reference," +
+                " bsl.Debit, bsl.Credit, bsl.Status," +
+                " ba.ZohoAccountID" +
+                " FROM fin_bankstatementlines bsl" +
+                " JOIN fin_bankaccounts ba ON ba.BankID = bsl.BankID" +
+                " WHERE bsl.LineID = ?id", conn))
+            {
+                cmd.Parameters.AddWithValue("?id", bankLineId);
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read())
+                        throw new Exception("Bank line " + bankLineId + " not found.");
+
+                    string status = r["Status"] == DBNull.Value ? "" : r["Status"].ToString();
+                    if (status == "Posted")
+                        throw new Exception("This bank line has already been posted.");
+
+                    bankId           = Convert.ToInt32(r["BankID"]);
+                    lineDate         = Convert.ToDateTime(r["TxnDate"]);
+                    lineDesc         = r["Description"] == DBNull.Value ? "" : r["Description"].ToString();
+                    lineRef          = r["Reference"]   == DBNull.Value ? "" : r["Reference"].ToString();
+                    lineDebit        = r["Debit"]       == DBNull.Value ? 0m : Convert.ToDecimal(r["Debit"]);
+                    lineCredit       = r["Credit"]      == DBNull.Value ? 0m : Convert.ToDecimal(r["Credit"]);
+                    bankZohoAccountId= r["ZohoAccountID"] == DBNull.Value ? null : r["ZohoAccountID"].ToString();
+                }
+            }
+
+            if (string.IsNullOrEmpty(bankZohoAccountId))
+                throw new Exception("This bank account is not linked to a Zoho Books ledger. Open Manage Bank Accounts and pick a Zoho Account for this bank.");
+
+            if (lineDebit == 0 && lineCredit == 0)
+                throw new Exception("Bank line has neither Debit nor Credit amount. Cannot post.");
+
+            if (lineDebit > 0 && lineCredit > 0)
+                throw new Exception("Bank line has both Debit and Credit. Cannot post (corrupt data).");
+
+            if (string.IsNullOrEmpty(partyKey))
+                throw new Exception("Party is required.");
+
+            // --- Derive direction + resolve AP or AR ---------------------------
+            bool isWithdrawal = lineDebit > 0;
+            decimal amount    = isWithdrawal ? lineDebit : lineCredit;
+
+            string apAccount = GetAccountsPayableZohoId();
+            string arAccount = GetAccountsReceivableZohoId();
+            if (isWithdrawal && string.IsNullOrEmpty(apAccount))
+                throw new Exception("No active \"Accounts Payable\" account found in Chart of Accounts. Sync Zoho COA first.");
+            if (!isWithdrawal && string.IsNullOrEmpty(arAccount))
+                throw new Exception("No active \"Accounts Receivable\" account found in Chart of Accounts. Sync Zoho COA first.");
+
+            // --- Party validation --------------------------------------------
+            // Withdrawal → party should be SUP (supplier we're paying).
+            // Deposit    → party should be CUS (customer paying us).
+            if (isWithdrawal && !partyKey.StartsWith("SUP:"))
+                throw new Exception("For a withdrawal (money out), party must be a SUPPLIER.");
+            if (!isWithdrawal && !partyKey.StartsWith("CUS:"))
+                throw new Exception("For a deposit (money in), party must be a CUSTOMER.");
+
+            // --- Build the 2 journal lines -----------------------------------
+            var lines = new System.Collections.Generic.List<JournalLineInput>();
+            if (isWithdrawal)
+            {
+                // DR AP + party    CR Bank
+                lines.Add(new JournalLineInput {
+                    ZohoAccountID   = apAccount,
+                    Debit           = amount,
+                    Credit          = 0,
+                    ContactID       = partyKey,
+                    LineDescription = lineDesc
+                });
+                lines.Add(new JournalLineInput {
+                    ZohoAccountID   = bankZohoAccountId,
+                    Debit           = 0,
+                    Credit          = amount,
+                    ContactID       = null,
+                    LineDescription = null
+                });
+            }
+            else
+            {
+                // DR Bank    CR AR + party
+                lines.Add(new JournalLineInput {
+                    ZohoAccountID   = bankZohoAccountId,
+                    Debit           = amount,
+                    Credit          = 0,
+                    ContactID       = null,
+                    LineDescription = null
+                });
+                lines.Add(new JournalLineInput {
+                    ZohoAccountID   = arAccount,
+                    Debit           = 0,
+                    Credit          = amount,
+                    ContactID       = partyKey,
+                    LineDescription = lineDesc
+                });
+            }
+
+            string narration = string.IsNullOrEmpty(lineDesc)
+                ? "Bank posting: " + (isWithdrawal ? "withdrawal" : "deposit") + " " + amount.ToString("F2")
+                : lineDesc;
+
+            // --- Atomic: insert JV, tag origin, update line ------------------
+            string journalNo = NextJournalNumber(lineDate);
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    int journalId;
+                    using (var cmd = new MySqlCommand(
+                        "INSERT INTO FIN_Journal " +
+                        " (JournalNumber, JournalDate, Narration, Reference, Origin, SourceID, Status," +
+                        "  TotalDebit, TotalCredit, CreatedBy, CreatedAt) " +
+                        "VALUES (?jn, ?jd, ?narr, ?ref, 'BANK_POSTING', ?src, 'DRAFT', ?amt, ?amt, ?uid, NOW()); " +
+                        "SELECT LAST_INSERT_ID();", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jn", journalNo);
+                        cmd.Parameters.AddWithValue("?jd", lineDate.Date);
+                        cmd.Parameters.AddWithValue("?narr", narration);
+                        cmd.Parameters.AddWithValue("?ref", string.IsNullOrEmpty(lineRef) ? (object)DBNull.Value : lineRef);
+                        cmd.Parameters.AddWithValue("?src", bankLineId);
+                        cmd.Parameters.AddWithValue("?amt", amount);
+                        cmd.Parameters.AddWithValue("?uid", userId);
+                        journalId = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+
+                    int order = 1;
+                    foreach (var ln in lines)
+                    {
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO FIN_JournalLine " +
+                            " (JournalID, LineOrder, ZohoAccountID, Debit, Credit, LineDescription, ContactID) " +
+                            "VALUES (?jid, ?ord, ?acc, ?dr, ?cr, ?desc, ?cid)", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("?jid", journalId);
+                            cmd.Parameters.AddWithValue("?ord", order++);
+                            cmd.Parameters.AddWithValue("?acc", ln.ZohoAccountID);
+                            cmd.Parameters.AddWithValue("?dr",  ln.Debit);
+                            cmd.Parameters.AddWithValue("?cr",  ln.Credit);
+                            cmd.Parameters.AddWithValue("?desc",string.IsNullOrEmpty(ln.LineDescription) ? (object)DBNull.Value : ln.LineDescription);
+                            cmd.Parameters.AddWithValue("?cid", string.IsNullOrEmpty(ln.ContactID)       ? (object)DBNull.Value : ln.ContactID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Link bank line → journal
+                    using (var cmd = new MySqlCommand(
+                        "UPDATE fin_bankstatementlines SET Status='Posted', JournalID=?jid WHERE LineID=?lid", conn, tx))
+                    {
+                        cmd.Parameters.AddWithValue("?jid", journalId);
+                        cmd.Parameters.AddWithValue("?lid", bankLineId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    tx.Commit();
+                    return journalId;
+                }
+            }
+        }
+
+        /// <summary>Rank parties by how many words of their name appear in the description.
+        /// Returns the top N matches as a DataTable (columns: PartyKey, PartyName, PartyType,
+        /// Score). Empty table if nothing scores above the minimum threshold.</summary>
+        public static DataTable SuggestPartiesForDescription(string description, int maxResults = 3)
+        {
+            var result = new DataTable();
+            result.Columns.Add("PartyKey");
+            result.Columns.Add("PartyName");
+            result.Columns.Add("PartyType");
+            result.Columns.Add("Score", typeof(int));
+
+            if (string.IsNullOrEmpty(description)) return result;
+
+            string descUp = description.ToUpperInvariant();
+
+            var parties = GetPartyList();   // PartyKey, PartyType, PartyName, etc.
+
+            var scored = new System.Collections.Generic.List<Tuple<int, DataRow>>();
+            foreach (DataRow p in parties.Rows)
+            {
+                string name = p["PartyName"].ToString();
+                if (string.IsNullOrEmpty(name)) continue;
+
+                // Split the name into meaningful words (ignore very short words).
+                var words = name.ToUpperInvariant()
+                    .Split(new[] { ' ', '.', ',', '/', '&', '-' }, StringSplitOptions.RemoveEmptyEntries);
+
+                int score = 0;
+                foreach (var w in words)
+                {
+                    if (w.Length < 3) continue; // skip noise words like "A", "OF"
+                    if (descUp.Contains(w)) score++;
+                }
+
+                if (score > 0) scored.Add(Tuple.Create(score, p));
+            }
+
+            foreach (var t in scored.OrderByDescending(x => x.Item1).Take(maxResults))
+            {
+                var r = result.NewRow();
+                r["PartyKey"]  = t.Item2["PartyKey"];
+                r["PartyName"] = t.Item2["PartyName"];
+                r["PartyType"] = t.Item2["PartyType"];
+                r["Score"]     = t.Item1;
+                result.Rows.Add(r);
+            }
+            return result;
+        }
+
+                public static int SaveJournalAsDraft(DateTime journalDate, string narration, string reference,
                                              System.Collections.Generic.List<JournalLineInput> lines, int userId)
         {
             if (lines == null || lines.Count == 0)
