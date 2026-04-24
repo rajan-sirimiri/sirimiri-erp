@@ -946,13 +946,13 @@ namespace MMApp.DAL
                 "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
                 "MIN(s.SupplierName) AS SupplierName, " +
                 "COUNT(*) AS LineCount, " +
-                "SUM(i.Amount) AS Amount, " +
-                "SUM(i.GSTAmount) AS GSTAmount, " +
-                "SUM(i.TransportCost) AS TransportCost, " +
-                "SUM(i.ShortageQty) AS ShortageQty, " +
-                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "IFNULL(SUM(i.Amount),0) AS Amount, " +
+                "IFNULL(SUM(i.GSTAmount),0) AS GSTAmount, " +
+                "IFNULL(SUM(i.TransportCost),0) AS TransportCost, " +
+                "IFNULL(SUM(i.ShortageQty),0) AS ShortageQty, " +
+                "IFNULL(SUM(i.ShortageValue),0) AS ShortageValue, " +
                 "MIN(i.PONo) AS PONo, " +
-                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "IFNULL(MAX(i.QualityCheck), 0) = 1 AS QualityCheck, " +
                 "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
                 "FROM MM_RawInward i " +
                 "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
@@ -1170,13 +1170,13 @@ namespace MMApp.DAL
                 "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
                 "MIN(s.SupplierName) AS SupplierName, " +
                 "COUNT(*) AS LineCount, " +
-                "SUM(i.Amount) AS Amount, " +
-                "SUM(i.GSTAmount) AS GSTAmount, " +
-                "SUM(i.TransportCost) AS TransportCost, " +
-                "SUM(i.ShortageQty) AS ShortageQty, " +
-                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "IFNULL(SUM(i.Amount),0) AS Amount, " +
+                "IFNULL(SUM(i.GSTAmount),0) AS GSTAmount, " +
+                "IFNULL(SUM(i.TransportCost),0) AS TransportCost, " +
+                "IFNULL(SUM(i.ShortageQty),0) AS ShortageQty, " +
+                "IFNULL(SUM(i.ShortageValue),0) AS ShortageValue, " +
                 "MIN(i.PONo) AS PONo, " +
-                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "IFNULL(MAX(i.QualityCheck), 0) = 1 AS QualityCheck, " +
                 "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
                 "FROM MM_PackingInward i " +
                 "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
@@ -1452,13 +1452,13 @@ namespace MMApp.DAL
                 "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
                 "MIN(s.SupplierName) AS SupplierName, " +
                 "COUNT(*) AS LineCount, " +
-                "SUM(i.Amount) AS Amount, " +
-                "SUM(i.GSTAmount) AS GSTAmount, " +
-                "SUM(i.TransportCost) AS TransportCost, " +
-                "SUM(i.ShortageQty) AS ShortageQty, " +
-                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "IFNULL(SUM(i.Amount),0) AS Amount, " +
+                "IFNULL(SUM(i.GSTAmount),0) AS GSTAmount, " +
+                "IFNULL(SUM(i.TransportCost),0) AS TransportCost, " +
+                "IFNULL(SUM(i.ShortageQty),0) AS ShortageQty, " +
+                "IFNULL(SUM(i.ShortageValue),0) AS ShortageValue, " +
                 "MIN(i.PONo) AS PONo, " +
-                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "IFNULL(MAX(i.QualityCheck), 0) = 1 AS QualityCheck, " +
                 "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
                 "FROM MM_ConsumableInward i " +
                 "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
@@ -1590,13 +1590,13 @@ namespace MMApp.DAL
                 "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
                 "MIN(s.SupplierName) AS SupplierName, " +
                 "COUNT(*) AS LineCount, " +
-                "SUM(i.Amount) AS Amount, " +
-                "SUM(i.GSTAmount) AS GSTAmount, " +
-                "SUM(i.TransportCost) AS TransportCost, " +
-                "SUM(i.ShortageQty) AS ShortageQty, " +
-                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "IFNULL(SUM(i.Amount),0) AS Amount, " +
+                "IFNULL(SUM(i.GSTAmount),0) AS GSTAmount, " +
+                "IFNULL(SUM(i.TransportCost),0) AS TransportCost, " +
+                "IFNULL(SUM(i.ShortageQty),0) AS ShortageQty, " +
+                "IFNULL(SUM(i.ShortageValue),0) AS ShortageValue, " +
                 "MIN(i.PONo) AS PONo, " +
-                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "IFNULL(MAX(i.QualityCheck), 0) = 1 AS QualityCheck, " +
                 "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
                 "FROM MM_StationaryInward i " +
                 "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +

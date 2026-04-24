@@ -41,7 +41,7 @@ namespace MMApp
                 LoadSuppliers();
                 LoadPendingInvoices();
                 // GRN history defaults: last 30 days
-                txtFromDate.Text = DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd");
+                txtFromDate.Text = DateTime.Today.AddDays(-90).ToString("yyyy-MM-dd");
                 txtToDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
                 LoadGRNList();
             }
@@ -146,24 +146,36 @@ namespace MMApp
         // ── GRN History (multi-item RM GRNs only) ────────────────────────
         void LoadGRNList()
         {
-            DateTime from, to;
-            if (!DateTime.TryParse(txtFromDate.Text, out from)) from = DateTime.Today.AddDays(-30);
-            if (!DateTime.TryParse(txtToDate.Text,   out to))   to   = DateTime.Today;
-
-            DataTable dt = MMDatabaseHelper.GetMultiItemRawInwardList(from, to);
-            if (dt != null && dt.Rows.Count > 0)
+            try
             {
-                rptGRN.DataSource = dt;
-                rptGRN.DataBind();
-                pnlEmpty.Visible = false;
-                lblCount.Text = dt.Rows.Count.ToString();
+                DateTime from, to;
+                if (!DateTime.TryParse(txtFromDate.Text, out from)) from = DateTime.Today.AddDays(-90);
+                if (!DateTime.TryParse(txtToDate.Text,   out to))   to   = DateTime.Today;
+
+                DataTable dt = MMDatabaseHelper.GetMultiItemRawInwardList(from, to);
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    rptGRN.DataSource = dt;
+                    rptGRN.DataBind();
+                    pnlEmpty.Visible = false;
+                    lblCount.Text = dt.Rows.Count.ToString();
+                }
+                else
+                {
+                    rptGRN.DataSource = null;
+                    rptGRN.DataBind();
+                    pnlEmpty.Visible = true;
+                    lblCount.Text = "0";
+                }
             }
-            else
+            catch (Exception ex)
             {
                 rptGRN.DataSource = null;
                 rptGRN.DataBind();
                 pnlEmpty.Visible = true;
-                lblCount.Text = "0";
+                lblCount.Text = "error";
+                litAlert.Text = "<div class='alert-err'>GRN History error: " + Server.HtmlEncode(ex.Message) + "</div>";
+                pnlAlert.Visible = true;
             }
         }
 
