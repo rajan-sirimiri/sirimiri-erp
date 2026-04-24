@@ -6,17 +6,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Sirimiri PP — Production Execution</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
+<link rel="stylesheet" href="/StockApp/erp-tablet.css"/>
 <style>
 :root{
-    --accent:#2ecc71; --accent-dark:#27ae60; --accent-light:#eafaf1;
-    --blue:#2980b9;   --blue-light:#eaf4fb;
-    --red:#e74c3c;    --red-light:#fdf3f2;
-    --orange:#e67e22; --orange-light:#fef5ec;
-    --gear:#455a64;   --gear-dark:#263238;   --gear-shine:#78909c;
-    --text:#1a1a1a;   --text-muted:#666;     --text-dim:#999;
-    --bg:#f0f0f0;     --surface:#fff;        --border:#e0e0e0;
-    --radius:14px;    --nav-h:52px;
+  --accent:#2ecc71; --accent-dark:#27ae60; --accent-light:#eafaf1;
+  --blue:#2980b9; --blue-light:#eaf4fb;
+  --red:#e74c3c; --red-light:#fdf3f2;
+  --orange:#e67e22; --orange-light:#fef5ec;
+  --gear:#455a64; --gear-dark:#263238; --gear-shine:#78909c;
+  --text:#1a1a1a; --text-muted:#666; --text-dim:#999;
+  --bg:#f0f0f0; --surface:#fff; --border:#e0e0e0;
+  --radius:14px; --nav-h:52px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
@@ -33,40 +33,78 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* DATE BAR */
 .date-bar{background:var(--surface);border-bottom:2px solid #1a1a1a;
-    padding:10px 20px;font-family:'Bebas Neue',sans-serif;
-    font-size:16px;letter-spacing:.06em;color:var(--text-muted);}
+  padding:10px 20px;font-family:'Bebas Neue',sans-serif;
+  font-size:16px;letter-spacing:.06em;color:var(--text-muted);}
 
 /* ALERT */
-.alert-wrap{padding:0 20px;margin-top:10px;}
+/* TOAST — fixed bottom-right notification (no page-flow shift) */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999;
+  max-width:420px;min-width:280px;pointer-events:auto;
+  animation:toast-in .3s ease-out;cursor:pointer;
+  filter:drop-shadow(0 8px 24px rgba(0,0,0,.18));}
+.toast-wrap.hiding{animation:toast-out .4s ease-in forwards;}
+@keyframes toast-in{
+  from{transform:translateX(420px);opacity:0;}
+  to{transform:translateX(0);opacity:1;}
+}
+@keyframes toast-out{
+  from{transform:translateX(0);opacity:1;}
+  to{transform:translateX(420px);opacity:0;}
+}
+@media (max-width:820px){
+  .toast-wrap{left:12px;right:12px;bottom:12px;max-width:none;min-width:0;}
+}
 
 /* SELECTION BAR */
 .select-bar{background:var(--surface);border-bottom:1px solid var(--border);
-    padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 .select-bar label{font-size:12px;font-weight:700;letter-spacing:.05em;
-    text-transform:uppercase;color:var(--text-muted);}
+  text-transform:uppercase;color:var(--text-muted);}
 .select-bar select{border:1.5px solid var(--border);border-radius:8px;
-    padding:8px 12px;font-size:13px;font-family:inherit;background:#fff;min-width:200px;}
+  padding:8px 12px;font-size:13px;font-family:inherit;background:#fff;min-width:200px;}
 .select-bar select:focus{outline:none;border-color:var(--accent);}
+.select-bar select:disabled{background:#f0f0f0;color:#999;cursor:not-allowed;}
 .btn-load{background:#1a1a1a;color:#fff;border:none;border-radius:8px;
-    padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
+  padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
 .btn-load:hover{background:#333;}
 .btn-prefilled{background:#7b1fa2;color:#fff;border:none;border-radius:8px;
-    padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;
-    white-space:nowrap;}
+  padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;
+  white-space:nowrap;}
 .btn-prefilled:hover{background:#6a1b9a;}
 .select-bar-sep{width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;}
 
 /* PAGE BODY */
 .page-body{max-width:900px;margin:0 auto;padding:24px 20px 60px;}
 
+/* ═══════════════════ SHIFT BANNERS (NEW) ═══════════════════ */
+.shift-card{background:var(--surface);border-radius:var(--radius);
+  box-shadow:0 2px 12px rgba(0,0,0,.07);padding:20px 24px;margin-bottom:20px;}
+.shift-card-start{border-left:4px solid #e74c3c;background:#fdf3f2;}
+.shift-card-active{border-left:4px solid #27ae60;background:#eafaf1;}
+.shift-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.shift-title-start{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;color:#e74c3c;}
+.shift-title-active{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;color:#27ae60;}
+.shift-sub{font-size:12px;color:var(--text-muted);}
+.shift-duration{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#27ae60;}
+.btn-shift-start{background:#e74c3c;color:#fff;border:none;border-radius:9px;
+  padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.06em;
+  font-family:'Bebas Neue',sans-serif;transition:background .2s;}
+.btn-shift-start:hover{background:#c0392b;}
+.btn-shift-end{background:#1a1a1a;color:#fff;border:none;border-radius:9px;
+  padding:11px 28px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;
+  font-family:'Bebas Neue',sans-serif;}
+.btn-shift-end:hover{background:#333;}
+.shift-meta-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-muted);}
+.shift-meta-item strong{color:var(--text);}
+
 /* INFO PANEL */
 .info-panel{background:var(--surface);border-radius:var(--radius);
-    box-shadow:0 2px 12px rgba(0,0,0,.07);padding:20px 24px;
-    margin-bottom:40px;display:grid;
-    grid-template-columns:1fr auto;gap:16px;align-items:center;}
+  box-shadow:0 2px 12px rgba(0,0,0,.07);padding:20px 24px;
+  margin-bottom:40px;display:grid;
+  grid-template-columns:1fr auto;gap:16px;align-items:center;}
 .info-left{}
 .info-product{font-family:'Bebas Neue',sans-serif;font-size:26px;
-    letter-spacing:.06em;color:var(--text);}
+  letter-spacing:.06em;color:var(--text);}
 .info-code{font-size:11px;color:var(--text-dim);margin-bottom:12px;}
 .info-stats{display:flex;gap:24px;flex-wrap:wrap;}
 .info-stat{font-size:12px;}
@@ -74,21 +112,21 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 .info-stat-lbl{color:var(--text-muted);}
 .info-right{text-align:right;}
 .info-batches{font-family:'Bebas Neue',sans-serif;font-size:48px;
-    letter-spacing:.04em;line-height:1;color:var(--accent-dark);}
+  letter-spacing:.04em;line-height:1;color:var(--accent-dark);}
 .info-batches-lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
 .info-completed{font-size:12px;color:var(--text-muted);margin-top:4px;}
 .status-initiated{background:var(--orange-light);color:var(--orange);
-    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+  font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
 .status-inprogress{background:var(--blue-light);color:var(--blue);
-    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+  font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
 .status-completed{background:var(--accent-light);color:var(--accent-dark);
-    font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
+  font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;}
 
 /* EXECUTION PANEL */
 .exec-panel{background:var(--surface);border-radius:var(--radius);
-    box-shadow:0 2px 16px rgba(0,0,0,.08);padding:32px 24px;margin-bottom:32px;}
+  box-shadow:0 2px 16px rgba(0,0,0,.08);padding:32px 24px;margin-bottom:32px;}
 .exec-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;
-    color:var(--text);margin-bottom:32px;text-align:center;}
+  color:var(--text);margin-bottom:32px;text-align:center;}
 
 /* GEAR AREA */
 .gear-area{display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:40px;flex-wrap:wrap;}
@@ -96,17 +134,17 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 
 /* START / END BUTTONS */
 .btn-start{background:var(--accent);color:#fff;border:none;border-radius:50%;
-    width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
-    letter-spacing:.04em;box-shadow:0 4px 16px rgba(46,204,113,.4);
-    transition:all .2s;display:flex;align-items:center;justify-content:center;
-    flex-direction:column;gap:4px;}
+  width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
+  letter-spacing:.04em;box-shadow:0 4px 16px rgba(46,204,113,.4);
+  transition:all .2s;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:4px;}
 .btn-start:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(46,204,113,.5);}
 .btn-start:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
 .btn-end{background:var(--red);color:#fff;border:none;border-radius:50%;
-    width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
-    letter-spacing:.04em;box-shadow:0 4px 16px rgba(231,76,60,.4);
-    transition:all .2s;display:flex;align-items:center;justify-content:center;
-    flex-direction:column;gap:4px;}
+  width:80px;height:80px;font-size:13px;font-weight:700;cursor:pointer;
+  letter-spacing:.04em;box-shadow:0 4px 16px rgba(231,76,60,.4);
+  transition:all .2s;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:4px;}
 .btn-end:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(231,76,60,.5);}
 .btn-end:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;transform:none;}
 .btn-icon{font-size:22px;line-height:1;}
@@ -115,595 +153,625 @@ nav{background:#1a1a1a;height:var(--nav-h);display:flex;align-items:center;paddi
 /* GEAR WHEEL */
 .gear-wrap{position:relative;width:364px;height:364px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .grammage-badge{position:absolute;left:-80px;top:50%;transform:translateY(-50%);
-    background:linear-gradient(135deg,#e91e63,#ff5722);color:#fff;
-    font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.08em;
-    padding:10px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(233,30,99,.4);
-    z-index:10;white-space:nowrap;text-align:center;
-    animation:grammage-pulse 2s ease-in-out infinite;}
+  background:linear-gradient(135deg,#e91e63,#ff5722);color:#fff;
+  font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.08em;
+  padding:10px 16px;border-radius:10px;box-shadow:0 4px 16px rgba(233,30,99,.4);
+  z-index:10;white-space:nowrap;text-align:center;
+  animation:grammage-pulse 2s ease-in-out infinite;}
 .grammage-sub{display:block;font-size:11px;letter-spacing:.12em;opacity:0.85;margin-top:2px;font-family:'DM Sans',sans-serif;}
 @keyframes grammage-pulse{0%,100%{opacity:1;transform:translateY(-50%) scale(1);}50%{opacity:0.5;transform:translateY(-50%) scale(1.05);}}
+
 #gearSvg{width:364px;height:364px;object-fit:contain;
-    transform-origin:center center;
-    transition:filter .3s;}
+  transform-origin:center center;
+  transition:filter .3s;}
 #gearSvg.spinning{filter:drop-shadow(0 0 16px rgba(180,120,30,.7));}
+
 .batch-info-row{display:flex;align-items:baseline;justify-content:center;
-    gap:6px;margin-top:10px;}
+  gap:6px;margin-top:10px;}
 .gear-batch-num{font-family:'Bebas Neue',sans-serif;font-size:28px;
-    letter-spacing:.04em;color:var(--accent-dark);line-height:1;}
+  letter-spacing:.04em;color:var(--accent-dark);line-height:1;}
 .gear-batch-sep{font-size:18px;color:var(--text-dim);font-weight:300;}
 .gear-batch-sub{font-size:13px;color:var(--text-muted);letter-spacing:.06em;
-    text-transform:uppercase;font-weight:600;}
+  text-transform:uppercase;font-weight:600;}
+
 .gear-status-label{font-size:11px;font-weight:700;text-align:center;
-    margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--text-muted);}
+  margin-top:10px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-muted);}
 .gear-status-label.running{color:var(--accent-dark);}
 .gear-status-label.stopped{color:var(--text-dim);}
 
 /* OUTPUT PANEL */
 .output-panel{background:#f8fffe;border:2px solid var(--accent);border-radius:var(--radius);
-    padding:20px 24px;margin-top:8px;}
+  padding:20px 24px;margin-top:8px;}
 .output-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.06em;
-    color:var(--accent-dark);margin-bottom:16px;}
+  color:var(--accent-dark);margin-bottom:16px;}
 .output-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group label{font-size:11px;font-weight:700;letter-spacing:.06em;
-    text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;}
+  text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;}
 .form-group input, .form-group textarea{width:100%;border:1.5px solid var(--border);
-    border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;background:#fff;}
+  border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;background:#fff;}
 .form-group input:focus, .form-group textarea:focus{outline:none;border-color:var(--accent);}
 .output-unit{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
 .dyn-params{margin-top:14px;}
 .dyn-param-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
 .dyn-param-row label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);}
 .dyn-param-row input{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;width:100%;}
 .dyn-param-row input:focus{border-color:var(--accent);}
-        .dyn-param-sel{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;}
-        .dyn-param-sel:focus{border-color:var(--accent);}
+.dyn-param-sel{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;outline:none;}
+.dyn-param-sel:focus{border-color:var(--accent);}
+
 .btn-save-output{background:var(--accent-dark);color:#fff;border:none;border-radius:8px;
-    padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;
-    letter-spacing:.04em;}
+  padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;
+  letter-spacing:.04em;}
 .btn-save-output:hover{background:var(--accent);}
 
 /* BATCH HISTORY */
 .history-section{background:var(--surface);border-radius:var(--radius);
-    box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;}
+  box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;}
 .history-head{padding:14px 20px;border-bottom:2px solid var(--border);
-    display:flex;align-items:center;gap:10px;}
+  display:flex;align-items:center;gap:10px;}
 .history-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em;}
 .history-table{width:100%;border-collapse:collapse;font-size:13px;}
 .history-table th{font-size:10px;font-weight:700;letter-spacing:.08em;
-    text-transform:uppercase;color:var(--text-dim);padding:10px 16px;
-    border-bottom:1px solid var(--border);text-align:left;}
+  text-transform:uppercase;color:var(--text-dim);padding:10px 16px;
+  border-bottom:1px solid var(--border);text-align:left;}
 .history-table td{padding:10px 16px;border-bottom:1px solid var(--border);}
 .history-table tr:last-child td{border-bottom:none;}
 .batch-no{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text-dim);}
+
 .badge-done{background:var(--accent-light);color:var(--accent-dark);
-    font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
 .badge-running{background:var(--orange-light);color:var(--orange);
-    font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+
 .empty-history{text-align:center;padding:32px;color:var(--text-dim);font-size:13px;}
+
 .no-order-msg{text-align:center;padding:40px;color:var(--text-dim);font-size:13px;}
 .no-order-icon{font-size:40px;margin-bottom:12px;}
 
 /* ── TABLET & TOUCH OPTIMISATION ─────────────────────────────────────────── */
-/* Touch targets — minimum 44px, START/END already 80px ✓ */
 .btn-load, .btn-save-output { min-height:44px; }
-select, input, textarea { min-height:44px; font-size:16px !important; } /* prevent iOS zoom */
+select, input, textarea { min-height:44px; font-size:16px !important; }
 
-/* Tablet landscape (1024px) — mostly fine, minor tweaks */
 @media (max-width:1024px) {
-    .page-body { max-width:100%; padding:16px 16px 60px; }
-    .gear-wrap  { width:320px; height:320px; }
-    #gearSvg    { width:320px; height:320px; }
+  .page-body { max-width:100%; padding:16px 16px 60px; }
+  .gear-wrap { width:320px; height:320px; }
+  #gearSvg { width:320px; height:320px; }
 }
 
-/* Tablet portrait (768px) — main layout changes */
 @media (max-width:820px) {
-    /* Nav */
-    .nav-title  { font-size:15px; }
-    .nav-user   { display:none; } /* save space */
-
-    /* Date bar */
-    .date-bar   { font-size:13px; padding:8px 16px; }
-
-    /* Select bar — stack vertically */
-    .select-bar { flex-direction:column; align-items:stretch; gap:10px; padding:12px 16px; }
-    .select-bar select { min-width:100%; }
-    .btn-load   { width:100%; padding:12px; font-size:14px; }
-
-    /* Info panel — single column */
-    .info-panel { grid-template-columns:1fr; }
-    .info-right { text-align:left; display:flex; align-items:center; gap:16px; }
-    .info-batches { font-size:36px; }
-
-    /* Exec panel */
-    .exec-panel { padding:20px 16px; }
-    .exec-title { font-size:17px; margin-bottom:24px; }
-
-    /* Gear area — stack vertically on portrait tablet */
-    .gear-area {
-        flex-direction:column;
-        gap:20px;
-    }
-    /* Move buttons side by side below wheel */
-    .gear-area .btn-start,
-    .gear-area .btn-end {
-        width:100px;
-        height:100px;
-        font-size:14px;
-    }
-    .btn-icon { font-size:26px; }
-
-    /* Make wheel smaller */
-    .gear-wrap  { width:280px; height:280px; }
-    #gearSvg    { width:280px; height:280px; }
-
-    /* Put START and END side by side in a row */
-    .gear-area {
-        flex-direction:column;
-    }
-    .gear-buttons-row {
-        display:flex;
-        gap:40px;
-        justify-content:center;
-        order:2; /* below wheel */
-    }
-
-    /* Output panel — single column */
-    .output-grid { grid-template-columns:1fr; }
-    .btn-save-output { width:100%; padding:14px; font-size:14px; }
-
-    /* History table — hide less important columns */
-    .history-table .col-hide { display:none; }
-
-    /* Page body padding */
-    .page-body { padding:12px 12px 80px; }
+  .nav-title { font-size:15px; }
+  .nav-user { display:none; }
+  .date-bar { font-size:13px; padding:8px 16px; }
+  .select-bar { flex-direction:column; align-items:stretch; gap:10px; padding:12px 16px; }
+  .select-bar select { min-width:100%; }
+  .btn-load { width:100%; padding:12px; font-size:14px; }
+  .info-panel { grid-template-columns:1fr; }
+  .info-right { text-align:left; display:flex; align-items:center; gap:16px; }
+  .info-batches { font-size:36px; }
+  .exec-panel { padding:20px 16px; }
+  .exec-title { font-size:17px; margin-bottom:24px; }
+  .gear-area { flex-direction:column; gap:20px; }
+  .gear-area .btn-start, .gear-area .btn-end { width:100px; height:100px; font-size:14px; }
+  .btn-icon { font-size:26px; }
+  .gear-wrap { width:280px; height:280px; }
+  #gearSvg { width:280px; height:280px; }
+  .gear-area { flex-direction:column; }
+  .gear-buttons-row { display:flex; gap:40px; justify-content:center; order:2; }
+  .output-grid { grid-template-columns:1fr; }
+  .btn-save-output { width:100%; padding:14px; font-size:14px; }
+  .history-table .col-hide { display:none; }
+  .page-body { padding:12px 12px 80px; }
 }
 
-/* Small tablet / large phone landscape (600px) */
 @media (max-width:640px) {
-    .gear-wrap  { width:240px; height:240px; }
-    #gearSvg    { width:240px; height:240px; }
-    .gear-area .btn-start,
-    .gear-area .btn-end { width:88px; height:88px; }
-    .info-stats { gap:14px; }
-    .gear-batch-num { font-size:22px; }
+  .gear-wrap { width:240px; height:240px; }
+  #gearSvg { width:240px; height:240px; }
+  .gear-area .btn-start, .gear-area .btn-end { width:88px; height:88px; }
+  .info-stats { gap:14px; }
+  .gear-batch-num { font-size:22px; }
 }
 </style>
 </head>
 <body>
 <form id="form1" runat="server">
-
-<asp:HiddenField ID="hfOrderID"      runat="server" Value="0"/>
-<asp:HiddenField ID="hfExecutionID"  runat="server" Value="0"/>
-<asp:HiddenField ID="hfTotalBatches" runat="server" Value="0"/>
-<asp:HiddenField ID="hfCurrentBatch" runat="server" Value="1"/>
-<asp:HiddenField ID="hfShowOutput"   runat="server" Value="0"/>
-<asp:HiddenField ID="hfState"        runat="server" Value="ready"/>
+<asp:HiddenField ID="hfOrderID"         runat="server" Value="0"/>
+<asp:HiddenField ID="hfExecutionID"     runat="server" Value="0"/>
+<asp:HiddenField ID="hfTotalBatches"    runat="server" Value="0"/>
+<asp:HiddenField ID="hfCurrentBatch"    runat="server" Value="1"/>
+<asp:HiddenField ID="hfShowOutput"      runat="server" Value="0"/>
+<asp:HiddenField ID="hfState"           runat="server" Value="ready"/>
+<asp:HiddenField ID="hfShiftID"         runat="server" Value="0"/>
+<asp:HiddenField ID="hfShiftActive"     runat="server" Value="0"/>
 
 <nav>
-    <a href="PPHome.aspx" class="nav-logo">
-        <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
-    </a>
-    <span class="nav-title">Production Execution</span>
-    <div class="nav-right">
-        <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
-        <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
-        <a href="#" class="nav-link" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
-    </div>
+  <a href="PPHome.aspx" class="nav-logo">
+    <img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/>
+  </a>
+  <span class="nav-title">Production Execution</span>
+  <div class="nav-right">
+    <asp:Label ID="lblNavUser" runat="server" CssClass="nav-user"/>
+    <a href="PPHome.aspx" class="nav-link">&#8592; PP Home</a>
+    <a href="#" class="nav-link" onclick="erpConfirm('Sign out?',{title:'Sign Out',type:'warn',okText:'Sign Out',onOk:function(){window.location='PPLogout.aspx';}});return false;">Sign Out</a>
+  </div>
 </nav>
 
 <div class="date-bar">
-    <asp:Label ID="lblTodayDate" runat="server"/>
-    &nbsp;&mdash;&nbsp; TODAY'S EXECUTION
+  <asp:Label ID="lblTodayDate" runat="server"/>
+  &nbsp;&mdash;&nbsp; TODAY'S EXECUTION
 </div>
 
-<!-- ALERT -->
-<div class="alert-wrap">
-    <asp:Panel ID="pnlAlert" runat="server" Visible="false">
-        <asp:Label ID="lblAlert" runat="server"/>
-    </asp:Panel>
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap" style="display:none;">
+  <asp:Panel ID="pnlAlert" runat="server" Visible="false">
+    <asp:Label ID="lblAlert" runat="server"/>
+  </asp:Panel>
 </div>
 
 <!-- SELECTION BAR -->
 <div class="select-bar">
-    <label>Shift</label>
-    <asp:DropDownList ID="ddlShift" runat="server" AutoPostBack="true"
-        OnSelectedIndexChanged="ddlShift_Changed">
-        <asp:ListItem Value="1">Shift 1 — Morning</asp:ListItem>
-        <asp:ListItem Value="2">Shift 2 — Evening</asp:ListItem>
-    </asp:DropDownList>
-
-    <label>Production Line</label>
-    <asp:DropDownList ID="ddlLine" runat="server" AutoPostBack="true"
-        OnSelectedIndexChanged="ddlLine_Changed">
-        <asp:ListItem Value="0">-- All Lines --</asp:ListItem>
-    </asp:DropDownList>
-
-    <label>Product</label>
-    <asp:DropDownList ID="ddlProduct" runat="server">
-        <asp:ListItem Value="0">-- Select Product --</asp:ListItem>
-    </asp:DropDownList>
-
-    <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
-        OnClick="btnLoad_Click" CausesValidation="false"/>
-
-    <div class="select-bar-sep"></div>
-
-    <a href="PPPrefilledEntry.aspx" class="btn-prefilled">
-        &#x1F9C3; Prefilled Conversion Entry
-    </a>
+  <label>Shift</label>
+  <asp:DropDownList ID="ddlShift" runat="server" AutoPostBack="true"
+                    OnSelectedIndexChanged="ddlShift_Changed">
+    <asp:ListItem Value="1">Shift 1 &mdash; Morning</asp:ListItem>
+    <asp:ListItem Value="2">Shift 2 &mdash; Evening</asp:ListItem>
+  </asp:DropDownList>
+  <label>Production Line</label>
+  <asp:DropDownList ID="ddlLine" runat="server" AutoPostBack="true"
+                    OnSelectedIndexChanged="ddlLine_Changed">
+    <asp:ListItem Value="0">-- All Lines --</asp:ListItem>
+  </asp:DropDownList>
+  <label>Product</label>
+  <asp:DropDownList ID="ddlProduct" runat="server">
+    <asp:ListItem Value="0">-- Select Product --</asp:ListItem>
+  </asp:DropDownList>
+  <asp:Button ID="btnLoad" runat="server" Text="Load" CssClass="btn-load"
+              OnClick="btnLoad_Click" CausesValidation="false"/>
+  <div class="select-bar-sep"></div>
+  <a href="PPPrefilledEntry.aspx" class="btn-prefilled">
+    &#x1F9C3; Prefilled Conversion Entry
+  </a>
 </div>
 
 <div class="page-body">
 
-    <!-- INFO PANEL -->
-    <asp:Panel ID="pnlInfo" runat="server" Visible="false">
-        <div class="info-panel">
-            <div class="info-left">
-                <div class="info-product">
-                    <asp:Label ID="lblInfoProduct" runat="server"/>
-                </div>
-                <div class="info-code">
-                    <asp:Label ID="lblInfoCode" runat="server"/>
-                    &nbsp;|&nbsp;
-                    <asp:Label ID="lblInfoDate" runat="server"/>
-                    &nbsp;|&nbsp;
-                    <asp:Label ID="lblInfoStatus" runat="server"/>
-                </div>
-                <div class="info-stats">
-                    <div class="info-stat">
-                        <div class="info-stat-val"><asp:Label ID="lblInfoOutput" runat="server"/></div>
-                        <div class="info-stat-lbl">Expected Output</div>
-                    </div>
-                </div>
+  <!-- ═══════════════════ SHIFT BANNERS ═══════════════════ -->
+
+  <!-- NO ACTIVE SHIFT — START SHIFT button -->
+  <asp:Panel ID="pnlShiftStart" runat="server" Visible="false">
+    <div class="shift-card shift-card-start">
+      <div class="shift-row">
+        <div>
+          <div class="shift-title-start">NO ACTIVE SHIFT</div>
+          <div class="shift-sub">
+            Start a shift to begin production. All batch actions (Start / End / Save Output)
+            are disabled until a shift is active.
+          </div>
+          <div class="shift-meta-row">
+            <div class="shift-meta-item">
+              <strong><asp:Label ID="lblShiftStartShiftLbl" runat="server" Text="Shift 1"/></strong>
             </div>
-            <div class="info-right">
-                <div class="info-batches"><asp:Label ID="lblInfoBatches" runat="server"/></div>
-                <div class="info-batches-lbl">Total Batches</div>
-                <div class="info-completed"><asp:Label ID="lblInfoCompleted" runat="server"/></div>
+            <div class="shift-meta-item">
+              Line: <strong><asp:Label ID="lblShiftStartLineLbl" runat="server" Text="All Lines"/></strong>
             </div>
+          </div>
         </div>
-    </asp:Panel>
+        <asp:Button ID="btnStartShift" runat="server" CssClass="btn-shift-start"
+                    Text="&#x25B6; START THE SHIFT" OnClick="btnStartShift_Click"
+                    CausesValidation="false"/>
+      </div>
+    </div>
+  </asp:Panel>
 
-    <!-- NO ORDER STATE -->
-    <asp:Panel ID="pnlNoOrder" runat="server" Visible="false">
-        <div class="no-order-msg">
-            <div class="no-order-icon">&#x23F3;</div>
-            <div>Select a Shift and Product above to begin execution.</div>
+  <!-- ACTIVE SHIFT — info banner + (optionally) End Shift button when target met -->
+  <asp:Panel ID="pnlShiftActive" runat="server" Visible="false">
+    <div class="shift-card shift-card-active">
+      <div class="shift-row">
+        <div>
+          <div class="shift-title-active">
+            SHIFT ACTIVE &mdash; <asp:Label ID="lblShiftInfo" runat="server"/>
+          </div>
+          <div class="shift-sub">
+            Started at <asp:Label ID="lblShiftStartTime" runat="server"/>
+            by <asp:Label ID="lblShiftStartedBy" runat="server"/>
+          </div>
+          <div class="shift-meta-row">
+            <div class="shift-meta-item">
+              Target: <strong><asp:Label ID="lblShiftTargetBatches" runat="server"/></strong> batches
+            </div>
+            <div class="shift-meta-item">
+              Completed: <strong><asp:Label ID="lblShiftCompletedBatches" runat="server"/></strong>
+            </div>
+            <div class="shift-meta-item">
+              Line: <strong><asp:Label ID="lblShiftLine" runat="server"/></strong>
+            </div>
+          </div>
         </div>
-    </asp:Panel>
-
-    <!-- EXECUTION PANEL -->
-    <asp:Panel ID="pnlExecution" runat="server" Visible="true" style="display:none">
-        <div class="exec-panel">
-            <div class="exec-title">Batch Execution</div>
-
-            <!-- GEAR AREA -->
-            <div class="gear-area">
-
-                <!-- GEAR WHEEL SVG — centred on tablet -->
-                <div class="gear-wrap">
-                    <asp:Label ID="lblGrammage" runat="server" CssClass="grammage-badge" Visible="false"/>
-                    <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
-                </div>
-
-                <!-- START / END buttons — side by side row (wraps below wheel on tablet) -->
-                <div class="gear-buttons-row">
-                    <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
-                        OnClick="btnStart_Click" CausesValidation="false"
-                        UseSubmitBehavior="false"
-                        OnClientClick="startWheelAnim();"
-                        Text="&#9654;&#xA;START"/>
-                    <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
-                        OnClick="btnEnd_Click" CausesValidation="false"
-                        UseSubmitBehavior="false"
-                        OnClientClick="stopWheelAnim();"
-                        Text="&#9646;&#9646;&#xA;END"/>
-                </div>
-
-            </div>
-
-            <!-- Batch number display — sits above status label -->
-            <div class="batch-info-row">
-                <span class="gear-batch-num" id="gearBatchNum">—</span>
-                <span class="gear-batch-sep">·</span>
-                <span class="gear-batch-sub" id="gearBatchSub">READY</span>
-            </div>
-            <div class="gear-status-label stopped" id="gearStatusLabel">
-                READY TO START
-            </div>
-
-            <!-- OUTPUT PANEL — unlocks after END -->
-            <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
-                <div class="output-panel" style="margin-top:28px;">
-                    <div class="output-title">Record Batch Output</div>
-
-                    <!-- DOUGH WEIGHT — visible only for Laddu Line products with UnitWeightGrams -->
-                    <asp:Panel ID="pnlDoughWeight" runat="server" Visible="false">
-                    <div style="background:#fff8e1;border:2px solid #f9a825;border-radius:10px;padding:16px;margin-bottom:16px;">
-                        <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f57f17;margin-bottom:10px;">&#x2696; Dough Weight Calculation</div>
-                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
-                            <div class="form-group" style="flex:1;min-width:150px;">
-                                <label>Dough Weight (kg)</label>
-                                <asp:TextBox ID="txtDoughWeight" runat="server" type="number" step="0.001" min="0" placeholder="e.g. 5"
-                                    oninput="calcUnitsFromDough();"/>
-                            </div>
-                            <div class="form-group" style="flex:1;min-width:150px;">
-                                <label>Unit Weight</label>
-                                <div style="padding:9px 12px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;font-weight:700;color:var(--accent);">
-                                    <asp:Label ID="lblUnitWeight" runat="server" Text="--"/> grams
-                                </div>
-                            </div>
-                            <div class="form-group" style="flex:1;min-width:150px;">
-                                <label>Calculated Units</label>
-                                <div id="divCalcUnits" style="padding:9px 12px;background:#e8f5e9;border:2px solid var(--accent);border-radius:8px;font-weight:700;font-size:18px;color:var(--accent);">
-                                    0
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    </asp:Panel>
-                    <asp:HiddenField ID="hfUnitWeightGrams" runat="server" Value="0"/>
-                    <asp:HiddenField ID="hfCalcUnits" runat="server" Value="0"/>
-
-                    <div class="output-grid">
-                        <div class="form-group">
-                            <label>Remarks</label>
-                            <asp:DropDownList ID="ddlRemarks" runat="server"/>
-                        </div>
-                    </div>
-                    <!-- DYNAMIC PARAMS -->
-                    <asp:Panel ID="pnlDynParams" runat="server" Visible="false">
-                    <div class="dyn-params">
-                        <asp:Repeater ID="rptDynParams" runat="server">
-                            <ItemTemplate>
-                                <div class="dyn-param-row">
-                                    <label><%# Eval("ParamLabel") %></label>
-                                    <%# string.IsNullOrEmpty(Eval("ParamOptions").ToString())
-                                        ? "<input type=\"number\" step=\"any\" min=\"0\" name=\"dynparam_" + Eval("ParamID") + "\" id=\"dynparam_" + Eval("ParamID") + "\" placeholder=\"Enter value\"/>"
-                                        : BuildParamDropdown(Eval("ParamID").ToString(), Eval("ParamOptions").ToString()) %>
-                                </div>
-                            </ItemTemplate>
-                        </asp:Repeater>
-                    </div>
-                    </asp:Panel>
-                    <asp:Button ID="btnSaveOutput" runat="server"
-                        Text="Save &amp; Move to Packing"
-                        CssClass="btn-save-output"
-                        OnClick="btnSaveOutput_Click"
-                        CausesValidation="false"/>
-                </div>
-            </asp:Panel>
-
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+          <div class="shift-duration">
+            <asp:Label ID="lblShiftDuration" runat="server"/>
+          </div>
+          <asp:Button ID="btnEndShift" runat="server" CssClass="btn-shift-end"
+                      Text="&#x23F9; END THE SHIFT" OnClick="btnEndShift_Click"
+                      CausesValidation="false"
+                      OnClientClick="return doEndShiftConfirm();"/>
         </div>
-    </asp:Panel>
+      </div>
+    </div>
+  </asp:Panel>
 
-    <!-- BATCH HISTORY -->
-    <asp:Panel ID="pnlInfo2" runat="server">
-        <div class="history-section" style="display:<%# pnlInfo.Visible ? "block" : "none" %>">
-            <div class="history-head">
-                <span style="font-size:20px;">&#128203;</span>
-                <span class="history-title">Batch History</span>
+  <!-- ═══════════════════ INFO PANEL (existing) ═══════════════════ -->
+  <asp:Panel ID="pnlInfo" runat="server" Visible="false">
+    <div class="info-panel">
+      <div class="info-left">
+        <div class="info-product">
+          <asp:Label ID="lblInfoProduct" runat="server"/>
+        </div>
+        <div class="info-code">
+          <asp:Label ID="lblInfoCode" runat="server"/>
+          &nbsp;|&nbsp;
+          <asp:Label ID="lblInfoDate" runat="server"/>
+          &nbsp;|&nbsp;
+          <asp:Label ID="lblInfoStatus" runat="server"/>
+        </div>
+        <div class="info-stats">
+          <div class="info-stat">
+            <div class="info-stat-val"><asp:Label ID="lblInfoOutput" runat="server"/></div>
+            <div class="info-stat-lbl">Expected Output</div>
+          </div>
+        </div>
+      </div>
+      <div class="info-right">
+        <div class="info-batches"><asp:Label ID="lblInfoBatches" runat="server"/></div>
+        <div class="info-batches-lbl">Total Batches</div>
+        <div class="info-completed"><asp:Label ID="lblInfoCompleted" runat="server"/></div>
+      </div>
+    </div>
+  </asp:Panel>
+
+  <!-- NO ORDER STATE -->
+  <asp:Panel ID="pnlNoOrder" runat="server" Visible="false">
+    <div class="no-order-msg">
+      <div class="no-order-icon">&#x23F3;</div>
+      <div>Select a Shift and Product above to begin execution.</div>
+    </div>
+  </asp:Panel>
+
+  <!-- ═══════════════════ EXECUTION PANEL (existing) ═══════════════════ -->
+  <asp:Panel ID="pnlExecution" runat="server" Visible="true" style="display:none">
+    <div class="exec-panel">
+      <div class="exec-title">Batch Execution</div>
+
+      <!-- GEAR AREA -->
+      <div class="gear-area">
+        <div class="gear-wrap">
+          <asp:Label ID="lblGrammage" runat="server" CssClass="grammage-badge" Visible="false"/>
+          <img id="gearSvg" src="progress_wheel.png" alt="Production Wheel"/>
+        </div>
+        <div class="gear-buttons-row">
+          <asp:Button ID="btnStart" runat="server" CssClass="btn-start"
+                      OnClick="btnStart_Click" CausesValidation="false"
+                      UseSubmitBehavior="false"
+                      OnClientClick="startWheelAnim();"
+                      Text="&#9654;&#xA;START"/>
+          <asp:Button ID="btnEnd" runat="server" CssClass="btn-end"
+                      OnClick="btnEnd_Click" CausesValidation="false"
+                      UseSubmitBehavior="false"
+                      OnClientClick="stopWheelAnim();"
+                      Text="&#9646;&#9646;&#xA;END"/>
+        </div>
+      </div>
+
+      <div class="batch-info-row">
+        <span class="gear-batch-num" id="gearBatchNum">&mdash;</span>
+        <span class="gear-batch-sep">&middot;</span>
+        <span class="gear-batch-sub" id="gearBatchSub">READY</span>
+      </div>
+      <div class="gear-status-label stopped" id="gearStatusLabel">
+        READY TO START
+      </div>
+
+      <!-- OUTPUT PANEL -->
+      <asp:Panel ID="pnlOutput" runat="server" Visible="true" style="display:none;">
+        <div class="output-panel" style="margin-top:28px;">
+          <div class="output-title">Record Batch Output</div>
+
+          <asp:Panel ID="pnlDoughWeight" runat="server" Visible="false">
+            <div style="background:#fff8e1;border:2px solid #f9a825;border-radius:10px;padding:16px;margin-bottom:16px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f57f17;margin-bottom:10px;">&#x2696; Dough Weight Calculation</div>
+              <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="form-group" style="flex:1;min-width:150px;">
+                  <label>Dough Weight (kg)</label>
+                  <asp:TextBox ID="txtDoughWeight" runat="server" type="number" step="0.001" min="0" placeholder="e.g. 5"
+                               oninput="calcUnitsFromDough();"/>
+                </div>
+                <div class="form-group" style="flex:1;min-width:150px;">
+                  <label>Unit Weight</label>
+                  <div style="padding:9px 12px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;font-weight:700;color:var(--accent);">
+                    <asp:Label ID="lblUnitWeight" runat="server" Text="--"/> grams
+                  </div>
+                </div>
+                <div class="form-group" style="flex:1;min-width:150px;">
+                  <label>Calculated Units</label>
+                  <div id="divCalcUnits" style="padding:9px 12px;background:#e8f5e9;border:2px solid var(--accent);border-radius:8px;font-weight:700;font-size:18px;color:var(--accent);">
+                    0
+                  </div>
+                </div>
+              </div>
             </div>
+          </asp:Panel>
 
-            <asp:Panel ID="pnlHistoryEmpty" runat="server" Visible="true">
-                <div class="empty-history">No batches started yet for this order.</div>
-            </asp:Panel>
+          <asp:HiddenField ID="hfUnitWeightGrams" runat="server" Value="0"/>
+          <asp:HiddenField ID="hfCalcUnits" runat="server" Value="0"/>
 
-            <asp:Repeater ID="rptHistory" runat="server">
-                <HeaderTemplate>
-                    <table class="history-table">
-                    <tr>
-                        <th>#</th>
-                        <th>Started</th>
-                        <th>Completed</th>
-                        <th>Duration</th>
-                        <th>Actual Output</th>
-                        <th>Status</th>
-                        <th>Remarks</th>
-                    </tr>
-                </HeaderTemplate>
+          <div class="output-grid">
+            <div class="form-group">
+              <label>Remarks</label>
+              <asp:DropDownList ID="ddlRemarks" runat="server"/>
+            </div>
+          </div>
+
+          <asp:Panel ID="pnlDynParams" runat="server" Visible="false">
+            <div class="dyn-params">
+              <asp:Repeater ID="rptDynParams" runat="server">
                 <ItemTemplate>
-                    <tr>
-                        <td><span class="batch-no"><%# Eval("BatchNo") %></span></td>
-                        <td><%# FormatTime(Eval("StartTime")) %></td>
-                        <td><%# FormatTime(Eval("EndTime")) %></td>
-                        <td><%# Eval("EndTime") != DBNull.Value
-                            ? Math.Round((Convert.ToDateTime(Eval("EndTime")) - Convert.ToDateTime(Eval("StartTime"))).TotalMinutes, 0) + " min"
-                            : "—" %></td>
-                        <td><%# FormatOutput(Eval("ActualOutput"), "") %></td>
-                        <td>
-                            <span class='<%# Eval("Status").ToString()=="Completed" ? "badge-done" : "badge-running" %>'>
-                                <%# Eval("Status") %>
-                            </span>
-                        </td>
-                        <td style="color:var(--text-muted);font-size:12px;">
-                            <%# Eval("Remarks") == DBNull.Value ? "—" : Eval("Remarks") %>
-                        </td>
-                    </tr>
+                  <div class="dyn-param-row">
+                    <label><%# Eval("ParamLabel") %></label>
+                    <%# string.IsNullOrEmpty(Eval("ParamOptions").ToString())
+                        ? "<input type=\"number\" step=\"any\" min=\"0\" name=\"dynparam_" + Eval("ParamID") + "\" id=\"dynparam_" + Eval("ParamID") + "\" placeholder=\"Enter value\"/>"
+                        : BuildParamDropdown(Eval("ParamID").ToString(), Eval("ParamOptions").ToString()) %>
+                  </div>
                 </ItemTemplate>
-                <FooterTemplate></table></FooterTemplate>
-            </asp:Repeater>
+              </asp:Repeater>
+            </div>
+          </asp:Panel>
+
+          <asp:Button ID="btnSaveOutput" runat="server"
+                      Text="Save &amp; Move to Packing"
+                      CssClass="btn-save-output"
+                      OnClick="btnSaveOutput_Click"
+                      CausesValidation="false"/>
         </div>
-    </asp:Panel>
+      </asp:Panel>
+    </div>
+  </asp:Panel>
+
+  <!-- BATCH HISTORY -->
+  <asp:Panel ID="pnlInfo2" runat="server">
+    <div class="history-section" style="display:<%# pnlInfo.Visible ? "block" : "none" %>">
+      <div class="history-head">
+        <span style="font-size:20px;">&#128203;</span>
+        <span class="history-title">Batch History</span>
+      </div>
+      <asp:Panel ID="pnlHistoryEmpty" runat="server" Visible="true">
+        <div class="empty-history">No batches started yet for this order.</div>
+      </asp:Panel>
+      <asp:Repeater ID="rptHistory" runat="server">
+        <HeaderTemplate>
+          <table class="history-table">
+            <tr>
+              <th>#</th>
+              <th>Started</th>
+              <th>Completed</th>
+              <th>Duration</th>
+              <th>Actual Output</th>
+              <th>Status</th>
+              <th>Remarks</th>
+            </tr>
+        </HeaderTemplate>
+        <ItemTemplate>
+          <tr>
+            <td><span class="batch-no"><%# Eval("BatchNo") %></span></td>
+            <td><%# FormatTime(Eval("StartTime")) %></td>
+            <td><%# FormatTime(Eval("EndTime")) %></td>
+            <td><%# Eval("EndTime") != DBNull.Value
+                     ? Math.Round((Convert.ToDateTime(Eval("EndTime")) - Convert.ToDateTime(Eval("StartTime"))).TotalMinutes, 0) + " min"
+                     : "&mdash;" %></td>
+            <td><%# FormatOutput(Eval("ActualOutput"), "") %></td>
+            <td>
+              <span class='<%# Eval("Status").ToString()=="Completed" ? "badge-done" : "badge-running" %>'>
+                <%# Eval("Status") %>
+              </span>
+            </td>
+            <td style="color:var(--text-muted);font-size:12px;">
+              <%# Eval("Remarks") == DBNull.Value ? "&mdash;" : Eval("Remarks") %>
+            </td>
+          </tr>
+        </ItemTemplate>
+        <FooterTemplate></table></FooterTemplate>
+      </asp:Repeater>
+    </div>
+  </asp:Panel>
 
 </div><!-- /page-body -->
-
 
 <script>
 // ── GEAR ANIMATION ──────────────────────────────────────────────────────────
 var gearAngle = 0, gearSpeed = 0, targetSpeed = 0;
-
 function animateGear() {
-    gearSpeed += (targetSpeed - gearSpeed) * 0.03;
-    gearAngle  = (gearAngle + gearSpeed) % 360;
-    var img = document.getElementById('gearSvg');
-    if (img) img.style.transform = 'rotate(' + gearAngle + 'deg)';
-    requestAnimationFrame(animateGear);
+  gearSpeed += (targetSpeed - gearSpeed) * 0.03;
+  gearAngle = (gearAngle + gearSpeed) % 360;
+  var img = document.getElementById('gearSvg');
+  if (img) img.style.transform = 'rotate(' + gearAngle + 'deg)';
+  requestAnimationFrame(animateGear);
 }
 
 function updateGearText() {
-    var n = document.getElementById('gearBatchNum');
-    var s = document.getElementById('gearBatchSub');
-    if (!n || !s) return;
-    if (window.totalBat && window.totalBat !== '0') {
-        n.innerText = 'B' + window.batchNum;
-        s.innerText = window.batchNum + ' OF ' + window.totalBat;
-    } else {
-        n.innerText = '—'; s.innerText = 'READY';
-    }
+  var n = document.getElementById('gearBatchNum');
+  var s = document.getElementById('gearBatchSub');
+  if (!n || !s) return;
+  if (window.totalBat && window.totalBat !== '0') {
+    n.innerText = 'B' + window.batchNum;
+    s.innerText = window.batchNum + ' OF ' + window.totalBat;
+  } else {
+    n.innerText = '\u2014'; s.innerText = 'READY';
+  }
 }
 
-// Set by RegisterStartupScript before DOM ready — just store state
 function startWheel() { window.serverState = 'running'; }
-function stopWheel(r)  { window.serverState = r ? 'ready' : 'ended'; }
+function stopWheel(r) { window.serverState = r ? 'ready' : 'ended'; }
 
 function applyState() {
-    var lbl = document.getElementById('gearStatusLabel');
-    var s   = window.serverState || 'ready';
-    // NOTE: pnlOutput visibility is controlled ONLY by server (SetState in C#)
-    // JS never touches pnlOutput — prevents showing panel before DB write is confirmed
-    if (s === 'running') {
-        targetSpeed = 0.9;
-        if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    } else if (s === 'ended') {
-        targetSpeed = 0;
-        if (lbl) { lbl.innerText = 'BATCH ENDED — ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
-    } else if (s === 'stopped') {
-        targetSpeed = 0;
-        if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
-    } else {
-        targetSpeed = 0;
-        if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
-    }
-    updateGearText();
+  var lbl = document.getElementById('gearStatusLabel');
+  var s = window.serverState || 'ready';
+  if (s === 'running') {
+    targetSpeed = 0.9;
+    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+  } else if (s === 'ended') {
+    targetSpeed = 0;
+    if (lbl) { lbl.innerText = 'BATCH ENDED \u2014 ENTER OUTPUT BELOW'; lbl.className = 'gear-status-label stopped'; }
+  } else if (s === 'stopped') {
+    targetSpeed = 0;
+    if (lbl) { lbl.innerText = 'PRODUCTION STOPPED'; lbl.className = 'gear-status-label stopped'; }
+  } else {
+    targetSpeed = 0;
+    if (lbl) { lbl.innerText = 'READY TO START'; lbl.className = 'gear-status-label stopped'; }
+  }
+  updateGearText();
 }
 
-// OnClientClick — pure visual animation only, NO button state changes
-// Server controls which buttons are enabled via Enabled property
 // ── SESSION KEEPALIVE ─────────────────────────────────────────────────────
-// Pings server every 4 minutes while batch is running to prevent session timeout
 var _keepAliveTimer = null;
-
 function startKeepAlive() {
-    stopKeepAlive(); // clear any existing timer
-    _keepAliveTimer = setInterval(function() {
-        fetch('KeepAlive.ashx', { method: 'GET', cache: 'no-store' })
-            .catch(function() {}); // silently ignore errors
-    }, 4 * 60 * 1000); // every 4 minutes (session timeout is 60 min)
+  stopKeepAlive();
+  _keepAliveTimer = setInterval(function() {
+    fetch('KeepAlive.ashx', { method: 'GET', cache: 'no-store' }).catch(function() {});
+  }, 4 * 60 * 1000);
 }
-
 function stopKeepAlive() {
-    if (_keepAliveTimer) { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
+  if (_keepAliveTimer) { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
 }
 
 // ── CLICK SOUND ───────────────────────────────────────────────────────────
 function playClick() {
-    try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Sharp mechanical click: short noise burst + quick decay
-        var buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
-        var data = buf.getChannelData(0);
-        for (var i = 0; i < data.length; i++) {
-            // Noise burst with exponential decay
-            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
-        }
-        var src = ctx.createBufferSource();
-        src.buffer = buf;
-        // Bandpass filter to give a mechanical 'thunk' quality
-        var filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 800;
-        filter.Q.value = 0.8;
-        src.connect(filter);
-        filter.connect(ctx.destination);
-        src.start();
-    } catch(e) {} // silently fail if audio not supported
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+    }
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 800;
+    filter.Q.value = 0.8;
+    src.connect(filter);
+    filter.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
 }
 
 // ── BUTTON STATE CONTROL ───────────────────────────────────────────────────
 function setButtonStates(state) {
-    // state: 'ready' | 'running' | 'ended' | 'stopped'
-    var btnStart = document.getElementById('<%= btnStart.ClientID %>');
-    var btnEnd   = document.getElementById('<%= btnEnd.ClientID %>');
-    if (!btnStart || !btnEnd) return;
-
-    if (state === 'running') {
-        // START grayed out and blocked, END active
-        btnStart.disabled = true;
-        btnStart.style.background = '#ccc';
-        btnStart.style.boxShadow  = 'none';
-        btnStart.style.cursor     = 'not-allowed';
-        btnStart.style.transform  = 'none';
-        btnEnd.disabled = false;
-        btnEnd.style.background = '';
-        btnEnd.style.cursor     = '';
-    } else {
-        // ready/ended/stopped: START active, END grayed
-        btnStart.disabled = false;
-        btnStart.style.background = '';
-        btnStart.style.cursor     = '';
-        btnEnd.disabled = true;
-        btnEnd.style.background = '#ccc';
-        btnEnd.style.boxShadow  = 'none';
-        btnEnd.style.cursor     = 'not-allowed';
-        btnEnd.style.transform  = 'none';
-    }
+  var btnStart = document.getElementById('<%= btnStart.ClientID %>');
+  var btnEnd = document.getElementById('<%= btnEnd.ClientID %>');
+  if (!btnStart || !btnEnd) return;
+  if (state === 'running') {
+    btnStart.disabled = true;
+    btnStart.style.background = '#ccc';
+    btnStart.style.boxShadow = 'none';
+    btnStart.style.cursor = 'not-allowed';
+    btnStart.style.transform = 'none';
+    btnEnd.disabled = false;
+    btnEnd.style.background = '';
+    btnEnd.style.cursor = '';
+  } else {
+    btnStart.disabled = false;
+    btnStart.style.background = '';
+    btnStart.style.cursor = '';
+    btnEnd.disabled = true;
+    btnEnd.style.background = '#ccc';
+    btnEnd.style.boxShadow = 'none';
+    btnEnd.style.cursor = 'not-allowed';
+    btnEnd.style.transform = 'none';
+  }
 }
 
 function startWheelAnim() {
-    playClick();
-    targetSpeed = 0.9;
-    var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
-    setButtonStates('running');
-    startKeepAlive();
-    return true;
-}
-function stopWheelAnim() {
-    playClick();
-    targetSpeed = 0;
-    var lbl = document.getElementById('gearStatusLabel');
-    if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'gear-status-label stopped'; }
-    stopKeepAlive();
-    return true;
+  playClick();
+  targetSpeed = 0.9;
+  var lbl = document.getElementById('gearStatusLabel');
+  if (lbl) { lbl.innerText = 'IN PROGRESS...'; lbl.className = 'gear-status-label running'; }
+  setButtonStates('running');
+  startKeepAlive();
+  return true;
 }
 
-// Start animation loop immediately when script loads (not waiting for window.load)
-// This ensures the loop is running when the startup script calls applyState
+function stopWheelAnim() {
+  playClick();
+  targetSpeed = 0;
+  var lbl = document.getElementById('gearStatusLabel');
+  if (lbl) { lbl.innerText = 'ENDING BATCH...'; lbl.className = 'gear-status-label stopped'; }
+  stopKeepAlive();
+  return true;
+}
+
 animateGear();
 
 window.addEventListener('load', function() {
-    applyState();
-    updateGearText();
-    setButtonStates(window.serverState || 'ready');
-    if (window.serverState === 'running') startKeepAlive();
+  applyState();
+  updateGearText();
+  setButtonStates(window.serverState || 'ready');
+  if (window.serverState === 'running') startKeepAlive();
 
-    // Auto-hide success alerts after 3 seconds
-    var alertPanel = document.getElementById('<%= pnlAlert.ClientID %>');
-    if (alertPanel && alertPanel.offsetParent !== null) {
-        var bg = alertPanel.style.backgroundColor || '';
-        var inner = alertPanel.innerHTML || '';
-        if (bg.indexOf('209') >= 0 || bg.indexOf('d1f5e0') >= 0 || inner.indexOf('d1f5e0') >= 0 || inner.indexOf('#155724') >= 0) {
-            setTimeout(function() {
-                alertPanel.style.transition = 'opacity 0.5s';
-                alertPanel.style.opacity = '0';
-                setTimeout(function() { alertPanel.style.display = 'none'; }, 500);
-            }, 3000);
-        }
-    }
+  // TOAST: show the wrapper only when the server rendered an alert; auto-dismiss
+  var alertPanel = document.getElementById('<%= pnlAlert.ClientID %>');
+  var toastWrap  = document.getElementById('toastWrap');
+  if (alertPanel && toastWrap && alertPanel.offsetParent !== null) {
+    toastWrap.style.display = 'block';
+
+    // Decide dismiss delay: success (green) = 3s, error (red) = 7s
+    var inner = alertPanel.innerHTML || '';
+    var isSuccess = inner.indexOf('#d1f5e0') >= 0 || inner.indexOf('#155724') >= 0;
+    var delay = isSuccess ? 3000 : 7000;
+
+    setTimeout(function() {
+      toastWrap.classList.add('hiding');
+      setTimeout(function() {
+        toastWrap.style.display = 'none';
+        toastWrap.classList.remove('hiding');
+      }, 400);
+    }, delay);
+
+    // Click-to-dismiss
+    toastWrap.addEventListener('click', function() {
+      toastWrap.classList.add('hiding');
+      setTimeout(function() {
+        toastWrap.style.display = 'none';
+        toastWrap.classList.remove('hiding');
+      }, 400);
+    });
+  }
 });
+
+// ── END SHIFT CONFIRMATION ──────────────────────────────────────────────────
+// The server-side btnEndShift_Click validates target met FIRST, then shows the
+// congratulatory summary and writes EndTime. This client confirm is a simple
+// "are you sure" guard.
+function doEndShiftConfirm(){
+  erpConfirm('Are you sure you want to END this shift? The shift will be closed and a final summary will be shown.', {
+    title: 'End Shift',
+    type: 'warn',
+    okText: 'End Shift',
+    onOk: function(){ __doPostBack('<%= btnEndShift.UniqueID %>', ''); }
+  });
+  return false;
+}
 </script>
 </form>
+
 <script src="/StockApp/erp-modal.js"></script>
 <script>
 function calcUnitsFromDough() {
-    var doughKg = parseFloat(document.getElementById('<%= txtDoughWeight.ClientID %>').value) || 0;
-    var doughGrams = doughKg * 1000;
-    var uwg = parseFloat(document.getElementById('<%= hfUnitWeightGrams.ClientID %>').value) || 0;
-    var units = uwg > 0 ? Math.floor(doughGrams / uwg) : 0;
-    document.getElementById('divCalcUnits').innerText = units;
-    document.getElementById('<%= hfCalcUnits.ClientID %>').value = units;
+  var doughKg = parseFloat(document.getElementById('<%= txtDoughWeight.ClientID %>').value) || 0;
+  var doughGrams = doughKg * 1000;
+  var uwg = parseFloat(document.getElementById('<%= hfUnitWeightGrams.ClientID %>').value) || 0;
+  var units = uwg > 0 ? Math.floor(doughGrams / uwg) : 0;
+  document.getElementById('divCalcUnits').innerText = units;
+  document.getElementById('<%= hfCalcUnits.ClientID %>').value = units;
 }
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>
