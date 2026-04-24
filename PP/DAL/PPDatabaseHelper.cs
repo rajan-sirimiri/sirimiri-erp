@@ -2490,5 +2490,138 @@ namespace PPApp.DAL
             finally { conn.Close(); }
             return dt;
         }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // PRODUCTION SHIFT — Start / End / Totals
+        // ═════════════════════════════════════════════════════════════════════
+        // Supports Shift Start/End flow on PPProductionExecution.aspx.
+        // Scope: one active shift per (ShiftDate, Shift, ProductionLineID).
+        // lineId == 0 means the shift was started with "-- All Lines --"
+        // (stored as NULL in ProductionLineID).
+        // ═════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Look up the active (un-closed) production shift for a given date + shift + line.
+        /// lineId = 0 means the shift was started with "-- All Lines --" (NULL in DB).
+        /// Returns null if none.
+        /// </summary>
+        public static DataRow GetActiveProductionShift(DateTime shiftDate, int shift, int lineId)
+        {
+            if (lineId > 0)
+            {
+                return ExecuteQueryRow(
+                    "SELECT * FROM PP_ProductionShift " +
+                    "WHERE ShiftDate=?d AND Shift=?s AND ProductionLineID=?l " +
+                    "AND Status='Active' LIMIT 1;",
+                    new MySqlParameter("?d", shiftDate.Date),
+                    new MySqlParameter("?s", shift),
+                    new MySqlParameter("?l", lineId));
+            }
+            else
+            {
+                return ExecuteQueryRow(
+                    "SELECT * FROM PP_ProductionShift " +
+                    "WHERE ShiftDate=?d AND Shift=?s AND ProductionLineID IS NULL " +
+                    "AND Status='Active' LIMIT 1;",
+                    new MySqlParameter("?d", shiftDate.Date),
+                    new MySqlParameter("?s", shift));
+            }
+        }
+
+        /// <summary>
+        /// Start a new production shift. Returns the new ShiftID.
+        /// Throws InvalidOperationException if an active shift already exists
+        /// for this (date, shift, line) combo.
+        /// </summary>
+        public static int StartProductionShift(DateTime shiftDate, int shift, int lineId,
+                                               int userId, string userName)
+        {
+            // Guard against duplicate active shift
+            if (GetActiveProductionShift(shiftDate, shift, lineId) != null)
+                throw new InvalidOperationException(
+                    "An active shift already exists for this date, shift, and line.");
+
+            ExecuteNonQuery(
+                "INSERT INTO PP_ProductionShift " +
+                "(ShiftDate, Shift, ProductionLineID, StartTime, StartedByUserID, StartedByName, Status) " +
+                "VALUES (?d, ?s, ?l, ?t, ?u, ?n, 'Active');",
+                new MySqlParameter("?d", shiftDate.Date),
+                new MySqlParameter("?s", shift),
+                new MySqlParameter("?l", lineId > 0 ? (object)lineId : DBNull.Value),
+                new MySqlParameter("?t", NowIST()),
+                new MySqlParameter("?u", userId),
+                new MySqlParameter("?n", userName ?? ""));
+
+            object id = ExecuteScalar("SELECT LAST_INSERT_ID();");
+            return Convert.ToInt32(id);
+        }
+
+        /// <summary>
+        /// End (close) a production shift. Stores TargetBatches, CompletedBatches,
+        /// and FinalStatus ('TARGET_MET' | 'EXCEEDED').
+        /// </summary>
+        public static void EndProductionShift(int shiftId, int targetBatches, int completedBatches,
+                                              int userId, string userName)
+        {
+            string finalStatus = completedBatches > targetBatches ? "EXCEEDED" : "TARGET_MET";
+
+            ExecuteNonQuery(
+                "UPDATE PP_ProductionShift SET " +
+                "EndTime=?t, EndedByUserID=?u, EndedByName=?n, Status='Closed', " +
+                "TargetBatches=?tgt, CompletedBatches=?done, FinalStatus=?fs " +
+                "WHERE ShiftID=?id AND Status='Active';",
+                new MySqlParameter("?t", NowIST()),
+                new MySqlParameter("?u", userId),
+                new MySqlParameter("?n", userName ?? ""),
+                new MySqlParameter("?tgt", targetBatches),
+                new MySqlParameter("?done", completedBatches),
+                new MySqlParameter("?fs", finalStatus),
+                new MySqlParameter("?id", shiftId));
+        }
+
+        /// <summary>
+        /// Compute target + completed batch counts across ALL production orders for a
+        /// given (date, shift, line). Used to decide whether END THE SHIFT is allowed
+        /// and to populate the end-of-shift summary.
+        ///
+        /// Target    = SUM(EffectiveBatches) across all production orders in scope.
+        /// Completed = COUNT of PP_BatchExecution rows with Status='Completed'
+        ///             whose OrderID belongs to the same filter set.
+        ///
+        /// Returns a DataRow with int columns: TargetBatches, CompletedBatches.
+        /// </summary>
+        public static DataRow GetProductionShiftTotals(DateTime shiftDate, int shift, int lineId)
+        {
+            // EffectiveBatches = IFNULL(RevisedBatches, OrderedBatches)
+            // — same semantics as GetProductionOrderById.
+
+            string whereLineOrder = lineId > 0 ? " AND p.ProductionLineID = ?l "  : "";
+            string whereLineBatch = lineId > 0 ? " AND p2.ProductionLineID = ?l " : "";
+
+            string sql =
+                "SELECT " +
+                "  IFNULL(SUM(IFNULL(o.RevisedBatches, o.OrderedBatches)),0) AS TargetBatches, " +
+                "  ( " +
+                "    SELECT IFNULL(COUNT(*),0) FROM PP_BatchExecution be " +
+                "    INNER JOIN PP_ProductionOrder o2 ON o2.OrderID = be.OrderID " +
+                "    INNER JOIN PP_Products p2 ON p2.ProductID = o2.ProductID " +
+                "    WHERE o2.OrderDate = ?d AND o2.Shift = ?s " +
+                "      AND be.Status = 'Completed' " +
+                whereLineBatch +
+                "  ) AS CompletedBatches " +
+                "FROM PP_ProductionOrder o " +
+                "INNER JOIN PP_Products p ON p.ProductID = o.ProductID " +
+                "WHERE o.OrderDate = ?d AND o.Shift = ?s " +
+                whereLineOrder + ";";
+
+            var parms = new System.Collections.Generic.List<MySqlParameter>
+            {
+                new MySqlParameter("?d", shiftDate.Date),
+                new MySqlParameter("?s", shift)
+            };
+            if (lineId > 0) parms.Add(new MySqlParameter("?l", lineId));
+
+            return ExecuteQueryRow(sql, parms.ToArray());
+        }
     }
 }
