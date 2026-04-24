@@ -22,6 +22,7 @@ namespace MMApp
         protected HiddenField        hfLoading;
         protected HiddenField        hfUnloading;
         protected HiddenField        hfQtyVerified;
+        protected HiddenField        hfInvoiceMode;
         protected HiddenField        hfSupplierID;
         protected Panel              pnlAlert;
         protected Panel              pnlEmpty;
@@ -300,9 +301,27 @@ namespace MMApp
                 decimal total  = Convert.ToDecimal(hfTotal.Value);
                 int     userId = Convert.ToInt32(Session["MM_UserID"]);
 
+                // ── Invoice mode (radio) ──
+                string invoiceMode = hfInvoiceMode != null ? (hfInvoiceMode.Value ?? "normal") : "normal";
+                string invoiceNoVal = txtInvoiceNo.Text.Trim();
+                if (invoiceMode == "none")
+                {
+                    invoiceNoVal = "NO-INVOICE";
+                    invDate = null;
+                    gstRate = 0;
+                    gstAmt  = 0;
+                }
+                else if (invoiceMode == "manual")
+                {
+                    if (!invoiceNoVal.StartsWith("MN-", StringComparison.OrdinalIgnoreCase))
+                        invoiceNoVal = "MN-" + invoiceNoVal;
+                    gstRate = 0;
+                    gstAmt  = 0;
+                }
+
                 MMDatabaseHelper.AddConsumableInward(
                     grnNo, grnDate, invDate,
-                    txtInvoiceNo.Text.Trim(), supId, itemId,
+                    invoiceNoVal, supId, itemId,
                     qtyInvoice, qtyReceived, qtyUOM, rate,
                     txtHSN.Text.Trim(), gstRate, gstAmt,
                     transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
@@ -345,9 +364,11 @@ namespace MMApp
             hfGSTAmount.Value            = "0";
             hfTotal.Value                = "0";
             txtInvoiceNo.ReadOnly = false;
+            if (hfInvoiceMode != null) hfInvoiceMode.Value = "normal";
             lblGRNNo.Text = MMDatabaseHelper.GenerateGRNNumber("CN");
-            ClientScript.RegisterStartupScript(this.GetType(), "resetManualInv",
-                "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
+            ClientScript.RegisterStartupScript(this.GetType(), "resetInvMode",
+                "var rb=document.getElementById('rbInvNormal');if(rb){rb.checked=true;}" +
+                "if(typeof setInvoiceMode==='function')setInvoiceMode('normal');", true);
         }
     }
 }

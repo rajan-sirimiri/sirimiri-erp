@@ -153,12 +153,30 @@
 
             <div class="card">
                 <div class="card-title">Item &amp; Supplier</div>
+                <!-- Invoice mode: radio group -->
                 <div style="margin-bottom:14px;padding:10px 14px;background:#fff8f0;border:1.5px solid #ffe0b2;border-radius:8px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#e67e22;">
-                        <input type="checkbox" id="chkManualInvoice" onclick="toggleManualInvoice(this.checked);"
-                            style="width:18px;height:18px;accent-color:#e67e22;cursor:pointer;"/>
-                        Manual Invoice — No Invoice Provided
-                    </label>
+                    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+                        <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#e67e22;">Invoice Mode:</span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvNormal" value="normal" checked
+                                   onclick="setInvoiceMode('normal');"
+                                   style="width:16px;height:16px;accent-color:#e67e22;cursor:pointer;"/>
+                            Normal Invoice
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#e67e22;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvManual" value="manual"
+                                   onclick="setInvoiceMode('manual');"
+                                   style="width:16px;height:16px;accent-color:#e67e22;cursor:pointer;"/>
+                            Manual Invoice
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#999;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvNone" value="none"
+                                   onclick="setInvoiceMode('none');"
+                                   style="width:16px;height:16px;accent-color:#999;cursor:pointer;"/>
+                            No Invoice
+                        </label>
+                    </div>
+                    <asp:HiddenField ID="hfInvoiceMode" runat="server" Value="normal"/>
                 </div>
                 <div class="form-grid">
                     <div class="form-group" style="position:relative;">
@@ -216,7 +234,7 @@
                     <div class="form-group" style="background:rgba(224,123,0,0.06);border:1.5px solid rgba(224,123,0,0.3);border-radius:10px;padding:10px 12px;">
                         <label style="color:var(--primary);">Qty in Stock UOM <span class="req">*</span></label>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            <asp:TextBox ID="txtQtyUOM" runat="server" placeholder="0" style="flex:1;border-color:rgba(224,123,0,0.4);background:#fff8f0;" />
+                            <asp:TextBox ID="txtQtyUOM" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;border-color:rgba(224,123,0,0.4);background:#fff8f0;" />
                             <asp:DropDownList ID="ddlStdUOM" runat="server" style="width:90px;padding:9px 6px;border:1.5px solid rgba(224,123,0,0.4);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff8f0;outline:none;" />
                         </div>
                         <span class="field-hint" id="uomHint" style="color:var(--primary);">Select item to auto-fill UOM</span>
@@ -398,17 +416,37 @@
 <script>
     var itemData = <%= ItemDataJson %>;
 
-    function toggleManualInvoice(checked) {
-        var inv = document.getElementById('<%= txtInvoiceNo.ClientID %>');
+    function setInvoiceMode(mode) {
+        // mode: 'normal' | 'manual' | 'none'
+        var inv     = document.getElementById('<%= txtInvoiceNo.ClientID %>');
         var invDate = document.getElementById('<%= txtInvoiceDate.ClientID %>');
-        var gst = document.getElementById('<%= txtGSTRate.ClientID %>');
-        if (checked) {
-            inv.value = 'MANUAL INVOICE'; inv.readOnly = true; inv.style.background = '#f0f0f0'; inv.style.color = '#999';
+        var gst     = document.getElementById('<%= txtGSTRate.ClientID %>');
+        var hfMode  = document.getElementById('<%= hfInvoiceMode.ClientID %>');
+        if (hfMode) hfMode.value = mode;
+
+        if (mode === 'none') {
+            inv.value = 'NO-INVOICE';
+            inv.readOnly = true; inv.style.background = '#f0f0f0'; inv.style.color = '#999';
             if (invDate) { invDate.value = ''; invDate.readOnly = true; invDate.style.background = '#f0f0f0'; }
-            if (gst) { gst.value = '0'; }
-        } else {
-            inv.value = ''; inv.readOnly = false; inv.style.background = ''; inv.style.color = '';
+            if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
+        } else if (mode === 'manual') {
+            var current = (inv.value || '').trim();
+            if (current === 'NO-INVOICE' || current === 'MANUAL INVOICE' || current === '') {
+                inv.value = 'MN-';
+            } else if (current.indexOf('MN-') !== 0) {
+                inv.value = 'MN-' + current;
+            }
+            inv.readOnly = false; inv.style.background = ''; inv.style.color = '';
             if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
+            if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
+        } else {
+            var cur = (inv.value || '').trim();
+            if (cur === 'NO-INVOICE' || cur === 'MANUAL INVOICE' || cur.indexOf('MN-') === 0) {
+                inv.value = '';
+            }
+            inv.readOnly = false; inv.style.background = ''; inv.style.color = '';
+            if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
+            if (gst) { gst.readOnly = false; gst.style.background = ''; }
         }
         calcAll();
     }
@@ -555,6 +593,7 @@
     function calcAll() {
         var qtyInv    = n('<%= txtQtyInvoice.ClientID %>');
         var qtyAct    = n('<%= txtQtyReceived.ClientID %>');
+        var qtyBilled = n('<%= txtQtyUOM.ClientID %>');
         var rate      = n('<%= txtRate.ClientID %>');
         var gstRate   = n('<%= txtGSTRate.ClientID %>');
         var transport = n('<%= txtTransport.ClientID %>');
@@ -569,7 +608,8 @@
             shortRow.style.display = 'flex';
         } else { shortRow.style.display = 'none'; }
 
-        var invoiceAmt = qtyInv * rate;
+        // Invoice value now uses Qty Billed (not Standard Qty)
+        var invoiceAmt = qtyBilled * rate;
         var taxable    = invoiceAmt + (transInv ? transport : 0);
         var gstBase    = transGST ? taxable : invoiceAmt;
         var gstAmt     = gstBase * (gstRate / 100);

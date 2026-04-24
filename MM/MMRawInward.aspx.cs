@@ -22,6 +22,7 @@ namespace MMApp
         protected HiddenField hfLoading;
         protected HiddenField hfUnloading;
         protected HiddenField hfQtyVerified;
+        protected HiddenField hfInvoiceMode;
         protected Panel pnlAlert;
         protected Panel pnlEmpty;
         protected Panel pnlRecEmpty;
@@ -460,9 +461,27 @@ namespace MMApp
                     remarks = string.IsNullOrEmpty(remarks) ? invNote : invNote + " " + remarks;
                 }
 
+                // ── Invoice mode (radio) ──
+                string invoiceMode = hfInvoiceMode != null ? (hfInvoiceMode.Value ?? "normal") : "normal";
+                string invoiceNoVal = txtInvoiceNo.Text.Trim();
+                if (invoiceMode == "none")
+                {
+                    invoiceNoVal = "NO-INVOICE";
+                    invDate = null;
+                    gstRate = 0;
+                    gstAmt  = 0;
+                }
+                else if (invoiceMode == "manual")
+                {
+                    if (!invoiceNoVal.StartsWith("MN-", StringComparison.OrdinalIgnoreCase))
+                        invoiceNoVal = "MN-" + invoiceNoVal;
+                    gstRate = 0;
+                    gstAmt  = 0;
+                }
+
                 MMDatabaseHelper.AddRawInward(
                     grnNo, grnDate, invDate,
-                    txtInvoiceNo.Text.Trim(), supId, rmId,
+                    invoiceNoVal, supId, rmId,
                     qtyInvoice, qtyReceived, qtyUOM, rate,
                     txtHSN.Text.Trim(), gstRate, gstAmt,
                     transport, chkTransportInInvoice.Checked, chkTransportInGST.Checked,
@@ -504,10 +523,12 @@ namespace MMApp
             hfTaxable.Value = hfGSTAmount.Value = hfTotal.Value = "0";
             hfLoading.Value = hfUnloading.Value = hfQtyVerified.Value = "0";
             txtInvoiceNo.ReadOnly = false;
+            if (hfInvoiceMode != null) hfInvoiceMode.Value = "normal";
             GenerateGRN();
-            // Reset Manual Invoice checkbox via client script
-            ClientScript.RegisterStartupScript(this.GetType(), "resetManualInv",
-                "var cb=document.getElementById('chkManualInvoice');if(cb)cb.checked=false;toggleManualInvoice(false);", true);
+            // Reset Invoice-mode radio group to "normal"
+            ClientScript.RegisterStartupScript(this.GetType(), "resetInvMode",
+                "var rb=document.getElementById('rbInvNormal');if(rb){rb.checked=true;}" +
+                "if(typeof setInvoiceMode==='function')setInvoiceMode('normal');", true);
         }
     }
 }

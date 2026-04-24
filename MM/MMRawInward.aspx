@@ -182,13 +182,30 @@
             <div class="card">
                 <div class="card-title">Material &amp; Supplier</div>
 
-                <!-- Manual Invoice checkbox -->
+                <!-- Invoice mode: radio group -->
                 <div style="margin-bottom:14px;padding:10px 14px;background:#fff8f0;border:1.5px solid #ffe0b2;border-radius:8px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#e67e22;">
-                        <input type="checkbox" id="chkManualInvoice" onclick="toggleManualInvoice(this.checked);"
-                            style="width:18px;height:18px;accent-color:#e67e22;cursor:pointer;"/>
-                        Manual Invoice — No Invoice Provided
-                    </label>
+                    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+                        <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#e67e22;">Invoice Mode:</span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#333;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvNormal" value="normal" checked
+                                   onclick="setInvoiceMode('normal');"
+                                   style="width:16px;height:16px;accent-color:#e67e22;cursor:pointer;"/>
+                            Normal Invoice
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#e67e22;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvManual" value="manual"
+                                   onclick="setInvoiceMode('manual');"
+                                   style="width:16px;height:16px;accent-color:#e67e22;cursor:pointer;"/>
+                            Manual Invoice
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#999;">
+                            <input type="radio" name="rblInvoiceMode" id="rbInvNone" value="none"
+                                   onclick="setInvoiceMode('none');"
+                                   style="width:16px;height:16px;accent-color:#999;cursor:pointer;"/>
+                            No Invoice
+                        </label>
+                    </div>
+                    <asp:HiddenField ID="hfInvoiceMode" runat="server" Value="normal"/>
                 </div>
 
                 <div class="form-grid">
@@ -261,7 +278,7 @@
                     <div class="form-group" style="background:rgba(26,158,106,0.06);border:1.5px solid rgba(26,158,106,0.3);border-radius:10px;padding:10px 12px;">
                         <label style="color:#1a9e6a;">Qty Billed (Standard) <span class="req">*</span></label>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            <asp:TextBox ID="txtQtyUOM" runat="server" placeholder="0" style="flex:1;border-color:rgba(26,158,106,0.4);background:#f0faf6;" />
+                            <asp:TextBox ID="txtQtyUOM" runat="server" placeholder="0" onchange="calcAll()" onkeyup="calcAll()" style="flex:1;border-color:rgba(26,158,106,0.4);background:#f0faf6;" />
                             <asp:DropDownList ID="ddlStdUOM" runat="server" style="width:90px;padding:9px 6px;border:1.5px solid rgba(26,158,106,0.4);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#f0faf6;outline:none;" />
                         </div>
                         <span class="field-hint" id="uomHint" style="color:#1a9e6a;">Select material to auto-fill</span>
@@ -551,23 +568,46 @@
 <script>
     var rmData = <%= RMDataJson %>;
 
-    function toggleManualInvoice(checked) {
-        var inv = document.getElementById('<%= txtInvoiceNo.ClientID %>');
+    function setInvoiceMode(mode) {
+        // mode: 'normal' | 'manual' | 'none'
+        var inv     = document.getElementById('<%= txtInvoiceNo.ClientID %>');
         var invDate = document.getElementById('<%= txtInvoiceDate.ClientID %>');
-        var gst = document.getElementById('<%= txtGSTRate.ClientID %>');
-        if (checked) {
-            inv.value = 'MANUAL INVOICE';
+        var gst     = document.getElementById('<%= txtGSTRate.ClientID %>');
+        var hfMode  = document.getElementById('<%= hfInvoiceMode.ClientID %>');
+        if (hfMode) hfMode.value = mode;
+
+        if (mode === 'none') {
+            // No Invoice — invoice no fixed, date disabled, GST zeroed & disabled
+            inv.value = 'NO-INVOICE';
             inv.readOnly = true;
             inv.style.background = '#f0f0f0';
             inv.style.color = '#999';
             if (invDate) { invDate.value = ''; invDate.readOnly = true; invDate.style.background = '#f0f0f0'; }
-            if (gst) { gst.value = '0'; }
-        } else {
-            inv.value = '';
+            if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
+        } else if (mode === 'manual') {
+            // Manual Invoice — MN- prefix (user types rest), date enabled, GST zeroed & disabled
+            var current = (inv.value || '').trim();
+            if (current === 'NO-INVOICE' || current === 'MANUAL INVOICE' || current === '') {
+                inv.value = 'MN-';
+            } else if (current.indexOf('MN-') !== 0) {
+                inv.value = 'MN-' + current;
+            }
             inv.readOnly = false;
             inv.style.background = '';
             inv.style.color = '';
             if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
+            if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
+        } else {
+            // Normal invoice — everything enabled
+            var cur = (inv.value || '').trim();
+            if (cur === 'NO-INVOICE' || cur === 'MANUAL INVOICE' || cur.indexOf('MN-') === 0) {
+                inv.value = '';
+            }
+            inv.readOnly = false;
+            inv.style.background = '';
+            inv.style.color = '';
+            if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
+            if (gst) { gst.readOnly = false; gst.style.background = ''; }
         }
         calcAll();
     }
@@ -748,13 +788,14 @@
     function calcAll() {
         var qtyInv    = n('<%= txtQtyInvoice.ClientID %>');
         var qtyAct    = n('<%= txtQtyReceived.ClientID %>');
+        var qtyBilled = n('<%= txtQtyUOM.ClientID %>');
         var rate      = n('<%= txtRate.ClientID %>');
         var gstRate   = n('<%= txtGSTRate.ClientID %>');
         var transport = n('<%= txtTransport.ClientID %>');
         var transInv  = c('<%= chkTransportInInvoice.ClientID %>');
         var transGST  = c('<%= chkTransportInGST.ClientID %>');
 
-        // Shortage
+        // Shortage — still based on (Standard vs Actual Received)
         var shortage  = Math.max(0, qtyInv - qtyAct);
         var shortVal  = shortage * rate;
         var shortRow  = document.getElementById('shortageRow');
@@ -766,8 +807,8 @@
             shortRow.style.display = 'none';
         }
 
-        // Cost &mdash; always based on INVOICE qty (supplier billed for this)
-        var invoiceAmt = qtyInv * rate;
+        // Cost — now based on QTY BILLED (supplier bills by Qty Billed)
+        var invoiceAmt = qtyBilled * rate;
         var taxable    = invoiceAmt + (transInv ? transport : 0);
         var gstBase    = transGST ? taxable : invoiceAmt;
         var gstAmt     = gstBase * (gstRate / 100);
