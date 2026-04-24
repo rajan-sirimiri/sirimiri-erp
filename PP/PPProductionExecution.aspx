@@ -564,7 +564,8 @@ select, input, textarea { min-height:44px; font-size:16px !important; }
                       Text="Save &amp; Move to Packing"
                       CssClass="btn-save-output"
                       OnClick="btnSaveOutput_Click"
-                      CausesValidation="false"/>
+                      CausesValidation="false"
+                      OnClientClick="return doSaveOutputConfirm();"/>
         </div>
       </asp:Panel>
     </div>
@@ -814,6 +815,39 @@ function calcUnitsFromTrays() {
   var total = (trays * upt) + partial;
   document.getElementById('divCalcTrayUnits').innerText = total;
   document.getElementById('<%= hfCalcTrayUnits.ClientID %>').value = total;
+}
+
+// Before saving batch output: if the tray panel is active and Partial Units
+// is blank or zero, ask the operator to confirm. Catches accidental skips
+// without adding friction when partial really is zero.
+function doSaveOutputConfirm() {
+  var trayPanel = document.getElementById('<%= pnlTrays.ClientID %>');
+  // Only check if the tray panel is rendered AND visible
+  if (!trayPanel || trayPanel.style.display === 'none') return true;
+
+  var trayInp    = document.getElementById('<%= txtNoOfTrays.ClientID %>');
+  var partialInp = document.getElementById('<%= txtPartialUnits.ClientID %>');
+  if (!trayInp || !partialInp) return true;
+
+  var trays   = parseInt(trayInp.value, 10)    || 0;
+  var partial = parseInt(partialInp.value, 10) || 0;
+  var partialRaw = (partialInp.value || '').trim();
+
+  // If partial has a positive value, no prompt needed
+  if (partial > 0) return true;
+
+  // Partial is blank or 0 — confirm before submitting
+  var msg = 'You entered <strong>' + trays + '</strong> tray' + (trays === 1 ? '' : 's') +
+            ' and <strong>0</strong> partial units' +
+            (partialRaw === '' ? ' (field was left blank)' : '') +
+            '.<br/>Continue saving this batch?';
+  erpConfirm(msg, {
+    title: 'Confirm Partial Count',
+    type: 'warn',
+    okText: 'Yes, Save',
+    onOk: function() { __doPostBack('<%= btnSaveOutput.UniqueID %>', ''); }
+  });
+  return false;  // block default postback; erpConfirm handles it
 }
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>
