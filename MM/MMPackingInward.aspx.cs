@@ -353,14 +353,7 @@ namespace MMApp
                 // ── Invoice mode (radio) ──
                 string invoiceMode = hfInvoiceMode != null ? (hfInvoiceMode.Value ?? "normal") : "normal";
                 string invoiceNoVal = txtInvoiceNo.Text.Trim();
-                if (invoiceMode == "none")
-                {
-                    invoiceNoVal = "NO-INVOICE";
-                    invDate = null;
-                    gstRate = 0;
-                    gstAmt  = 0;
-                }
-                else if (invoiceMode == "manual")
+                if (invoiceMode == "manual")
                 {
                     if (!invoiceNoVal.StartsWith("MN-", StringComparison.OrdinalIgnoreCase))
                         invoiceNoVal = "MN-" + invoiceNoVal;

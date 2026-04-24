@@ -17,6 +17,13 @@ namespace MMApp
         protected Button btnSave, btnSupplierTrigger;
         protected Repeater rptPending;
 
+        // GRN History (multi-item only)
+        protected TextBox txtFromDate, txtToDate;
+        protected Button btnFilter;
+        protected Repeater rptGRN;
+        protected Panel pnlEmpty;
+        protected Label lblCount;
+
         public string ItemDataJson  = "{}";
         public string ItemOptionsJson = "[]";
         public string UOMOptionsJson = "[]";
@@ -33,6 +40,9 @@ namespace MMApp
             {
                 LoadSuppliers();
                 LoadPendingInvoices();
+                txtFromDate.Text = DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd");
+                txtToDate.Text   = DateTime.Today.ToString("yyyy-MM-dd");
+                LoadGRNList();
             }
             else
             {
@@ -130,6 +140,35 @@ namespace MMApp
                 pnlPendingList.Visible = false;
                 pnlPendingEmpty.Visible = true;
             }
+        }
+
+        // ── GRN History (multi-item only) ────────────────────────
+        void LoadGRNList()
+        {
+            DateTime from, to;
+            if (!DateTime.TryParse(txtFromDate.Text, out from)) from = DateTime.Today.AddDays(-30);
+            if (!DateTime.TryParse(txtToDate.Text,   out to))   to   = DateTime.Today;
+
+            DataTable dt = MMDatabaseHelper.GetMultiItemPackingInwardList(from, to);
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                rptGRN.DataSource = dt;
+                rptGRN.DataBind();
+                pnlEmpty.Visible = false;
+                lblCount.Text = dt.Rows.Count.ToString();
+            }
+            else
+            {
+                rptGRN.DataSource = null;
+                rptGRN.DataBind();
+                pnlEmpty.Visible = true;
+                lblCount.Text = "0";
+            }
+        }
+
+        protected void btnFilter_Click(object sender, EventArgs e)
+        {
+            LoadGRNList();
         }
 
         protected void btnSupplierTrigger_Click(object sender, EventArgs e)

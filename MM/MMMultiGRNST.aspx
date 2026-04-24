@@ -70,6 +70,33 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 .alert-ok{background:#d1f5e0;color:#155724;border:1px solid #a3d9b1;padding:12px 18px;border-radius:8px;font-size:13px;margin-bottom:14px;}
 .alert-err{background:#fdf3f2;color:#842029;border:1px solid #f5c2c7;padding:12px 18px;border-radius:8px;font-size:13px;margin-bottom:14px;}
 .search-input{margin-bottom:4px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fffdf5 !important;color:#0f0f0f !important;outline:none;width:100%;cursor:pointer !important;}
+/* GRN History */
+.hist-date{padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;background:#fff;color:#1a1a1a;font-family:inherit;}
+.grn-table{width:100%;border-collapse:collapse;}
+.grn-table th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);background:#fafafa;border-bottom:1px solid var(--border);white-space:nowrap;}
+.grn-table td{padding:10px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+.grn-table tr:hover td{background:#fafafa;}
+.grn-no{font-family:'Courier New',monospace;font-size:11px;font-weight:600;color:#b8860b;}
+.badge-shortage{background:#fee;color:#c00;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-qc-pass{background:#d1f5e0;color:#155724;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-qc-fail{color:var(--text-dim);font-size:11px;}
+/* Expandable GRN detail rows */
+.grn-no-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;cursor:pointer;transition:color .15s;}
+.grn-no-link:hover{color:var(--teal);}
+.grn-no-link .chev{font-size:9px;color:var(--text-dim);transition:transform .15s;display:inline-block;}
+.grn-no-link.open .chev{transform:rotate(90deg);color:var(--teal);}
+.grn-detail-row td.grn-detail-cell{background:#fafafa;padding:0;border-top:2px solid var(--teal);border-bottom:2px solid var(--border);}
+.grn-detail-content{padding:16px 20px;}
+.grn-detail-loading{padding:16px 20px;color:var(--text-dim);font-size:12px;font-style:italic;}
+.grn-detail-header{display:flex;gap:24px;flex-wrap:wrap;padding:12px 20px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:12px;}
+.grn-detail-header div{display:flex;flex-direction:column;gap:2px;}
+.grn-detail-header .label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);}
+.grn-detail-header .value{font-weight:600;color:#1a1a1a;}
+.grn-lines-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.grn-lines-table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);background:#f5f5f5;border-bottom:1px solid var(--border);}
+.grn-lines-table td{padding:9px 10px;font-size:12px;border-bottom:1px solid #f5f5f5;}
+.grn-lines-table tr:last-child td{border-bottom:none;}
+.grn-detail-err{padding:16px 20px;color:var(--accent);font-size:12px;}
 </style>
 </head>
 <body>
@@ -281,6 +308,67 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 </div>
 </div>
 
+    <!-- GRN HISTORY (Multi-Item Only) ───────────────────────────── -->
+    <div class="card" style="margin-top:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+            <div class="card-title" style="margin-bottom:0;">GRN History — Multi-Item Only</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <asp:TextBox ID="txtFromDate" runat="server" TextMode="Date" CssClass="hist-date"/>
+                <asp:TextBox ID="txtToDate"   runat="server" TextMode="Date" CssClass="hist-date"/>
+                <asp:Button  ID="btnFilter"   runat="server" Text="Filter" OnClick="btnFilter_Click"
+                             style="padding:7px 14px;background:var(--teal);color:#fff;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;"/>
+                <span style="font-size:11px;color:var(--text-dim);"><asp:Label ID="lblCount" runat="server" Text="0"/> records</span>
+            </div>
+        </div>
+        <div style="overflow-x:auto;">
+            <asp:Repeater ID="rptGRN" runat="server">
+                <HeaderTemplate>
+                    <table class="grn-table"><thead><tr>
+                        <th>GRN No</th><th>Date</th><th>Supplier</th>
+                        <th style="text-align:center;">Lines</th><th>Invoice No</th>
+                        <th style="text-align:right;">Total Amt</th>
+                        <th style="text-align:right;">GST</th>
+                        <th style="text-align:right;">Transport</th>
+                        <th style="text-align:right;">Shortage</th>
+                        <th>QC</th>
+                    </tr></thead><tbody>
+                </HeaderTemplate>
+                <ItemTemplate>
+                    <tr class="grn-row" data-grn='<%# Eval("GRNNo") %>'>
+                        <td>
+                            <a href="javascript:void(0)" class="grn-no-link" onclick="toggleGRNDetail(this,'<%# Eval("GRNNo") %>','ST');">
+                                <span class="chev">&#9654;</span>
+                                <span class="grn-no"><%# Eval("GRNNo") %></span>
+                            </a>
+                        </td>
+                        <td><%# Eval("InwardDate","{0:dd-MMM-yy}") %></td>
+                        <td style="font-size:11px;"><%# Eval("SupplierName") %></td>
+                        <td style="text-align:center;font-weight:600;"><%# Eval("LineCount") %></td>
+                        <td style="font-size:11px;"><%# Eval("InvoiceNo") %></td>
+                        <td style="text-align:right;font-weight:600;"><%# Eval("Amount","Rs.{0:N2}") %></td>
+                        <td style="text-align:right;"><%# Eval("GSTAmount","Rs.{0:N2}") %></td>
+                        <td style="text-align:right;"><%# Eval("TransportCost","Rs.{0:N2}") %></td>
+                        <td style="text-align:right;">
+                            <%# Convert.ToDecimal(Eval("ShortageQty")) > 0
+                                ? "<span class='badge-shortage'>" + Convert.ToDecimal(Eval("ShortageQty")).ToString("N3") + "</span>"
+                                : "<span style='color:var(--text-dim);'>&mdash;</span>" %>
+                        </td>
+                        <td><span class='<%# Convert.ToBoolean(Eval("QualityCheck")) ? "badge-qc-pass" : "badge-qc-fail" %>'><%# Convert.ToBoolean(Eval("QualityCheck")) ? "Pass" : "—" %></span></td>
+                    </tr>
+                    <tr class="grn-detail-row" data-grn='<%# Eval("GRNNo") %>' style="display:none;">
+                        <td colspan="10" class="grn-detail-cell">
+                            <div class="grn-detail-loading">Loading details&hellip;</div>
+                        </td>
+                    </tr>
+                </ItemTemplate>
+                <FooterTemplate></tbody></table></FooterTemplate>
+            </asp:Repeater>
+            <asp:Panel ID="pnlEmpty" runat="server" Visible="false">
+                <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:13px;">No multi-item GRNs found for the selected period.</div>
+            </asp:Panel>
+        </div>
+    </div>
+
 <asp:Button ID="btnSupplierTrigger" runat="server" style="display:none" OnClick="btnSupplierTrigger_Click"/>
 </form>
 
@@ -437,7 +525,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             '<td class="col-sm">'+buildUOMSelect(rowIdx, 'stdUom')+'</td>' +
             '<td class="col-num"><input type="number" id="supQty_'+rowIdx+'" step="0.001" min="0" placeholder=""/></td>' +
             '<td class="col-sm">'+buildUOMSelect(rowIdx, 'supUom')+'</td>' +
-            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="recalcAll();"/></td>' +
+            '<td class="col-num"><input type="number" id="qtyAct_'+rowIdx+'" step="0.001" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
             '<td class="col-num"><input type="number" id="rate_'+rowIdx+'" step="0.01" min="0" placeholder="" oninput="calcRow('+rowIdx+');"/></td>' +
             '<td class="col-sm"><input type="text" id="hsn_'+rowIdx+'" maxlength="10" style="width:60px;"/></td>' +
             '<td class="col-sm"><input type="number" id="gst_'+rowIdx+'" step="0.01" min="0" placeholder="0" oninput="calcRow('+rowIdx+');"/></td>' +
@@ -477,9 +565,9 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     }
 
     function calcRow(idx) {
-        var qtyInv = parseFloat(document.getElementById('qtyInv_'+idx).value) || 0;
-        var rate = parseFloat(document.getElementById('rate_'+idx).value) || 0;
-        var amt = qtyInv * rate;
+        var qtyAct = parseFloat(document.getElementById('qtyAct_'+idx).value) || 0;
+        var rate   = parseFloat(document.getElementById('rate_'+idx).value) || 0;
+        var amt    = qtyAct * rate;   // Billing amount based on ACT QTY
         document.getElementById('amt_'+idx).innerText = amt.toFixed(2);
         recalcAll();
     }
@@ -496,7 +584,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             var qtyAct = parseFloat(document.getElementById('qtyAct_'+idx)?.value) || 0;
             var rate = parseFloat(document.getElementById('rate_'+idx)?.value) || 0;
             var gstRate = parseFloat(document.getElementById('gst_'+idx)?.value) || 0;
-            var lineAmt = qtyInv * rate;
+            var lineAmt = qtyAct * rate;   // Billing based on ACT QTY, not Invoice qty
             var lineGST = lineAmt * (gstRate / 100);
             subtotal += lineAmt;
             totalGST += lineGST;
@@ -674,7 +762,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             if (!qtyInv || !qtyAct || !rate) { hasError = true; return; }
 
             lineNum++;
-            var lineAmt = qtyInv * rate;
+            var lineAmt = qtyAct * rate;   // Billing based on ACT QTY
             var lineGST = lineAmt * (gstRate / 100);
             subtotal += lineAmt;
             totalGST += lineGST;
@@ -721,6 +809,72 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     function closeGRNConfirm() {
         document.getElementById('grnConfirmOverlay').style.display = 'none';
     }
+
+    // ── Expandable GRN detail (click GRN No to toggle) ──────────────
+    function toggleGRNDetail(linkEl, grnNo, tab) {
+        var trLink = linkEl.closest('tr');
+        if (!trLink) return;
+        var trDet  = trLink.nextElementSibling;
+        if (!trDet || !trDet.classList.contains('grn-detail-row')) return;
+        var isOpen = trDet.style.display !== 'none';
+        if (isOpen) { trDet.style.display = 'none'; linkEl.classList.remove('open'); return; }
+        trDet.style.display = 'table-row';
+        linkEl.classList.add('open');
+        var cell = trDet.querySelector('.grn-detail-cell');
+        if (cell.getAttribute('data-loaded') === '1') return;
+        cell.innerHTML = '<div class="grn-detail-loading">Loading details&hellip;</div>';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'MMGRNDetailAPI.ashx?tab=' + encodeURIComponent(tab) + '&grn=' + encodeURIComponent(grnNo) + '&_=' + Date.now(), true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status !== 200) { cell.innerHTML = '<div class="grn-detail-err">Failed to load (HTTP ' + xhr.status + ').</div>'; return; }
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.error) { cell.innerHTML = '<div class="grn-detail-err">' + ghEscape(data.error) + '</div>'; return; }
+                cell.innerHTML = renderGRNDetail(data);
+                cell.setAttribute('data-loaded', '1');
+            } catch (e) { cell.innerHTML = '<div class="grn-detail-err">Error parsing response.</div>'; }
+        };
+        xhr.send();
+    }
+    function renderGRNDetail(d) {
+        var html = '<div class="grn-detail-content"><div class="grn-detail-header">';
+        html += ghHdr('GRN Date', d.grnDate || '—');
+        html += ghHdr('Supplier', d.supplier || '—');
+        html += ghHdr('Invoice No', d.invoiceNo || '—');
+        html += ghHdr('Invoice Date', d.invoiceDate || '—');
+        html += ghHdr('PO No', d.poNo || '—');
+        html += ghHdr('Status', d.status || '—');
+        html += ghHdr('Recorded At', d.createdAt || '—');
+        html += ghHdr('Line Items', String(d.lineCount || (d.lines ? d.lines.length : 0)));
+        html += '</div>';
+        if (d.lines && d.lines.length > 0) {
+            html += '<table class="grn-lines-table"><thead><tr><th>#</th><th>Material</th><th>HSN</th><th style="text-align:right;">Inv Qty</th><th style="text-align:right;">Actual</th><th style="text-align:right;">Billed</th><th style="text-align:right;">Rate</th><th style="text-align:right;">GST%</th><th style="text-align:right;">GST Amt</th><th style="text-align:right;">Shortage</th><th style="text-align:right;">Amount</th></tr></thead><tbody>';
+            for (var i = 0; i < d.lines.length; i++) {
+                var L = d.lines[i];
+                html += '<tr><td>' + (i+1) + '</td>';
+                html += '<td><div style="font-weight:500;">' + ghEscape(L.matName) + '</div><div style="font-size:10px;color:#999;">' + ghEscape(L.matCode) + '</div></td>';
+                html += '<td>' + ghEscape(L.hsn || '—') + '</td>';
+                html += '<td style="text-align:right;">' + ghFmtN(L.qtyInv) + ' ' + ghEscape(L.uom) + '</td>';
+                html += '<td style="text-align:right;">' + ghFmtN(L.qtyActual) + '</td>';
+                html += '<td style="text-align:right;">' + ghFmtN(L.qtyBilled) + '</td>';
+                html += '<td style="text-align:right;">' + ghFmtR(L.rate) + '</td>';
+                html += '<td style="text-align:right;">' + ghFmtN(L.gstRate) + '%</td>';
+                html += '<td style="text-align:right;">' + ghFmtR(L.gstAmt) + '</td>';
+                html += '<td style="text-align:right;">' + (parseFloat(L.shortageQty) > 0 ? '<span class="badge-shortage">' + ghFmtN(L.shortageQty) + '</span>' : '—') + '</td>';
+                html += '<td style="text-align:right;font-weight:600;">' + ghFmtR(L.amount) + '</td></tr>';
+            }
+            html += '</tbody></table>';
+        } else {
+            html += '<div class="grn-detail-err">No line items found for this GRN.</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+    function ghHdr(lbl, val){ return '<div><span class="label">' + ghEscape(lbl) + '</span><span class="value">' + val + '</span></div>'; }
+    function ghFmtN(v){ var n = parseFloat(v); if (isNaN(n)) return '0'; return n.toFixed(3).replace(/\.?0+$/, ''); }
+    function ghFmtR(v){ var n = parseFloat(v); if (isNaN(n)) n = 0; return 'Rs. ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    function ghEscape(s){ if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
     // ── Init ──
     window.onload = function() {

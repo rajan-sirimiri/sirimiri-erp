@@ -220,12 +220,6 @@
                                    style="width:16px;height:16px;accent-color:#e67e22;cursor:pointer;"/>
                             Manual Invoice
                         </label>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#999;">
-                            <input type="radio" name="rblInvoiceMode" id="rbInvNone" value="none"
-                                   onclick="setInvoiceMode('none');"
-                                   style="width:16px;height:16px;accent-color:#999;cursor:pointer;"/>
-                            No Invoice
-                        </label>
                     </div>
                     <asp:HiddenField ID="hfInvoiceMode" runat="server" Value="normal"/>
                 </div>
@@ -601,22 +595,14 @@
     var rmData = <%= RMDataJson %>;
 
     function setInvoiceMode(mode) {
-        // mode: 'normal' | 'manual' | 'none'
+        // mode: 'normal' | 'manual'
         var inv     = document.getElementById('<%= txtInvoiceNo.ClientID %>');
         var invDate = document.getElementById('<%= txtInvoiceDate.ClientID %>');
         var gst     = document.getElementById('<%= txtGSTRate.ClientID %>');
         var hfMode  = document.getElementById('<%= hfInvoiceMode.ClientID %>');
         if (hfMode) hfMode.value = mode;
 
-        if (mode === 'none') {
-            // No Invoice — invoice no fixed, date disabled, GST zeroed & disabled
-            inv.value = 'NO-INVOICE';
-            inv.readOnly = true;
-            inv.style.background = '#f0f0f0';
-            inv.style.color = '#999';
-            if (invDate) { invDate.value = ''; invDate.readOnly = true; invDate.style.background = '#f0f0f0'; }
-            if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
-        } else if (mode === 'manual') {
+        if (mode === 'manual') {
             // Manual Invoice — MN- prefix (user types rest), date enabled, GST zeroed & disabled
             var current = (inv.value || '').trim();
             if (current === 'NO-INVOICE' || current === 'MANUAL INVOICE' || current === '') {
@@ -630,7 +616,7 @@
             if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
             if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
         } else {
-            // Normal invoice — everything enabled
+            // Normal invoice — everything enabled; strip any prior prefix
             var cur = (inv.value || '').trim();
             if (cur === 'NO-INVOICE' || cur === 'MANUAL INVOICE' || cur.indexOf('MN-') === 0) {
                 inv.value = '';

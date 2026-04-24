@@ -933,6 +933,38 @@ namespace MMApp.DAL
                 new MySqlParameter("to",   to.Date));
         }
 
+        /// <summary>
+        /// Multi-item GRNs only — GRNs with 2+ rows sharing the same GRN No.
+        /// Used by MMMultiGRN.aspx history panel so operators only see
+        /// their multi-item GRNs (single-item GRNs live on MMRawInward.aspx).
+        /// Returns ONE summary row per GRN (grouped), not per line item.
+        /// </summary>
+        public static DataTable GetMultiItemRawInwardList(DateTime from, DateTime to)
+        {
+            return ExecuteQuery(
+                "SELECT MIN(i.InwardID) AS InwardID, i.GRNNo, MIN(i.InvoiceNo) AS InvoiceNo, " +
+                "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
+                "MIN(s.SupplierName) AS SupplierName, " +
+                "COUNT(*) AS LineCount, " +
+                "SUM(i.Amount) AS Amount, " +
+                "SUM(i.GSTAmount) AS GSTAmount, " +
+                "SUM(i.TransportCost) AS TransportCost, " +
+                "SUM(i.ShortageQty) AS ShortageQty, " +
+                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "MIN(i.PONo) AS PONo, " +
+                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
+                "FROM MM_RawInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
+                "GROUP BY i.GRNNo " +
+                "HAVING COUNT(*) >= 2 " +
+                "ORDER BY MIN(i.InwardDate) DESC, i.GRNNo DESC;",
+                new MySqlParameter("from", from.Date),
+                new MySqlParameter("to",   to.Date));
+        }
+
         public static DataRow GetRawInwardById(int inwardId)
         {
             return ExecuteQuerySingleRow(
@@ -1126,6 +1158,33 @@ namespace MMApp.DAL
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
                 "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
+                new MySqlParameter("from", from.Date),
+                new MySqlParameter("to",   to.Date));
+        }
+
+        /// <summary>Multi-item PM GRNs only (2+ rows per GRN).</summary>
+        public static DataTable GetMultiItemPackingInwardList(DateTime from, DateTime to)
+        {
+            return ExecuteQuery(
+                "SELECT MIN(i.InwardID) AS InwardID, i.GRNNo, MIN(i.InvoiceNo) AS InvoiceNo, " +
+                "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
+                "MIN(s.SupplierName) AS SupplierName, " +
+                "COUNT(*) AS LineCount, " +
+                "SUM(i.Amount) AS Amount, " +
+                "SUM(i.GSTAmount) AS GSTAmount, " +
+                "SUM(i.TransportCost) AS TransportCost, " +
+                "SUM(i.ShortageQty) AS ShortageQty, " +
+                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "MIN(i.PONo) AS PONo, " +
+                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
+                "FROM MM_PackingInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
+                "GROUP BY i.GRNNo " +
+                "HAVING COUNT(*) >= 2 " +
+                "ORDER BY MIN(i.InwardDate) DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
         }
@@ -1385,6 +1444,33 @@ namespace MMApp.DAL
                 new MySqlParameter("to",   to.Date));
         }
 
+        /// <summary>Multi-item CN GRNs only (2+ rows per GRN).</summary>
+        public static DataTable GetMultiItemConsumableInwardList(DateTime from, DateTime to)
+        {
+            return ExecuteQuery(
+                "SELECT MIN(i.InwardID) AS InwardID, i.GRNNo, MIN(i.InvoiceNo) AS InvoiceNo, " +
+                "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
+                "MIN(s.SupplierName) AS SupplierName, " +
+                "COUNT(*) AS LineCount, " +
+                "SUM(i.Amount) AS Amount, " +
+                "SUM(i.GSTAmount) AS GSTAmount, " +
+                "SUM(i.TransportCost) AS TransportCost, " +
+                "SUM(i.ShortageQty) AS ShortageQty, " +
+                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "MIN(i.PONo) AS PONo, " +
+                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
+                "FROM MM_ConsumableInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
+                "GROUP BY i.GRNNo " +
+                "HAVING COUNT(*) >= 2 " +
+                "ORDER BY MIN(i.InwardDate) DESC, i.GRNNo DESC;",
+                new MySqlParameter("from", from.Date),
+                new MySqlParameter("to",   to.Date));
+        }
+
         public static DataRow GetConsumableInwardById(int inwardId)
         {
             return ExecuteQuerySingleRow(
@@ -1492,6 +1578,33 @@ namespace MMApp.DAL
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
                 "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
+                new MySqlParameter("from", from.Date),
+                new MySqlParameter("to",   to.Date));
+        }
+
+        /// <summary>Multi-item ST GRNs only (2+ rows per GRN).</summary>
+        public static DataTable GetMultiItemStationaryInwardList(DateTime from, DateTime to)
+        {
+            return ExecuteQuery(
+                "SELECT MIN(i.InwardID) AS InwardID, i.GRNNo, MIN(i.InvoiceNo) AS InvoiceNo, " +
+                "MIN(i.InwardDate) AS InwardDate, MIN(i.InvoiceDate) AS InvoiceDate, " +
+                "MIN(s.SupplierName) AS SupplierName, " +
+                "COUNT(*) AS LineCount, " +
+                "SUM(i.Amount) AS Amount, " +
+                "SUM(i.GSTAmount) AS GSTAmount, " +
+                "SUM(i.TransportCost) AS TransportCost, " +
+                "SUM(i.ShortageQty) AS ShortageQty, " +
+                "SUM(i.ShortageValue) AS ShortageValue, " +
+                "MIN(i.PONo) AS PONo, " +
+                "MAX(i.QualityCheck) AS QualityCheck, " +
+                "MIN(i.Status) AS Status, MIN(i.CreatedAt) AS CreatedAt " +
+                "FROM MM_StationaryInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
+                "GROUP BY i.GRNNo " +
+                "HAVING COUNT(*) >= 2 " +
+                "ORDER BY MIN(i.InwardDate) DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
         }
