@@ -927,6 +927,7 @@ namespace MMApp.DAL
                 "JOIN MM_RawMaterials r ON r.RMID=i.RMID " +
                 "JOIN MM_UOM u ON u.UOMID=r.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -942,6 +943,23 @@ namespace MMApp.DAL
                 "JOIN MM_UOM u ON u.UOMID=r.UOMID " +
                 "WHERE i.InwardID=?id;",
                 new MySqlParameter("id", inwardId));
+        }
+
+        /// <summary>
+        /// Return all rows for a given GRN No. Handles both single-item GRNs (1 row)
+        /// and multi-item GRNs (N rows sharing the same GRN No).
+        /// </summary>
+        public static DataTable GetRawInwardByGRN(string grnNo)
+        {
+            return ExecuteQuery(
+                "SELECT i.*, s.SupplierName, r.RMName, r.RMCode, u.Abbreviation " +
+                "FROM MM_RawInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_RawMaterials r ON r.RMID=i.RMID " +
+                "JOIN MM_UOM u ON u.UOMID=r.UOMID " +
+                "WHERE i.GRNNo=?grn " +
+                "ORDER BY i.InwardID;",
+                new MySqlParameter("grn", grnNo));
         }
 
         // ── PENDING INVOICE METHODS ──────────────────────────────────
@@ -1106,6 +1124,7 @@ namespace MMApp.DAL
                 "JOIN MM_PackingMaterials p ON p.PMID=i.PMID " +
                 "JOIN MM_UOM u ON u.UOMID=p.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1121,6 +1140,22 @@ namespace MMApp.DAL
                 "JOIN MM_UOM u ON u.UOMID=p.UOMID " +
                 "WHERE i.InwardID=?id;",
                 new MySqlParameter("id", inwardId));
+        }
+
+        /// <summary>
+        /// Return all rows for a given GRN No (single-item or multi-item).
+        /// </summary>
+        public static DataTable GetPackingInwardByGRN(string grnNo)
+        {
+            return ExecuteQuery(
+                "SELECT i.*, s.SupplierName, p.PMName, p.PMCode, u.Abbreviation " +
+                "FROM MM_PackingInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_PackingMaterials p ON p.PMID=i.PMID " +
+                "JOIN MM_UOM u ON u.UOMID=p.UOMID " +
+                "WHERE i.GRNNo=?grn " +
+                "ORDER BY i.InwardID;",
+                new MySqlParameter("grn", grnNo));
         }
 
         public static DataTable GetSupplierPackingRecoverables(int supplierId)
@@ -1344,6 +1379,7 @@ namespace MMApp.DAL
                 "JOIN MM_Consumables c ON c.ConsumableID=i.ConsumableID " +
                 "JOIN MM_UOM u ON u.UOMID=c.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1359,6 +1395,22 @@ namespace MMApp.DAL
                 "JOIN MM_UOM u ON u.UOMID=c.UOMID " +
                 "WHERE i.InwardID=?id;",
                 new MySqlParameter("id", inwardId));
+        }
+
+        /// <summary>
+        /// Return all rows for a given GRN No (single-item or multi-item).
+        /// </summary>
+        public static DataTable GetConsumableInwardByGRN(string grnNo)
+        {
+            return ExecuteQuery(
+                "SELECT i.*, s.SupplierName, c.ConsumableName, c.ConsumableCode, u.Abbreviation " +
+                "FROM MM_ConsumableInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_Consumables c ON c.ConsumableID=i.ConsumableID " +
+                "JOIN MM_UOM u ON u.UOMID=c.UOMID " +
+                "WHERE i.GRNNo=?grn " +
+                "ORDER BY i.InwardID;",
+                new MySqlParameter("grn", grnNo));
         }
 
         public static DataTable GetSupplierConsumableRecoverables(int supplierId)
@@ -1438,6 +1490,7 @@ namespace MMApp.DAL
                 "JOIN MM_Stationaries st ON st.StationaryID=i.StationaryID " +
                 "JOIN MM_UOM u ON u.UOMID=st.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
+                "  AND i.GRNNo NOT LIKE 'INT-%' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1453,6 +1506,22 @@ namespace MMApp.DAL
                 "JOIN MM_UOM u ON u.UOMID=st.UOMID " +
                 "WHERE i.InwardID=?id;",
                 new MySqlParameter("id", inwardId));
+        }
+
+        /// <summary>
+        /// Return all rows for a given GRN No (single-item or multi-item).
+        /// </summary>
+        public static DataTable GetStationaryInwardByGRN(string grnNo)
+        {
+            return ExecuteQuery(
+                "SELECT i.*, s.SupplierName, st.StationaryName, st.StationaryCode, u.Abbreviation " +
+                "FROM MM_StationaryInward i " +
+                "JOIN MM_Suppliers s ON s.SupplierID=i.SupplierID " +
+                "JOIN MM_Stationaries st ON st.StationaryID=i.StationaryID " +
+                "JOIN MM_UOM u ON u.UOMID=st.UOMID " +
+                "WHERE i.GRNNo=?grn " +
+                "ORDER BY i.InwardID;",
+                new MySqlParameter("grn", grnNo));
         }
 
         public static DataTable GetSupplierStationaryRecoverables(int supplierId)
