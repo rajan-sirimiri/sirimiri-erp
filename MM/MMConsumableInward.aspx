@@ -106,6 +106,28 @@
         .badge-qc-pass  { display:inline-block; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; background:rgba(224,123,0,0.08); color:var(--primary); }
         .badge-qc-fail  { display:inline-block; padding:2px 6px; border-radius:20px; font-size:10px; font-weight:700; background:rgba(0,0,0,0.05); color:var(--text-dim); }
         .empty-state { text-align:center; padding:40px; color:var(--text-dim); font-size:13px; }
+
+        /* Expandable GRN detail rows */
+        .grn-no-link { display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:inherit; cursor:pointer; transition:color .15s; }
+        .grn-no-link:hover { color:var(--teal); }
+        .grn-no-link .chev { font-size:9px; color:var(--text-dim); transition:transform .15s; display:inline-block; }
+        .grn-no-link.open .chev { transform:rotate(90deg); color:var(--teal); }
+        .grn-detail-row td.grn-detail-cell { background:#fafafa; padding:0; border-top:2px solid var(--teal); border-bottom:2px solid var(--border); }
+        .grn-detail-content { padding:16px 20px; }
+        .grn-detail-loading { padding:16px 20px; color:var(--text-dim); font-size:12px; font-style:italic; }
+        .grn-detail-header { display:flex; gap:24px; flex-wrap:wrap; padding:12px 20px; background:#fff; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; font-size:12px; }
+        .grn-detail-header div { display:flex; flex-direction:column; gap:2px; }
+        .grn-detail-header .label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); }
+        .grn-detail-header .value { font-weight:600; color:var(--text); }
+        .grn-lines-table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
+        .grn-lines-table th { padding:8px 10px; text-align:left; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); background:#f5f5f5; border-bottom:1px solid var(--border); }
+        .grn-lines-table td { padding:9px 10px; font-size:12px; border-bottom:1px solid #f5f5f5; }
+        .grn-lines-table tr:last-child td { border-bottom:none; }
+        .grn-single-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px 18px; padding:14px 18px; background:#fff; border:1px solid var(--border); border-radius:8px; }
+        .grn-single-grid > div { display:flex; flex-direction:column; gap:2px; font-size:12px; }
+        .grn-single-grid .label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); }
+        .grn-single-grid .value { font-weight:600; color:var(--text); }
+        .grn-detail-err { padding:16px 20px; color:var(--accent); font-size:12px; }
         @media(max-width:1000px) { .main-layout { grid-template-columns:1fr; } .rec-panel { position:static; } }
     </style>
 </head>
@@ -345,8 +367,13 @@
                             </tr></thead><tbody>
                         </HeaderTemplate>
                         <ItemTemplate>
-                            <tr>
-                                <td><span class="grn-no"><%# Eval("GRNNo") %></span></td>
+                            <tr class="grn-row" data-grn='<%# Eval("GRNNo") %>'>
+                                <td>
+                                    <a href="javascript:void(0)" class="grn-no-link" onclick="toggleGRNDetail(this,'<%# Eval("GRNNo") %>','CN');">
+                                        <span class="chev">&#9654;</span>
+                                        <span class="grn-no"><%# Eval("GRNNo") %></span>
+                                    </a>
+                                </td>
                                 <td><%# Eval("InwardDate","{0:dd-MMM-yy}") %></td>
                                 <td>
                                     <div style="font-weight:500;font-size:12px;"><%# Eval("ConsumableName") %></div>
@@ -363,6 +390,11 @@
                                 <td style="text-align:right;font-weight:600;"><%# Eval("Amount","Rs.{0:N2}") %></td>
                                 <td><%# Convert.ToDecimal(Eval("ShortageQty")) > 0 ? "<span class='badge-shortage'>" + Eval("ShortageQty") + "</span>" : "<span style='color:var(--text-dim);'>--</span>" %></td>
                                 <td><span class='<%# Convert.ToBoolean(Eval("QualityCheck")) ? "badge-qc-pass" : "badge-qc-fail" %>'><%# Convert.ToBoolean(Eval("QualityCheck")) ? "Pass" : "--" %></span></td>
+                            </tr>
+                            <tr class="grn-detail-row" data-grn='<%# Eval("GRNNo") %>' style="display:none;">
+                                <td colspan="14" class="grn-detail-cell">
+                                    <div class="grn-detail-loading">Loading details&hellip;</div>
+                                </td>
                             </tr>
                         </ItemTemplate>
                         <FooterTemplate></tbody></table></FooterTemplate>
@@ -669,6 +701,96 @@
         document.getElementById('<%= btnReceive.ClientID %>').click();
     }
     function closeGRNConfirm() { document.getElementById('grnConfirmOverlay').style.display = 'none'; }
+
+    // ── Expandable GRN detail (click GRN No to toggle) ──────────────
+    function toggleGRNDetail(linkEl, grnNo, tab) {
+        var trLink = linkEl.closest('tr');
+        if (!trLink) return;
+        var trDet  = trLink.nextElementSibling;
+        if (!trDet || !trDet.classList.contains('grn-detail-row')) return;
+        var isOpen = trDet.style.display !== 'none';
+        if (isOpen) { trDet.style.display = 'none'; linkEl.classList.remove('open'); return; }
+        trDet.style.display = 'table-row';
+        linkEl.classList.add('open');
+        var cell = trDet.querySelector('.grn-detail-cell');
+        if (cell.getAttribute('data-loaded') === '1') return;
+        cell.innerHTML = '<div class="grn-detail-loading">Loading details&hellip;</div>';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'MMGRNDetailAPI.ashx?tab=' + encodeURIComponent(tab) + '&grn=' + encodeURIComponent(grnNo) + '&_=' + Date.now(), true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status !== 200) { cell.innerHTML = '<div class="grn-detail-err">Failed to load (HTTP ' + xhr.status + ').</div>'; return; }
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.error) { cell.innerHTML = '<div class="grn-detail-err">' + escapeHtml(data.error) + '</div>'; return; }
+                cell.innerHTML = renderGRNDetail(data);
+                cell.setAttribute('data-loaded', '1');
+            } catch (e) { cell.innerHTML = '<div class="grn-detail-err">Error parsing response.</div>'; }
+        };
+        xhr.send();
+    }
+    function renderGRNDetail(d) {
+        var isMulti = (d.lines || []).length > 1;
+        var html = '<div class="grn-detail-content"><div class="grn-detail-header">';
+        html += hdrCell('GRN Date', d.grnDate || '—');
+        html += hdrCell('Supplier', d.supplier || '—');
+        html += hdrCell('Invoice No', d.invoiceNo || '—');
+        html += hdrCell('Invoice Date', d.invoiceDate || '—');
+        html += hdrCell('PO No', d.poNo || '—');
+        html += hdrCell('Status', d.status || '—');
+        html += hdrCell('Recorded At', d.createdAt || '—');
+        if (isMulti) html += hdrCell('Line Items', String(d.lineCount));
+        html += '</div>';
+        if (isMulti) {
+            html += '<table class="grn-lines-table"><thead><tr><th>#</th><th>Material</th><th>HSN</th><th style="text-align:right;">Inv Qty</th><th style="text-align:right;">Actual</th><th style="text-align:right;">Billed</th><th style="text-align:right;">Rate</th><th style="text-align:right;">GST%</th><th style="text-align:right;">GST Amt</th><th style="text-align:right;">Shortage</th><th style="text-align:right;">Amount</th></tr></thead><tbody>';
+            for (var i = 0; i < d.lines.length; i++) {
+                var L = d.lines[i];
+                html += '<tr><td>' + (i+1) + '</td>';
+                html += '<td><div style="font-weight:500;">' + escapeHtml(L.matName) + '</div><div style="font-size:10px;color:#999;">' + escapeHtml(L.matCode) + '</div></td>';
+                html += '<td>' + escapeHtml(L.hsn || '—') + '</td>';
+                html += '<td style="text-align:right;">' + fmtNum(L.qtyInv) + ' ' + escapeHtml(L.uom) + '</td>';
+                html += '<td style="text-align:right;">' + fmtNum(L.qtyActual) + '</td>';
+                html += '<td style="text-align:right;">' + fmtNum(L.qtyBilled) + '</td>';
+                html += '<td style="text-align:right;">' + fmtRs(L.rate) + '</td>';
+                html += '<td style="text-align:right;">' + fmtNum(L.gstRate) + '%</td>';
+                html += '<td style="text-align:right;">' + fmtRs(L.gstAmt) + '</td>';
+                html += '<td style="text-align:right;">' + (parseFloat(L.shortageQty) > 0 ? '<span class="badge-shortage">' + fmtNum(L.shortageQty) + '</span>' : '—') + '</td>';
+                html += '<td style="text-align:right;font-weight:600;">' + fmtRs(L.amount) + '</td></tr>';
+            }
+            html += '</tbody></table>';
+        } else if (d.lines && d.lines.length === 1) {
+            var L = d.lines[0];
+            html += '<div class="grn-single-grid">';
+            html += kv('Material', escapeHtml(L.matName) + ' <span style="color:#999;">(' + escapeHtml(L.matCode) + ')</span>');
+            html += kv('HSN Code', escapeHtml(L.hsn || '—'));
+            html += kv('Qty as per Invoice', fmtNum(L.qtyInv) + ' ' + escapeHtml(L.uom));
+            html += kv('Qty Actually Received', fmtNum(L.qtyActual));
+            html += kv('Qty Billed (Standard)', fmtNum(L.qtyBilled));
+            html += kv('Unit Rate', fmtRs(L.rate));
+            html += kv('GST Rate', fmtNum(L.gstRate) + '%');
+            html += kv('GST Amount', fmtRs(L.gstAmt));
+            html += kv('Transport Cost', fmtRs(L.transport));
+            html += kv('Transport in Invoice', L.transInInv ? 'Yes' : 'No');
+            html += kv('Transport in GST', L.transInGst ? 'Yes' : 'No');
+            html += kv('Loading Charges', fmtRs(L.loading));
+            html += kv('Unloading Charges', fmtRs(L.unloading));
+            html += kv('Shortage Qty', parseFloat(L.shortageQty) > 0 ? fmtNum(L.shortageQty) : '—');
+            html += kv('Shortage Value', parseFloat(L.shortageVal) > 0 ? fmtRs(L.shortageVal) : '—');
+            html += kv('Quality Check', L.qc ? '<span style="color:var(--teal);font-weight:700;">Passed</span>' : '—');
+            html += kv('Total Amount', '<span style="color:var(--teal);font-weight:700;">' + fmtRs(L.amount) + '</span>');
+            html += '</div>';
+            if (L.remarks) {
+                html += '<div style="margin-top:10px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Remarks</span><br/>' + escapeHtml(L.remarks) + '</div>';
+            }
+        } else { html += '<div class="grn-detail-err">No line items found for this GRN.</div>'; }
+        html += '</div>';
+        return html;
+    }
+    function hdrCell(lbl, val) { return '<div><span class="label">' + escapeHtml(lbl) + '</span><span class="value">' + val + '</span></div>'; }
+    function kv(lbl, valHtml) { return '<div><span class="label">' + escapeHtml(lbl) + '</span><span class="value">' + valHtml + '</span></div>'; }
+    function fmtNum(v) { var n = parseFloat(v); if (isNaN(n)) return '0'; return n.toFixed(3).replace(/\.?0+$/, ''); }
+    function fmtRs(v) { var n = parseFloat(v); if (isNaN(n)) n = 0; return 'Rs. ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    function escapeHtml(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 </script>
 
