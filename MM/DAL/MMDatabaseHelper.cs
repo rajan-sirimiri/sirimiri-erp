@@ -927,7 +927,7 @@ namespace MMApp.DAL
                 "JOIN MM_RawMaterials r ON r.RMID=i.RMID " +
                 "JOIN MM_UOM u ON u.UOMID=r.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
-                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1124,7 +1124,7 @@ namespace MMApp.DAL
                 "JOIN MM_PackingMaterials p ON p.PMID=i.PMID " +
                 "JOIN MM_UOM u ON u.UOMID=p.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
-                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1379,7 +1379,7 @@ namespace MMApp.DAL
                 "JOIN MM_Consumables c ON c.ConsumableID=i.ConsumableID " +
                 "JOIN MM_UOM u ON u.UOMID=c.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
-                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));
@@ -1490,7 +1490,7 @@ namespace MMApp.DAL
                 "JOIN MM_Stationaries st ON st.StationaryID=i.StationaryID " +
                 "JOIN MM_UOM u ON u.UOMID=st.UOMID " +
                 "WHERE i.InwardDate BETWEEN ?from AND ?to " +
-                "  AND i.GRNNo NOT LIKE 'INT-%' " +
+                "  AND s.SupplierCode <> 'INT-PROD' " +
                 "ORDER BY i.InwardDate DESC, i.GRNNo DESC;",
                 new MySqlParameter("from", from.Date),
                 new MySqlParameter("to",   to.Date));

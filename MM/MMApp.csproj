@@ -84,6 +84,9 @@
       <DependentUpon>MMCNStockReport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="MMGRNDetailAPI.ashx.cs">
+      <DependentUpon>MMGRNDetailAPI.ashx</DependentUpon>
+    </Compile>
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -243,6 +246,7 @@
     <Content Include="Sirimiri_Logo-16_9-72ppi-01.png" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="MMGRNDetailAPI.ashx" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
