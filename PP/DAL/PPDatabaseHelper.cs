@@ -150,7 +150,7 @@ namespace PPApp.DAL
         {
             return ExecuteQuery(
                 "SELECT p.ProductID, p.ProductCode, p.ProductName, p.Description, p.ProductType, p.ImagePath, " +
-                "p.BatchSize, p.ProdUOMID, p.OutputUOMID, p.HSNCode, p.GSTRate, p.IsActive, p.ProductionLineID, p.UnitWeightGrams, " +
+                "p.BatchSize, p.ProdUOMID, p.OutputUOMID, p.HSNCode, p.GSTRate, p.IsActive, p.ProductionLineID, p.UnitWeightGrams, p.UnitsPerTray, " +
                 "pu.Abbreviation AS ProdAbbreviation, ou.Abbreviation AS OutputAbbreviation, " +
                 "pl.LineName AS ProductionLineName " +
                 "FROM PP_Products p " +
@@ -193,13 +193,13 @@ namespace PPApp.DAL
 
         public static int AddProduct(string name, string description, string hsnCode,
             decimal? gstRate, int prodUomId, int outputUomId, decimal batchSize, bool isActive,
-            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null)
+            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null, int? unitsPerTray = null)
         {
             string code = GenerateProductCode();
             using (var conn = OpenConnection())
             using (var cmd  = new MySqlCommand(
-                "INSERT INTO PP_Products (ProductCode, ProductName, Description, HSNCode, GSTRate, ProdUOMID, OutputUOMID, BatchSize, IsActive, ProductType, ImagePath, ProductionLineID, UnitWeightGrams) " +
-                "VALUES (?code,?name,?desc,?hsn,?gst,?produom,?outuom,?batch,?active,?type,?img,?lineId,?uwg);", conn))
+                "INSERT INTO PP_Products (ProductCode, ProductName, Description, HSNCode, GSTRate, ProdUOMID, OutputUOMID, BatchSize, IsActive, ProductType, ImagePath, ProductionLineID, UnitWeightGrams, UnitsPerTray) " +
+                "VALUES (?code,?name,?desc,?hsn,?gst,?produom,?outuom,?batch,?active,?type,?img,?lineId,?uwg,?upt);", conn))
             {
                 cmd.Parameters.AddWithValue("?code",    code);
                 cmd.Parameters.AddWithValue("?name",    name);
@@ -214,6 +214,7 @@ namespace PPApp.DAL
                 cmd.Parameters.AddWithValue("?img",     (object)imagePath ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("?lineId",  productionLineId.HasValue ? (object)productionLineId.Value : DBNull.Value);
                 cmd.Parameters.AddWithValue("?uwg",     unitWeightGrams.HasValue ? (object)unitWeightGrams.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("?upt",     unitsPerTray.HasValue ? (object)unitsPerTray.Value : DBNull.Value);
                 cmd.ExecuteNonQuery();
                 using (var idCmd = new MySqlCommand("SELECT LAST_INSERT_ID();", conn))
                     return Convert.ToInt32(idCmd.ExecuteScalar());
@@ -223,12 +224,12 @@ namespace PPApp.DAL
         public static void UpdateProduct(int productId, string code, string name,
             string description, string hsnCode, decimal? gstRate,
             int prodUomId, int outputUomId, decimal batchSize, bool isActive,
-            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null)
+            string productType = "Core", string imagePath = null, int? productionLineId = null, decimal? unitWeightGrams = null, int? unitsPerTray = null)
         {
             ExecuteNonQuery(
                 "UPDATE PP_Products SET ProductCode=?code, ProductName=?name, Description=?desc, " +
                 "HSNCode=?hsn, GSTRate=?gst, ProdUOMID=?produom, OutputUOMID=?outuom, BatchSize=?batch, IsActive=?active, " +
-                "ProductType=?type, ImagePath=?img, ProductionLineID=?lineId, UnitWeightGrams=?uwg " +
+                "ProductType=?type, ImagePath=?img, ProductionLineID=?lineId, UnitWeightGrams=?uwg, UnitsPerTray=?upt " +
                 "WHERE ProductID=?id;",
                 new MySqlParameter("?code",    code),
                 new MySqlParameter("?name",    name),
@@ -243,6 +244,7 @@ namespace PPApp.DAL
                 new MySqlParameter("?img",     (object)imagePath ?? DBNull.Value),
                 new MySqlParameter("?lineId",  productionLineId.HasValue ? (object)productionLineId.Value : DBNull.Value),
                 new MySqlParameter("?uwg",     unitWeightGrams.HasValue ? (object)unitWeightGrams.Value : DBNull.Value),
+                new MySqlParameter("?upt",     unitsPerTray.HasValue ? (object)unitsPerTray.Value : DBNull.Value),
                 new MySqlParameter("?id",      productId));
         }
 
@@ -544,7 +546,7 @@ namespace PPApp.DAL
                 "SELECT o.OrderID, o.ProductID, o.Shift, o.Status, " +
                 "IFNULL(o.RevisedBatches, o.OrderedBatches) AS EffectiveBatches, " +
                 "p.ProductName, p.ProductCode, p.BatchSize, p.ProductType, " +
-                "p.ProductionLineID, p.UnitWeightGrams, " +
+                "p.ProductionLineID, p.UnitWeightGrams, p.UnitsPerTray, " +
                 "ou.Abbreviation AS OutputAbbr, pu.Abbreviation AS ProdAbbr, " +
                 "IFNULL(pl.LineCode,'') AS LineCode " +
                 "FROM PP_ProductionOrder o " +
@@ -1553,10 +1555,15 @@ namespace PPApp.DAL
         {
             try
             {
+                // Exclude reserved system params (label starting with '__SYS_') —
+                // these are rendered specially (e.g. tray calculator), not as
+                // generic dynamic params.
                 return ExecuteQuery(
                     "SELECT ParamID, ParamOrder, ParamType, ParamLabel," +
                     " IFNULL(ParamOptions,'') AS ParamOptions" +
-                    " FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
+                    " FROM PP_ProductParams WHERE ProductID=?pid " +
+                    " AND ParamLabel NOT LIKE '\\_\\_SYS\\_%' ESCAPE '\\\\' " +
+                    " ORDER BY ParamOrder;",
                     new MySqlParameter("?pid", productId));
             }
             catch { return new DataTable(); }
@@ -1655,8 +1662,14 @@ namespace PPApp.DAL
         public static void SaveProductParams(int productId, string[] types, string[] labels, string[] options)
         {
             // Get existing params for this product
+            // EXCLUDE reserved system params (label starting with '__SYS_') —
+            // those are owned by the execution flow (e.g. tray calculation)
+            // and must not be overwritten when the user edits dynamic params
+            // in PPProductCatalog.
             var existing = ExecuteQuery(
-                "SELECT ParamID, ParamOrder FROM PP_ProductParams WHERE ProductID=?pid ORDER BY ParamOrder;",
+                "SELECT ParamID, ParamOrder FROM PP_ProductParams " +
+                "WHERE ProductID=?pid AND ParamLabel NOT LIKE '\\_\\_SYS\\_%' ESCAPE '\\\\' " +
+                "ORDER BY ParamOrder;",
                 new MySqlParameter("?pid", productId));
 
             // Build list of existing ParamIDs
@@ -1739,6 +1752,53 @@ namespace PPApp.DAL
                 " JOIN PP_ProductParams pp ON pp.ParamID = bp.ParamID" +
                 " WHERE bp.ExecutionID=?eid ORDER BY pp.ParamOrder;",
                 new MySqlParameter("?eid", execId));
+        }
+
+        // ── RESERVED SYSTEM PARAMS (for tray calculation, etc.) ───────────────
+        // Reserved param labels with prefix '__SYS_' are auto-created on demand
+        // and hidden from PPProductCatalog dynamic-params editor.
+
+        /// <summary>
+        /// Look up the ParamID for a reserved system param label on a given product.
+        /// If the param row doesn't exist yet, it is auto-created with high
+        /// ParamOrder (1000) so it sorts after any user-defined params.
+        /// </summary>
+        public static int GetOrCreateSystemParam(int productId, string sysLabel, string paramType = "number")
+        {
+            object existing = ExecuteScalar(
+                "SELECT ParamID FROM PP_ProductParams " +
+                "WHERE ProductID=?pid AND ParamLabel=?lbl LIMIT 1;",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?lbl", sysLabel));
+            if (existing != null && existing != DBNull.Value)
+                return Convert.ToInt32(existing);
+
+            ExecuteNonQuery(
+                "INSERT INTO PP_ProductParams (ProductID, ParamOrder, ParamType, ParamLabel, ParamOptions) " +
+                "VALUES (?pid, 1000, ?type, ?lbl, NULL);",
+                new MySqlParameter("?pid", productId),
+                new MySqlParameter("?type", paramType ?? "number"),
+                new MySqlParameter("?lbl", sysLabel));
+
+            object newId = ExecuteScalar("SELECT LAST_INSERT_ID();");
+            return Convert.ToInt32(newId);
+        }
+
+        /// <summary>
+        /// Save a single reserved-param value for a batch execution. Inserts or
+        /// updates the PP_BatchParams row for (execId, paramId).
+        /// </summary>
+        public static void SaveBatchParamValue(int execId, int paramId, decimal? value)
+        {
+            ExecuteNonQuery(
+                "DELETE FROM PP_BatchParams WHERE ExecutionID=?eid AND ParamID=?pid;",
+                new MySqlParameter("?eid", execId),
+                new MySqlParameter("?pid", paramId));
+            ExecuteNonQuery(
+                "INSERT INTO PP_BatchParams (ExecutionID, ParamID, Value) VALUES (?eid, ?pid, ?val);",
+                new MySqlParameter("?eid", execId),
+                new MySqlParameter("?pid", paramId),
+                new MySqlParameter("?val", value.HasValue ? (object)value.Value : DBNull.Value));
         }
 
         // ── PRODUCTION ORDER ──────────────────────────────────────────────────

@@ -39,6 +39,7 @@ namespace PPApp
         protected global::System.Web.UI.WebControls.DropDownList   ddlProductType;
         protected global::System.Web.UI.WebControls.DropDownList   ddlProductionLine;
         protected global::System.Web.UI.WebControls.TextBox        txtUnitWeightGrams;
+        protected global::System.Web.UI.WebControls.TextBox        txtUnitsPerTray;
         protected global::System.Web.UI.WebControls.DropDownList   ddlOutputUOM;
         protected global::System.Web.UI.WebControls.DropDownList   ddlProdUOM;
         protected global::System.Web.UI.WebControls.HiddenField    hfProductID;
@@ -272,7 +273,9 @@ namespace PPApp
                     int? lineId = ddlProductionLine.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlProductionLine.SelectedValue) : null;
                     decimal? uwg = null; decimal uwgParsed;
                     if (txtUnitWeightGrams != null && decimal.TryParse(txtUnitWeightGrams.Text.Trim(), out uwgParsed) && uwgParsed > 0) uwg = uwgParsed;
-                    productId = PPDatabaseHelper.AddProduct(name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId, uwg);
+                    int? upt = null; int uptParsed;
+                    if (txtUnitsPerTray != null && int.TryParse(txtUnitsPerTray.Text.Trim(), out uptParsed) && uptParsed > 0) upt = uptParsed;
+                    productId = PPDatabaseHelper.AddProduct(name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId, uwg, upt);
                     hfProductID.Value = productId.ToString();
                     if (type == "Pre processed RM")
                     {
@@ -297,7 +300,9 @@ namespace PPApp
                     int? lineId2 = ddlProductionLine.SelectedValue != "0" ? (int?)Convert.ToInt32(ddlProductionLine.SelectedValue) : null;
                     decimal? uwg2 = null; decimal uwgParsed2;
                     if (txtUnitWeightGrams != null && decimal.TryParse(txtUnitWeightGrams.Text.Trim(), out uwgParsed2) && uwgParsed2 > 0) uwg2 = uwgParsed2;
-                    PPDatabaseHelper.UpdateProduct(productId, code, name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId2, uwg2);
+                    int? upt2 = null; int uptParsed2;
+                    if (txtUnitsPerTray != null && int.TryParse(txtUnitsPerTray.Text.Trim(), out uptParsed2) && uptParsed2 > 0) upt2 = uptParsed2;
+                    PPDatabaseHelper.UpdateProduct(productId, code, name, null, hsnCode, gstRate, prodUomId, uomId, batchSize, true, type, imagePath, lineId2, uwg2, upt2);
                     if (type == "Pre processed RM")
                     {
                         PPDatabaseHelper.SavePreprocessStages(productId,
@@ -395,6 +400,9 @@ namespace PPApp
             }
             if (txtUnitWeightGrams != null && row["UnitWeightGrams"] != DBNull.Value)
                 txtUnitWeightGrams.Text = Convert.ToDecimal(row["UnitWeightGrams"]).ToString("0.##");
+
+            if (txtUnitsPerTray != null && row.Table.Columns.Contains("UnitsPerTray") && row["UnitsPerTray"] != DBNull.Value)
+                txtUnitsPerTray.Text = Convert.ToInt32(row["UnitsPerTray"]).ToString();
             // Load batch output params
             if (hfParamsJson != null)
             {
@@ -500,6 +508,7 @@ namespace PPApp
             ddlProductType.SelectedIndex = 0;
             if (ddlProductionLine != null) ddlProductionLine.SelectedIndex = 0;
             if (txtUnitWeightGrams != null) txtUnitWeightGrams.Text = "";
+            if (txtUnitsPerTray != null) txtUnitsPerTray.Text = "";
             if (ddlOutputUOM.Items.Count > 0) ddlOutputUOM.SelectedIndex = 0;
             if (ddlProdUOM.Items.Count > 0) ddlProdUOM.SelectedIndex = 0;
             SetProdUOMVisibility("Core"); // default to Core on clear

@@ -502,8 +502,41 @@ select, input, textarea { min-height:44px; font-size:16px !important; }
             </div>
           </asp:Panel>
 
+          <!-- BARFI: Tray-based unit calculation -->
+          <asp:Panel ID="pnlTrays" runat="server" Visible="false">
+            <div style="background:#fef0e6;border:2px solid #e67e22;border-radius:10px;padding:16px;margin-bottom:16px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#d35400;margin-bottom:10px;">&#x1F371; Tray Calculation</div>
+              <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="form-group" style="flex:1;min-width:130px;">
+                  <label>No of Trays</label>
+                  <asp:TextBox ID="txtNoOfTrays" runat="server" type="number" step="1" min="0" placeholder="e.g. 14"
+                               oninput="calcUnitsFromTrays();"/>
+                </div>
+                <div class="form-group" style="flex:1;min-width:130px;">
+                  <label>Units / Tray</label>
+                  <div style="padding:9px 12px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;font-weight:700;color:#d35400;">
+                    <asp:Label ID="lblUnitsPerTray" runat="server" Text="--"/>
+                  </div>
+                </div>
+                <div class="form-group" style="flex:1;min-width:130px;">
+                  <label>Partial Units</label>
+                  <asp:TextBox ID="txtPartialUnits" runat="server" type="number" step="1" min="0" placeholder="e.g. 10"
+                               oninput="calcUnitsFromTrays();"/>
+                </div>
+                <div class="form-group" style="flex:1.4;min-width:160px;">
+                  <label>Total Units</label>
+                  <div id="divCalcTrayUnits" style="padding:9px 12px;background:#fff3e0;border:2px solid #e67e22;border-radius:8px;font-weight:700;font-size:18px;color:#d35400;">
+                    0
+                  </div>
+                </div>
+              </div>
+            </div>
+          </asp:Panel>
+
           <asp:HiddenField ID="hfUnitWeightGrams" runat="server" Value="0"/>
           <asp:HiddenField ID="hfCalcUnits" runat="server" Value="0"/>
+          <asp:HiddenField ID="hfUnitsPerTray" runat="server" Value="0"/>
+          <asp:HiddenField ID="hfCalcTrayUnits" runat="server" Value="0"/>
 
           <div class="output-grid">
             <div class="form-group">
@@ -772,6 +805,15 @@ function calcUnitsFromDough() {
   var units = uwg > 0 ? Math.floor(doughGrams / uwg) : 0;
   document.getElementById('divCalcUnits').innerText = units;
   document.getElementById('<%= hfCalcUnits.ClientID %>').value = units;
+}
+
+function calcUnitsFromTrays() {
+  var trays   = parseInt(document.getElementById('<%= txtNoOfTrays.ClientID %>').value, 10) || 0;
+  var partial = parseInt(document.getElementById('<%= txtPartialUnits.ClientID %>').value, 10) || 0;
+  var upt     = parseInt(document.getElementById('<%= hfUnitsPerTray.ClientID %>').value, 10) || 0;
+  var total = (trays * upt) + partial;
+  document.getElementById('divCalcTrayUnits').innerText = total;
+  document.getElementById('<%= hfCalcTrayUnits.ClientID %>').value = total;
 }
 </script>
 <script src="/StockApp/erp-keepalive.js"></script>

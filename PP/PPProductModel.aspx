@@ -348,6 +348,16 @@
                     </div>
                 </div>
 
+                <!-- BARFI: Units Per Tray (visible only for products on BARFI line) -->
+                <div class="form-group-row" id="divUnitsPerTrayRow" style="margin-top:13px;display:none;">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Units Per Tray</label>
+                        <asp:TextBox ID="txtUnitsPerTray" runat="server" placeholder="e.g. 120" type="number" step="1" min="0"/>
+                        <div class="field-hint">Number of finished units per tray (BARFI tray-based output calculation)</div>
+                    </div>
+                    <div></div>
+                </div>
+
                 <!-- PRE PROCESSED RM FIELDS — shown only for Pre processed RM type -->
                 <div id="divPreprocessFields" style="display:none;margin-top:13px;background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:14px 16px;">
                     <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1565c0;margin-bottom:12px;">&#9881; Pre processing Stage Labels</div>
@@ -957,7 +967,20 @@ function previewImage(input) {
 window.addEventListener('load', function() {
     var ddlType = document.getElementById('<%= ddlProductType.ClientID %>');
     if (ddlType) onProductTypeChange(ddlType.value);
+    syncUnitsPerTrayVisibility();
+    var ddlLine = document.getElementById('<%= ddlProductionLine.ClientID %>');
+    if (ddlLine) ddlLine.addEventListener('change', syncUnitsPerTrayVisibility);
 });
+
+// Show "Units Per Tray" only when the selected Production Line text contains BARFI
+function syncUnitsPerTrayVisibility() {
+    var ddlLine = document.getElementById('<%= ddlProductionLine.ClientID %>');
+    var row     = document.getElementById('divUnitsPerTrayRow');
+    if (!ddlLine || !row) return;
+    var sel  = ddlLine.options[ddlLine.selectedIndex];
+    var text = sel ? sel.text.toUpperCase() : '';
+    row.style.display = text.indexOf('BARFI') >= 0 ? 'grid' : 'none';
+}
 
 function filterProdList(val) {
     val = val.toLowerCase();
