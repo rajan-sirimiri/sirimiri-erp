@@ -859,6 +859,26 @@ namespace MMApp.DAL
             return string.Format("GRN-{0}-{1:D5}", type, Convert.ToInt32(seq));
         }
 
+        // ── MULTI-ITEM GRN NUMBER GENERATOR ─────────────────────────
+        public static string GenerateMultiGRNNumber(string type)
+        {
+            // type: "RM", "PM", "CN", "ST" -> MGRN-RM-00001
+            // Independent counter from single-item GRNs. CounterType stored
+            // as "MGRN-RM" / "MGRN-PM" / "MGRN-CN" / "MGRN-ST".
+            // All line items in one multi-GRN save share this single number.
+            string counterType = "MGRN-" + type;
+            ExecuteNonQuery(
+                "INSERT IGNORE INTO MM_GRNCounter (CounterType, LastValue) VALUES (?t, 0);",
+                new MySqlParameter("t", counterType));
+            ExecuteNonQuery(
+                "UPDATE MM_GRNCounter SET LastValue = LastValue + 1 WHERE CounterType = ?t;",
+                new MySqlParameter("t", counterType));
+            var seq = ExecuteScalar(
+                "SELECT LastValue FROM MM_GRNCounter WHERE CounterType = ?t;",
+                new MySqlParameter("t", counterType));
+            return string.Format("MGRN-{0}-{1:D5}", type, Convert.ToInt32(seq));
+        }
+
         // ── SUPPLIER RECOVERABLES ─────────────────────────────────────
         public static DataTable GetSupplierRecoverables(int supplierId)
         {

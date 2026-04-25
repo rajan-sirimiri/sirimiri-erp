@@ -240,6 +240,10 @@ namespace MMApp
                 int userId = Convert.ToInt32(Session["MM_UserID"]);
                 int savedCount = 0;
 
+                // Generate ONE multi-GRN number that all line items in this invoice share.
+                // Returns "MGRN-CN-00001" format. Independent counter from single-item GRNs.
+                string grnNo = MMDatabaseHelper.GenerateMultiGRNNumber("CN");
+
                 foreach (var item in payload.Items)
                 {
                     int consumableId = Convert.ToInt32(item.RmId);
@@ -265,7 +269,6 @@ namespace MMApp
                     decimal gstAmt = gstRate.HasValue ? Math.Round(gstBase * (gstRate.Value / 100), 2) : 0;
                     decimal total = taxable + gstAmt + (transInInvoice ? 0 : lineTransport) + lineLoading + lineUnloading;
 
-                    string grnNo = MMDatabaseHelper.GenerateGRNNumber("CN");
                     bool qc = item.Qc == "1";
 
                     // Build remarks with supplier invoice qty if provided
@@ -290,7 +293,7 @@ namespace MMApp
                     savedCount++;
                 }
 
-                ShowAlert(savedCount + " GRN(s) saved successfully for invoice " +
+                ShowAlert("Multi-GRN " + grnNo + " saved with " + savedCount + " line item(s) for invoice " +
                     (string.IsNullOrEmpty(payload.InvoiceNo) ? "(no invoice)" : payload.InvoiceNo) + ".", true);
 
                 hfLineItems.Value = "[]";
