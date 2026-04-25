@@ -603,27 +603,27 @@
         if (hfMode) hfMode.value = mode;
 
         if (mode === 'manual') {
-            // Manual Invoice — MN- prefix (user types rest), date enabled, GST zeroed & disabled
-            var current = (inv.value || '').trim();
-            if (current === 'NO-INVOICE' || current === 'MANUAL INVOICE' || current === '') {
-                inv.value = 'MN-';
-            } else if (current.indexOf('MN-') !== 0) {
-                inv.value = 'MN-' + current;
-            }
-            inv.readOnly = false;
-            inv.style.background = '';
-            inv.style.color = '';
+            // Manual Invoice — system auto-assigns MN-YYYYMMDD-NNN at SAVE time.
+            // Field is cleared, made readonly, placeholder explains what will happen.
+            inv.value = '';
+            inv.placeholder = 'Auto-assigned on save (MN-YYYYMMDD-NNN)';
+            inv.readOnly = true;
+            inv.style.background = '#fff8e1';
+            inv.style.color = '#888';
+            inv.style.fontStyle = 'italic';
             if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
             if (gst) { gst.value = '0'; gst.readOnly = true; gst.style.background = '#f0f0f0'; }
         } else {
-            // Normal invoice — everything enabled; strip any prior prefix
+            // Normal invoice — everything enabled; strip any prior prefix; restore placeholder
             var cur = (inv.value || '').trim();
             if (cur === 'NO-INVOICE' || cur === 'MANUAL INVOICE' || cur.indexOf('MN-') === 0) {
                 inv.value = '';
             }
+            inv.placeholder = 'e.g. INV-2024-001';
             inv.readOnly = false;
             inv.style.background = '';
             inv.style.color = '';
+            inv.style.fontStyle = '';
             if (invDate) { invDate.readOnly = false; invDate.style.background = ''; }
             if (gst) { gst.readOnly = false; gst.style.background = ''; }
         }

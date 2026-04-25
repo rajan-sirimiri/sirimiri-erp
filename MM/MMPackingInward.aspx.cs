@@ -355,8 +355,9 @@ namespace MMApp
                 string invoiceNoVal = txtInvoiceNo.Text.Trim();
                 if (invoiceMode == "manual")
                 {
-                    if (!invoiceNoVal.StartsWith("MN-", StringComparison.OrdinalIgnoreCase))
-                        invoiceNoVal = "MN-" + invoiceNoVal;
+                    // Manual invoice — auto-generate MN-YYYYMMDD-NNN at save time.
+                    // Operator-typed value is ignored; field is readonly in UI.
+                    invoiceNoVal = MMDatabaseHelper.GenerateManualInvoiceNumber();
                     gstRate = 0;
                     gstAmt  = 0;
                 }

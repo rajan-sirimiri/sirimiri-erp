@@ -879,6 +879,33 @@ namespace MMApp.DAL
             return string.Format("MGRN-{0}-{1:D5}", type, Convert.ToInt32(seq));
         }
 
+        // ── MANUAL INVOICE NUMBER GENERATOR (count-based, gap-free) ──
+        public static string GenerateManualInvoiceNumber()
+        {
+            // Returns MN-YYYYMMDD-NNN where NNN = (count of MN-YYYYMMDD-* rows
+            // saved across all 4 inward tables today) + 1, zero-padded to 3 digits.
+            // Count-based (not counter-table) so deletes don't leave permanent gaps,
+            // and no number is ever reserved without being saved.
+            string today = DateTime.Now.ToString("yyyyMMdd");
+            string pattern = "MN-" + today + "-%";
+
+            // Sum counts across all 4 inward tables for today's MN- invoices.
+            // UNION ALL (not UNION) to avoid de-dup overhead — we just want the sum.
+            string sql =
+                "SELECT SUM(c) FROM (" +
+                "  SELECT COUNT(*) AS c FROM MM_RawInward       WHERE InvoiceNo LIKE ?p" +
+                "  UNION ALL " +
+                "  SELECT COUNT(*) AS c FROM MM_PackingInward   WHERE InvoiceNo LIKE ?p" +
+                "  UNION ALL " +
+                "  SELECT COUNT(*) AS c FROM MM_ConsumableInward WHERE InvoiceNo LIKE ?p" +
+                "  UNION ALL " +
+                "  SELECT COUNT(*) AS c FROM MM_StationaryInward WHERE InvoiceNo LIKE ?p" +
+                ") t;";
+            var totalObj = ExecuteScalar(sql, new MySqlParameter("p", pattern));
+            long total = (totalObj == null || totalObj == DBNull.Value) ? 0 : Convert.ToInt64(totalObj);
+            return string.Format("MN-{0}-{1:D3}", today, total + 1);
+        }
+
         // ── SUPPLIER RECOVERABLES ─────────────────────────────────────
         public static DataTable GetSupplierRecoverables(int supplierId)
         {
