@@ -88,6 +88,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Default.aspx" />
+    <Content Include="HRLogin.aspx" />
     <Content Include="HRDepartment.aspx" />
     <Content Include="HREmployee.aspx" />
     <Content Include="HREmployeeImport.aspx" />
@@ -97,6 +98,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="HR_DatabaseHelper.cs" />
+    <Compile Include="HRLogin.aspx.cs">
+      <DependentUpon>HRLogin.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="HRLogin.aspx.designer.cs">
+      <DependentUpon>HRLogin.aspx</DependentUpon>
+    </Compile>
     <Compile Include="HRDepartment.aspx.cs">
       <DependentUpon>HRDepartment.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

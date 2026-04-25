@@ -2,6 +2,8 @@
 <script runat="server">
     protected void Page_Load(object sender, EventArgs e)
     {
-        Response.Redirect("HREmployee.aspx", true);
+        // Always go through HRLogin — it auto-redirects to HREmployee
+        // if a valid HR session already exists.
+        Response.Redirect("HRLogin.aspx", true);
     }
 </script>

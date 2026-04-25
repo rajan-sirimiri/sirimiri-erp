@@ -479,7 +479,7 @@
 
             <!-- 6c. HR — Super + Admin only -->
             <asp:Panel ID="pnlHRCard" runat="server" Visible="false">
-            <a href="/HR/HREmployee.aspx" class="module-card mod-hr">
+            <a href="/HR/HRLogin.aspx" data-sso-module="HR" class="module-card mod-hr">
                 <span class="module-status status-live">Live</span>
                 <div class="module-icon-wrap">&#x1F465;</div>
                 <div class="module-info">
