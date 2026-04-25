@@ -23,6 +23,7 @@ namespace MMApp
         protected TextBox     txtReorder;
         protected DropDownList ddlUOM;
         protected DropDownList ddlCategory;
+        protected DropDownList ddlConsumptionMode;
         protected TextBox     txtNewCategory;
         protected Button      btnAddCategory;
         protected Button      btnSave;
@@ -127,18 +128,31 @@ namespace MMApp
             if (decimal.TryParse(txtGSTRate.Text.Trim(), out gstParsed)) gstRate = gstParsed;
             string category = ddlCategory != null && !string.IsNullOrEmpty(ddlCategory.SelectedValue)
                 ? ddlCategory.SelectedValue : null;
+            string consumptionMode = ddlConsumptionMode != null
+                ? ddlConsumptionMode.SelectedValue : "IN_PRODUCTION";
 
             try
             {
                 if (matId == 0)
                 {
                     MMDatabaseHelper.AddPackingMaterial(name, desc, hsn, gstRate, uomId, reorder, category);
+                    // Lookup newly inserted row by name to set ConsumptionMode (no Add returns ID today)
+                    DataTable allPM = MMDatabaseHelper.GetAllPackingMaterials();
+                    foreach (DataRow rr in allPM.Rows)
+                    {
+                        if (rr["PMName"].ToString() == name)
+                        {
+                            MMDatabaseHelper.SetConsumptionMode("PM", Convert.ToInt32(rr["PMID"]), consumptionMode);
+                            break;
+                        }
+                    }
                     ShowAlert("Packing Material '" + name + "' added successfully.", true);
                     ClearForm();
                 }
                 else
                 {
                     MMDatabaseHelper.UpdatePackingMaterial(matId, txtCode.Text.Trim(), name, desc, hsn, gstRate, uomId, reorder, category);
+                    MMDatabaseHelper.SetConsumptionMode("PM", matId, consumptionMode);
                     ShowAlert("Packing Material '" + name + "' updated successfully.", true);
                     LoadOpeningStock(matId);
                 }
@@ -186,6 +200,11 @@ namespace MMApp
                     string cat = dr.Table.Columns.Contains("PMCategory") && dr["PMCategory"] != DBNull.Value
                         ? dr["PMCategory"].ToString() : "";
                     try { ddlCategory.SelectedValue = cat; } catch { ddlCategory.SelectedIndex = 0; }
+                }
+                if (ddlConsumptionMode != null)
+                {
+                    string mode = MMDatabaseHelper.GetConsumptionMode("PM", matId);
+                    try { ddlConsumptionMode.SelectedValue = mode; } catch { ddlConsumptionMode.SelectedIndex = 0; }
                 }
                 bool isActive         = Convert.ToBoolean(dr["IsActive"]);
                 btnToggleActive.Text  = isActive ? "Deactivate" : "Activate";
@@ -252,6 +271,8 @@ namespace MMApp
             txtHSN.Text          = txtGSTRate.Text = "";
             ddlUOM.SelectedIndex = 0;
             if (ddlCategory != null) ddlCategory.SelectedIndex = 0;
+            if (ddlConsumptionMode != null)
+                try { ddlConsumptionMode.SelectedValue = "IN_PRODUCTION"; } catch { ddlConsumptionMode.SelectedIndex = 0; }
             SetFormMode(false);
         }
 

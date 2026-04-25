@@ -10,8 +10,8 @@ namespace MMApp
         protected global::System.Web.UI.WebControls.Label     lblUserRole;
         protected global::System.Web.UI.WebControls.Label     lblNavUser;
         protected System.Web.UI.HtmlControls.HtmlAnchor lnkSupplier, lnkRawMaterial, lnkPackingMaterial, lnkConsumable, lnkStationary, lnkScrapMaterial, lnkUOM;
-        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRawInward, lnkPackingInward, lnkConsumableInward, lnkStationaryInward;
-        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRMReport, lnkPMReport, lnkScrapReport, lnkRecon, lnkBulk, lnkOpeningStock, lnkCNReport, lnkSTReport;
+        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRawInward, lnkPackingInward, lnkConsumableInward, lnkStationaryInward, lnkStockTransfer;
+        protected System.Web.UI.HtmlControls.HtmlAnchor lnkRMReport, lnkPMReport, lnkScrapReport, lnkRecon, lnkBulk, lnkOpeningStock, lnkCNReport, lnkSTReport, lnkConsumptionMode;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -42,6 +42,25 @@ namespace MMApp
             if (lnkOpeningStock != null) lnkOpeningStock.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_BULK");
             if (lnkCNReport != null) lnkCNReport.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_CN_REPORT");
             if (lnkSTReport != null) lnkSTReport.Visible = MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_ST_REPORT");
+
+            // ── New cards: Stock Transfer + Consumption Mode bulk-edit ──
+            // Stock Transfer — visible if the user has any of the GRN access codes (i.e. they can move stock).
+            if (lnkStockTransfer != null)
+            {
+                lnkStockTransfer.Visible =
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_STOCK_TRANSFER") ||
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_PM_GRN") ||
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_CM_GRN") ||
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_ST_GRN");
+            }
+            // Consumption Mode bulk edit — visible if the user can edit any of the masters.
+            if (lnkConsumptionMode != null)
+            {
+                lnkConsumptionMode.Visible =
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_PM_MASTER") ||
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_CM_MASTER") ||
+                    MMDatabaseHelper.RoleHasModuleAccess(role, "MM", "MM_ST_MASTER");
+            }
         }
     }
 }

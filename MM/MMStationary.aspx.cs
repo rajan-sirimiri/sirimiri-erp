@@ -22,6 +22,7 @@ namespace MMApp
         protected TextBox     txtGSTRate;
         protected TextBox     txtReorder;
         protected DropDownList ddlUOM;
+        protected DropDownList ddlConsumptionMode;
         protected Button      btnSave;
         protected Button      btnClear;
         protected Button      btnToggleActive;
@@ -108,18 +109,30 @@ namespace MMApp
             decimal? gstRate = null;
             decimal gstParsed;
             if (decimal.TryParse(txtGSTRate.Text.Trim(), out gstParsed)) gstRate = gstParsed;
+            string consumptionMode = ddlConsumptionMode != null
+                ? ddlConsumptionMode.SelectedValue : "AT_ISSUE";
 
             try
             {
                 if (matId == 0)
                 {
                     MMDatabaseHelper.AddStationary(name, desc, hsn, gstRate, uomId, reorder);
+                    DataTable allST = MMDatabaseHelper.GetAllStationaries();
+                    foreach (DataRow rr in allST.Rows)
+                    {
+                        if (rr["StationaryName"].ToString() == name)
+                        {
+                            MMDatabaseHelper.SetConsumptionMode("ST", Convert.ToInt32(rr["StationaryID"]), consumptionMode);
+                            break;
+                        }
+                    }
                     ShowAlert("Stationary '" + name + "' added successfully.", true);
                     ClearForm();
                 }
                 else
                 {
                     MMDatabaseHelper.UpdateStationary(matId, txtCode.Text.Trim(), name, desc, hsn, gstRate, uomId, reorder);
+                    MMDatabaseHelper.SetConsumptionMode("ST", matId, consumptionMode);
                     ShowAlert("Stationary '" + name + "' updated successfully.", true);
                     LoadOpeningStock(matId);
                 }
@@ -162,6 +175,11 @@ namespace MMApp
                 txtGSTRate.Text       = dr["GSTRate"]     == DBNull.Value ? "" : dr["GSTRate"].ToString();
                 txtReorder.Text       = dr["ReorderLevel"].ToString();
                 ddlUOM.SelectedValue  = dr["UOMID"].ToString();
+                if (ddlConsumptionMode != null)
+                {
+                    string mode = MMDatabaseHelper.GetConsumptionMode("ST", matId);
+                    try { ddlConsumptionMode.SelectedValue = mode; } catch { ddlConsumptionMode.SelectedIndex = 0; }
+                }
                 bool isActive         = Convert.ToBoolean(dr["IsActive"]);
                 btnToggleActive.Text  = isActive ? "Deactivate" : "Activate";
                 SetFormMode(true);
@@ -226,6 +244,8 @@ namespace MMApp
             txtCode.Text         = txtName.Text = txtDescription.Text = txtReorder.Text = "";
             txtHSN.Text          = txtGSTRate.Text = "";
             ddlUOM.SelectedIndex = 0;
+            if (ddlConsumptionMode != null)
+                try { ddlConsumptionMode.SelectedValue = "AT_ISSUE"; } catch { ddlConsumptionMode.SelectedIndex = 0; }
             SetFormMode(false);
         }
     }

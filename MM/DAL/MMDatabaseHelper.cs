@@ -2087,6 +2087,79 @@ namespace MMApp.DAL
         // ── Save a transfer (header + lines) ─────────────────────────────
         // Returns the new TransferID. Lines is a list of tuples:
         //   (MaterialType: "PM"|"CN"|"ST", MaterialID, Qty, UOMID, ConsumedAtIssue, Remarks)
+        // ── Look up ConsumptionMode for a (type, id) ─────────────────────
+        // Returns 'AT_ISSUE' or 'IN_PRODUCTION'. Defaults if missing/unknown.
+        public static string GetConsumptionMode(string materialType, int materialId)
+        {
+            string sql, idCol, table, defaultMode;
+            switch ((materialType ?? "").ToUpper())
+            {
+                case "PM":
+                    table = "MM_PackingMaterials"; idCol = "PMID"; defaultMode = "IN_PRODUCTION"; break;
+                case "CN":
+                    table = "MM_Consumables";      idCol = "ConsumableID"; defaultMode = "AT_ISSUE"; break;
+                case "ST":
+                    table = "MM_Stationaries";     idCol = "StationaryID"; defaultMode = "AT_ISSUE"; break;
+                default:
+                    return "IN_PRODUCTION";
+            }
+            sql = "SELECT ConsumptionMode FROM " + table + " WHERE " + idCol + "=?id;";
+            try
+            {
+                var v = ExecuteScalar(sql, new MySqlParameter("id", materialId));
+                if (v == null || v == DBNull.Value) return defaultMode;
+                string m = v.ToString();
+                if (string.IsNullOrEmpty(m)) return defaultMode;
+                return (m == "AT_ISSUE" || m == "IN_PRODUCTION") ? m : defaultMode;
+            }
+            catch
+            {
+                // Column may not exist yet (pre-migration); fail safe to per-type default.
+                return defaultMode;
+            }
+        }
+
+        // ── Set ConsumptionMode for a (type, id) ─────────────────────────
+        public static void SetConsumptionMode(string materialType, int materialId, string mode)
+        {
+            string table, idCol;
+            switch ((materialType ?? "").ToUpper())
+            {
+                case "PM": table = "MM_PackingMaterials"; idCol = "PMID";        break;
+                case "CN": table = "MM_Consumables";      idCol = "ConsumableID"; break;
+                case "ST": table = "MM_Stationaries";     idCol = "StationaryID"; break;
+                default: return;
+            }
+            string normalized = (mode == "AT_ISSUE") ? "AT_ISSUE" : "IN_PRODUCTION";
+            ExecuteNonQuery(
+                "UPDATE " + table + " SET ConsumptionMode=?m WHERE " + idCol + "=?id;",
+                new MySqlParameter("m", normalized),
+                new MySqlParameter("id", materialId));
+        }
+
+        // ── Materials list for the bulk-edit page (PM + CN + ST in one DataTable) ─
+        // Columns: MaterialType ('PM'|'CN'|'ST'), MaterialID, Code, Name, UOM, ConsumptionMode, IsActive
+        public static DataTable GetMaterialsForBulkEdit()
+        {
+            return ExecuteQuery(
+                "SELECT 'PM' AS MaterialType, p.PMID AS MaterialID, p.PMCode AS Code, p.PMName AS Name, " +
+                "       u.Abbreviation AS UOM, p.ConsumptionMode, p.IsActive " +
+                "FROM MM_PackingMaterials p LEFT JOIN MM_UOM u ON u.UOMID=p.UOMID WHERE p.IsActive=1 " +
+                "UNION ALL " +
+                "SELECT 'CN', c.ConsumableID, c.ConsumableCode, c.ConsumableName, " +
+                "       u.Abbreviation, c.ConsumptionMode, c.IsActive " +
+                "FROM MM_Consumables c LEFT JOIN MM_UOM u ON u.UOMID=c.UOMID WHERE c.IsActive=1 " +
+                "UNION ALL " +
+                "SELECT 'ST', s.StationaryID, s.StationaryCode, s.StationaryName, " +
+                "       u.Abbreviation, s.ConsumptionMode, s.IsActive " +
+                "FROM MM_Stationaries s LEFT JOIN MM_UOM u ON u.UOMID=s.UOMID WHERE s.IsActive=1 " +
+                "ORDER BY MaterialType, Name;");
+        }
+
+        // ── Save a transfer (header + lines) ─────────────────────────────
+        // ConsumedAtIssue is now resolved AUTOMATICALLY from each material's
+        // master ConsumptionMode flag — line[4] passed by callers is ignored
+        // (kept in the signature for backward compatibility).
         public static int AddStockTransfer(
             string transferNo, DateTime transferDate, string transferType,
             int fromLocationId, int toLocationId,
@@ -2110,15 +2183,18 @@ namespace MMApp.DAL
 
             int transferId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
 
-            // Insert each line
+            // Insert each line — ConsumedAtIssue derived from master ConsumptionMode
             foreach (var line in lines)
             {
                 string matType   = (string)line[0];
                 int    matId     = Convert.ToInt32(line[1]);
                 decimal qty      = Convert.ToDecimal(line[2]);
-                object uomObj    = line[3];                                         // int or null
-                int    consumed  = Convert.ToBoolean(line[4]) ? 1 : 0;
+                object uomObj    = line[3];                                  // int or null
+                // line[4] (operator-passed consumed flag) IGNORED — sourced from master
                 string lineRem   = line.Length > 5 ? (string)line[5] : null;
+
+                string mode = GetConsumptionMode(matType, matId);
+                int consumed = (mode == "AT_ISSUE") ? 1 : 0;
 
                 ExecuteNonQuery(
                     "INSERT INTO MM_StockTransferLine " +

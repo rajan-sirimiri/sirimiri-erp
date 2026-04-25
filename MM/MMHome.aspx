@@ -191,6 +191,11 @@
                 <div><div class="menu-title">Stationaries &amp;<br/>Other Items</div><div class="menu-desc">Define stationery and miscellaneous items, codes and UOM</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
+            <a id="lnkConsumptionMode" runat="server" href="MMConsumptionModeBulk.aspx" class="menu-card cat-master">
+                <div class="menu-icon">&#x2696;&#xFE0F;</div>
+                <div><div class="menu-title">Consumption<br/>Mode</div><div class="menu-desc">Set whether each Packing/Consumable/Stationery is consumed at issue or tracked on Floor</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
         </div>
 
         <div class="section-head">Transactions</div>
@@ -213,6 +218,11 @@
             <a id="lnkStationaryInward" runat="server" href="MMStationaryInward.aspx" class="menu-card cat-txn">
                 <div class="menu-icon">&#x1F4E6;</div>
                 <div><div class="menu-title">Stationary &amp; Other<br/>Inward (GRN)</div><div class="menu-desc">Record stationery and misc item receipts, generate GRN numbers</div></div>
+                <div class="menu-arrow">&#x2197;</div>
+            </a>
+            <a id="lnkStockTransfer" runat="server" href="MMStockTransfer.aspx" class="menu-card cat-txn">
+                <div class="menu-icon">&#x1F4E4;</div>
+                <div><div class="menu-title">Stock Transfer<br/>(Store &rarr; Floor)</div><div class="menu-desc">Issue Packing Materials, Consumables and Stationery from Stores to Production Floor</div></div>
                 <div class="menu-arrow">&#x2197;</div>
             </a>
             <a id="lnkRMReport" runat="server" href="MMRMStockReport.aspx" class="menu-card cat-txn">

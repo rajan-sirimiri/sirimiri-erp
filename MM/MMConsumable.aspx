@@ -134,6 +134,14 @@
                         <span class="field-hint">Minimum stock before reorder alert</span>
                     </div>
                     <div class="form-group">
+                        <label>Consumption Mode <span class="req">*</span></label>
+                        <asp:DropDownList ID="ddlConsumptionMode" runat="server">
+                            <asp:ListItem Text="At Issue (consumed when issued)"  Value="AT_ISSUE" />
+                            <asp:ListItem Text="In Production (tracked on Floor)" Value="IN_PRODUCTION" />
+                        </asp:DropDownList>
+                        <span class="field-hint">How is this consumable consumed when issued to Floor?</span>
+                    </div>
+                    <div class="form-group">
                         <label>HSN Code</label>
                         <asp:TextBox ID="txtHSN" runat="server" MaxLength="20" placeholder="e.g. 3403" />
                         <span class="field-hint">Optional &mdash; for GST invoicing</span>
