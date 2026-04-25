@@ -3,9 +3,13 @@
   HR.csproj - Visual Studio 2019/2022 web application project.
   .NET Framework 4.8, ASP.NET Web Forms.
 
-  NuGet packages to install after adding this project:
-    - MySql.Data (match version of other modules)
-    - ClosedXML 0.95.0    <- PINNED, do not upgrade (net46 target required)
+  Reference pattern matches FIN/MM/PK modules:
+    - ClosedXML 0.95.0   -> via HintPath to ..\PK\bin\ClosedXML.dll
+    - MySql.Data         -> via HintPath to ..\PK\bin\MySql.Data.dll
+    - DocumentFormat.OpenXml 2.12.3 -> via packages folder under ..\files\packages
+  Only DocumentFormat.OpenXml is in packages.config (NuGet-managed).
+  ClosedXML and MySql.Data are pulled from PK\bin to avoid NuGet version
+  conflicts with the existing module set.
 -->
 <Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
@@ -29,12 +33,6 @@
     <UseGlobalApplicationHostFile />
     <Use64BitIISExpress />
   </PropertyGroup>
-  <!-- =========================================================
-       VSToolsPath resolution.
-       This block tells MSBuild where to find
-       Microsoft.WebApplication.targets for VS 2017 / 2019 / 2022.
-       Without this the <Import> at the bottom fails.
-       ========================================================= -->
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">17.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
@@ -57,17 +55,36 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <!-- ClosedXML 0.95.0 - referenced from PK\bin to match FIN/MM pattern -->
+    <Reference Include="ClosedXML, Version=0.95.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\PK\bin\ClosedXML.dll</HintPath>
+    </Reference>
+    <!-- DocumentFormat.OpenXml 2.12.3 - via packages folder (NuGet-managed) -->
+    <Reference Include="DocumentFormat.OpenXml, Version=2.12.3.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>..\files\packages\DocumentFormat.OpenXml.2.12.3\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
+    <!-- MySql.Data - referenced from PK\bin to match FIN pattern -->
+    <Reference Include="MySql.Data">
+      <HintPath>..\PK\bin\MySql.Data.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <!-- Framework references -->
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Web" />
+    <Reference Include="System.Web.ApplicationServices" />
     <Reference Include="System.Web.Extensions" />
-    <Reference Include="System.Configuration" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
-    <!-- MySql.Data and ClosedXML come from packages.config after NuGet restore -->
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Default.aspx" />
@@ -84,13 +101,22 @@
       <DependentUpon>HRDepartment.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="HRDepartment.aspx.designer.cs">
+      <DependentUpon>HRDepartment.aspx</DependentUpon>
+    </Compile>
     <Compile Include="HREmployee.aspx.cs">
       <DependentUpon>HREmployee.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="HREmployee.aspx.designer.cs">
+      <DependentUpon>HREmployee.aspx</DependentUpon>
+    </Compile>
     <Compile Include="HREmployeeImport.aspx.cs">
       <DependentUpon>HREmployeeImport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="HREmployeeImport.aspx.designer.cs">
+      <DependentUpon>HREmployeeImport.aspx</DependentUpon>
     </Compile>
     <Compile Include="HREmployeeImport.ashx.cs">
       <DependentUpon>HREmployeeImport.ashx</DependentUpon>

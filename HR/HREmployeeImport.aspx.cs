@@ -191,7 +191,7 @@ namespace HRModule
 
                 // Header row -> column index map
                 Dictionary<string, int> col = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                IXLRow hdr = used.FirstRow().AsRow();
+                IXLRow hdr = ws.FirstRowUsed();
                 int c = 1;
                 foreach (IXLCell cell in hdr.Cells())
                 {
