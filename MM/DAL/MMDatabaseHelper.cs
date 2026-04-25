@@ -890,7 +890,6 @@ namespace MMApp.DAL
             string pattern = "MN-" + today + "-%";
 
             // Sum counts across all 4 inward tables for today's MN- invoices.
-            // UNION ALL (not UNION) to avoid de-dup overhead — we just want the sum.
             string sql =
                 "SELECT SUM(c) FROM (" +
                 "  SELECT COUNT(*) AS c FROM MM_RawInward       WHERE InvoiceNo LIKE ?p" +
@@ -1957,6 +1956,171 @@ namespace MMApp.DAL
                 return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["CanAccess"]) == 1;
             }
             catch { return true; } // Fail open
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        //  STOCK TRANSFER (Store -> Floor)
+        // ═════════════════════════════════════════════════════════════════
+
+        // ── Locations master ─────────────────────────────────────────────
+        public static DataTable GetActiveLocations()
+        {
+            return ExecuteQuery(
+                "SELECT LocationID, LocationCode, LocationName, LocationType " +
+                "FROM MM_Locations WHERE IsActive=1 ORDER BY LocationName;");
+        }
+
+        public static int GetLocationIdByCode(string code)
+        {
+            var v = ExecuteScalar(
+                "SELECT LocationID FROM MM_Locations WHERE LocationCode=?c;",
+                new MySqlParameter("c", code));
+            if (v == null || v == DBNull.Value) return 0;
+            return Convert.ToInt32(v);
+        }
+
+        // ── Transfer number generator ────────────────────────────────────
+        public static string GenerateTransferNumber()
+        {
+            // TR-YYYYMMDD-NNN where NNN = (today's TR-* count) + 1, zero-padded.
+            // Count-based, gap-free, no counter table needed.
+            string today = DateTime.Now.ToString("yyyyMMdd");
+            string pattern = "TR-" + today + "-%";
+            var v = ExecuteScalar(
+                "SELECT COUNT(*) FROM MM_StockTransfer WHERE TransferNo LIKE ?p;",
+                new MySqlParameter("p", pattern));
+            long total = (v == null || v == DBNull.Value) ? 0 : Convert.ToInt64(v);
+            return string.Format("TR-{0}-{1:D3}", today, total + 1);
+        }
+
+        // ── Save a transfer (header + lines) ─────────────────────────────
+        // Returns the new TransferID. Lines is a list of tuples:
+        //   (MaterialType: "PM"|"CN"|"ST", MaterialID, Qty, UOMID, ConsumedAtIssue, Remarks)
+        public static int AddStockTransfer(
+            string transferNo, DateTime transferDate, string transferType,
+            int fromLocationId, int toLocationId,
+            string requestedBy, int issuedBy, string remarks,
+            System.Collections.Generic.List<object[]> lines)
+        {
+            // Insert header
+            ExecuteNonQuery(
+                "INSERT INTO MM_StockTransfer " +
+                "(TransferNo, TransferDate, TransferType, FromLocationID, ToLocationID, " +
+                " RequestedBy, IssuedBy, Remarks, Status) " +
+                "VALUES (?tn, ?td, ?tt, ?fl, ?tl, ?rb, ?ib, ?rm, 'Issued');",
+                new MySqlParameter("tn", transferNo),
+                new MySqlParameter("td", transferDate),
+                new MySqlParameter("tt", transferType),
+                new MySqlParameter("fl", fromLocationId),
+                new MySqlParameter("tl", toLocationId),
+                new MySqlParameter("rb", (object)requestedBy ?? DBNull.Value),
+                new MySqlParameter("ib", issuedBy),
+                new MySqlParameter("rm", (object)remarks ?? DBNull.Value));
+
+            int transferId = Convert.ToInt32(ExecuteScalar("SELECT LAST_INSERT_ID();"));
+
+            // Insert each line
+            foreach (var line in lines)
+            {
+                string matType   = (string)line[0];
+                int    matId     = Convert.ToInt32(line[1]);
+                decimal qty      = Convert.ToDecimal(line[2]);
+                object uomObj    = line[3];                                         // int or null
+                int    consumed  = Convert.ToBoolean(line[4]) ? 1 : 0;
+                string lineRem   = line.Length > 5 ? (string)line[5] : null;
+
+                ExecuteNonQuery(
+                    "INSERT INTO MM_StockTransferLine " +
+                    "(TransferID, MaterialType, MaterialID, Quantity, UOMID, ConsumedAtIssue, Remarks) " +
+                    "VALUES (?tid, ?mt, ?mid, ?qty, ?uom, ?ci, ?lr);",
+                    new MySqlParameter("tid", transferId),
+                    new MySqlParameter("mt", matType),
+                    new MySqlParameter("mid", matId),
+                    new MySqlParameter("qty", qty),
+                    new MySqlParameter("uom", uomObj == null ? (object)DBNull.Value : uomObj),
+                    new MySqlParameter("ci", consumed),
+                    new MySqlParameter("lr", (object)lineRem ?? DBNull.Value));
+            }
+
+            return transferId;
+        }
+
+        // ── List of transfers (header view, with line count + total qty) ─
+        public static DataTable GetStockTransferList(DateTime fromDate, DateTime toDate)
+        {
+            return ExecuteQuery(
+                "SELECT t.TransferID, t.TransferNo, t.TransferDate, t.TransferType, " +
+                "       fl.LocationName AS FromLocation, tl.LocationName AS ToLocation, " +
+                "       t.RequestedBy, u.FullName AS IssuedByName, t.Remarks, t.Status, t.CreatedAt, " +
+                "       (SELECT COUNT(*) FROM MM_StockTransferLine l WHERE l.TransferID=t.TransferID) AS LineCount " +
+                "FROM MM_StockTransfer t " +
+                "JOIN MM_Locations fl ON fl.LocationID = t.FromLocationID " +
+                "JOIN MM_Locations tl ON tl.LocationID = t.ToLocationID " +
+                "LEFT JOIN Users u ON u.UserID = t.IssuedBy " +
+                "WHERE t.TransferDate BETWEEN ?fd AND ?td " +
+                "ORDER BY t.TransferDate DESC, t.TransferID DESC;",
+                new MySqlParameter("fd", fromDate),
+                new MySqlParameter("td", toDate));
+        }
+
+        // ── Detail of one transfer (lines with material name resolved) ───
+        public static DataTable GetStockTransferDetail(int transferId)
+        {
+            // Polymorphic FK — use UNION ALL across the three master tables to resolve names.
+            return ExecuteQuery(
+                "SELECT l.LineID, l.MaterialType, l.MaterialID, l.Quantity, l.UOMID, " +
+                "       l.ConsumedAtIssue, l.Remarks, " +
+                "       COALESCE(pm.PMName, cn.ConsumableName, st.StationaryName) AS MaterialName, " +
+                "       COALESCE(pm.PMCode, cn.ConsumableCode, st.StationaryCode) AS MaterialCode, " +
+                "       u.Abbreviation AS UOM " +
+                "FROM MM_StockTransferLine l " +
+                "LEFT JOIN MM_PackingMaterials pm ON l.MaterialType='PM' AND pm.PMID=l.MaterialID " +
+                "LEFT JOIN MM_Consumables       cn ON l.MaterialType='CN' AND cn.ConsumableID=l.MaterialID " +
+                "LEFT JOIN MM_Stationaries     st ON l.MaterialType='ST' AND st.StationaryID=l.MaterialID " +
+                "LEFT JOIN MM_UOM u ON u.UOMID=l.UOMID " +
+                "WHERE l.TransferID=?tid;",
+                new MySqlParameter("tid", transferId));
+        }
+
+        // ── Active material lists for the transfer page (3 separate calls) ─
+        // Reuse existing GetActivePackingMaterials / GetActiveConsumables
+        // and add the missing GetActiveStationaryForTransfer.
+        public static DataTable GetActiveStationaryForTransfer()
+        {
+            return ExecuteQuery(
+                "SELECT s.StationaryID, s.StationaryCode, s.StationaryName, " +
+                "       s.UOMID, u.Abbreviation " +
+                "FROM MM_Stationaries s LEFT JOIN MM_UOM u ON u.UOMID=s.UOMID " +
+                "WHERE s.IsActive=1 ORDER BY s.StationaryName;");
+        }
+
+        // ── Stock position at a location (per material type) ─────────────
+        // Returns: MaterialID, MaterialName, OpeningQty, ReceivedQty, IssuedQty,
+        //          ReceivedReturnQty, ConsumedQty, OnHandQty
+        // Rules:
+        //   STORES  on-hand = Opening (MM_OpeningStock + MM_LocationOpeningStock@STORES)
+        //                   + GRN Received - Consumption (existing Stores logic)
+        //                   - Issued OUT to Floor + Returned IN from Floor
+        //   FLOOR   on-hand = MM_LocationOpeningStock@FLOOR (always 0 today)
+        //                   + Issued IN from Stores - Consumption-at-issue
+        //                   - Returned OUT to Stores
+        //
+        // For Phase A simplicity, we only return Stores impact and Floor impact
+        // from transfers. The existing GRN/consumption flows are unchanged.
+        public static DataTable GetLocationTransferImpact(string materialType, int locationId)
+        {
+            // Sums of qty issued INTO and OUT OF this location, per material of the given type
+            return ExecuteQuery(
+                "SELECT l.MaterialID, " +
+                "       SUM(CASE WHEN t.ToLocationID=?lid   AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS QtyIn, " +
+                "       SUM(CASE WHEN t.FromLocationID=?lid AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS QtyOut, " +
+                "       SUM(CASE WHEN t.ToLocationID=?lid   AND t.Status='Issued' AND l.ConsumedAtIssue=1 THEN l.Quantity ELSE 0 END) AS QtyConsumedAtIssue " +
+                "FROM MM_StockTransferLine l " +
+                "JOIN MM_StockTransfer t ON t.TransferID=l.TransferID " +
+                "WHERE l.MaterialType=?mt " +
+                "GROUP BY l.MaterialID;",
+                new MySqlParameter("lid", locationId),
+                new MySqlParameter("mt", materialType));
         }
     }
 }
