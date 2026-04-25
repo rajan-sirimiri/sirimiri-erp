@@ -1,0 +1,22 @@
+<%-- =====================================================================
+   FINHome.aspx — ADD these two tiles into the existing tile grid.
+   Paste inside the existing tile container (likely <div class="tiles">
+   or similar). Order them where appropriate in your tile flow.
+   ===================================================================== --%>
+
+<%-- Account Statement tile (visible to all FIN users) --%>
+<a href="FINAccountStatement.aspx" class="fin-tile">
+    <div class="tile-icon">📄</div>
+    <div class="tile-title">Account Statement</div>
+    <div class="tile-sub">Party ledger with opening + running balance</div>
+</a>
+
+<%-- Party Opening Balance tile (admin only) --%>
+<%  bool _isAdmin = Session["IsAdmin"] != null && Convert.ToBoolean(Session["IsAdmin"]);
+    if (_isAdmin) { %>
+    <a href="FINPartyOpeningBalance.aspx" class="fin-tile tile-admin">
+        <div class="tile-icon">⚙️</div>
+        <div class="tile-title">Party Opening Balance</div>
+        <div class="tile-sub">Set as-of-FY-start balances (admin)</div>
+    </a>
+<%  } %>

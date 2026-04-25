@@ -1,0 +1,21 @@
+cd C:\Code
+
+git add MM/DAL/MMDatabaseHelper.cs MM/MMMultiGRN.aspx MM/MMMultiGRN.aspx.cs MM/MMMultiGRNPM.aspx MM/MMMultiGRNPM.aspx.cs MM/MMMultiGRNCN.aspx MM/MMMultiGRNCN.aspx.cs MM/MMMultiGRNST.aspx MM/MMMultiGRNST.aspx.cs MM/MMRawInward.aspx MM/MMRawInward.aspx.cs MM/MMPackingInward.aspx MM/MMPackingInward.aspx.cs MM/MMConsumableInward.aspx MM/MMConsumableInward.aspx.cs MM/MMStationaryInward.aspx MM/MMStationaryInward.aspx.cs
+
+git commit -m "MM: remove No Invoice option; multi-item pages calc billing from ACT QTY; add GRN History (multi-item only) to 4 multi-item GRN pages"
+
+git push
+
+
+sirimiri-erp-backups-vimarsa
+customercare@sirimirihealth.com
+Macean1040~
+
+
+IAM User - sirimiri-erp-backup
+
+Custom Password - WonderUniv~10
+
+
+SirimiriERPBackupPolicy
+

@@ -108,17 +108,29 @@
         .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px; }
 
         @media(max-width:900px) { .content { grid-template-columns: 1fr; } }
-    </style>
-    <script>
-        // Show / hide the free-text "Other" field based on category dropdown
-        function toggleOtherCat() {
-            var sel = document.getElementById('<%= ddlCategory.ClientID %>');
-            var wrap = document.getElementById('otherCatWrap');
-            if (!sel || !wrap) return;
-            wrap.style.display = (sel.value === 'Other') ? 'flex' : 'none';
+
+        /* ── Multi-select service chip list ── */
+        .svc-list ul.svc-cbl { list-style:none; margin:0; padding:4px; }
+        .svc-list ul.svc-cbl li {
+            display:flex; align-items:flex-start; gap:8px;
+            padding:6px 10px; border-radius:6px; margin-bottom:2px;
+            transition:background .12s;
         }
-        document.addEventListener('DOMContentLoaded', toggleOtherCat);
-    </script>
+        .svc-list ul.svc-cbl li:hover { background:var(--accent-light); }
+        .svc-list ul.svc-cbl li input[type=checkbox] {
+            margin-top:3px; width:14px; height:14px;
+            accent-color:var(--accent); flex-shrink:0;
+        }
+        .svc-list ul.svc-cbl li label { font-size:13px; color:var(--text); cursor:pointer; flex:1; line-height:1.35; font-weight:400; text-transform:none; letter-spacing:0; }
+        .svc-list ul.svc-cbl li label .svc-code { font-family:'Roboto Mono',monospace; font-size:11px; color:var(--text-muted); font-weight:600; margin-right:6px; }
+        .svc-list ul.svc-cbl li label .svc-name { font-weight:500; }
+        .svc-list ul.svc-cbl li label .svc-meta { font-size:11px; color:var(--text-dim); margin-left:4px; }
+        .svc-list ul.svc-cbl li.svc-hidden { display:none; }
+
+        /* provider list chip pills */
+        .svc-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+        .svc-chip { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; background:var(--accent-light); color:var(--accent-dark); }
+    </style>
 </head>
 <body>
 <form id="form1" runat="server">
@@ -161,11 +173,6 @@
                         <asp:Label ID="lblFormTitle" runat="server" Text="New Service Provider" />
                         <asp:HiddenField ID="hfProviderID" runat="server" Value="0" />
                     </div>
-                    <a href="FINServiceCategoryManage.aspx"
-                       style="font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;border:1.5px solid var(--accent-light);border-radius:6px;letter-spacing:.03em;"
-                       onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
-                        Manage Categories &rarr;
-                    </a>
                 </div>
 
                 <div class="form-section">Identification</div>
@@ -180,15 +187,6 @@
                         <asp:TextBox ID="txtName" runat="server" MaxLength="200" placeholder="Full legal name" />
                     </div>
                     <div class="form-group">
-                        <label>Service Category <span class="req">*</span></label>
-                        <asp:DropDownList ID="ddlCategory" runat="server" onchange="toggleOtherCat();" />
-                        <span class="field-hint">Pick "Other" to enter a new category &mdash; it will appear in the list for future use.</span>
-                    </div>
-                    <div class="form-group" id="otherCatWrap" style="display:none;">
-                        <label>Other Category (free text)</label>
-                        <asp:TextBox ID="txtOtherCategory" runat="server" MaxLength="60" placeholder="Specify category" />
-                    </div>
-                    <div class="form-group">
                         <label>GST Number</label>
                         <asp:TextBox ID="txtGST" runat="server" MaxLength="20" placeholder="e.g. 33XXXXX0000X1ZX" />
                     </div>
@@ -196,6 +194,35 @@
                         <label>PAN</label>
                         <asp:TextBox ID="txtPAN" runat="server" MaxLength="10" placeholder="e.g. ABCDE1234F" />
                     </div>
+                </div>
+
+                <div class="form-section" style="display:flex;align-items:center;">
+                    <span>Services Offered</span>
+                    <span style="margin-left:auto;">
+                        <a href="FINServiceCatalog.aspx"
+                           style="font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;padding:4px 10px;border:1.5px solid var(--accent-light);border-radius:6px;letter-spacing:.03em;text-transform:uppercase;"
+                           onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+                            Manage Catalog &rarr;
+                        </a>
+                    </span>
+                </div>
+                <div>
+                    <div class="svc-search-wrap" style="margin-bottom:10px;">
+                        <input type="text" id="svcSearch" placeholder="Search services by name or code..." onkeyup="filterSvcList(this.value)"
+                               style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fafafa;outline:none;" />
+                    </div>
+                    <asp:Panel ID="pnlNoServices" runat="server" Visible="false"
+                        style="padding:20px;border:1.5px dashed var(--border);border-radius:8px;text-align:center;color:var(--text-muted);font-size:13px;">
+                        No services defined yet.
+                        <a href="FINServiceCatalog.aspx" style="color:var(--accent);font-weight:600;">Create your first service</a>
+                        in the catalog.
+                    </asp:Panel>
+                    <div id="svcListWrap" class="svc-list" style="max-height:240px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;background:#fff;">
+                        <asp:Literal ID="litServices" runat="server" />
+                    </div>
+                    <span class="field-hint" style="margin-top:6px;display:block;">
+                        Pick all services this vendor offers. Use the catalog to add new services.
+                    </span>
                 </div>
 
                 <div class="form-section">Contact</div>
@@ -234,6 +261,15 @@
                     </div>
                 </div>
 
+                <div class="form-section">Notes</div>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Free-text notes</label>
+                        <asp:TextBox ID="txtNotes" runat="server" TextMode="MultiLine" MaxLength="60" placeholder="Any additional notes about this vendor (optional)" />
+                        <span class="field-hint">Short internal remarks &mdash; not shown on invoices or statements.</span>
+                    </div>
+                </div>
+
                 <div class="btn-row">
                     <asp:Button ID="btnSave" runat="server" Text="Save Service Provider" CssClass="btn btn-primary" OnClick="btnSave_Click" />
                     <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false" />
@@ -267,8 +303,8 @@
                             <td style="font-weight:600;font-size:12px;color:var(--text-muted);"><%# Eval("SupplierCode") %></td>
                             <td>
                                 <div style="font-weight:500;"><%# Eval("SupplierName") %></div>
-                                <div style="margin-top:3px;">
-                                    <span class="badge-cat"><%# Eval("ServiceCategory") %></span>
+                                <div class="svc-chips-cell" style="margin-top:4px;">
+                                    <%# RenderServiceChips(Eval("ServicesText")) %>
                                 </div>
                             </td>
                             <td>
@@ -298,6 +334,15 @@
         var rows = document.querySelectorAll('#spTable tbody tr');
         rows.forEach(function(r) {
             r.style.display = r.innerText.toLowerCase().includes(val) ? '' : 'none';
+        });
+    }
+
+    function filterSvcList(val) {
+        val = val.toLowerCase().trim();
+        var items = document.querySelectorAll('.svc-list ul.svc-cbl li');
+        items.forEach(function(li) {
+            var txt = li.innerText.toLowerCase();
+            li.classList.toggle('svc-hidden', val !== '' && txt.indexOf(val) === -1);
         });
     }
 </script>

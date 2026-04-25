@@ -585,7 +585,7 @@ namespace FINApp
 
             // ── Other GRN fields (collapsible) ──
             sb.Append("<button type='button' class='other-toggle' id='otherBtn_").Append(grnId).Append("' ");
-            sb.Append("onclick="return toggleOther(").Append(grnId).Append(");">");
+            sb.Append("onclick=\"return toggleOther(").Append(grnId).Append(");\">");
             sb.Append("<span class='caret'>▸</span> Other GRN fields (PO, transport, shortage, remarks, audit)");
             sb.Append("</button>");
             sb.Append("<div id='other_").Append(grnId).Append("' style='display:none;margin-top:10px;'>");

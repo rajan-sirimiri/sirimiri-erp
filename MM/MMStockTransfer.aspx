@@ -83,7 +83,7 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
 <!-- NAV -->
 <nav>
-    <div class="nav-logo"><img src="/StockApp/Sirimiri-Logo.png" alt="Sirimiri"/></div>
+    <div class="nav-logo"><img src="/StockApp/Sirimiri_Logo-16_9-72ppi-01.png" alt="Sirimiri" onerror="this.style.display='none'"/></div>
     <div class="nav-title">SIRIMIRI ERP — MATERIALS MGMT</div>
     <div class="nav-right">
         <span class="nav-user">User: <asp:Label ID="lblUser" runat="server" Text="—"/></span>

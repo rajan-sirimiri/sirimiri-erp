@@ -84,6 +84,10 @@
       <DependentUpon>MMCNStockReport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="MMConsumptionModeBulk.aspx.cs">
+      <DependentUpon>MMConsumptionModeBulk.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="MMGRNDetailAPI.ashx.cs">
       <DependentUpon>MMGRNDetailAPI.ashx</DependentUpon>
     </Compile>
@@ -103,6 +107,7 @@
     <Compile Include="Global.asax.cs" />
     <Content Include="MMChangePassword.aspx" />
     <Content Include="MMCNStockReport.aspx" />
+    <Content Include="MMConsumptionModeBulk.aspx" />
     <Content Include="MMLogin.aspx" />
     <Compile Include="MMLogin.aspx.cs">
       <DependentUpon>MMLogin.aspx</DependentUpon>
@@ -121,6 +126,7 @@
     <Content Include="MMScrapMaterial.aspx" />
     <Content Include="MMScrapStockReport.aspx" />
     <Content Include="MMStockReconciliation.aspx" />
+    <Content Include="MMStockTransfer.aspx" />
     <Content Include="MMSTStockReport.aspx" />
     <Content Include="MMUOMMaster.aspx" />
     <Content Include="MMMaterialList.aspx" />
@@ -150,6 +156,10 @@
     </Compile>
     <Compile Include="MMMaterialList.aspx.cs">
       <DependentUpon>MMMaterialList.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="MMStockTransfer.aspx.cs">
+      <DependentUpon>MMStockTransfer.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="MMSTStockReport.aspx.cs">
