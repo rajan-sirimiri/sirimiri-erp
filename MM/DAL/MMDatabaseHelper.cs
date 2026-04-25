@@ -343,12 +343,29 @@ namespace MMApp.DAL
 
         public static DataTable GetPMStockReport()
         {
+            // Stock model with location split:
+            //   StoresQty   = Opening + GRN_Received - PK_Consumption - StoresOut + StoresIn
+            //   FloorQty    = FloorIn - FloorOut - FloorConsumed_at_issue
+            //   CurrentStock = StoresQty + FloorQty (kept as same column name for backward compat)
             return ExecuteQuery(
                 "SELECT p.PMID, p.PMCode, p.PMName, u.Abbreviation AS UOM," +
                 " ROUND(" +
                 "   IFNULL(os.Quantity, 0)" +
                 "   + IFNULL(grn.TotalReceived, 0)" +
                 "   - IFNULL(con.TotalConsumed, 0)" +
+                "   - IFNULL(trf.StoresOut, 0)" +
+                "   + IFNULL(trf.StoresIn, 0)" +
+                " , 4) AS StoresQty," +
+                " ROUND(" +
+                "   IFNULL(trf.FloorIn, 0)" +
+                "   - IFNULL(trf.FloorOut, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
+                " , 4) AS FloorQty," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(con.TotalConsumed, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
                 " , 4) AS CurrentStock," +
                 " IFNULL(os.Quantity, 0) AS OpeningStock," +
                 " IFNULL(grn.TotalReceived, 0) AS TotalReceived," +
@@ -363,6 +380,20 @@ namespace MMApp.DAL
                 "            FROM MM_PackingInward GROUP BY PMID) grn ON grn.PMID = p.PMID" +
                 " LEFT JOIN (SELECT PMID, SUM(QtyUsed) AS TotalConsumed" +
                 "            FROM PK_PMConsumption GROUP BY PMID) con ON con.PMID = p.PMID" +
+                " LEFT JOIN (" +
+                "   SELECT l.MaterialID," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresIn," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorIn," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' AND l.ConsumedAtIssue=1 THEN l.Quantity ELSE 0 END) AS FloorConsumed" +
+                "   FROM MM_StockTransferLine l" +
+                "   JOIN MM_StockTransfer t ON t.TransferID = l.TransferID" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='STORES') loc_st" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='FLOOR')  loc_fl" +
+                "   WHERE l.MaterialType='PM'" +
+                "   GROUP BY l.MaterialID" +
+                " ) trf ON trf.MaterialID = p.PMID" +
                 " LEFT JOIN (SELECT PMID, Rate AS LatestRate FROM MM_PackingInward" +
                 "            WHERE QtyActualReceived > 0 AND Rate > 0" +
                 "            AND InwardID = (SELECT MAX(InwardID) FROM MM_PackingInward i2" +
@@ -379,11 +410,27 @@ namespace MMApp.DAL
 
         public static DataTable GetCNStockReport()
         {
+            // Stock model with location split (no PK consumption tracker for CN):
+            //   StoresQty   = Opening + GRN_Received - StoresOut + StoresIn
+            //   FloorQty    = FloorIn - FloorOut - FloorConsumed_at_issue
+            //   CurrentStock = StoresQty + FloorQty
             return ExecuteQuery(
                 "SELECT c.ConsumableID, c.ConsumableCode, c.ConsumableName, u.Abbreviation AS UOM," +
                 " ROUND(" +
                 "   IFNULL(os.Quantity, 0)" +
                 "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(trf.StoresOut, 0)" +
+                "   + IFNULL(trf.StoresIn, 0)" +
+                " , 4) AS StoresQty," +
+                " ROUND(" +
+                "   IFNULL(trf.FloorIn, 0)" +
+                "   - IFNULL(trf.FloorOut, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
+                " , 4) AS FloorQty," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
                 " , 4) AS CurrentStock," +
                 " c.ReorderLevel," +
                 " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
@@ -393,6 +440,20 @@ namespace MMApp.DAL
                 " LEFT JOIN MM_OpeningStock os ON os.MaterialType='CN' AND os.MaterialID=c.ConsumableID" +
                 " LEFT JOIN (SELECT ConsumableID, SUM(QtyActualReceived) AS TotalReceived" +
                 "            FROM MM_ConsumableInward GROUP BY ConsumableID) grn ON grn.ConsumableID = c.ConsumableID" +
+                " LEFT JOIN (" +
+                "   SELECT l.MaterialID," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresIn," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorIn," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' AND l.ConsumedAtIssue=1 THEN l.Quantity ELSE 0 END) AS FloorConsumed" +
+                "   FROM MM_StockTransferLine l" +
+                "   JOIN MM_StockTransfer t ON t.TransferID = l.TransferID" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='STORES') loc_st" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='FLOOR')  loc_fl" +
+                "   WHERE l.MaterialType='CN'" +
+                "   GROUP BY l.MaterialID" +
+                " ) trf ON trf.MaterialID = c.ConsumableID" +
                 " LEFT JOIN (SELECT ConsumableID, Rate AS LatestRate FROM MM_ConsumableInward" +
                 "            WHERE QtyActualReceived > 0 AND Rate > 0" +
                 "            AND InwardID = (SELECT MAX(InwardID) FROM MM_ConsumableInward i2" +
@@ -409,11 +470,27 @@ namespace MMApp.DAL
 
         public static DataTable GetSTStockReport()
         {
+            // Stock model with location split (no PK consumption tracker for ST):
+            //   StoresQty   = Opening + GRN_Received - StoresOut + StoresIn
+            //   FloorQty    = FloorIn - FloorOut - FloorConsumed_at_issue
+            //   CurrentStock = StoresQty + FloorQty
             return ExecuteQuery(
                 "SELECT s.StationaryID, s.StationaryCode, s.StationaryName, u.Abbreviation AS UOM," +
                 " ROUND(" +
                 "   IFNULL(os.Quantity, 0)" +
                 "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(trf.StoresOut, 0)" +
+                "   + IFNULL(trf.StoresIn, 0)" +
+                " , 4) AS StoresQty," +
+                " ROUND(" +
+                "   IFNULL(trf.FloorIn, 0)" +
+                "   - IFNULL(trf.FloorOut, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
+                " , 4) AS FloorQty," +
+                " ROUND(" +
+                "   IFNULL(os.Quantity, 0)" +
+                "   + IFNULL(grn.TotalReceived, 0)" +
+                "   - IFNULL(trf.FloorConsumed, 0)" +
                 " , 4) AS CurrentStock," +
                 " s.ReorderLevel," +
                 " IFNULL(latest.LatestRate, IFNULL(os.Rate, 0)) AS LatestCostPerUnit," +
@@ -423,6 +500,20 @@ namespace MMApp.DAL
                 " LEFT JOIN MM_OpeningStock os ON os.MaterialType='ST' AND os.MaterialID=s.StationaryID" +
                 " LEFT JOIN (SELECT StationaryID, SUM(QtyActualReceived) AS TotalReceived" +
                 "            FROM MM_StationaryInward GROUP BY StationaryID) grn ON grn.StationaryID = s.StationaryID" +
+                " LEFT JOIN (" +
+                "   SELECT l.MaterialID," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_st.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS StoresIn," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorIn," +
+                "          SUM(CASE WHEN t.FromLocationID=loc_fl.LocationID AND t.Status='Issued' THEN l.Quantity ELSE 0 END) AS FloorOut," +
+                "          SUM(CASE WHEN t.ToLocationID  =loc_fl.LocationID AND t.Status='Issued' AND l.ConsumedAtIssue=1 THEN l.Quantity ELSE 0 END) AS FloorConsumed" +
+                "   FROM MM_StockTransferLine l" +
+                "   JOIN MM_StockTransfer t ON t.TransferID = l.TransferID" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='STORES') loc_st" +
+                "   CROSS JOIN (SELECT LocationID FROM MM_Locations WHERE LocationCode='FLOOR')  loc_fl" +
+                "   WHERE l.MaterialType='ST'" +
+                "   GROUP BY l.MaterialID" +
+                " ) trf ON trf.MaterialID = s.StationaryID" +
                 " LEFT JOIN (SELECT StationaryID, Rate AS LatestRate FROM MM_StationaryInward" +
                 "            WHERE QtyActualReceived > 0 AND Rate > 0" +
                 "            AND InwardID = (SELECT MAX(InwardID) FROM MM_StationaryInward i2" +

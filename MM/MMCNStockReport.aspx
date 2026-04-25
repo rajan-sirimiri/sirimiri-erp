@@ -122,6 +122,8 @@
                     <th>Code</th>
                     <th>Material Name</th>
                     <th>UOM</th>
+                    <th class="num">Stores</th>
+                    <th class="num">Floor</th>
                     <th class="num">Current Stock</th>
                     <th class="num">Latest Cost/Unit (₹)</th>
                     <th class="num">30-Day Avg Cost (₹)</th>
@@ -137,6 +139,8 @@
                             <td><span class="cn-code"><%# Eval("ConsumableCode") %></span></td>
                             <td><span class="cn-name"><%# Eval("ConsumableName") %></span></td>
                             <td><%# Eval("UOM") %></td>
+                            <td class="num"><%# FormatQty(Eval("StoresQty")) %></td>
+                            <td class="num"><%# FormatQty(Eval("FloorQty")) %></td>
                             <td class="num">
                                 <span class='<%# GetStockClass(Eval("CurrentStock"), Eval("ReorderLevel")) %>'>
                                     <%# FormatQty(Eval("CurrentStock")) %>
