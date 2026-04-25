@@ -207,6 +207,9 @@
         .module-card:nth-child(4) { animation-delay: .20s; }
         .module-card:nth-child(5) { animation-delay: .25s; }
         .module-card:nth-child(6) { animation-delay: .30s; }
+        .module-card:nth-child(7) { animation-delay: .35s; }
+        .module-card:nth-child(8) { animation-delay: .40s; }
+        .module-card:nth-child(9) { animation-delay: .45s; }
 
         @keyframes cardIn {
             from { opacity: 0; transform: translateY(24px); }
@@ -316,6 +319,11 @@
         .mod-admin .module-icon-wrap { background: rgba(204,30,30,0.12); color: #cc1e1e; }
         .mod-admin::before           { background: radial-gradient(circle, rgba(204,30,30,0.08), transparent); }
         .mod-admin::after            { background: #cc1e1e; }
+
+        /* 7. HR — teal */
+        .mod-hr .module-icon-wrap { background: rgba(13,148,136,0.12); color: #2dd4bf; }
+        .mod-hr::before           { background: radial-gradient(circle, rgba(13,148,136,0.08), transparent); }
+        .mod-hr::after            { background: #0d9488; }
 
         /* ── STATUS PILL ── */
         .module-status {
@@ -464,6 +472,19 @@
                 <div class="module-info">
                     <div class="module-name">Zoho Books</div>
                     <div class="module-desc">Sync products, customers &amp; suppliers. Push invoices &amp; bills to Zoho Books.</div>
+                </div>
+                <div class="module-arrow">&#x2197;</div>
+            </a>
+            </asp:Panel>
+
+            <!-- 6c. HR — Super + Admin only -->
+            <asp:Panel ID="pnlHRCard" runat="server" Visible="false">
+            <a href="/HR/HREmployee.aspx" class="module-card mod-hr">
+                <span class="module-status status-live">Live</span>
+                <div class="module-icon-wrap">&#x1F465;</div>
+                <div class="module-info">
+                    <div class="module-name">Human<br/>Resources</div>
+                    <div class="module-desc">Employee master, departments, KYC records &amp; bulk import</div>
                 </div>
                 <div class="module-arrow">&#x2197;</div>
             </a>
