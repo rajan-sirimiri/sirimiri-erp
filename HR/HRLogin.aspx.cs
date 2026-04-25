@@ -10,11 +10,6 @@ namespace HRModule
 {
     public partial class HRLogin : Page
     {
-        protected System.Web.UI.WebControls.Label lblError;
-        protected System.Web.UI.WebControls.Panel pnlError;
-        protected System.Web.UI.WebControls.TextBox txtUsername, txtPassword;
-        protected System.Web.UI.WebControls.Button btnLogin;
-
         protected void Page_Load(object sender, EventArgs e)
         {
             // Already logged in to HR -> straight to Employee list
