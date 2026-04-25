@@ -47,6 +47,17 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 .items-table .col-sm{width:70px;}
 .items-table .col-check{width:40px;text-align:center;}
 .items-table .col-act{width:36px;text-align:center;}
+/* Composite Material Picker (text input + 🔍 button + hidden select) */
+.rm-picker{position:relative;}
+.rm-picker-input{position:relative;display:flex;align-items:stretch;}
+.rm-picker-input input[type="text"]{flex:1;padding:6px 32px 6px 8px !important;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;outline:none;min-width:0;width:100%;background:#fff;}
+.rm-picker-input input[type="text"]:focus{border-color:var(--teal);}
+.rm-picker-btn{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:28px;height:28px;padding:0;border:none;background:transparent;font-size:14px;cursor:pointer;border-radius:4px;line-height:1;}
+.rm-picker-btn:hover,.rm-picker-btn:active{background:#f0f0f0;}
+/* Search-modal list rows */
+.mat-row{padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:14px;border-radius:6px;}
+.mat-row:hover,.mat-row:active{background:var(--teal);color:#fff;}
+@media(pointer:coarse){.mat-row{padding:14px;font-size:15px;min-height:44px;display:flex;align-items:center;}}
 .btn-remove{background:none;border:none;color:#e74c3c;font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;}
 .btn-remove:hover{background:#fdf3f2;}
 .btn-add-row{padding:8px 20px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-top:10px;}
@@ -260,6 +271,24 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
             <div style="display:flex;gap:10px;margin-top:20px;">
                 <button type="button" onclick="confirmGRN();" style="flex:1;padding:12px;border:none;border-radius:8px;background:var(--teal);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirm &amp; Save</button>
                 <button type="button" onclick="closeGRNConfirm();" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;color:#333;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Material Search Modal (used by 🔍 button on each line item) -->
+    <div id="matSearchOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:flex-start;justify-content:center;padding-top:40px;">
+        <div style="background:#fff;border-radius:14px;max-width:560px;width:95%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.25);overflow:hidden;">
+            <div style="padding:20px 24px 12px;border-bottom:2px solid var(--teal);">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;margin-bottom:12px;">
+                    Search Material
+                </div>
+                <input type="text" id="matSearchInput" placeholder="🔍 Type to filter…" oninput="filterMaterialList();"
+                       style="width:100%;padding:12px 14px;font-size:16px;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;" autocomplete="off" />
+            </div>
+            <div id="matSearchList" style="flex:1;overflow-y:auto;padding:8px;"></div>
+            <div style="padding:12px 24px;border-top:1px solid #eee;text-align:right;">
+                <button type="button" onclick="closeMaterialSearch();"
+                        style="padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;color:#333;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
             </div>
         </div>
     </div>
@@ -499,12 +528,99 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
     var rowIdx = 0;
 
     function buildRMSelect(idx) {
-        var html = '<select id="rm_'+idx+'" onchange="onRMSelect('+idx+');" style="min-width:180px;">';
-        html += '<option value="0">-- Select --</option>';
-        for (var i = 0; i < rmOptions.length; i++)
-            html += '<option value="'+rmOptions[i].id+'">'+rmOptions[i].name+'</option>';
-        html += '</select>';
+        // Composite picker: visible text input with type-ahead datalist + 🔍 button.
+        // Hidden <select> remains as the source-of-truth for selected ID, so all
+        // existing JS (calcRow, recalcAll, save payload) continues to read from rm_<idx>.
+        var listId = 'rmList_' + idx;
+        var dispId = 'rmDisplay_' + idx;
+        var html = ''
+            + '<div class="rm-picker">'
+            +   '<div class="rm-picker-input">'
+            +     '<input type="text" id="' + dispId + '" list="' + listId + '" '
+            +            'placeholder="🔍 Tap to search…" autocomplete="off" '
+            +            'oninput="onMaterialTypeahead(' + idx + ');" '
+            +            'onfocus="this.select();" />'
+            +     '<button type="button" class="rm-picker-btn" '
+            +            'onclick="openMaterialSearch(' + idx + ');" title="Search material">🔍</button>'
+            +   '</div>'
+            +   '<datalist id="' + listId + '">';
+        for (var i = 0; i < rmOptions.length; i++) {
+            html += '<option value="' + rmOptions[i].name.replace(/"/g, '&quot;') + '"></option>';
+        }
+        html +=   '</datalist>'
+            +   '<select id="rm_' + idx + '" onchange="onRMSelect(' + idx + ');" style="display:none;">'
+            +     '<option value="0">-- Select --</option>';
+        for (var j = 0; j < rmOptions.length; j++) {
+            html += '<option value="' + rmOptions[j].id + '">' + rmOptions[j].name + '</option>';
+        }
+        html +=   '</select>'
+            + '</div>';
         return html;
+    }
+
+    // Type-ahead handler — when user types in visible input, sync selection in hidden <select>
+    function onMaterialTypeahead(idx) {
+        var disp = document.getElementById('rmDisplay_' + idx);
+        var sel  = document.getElementById('rm_' + idx);
+        if (!disp || !sel) return;
+        var typed = (disp.value || '').trim().toLowerCase();
+        if (!typed) { sel.value = '0'; onRMSelect(idx); return; }
+        for (var i = 0; i < rmOptions.length; i++) {
+            if (rmOptions[i].name.toLowerCase() === typed) {
+                sel.value = String(rmOptions[i].id);
+                onRMSelect(idx);
+                return;
+            }
+        }
+    }
+
+    // ── Material Search Modal (shared across all rows) ─────────────────
+    var _matSearchActiveIdx = null;
+    function openMaterialSearch(idx) {
+        _matSearchActiveIdx = idx;
+        var ov = document.getElementById('matSearchOverlay');
+        var inp = document.getElementById('matSearchInput');
+        if (!ov || !inp) return;
+        inp.value = '';
+        renderMaterialList('');
+        ov.style.display = 'flex';
+        setTimeout(function(){ try { inp.focus(); } catch(e){} }, 60);
+    }
+    function closeMaterialSearch() {
+        var ov = document.getElementById('matSearchOverlay');
+        if (ov) ov.style.display = 'none';
+        _matSearchActiveIdx = null;
+    }
+    function filterMaterialList() {
+        var inp = document.getElementById('matSearchInput');
+        renderMaterialList(inp ? inp.value : '');
+    }
+    function renderMaterialList(filter) {
+        var listEl = document.getElementById('matSearchList');
+        if (!listEl) return;
+        var f = (filter || '').trim().toLowerCase();
+        var html = '';
+        var shown = 0;
+        for (var i = 0; i < rmOptions.length; i++) {
+            var nm = rmOptions[i].name || '';
+            if (f && nm.toLowerCase().indexOf(f) === -1) continue;
+            html += '<div class="mat-row" onclick="applyMaterialPick(' + rmOptions[i].id + ');">'
+                  + nm.replace(/</g, '&lt;') + '</div>';
+            shown++;
+            if (shown > 200) break;
+        }
+        if (shown === 0) html = '<div style="padding:24px;text-align:center;color:#888;font-size:13px;">No materials match.</div>';
+        listEl.innerHTML = html;
+    }
+    function applyMaterialPick(materialId) {
+        var idx = _matSearchActiveIdx;
+        if (idx === null) { closeMaterialSearch(); return; }
+        var sel = document.getElementById('rm_' + idx);
+        if (sel) {
+            sel.value = String(materialId);
+            onRMSelect(idx);
+        }
+        closeMaterialSearch();
     }
 
     function buildUOMSelect(idx, prefix) {
@@ -553,6 +669,15 @@ nav{background:#1a1a1a;height:52px;display:flex;align-items:center;padding:0 20p
 
     function onRMSelect(idx) {
         var sel = document.getElementById('rm_'+idx);
+        // Sync visible display input with selected option's text
+        var disp = document.getElementById('rmDisplay_'+idx);
+        if (disp && sel) {
+            if (sel.selectedIndex > 0) {
+                disp.value = sel.options[sel.selectedIndex].text;
+            } else {
+                disp.value = '';
+            }
+        }
         var d = rmData[sel.value];
         if (d) {
             document.getElementById('hsn_'+idx).value = d.hsn || '';
