@@ -30,6 +30,15 @@ namespace HRModule
         // -----------------------------------------------------------------
         // Code generation - overflow-safe (Session 9 pattern)
         // -----------------------------------------------------------------
+        // -----------------------------------------------------------------
+        // EmployeeCode generation
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Legacy parameterless code generator — generates EMP### using the
+        /// global EMP[0-9]+ sequence. Used by founders and any pre-prefix
+        /// records. New code paths should call the deptId overload.
+        /// </summary>
         public static string GenerateEmployeeCode()
         {
             using (MySqlConnection con = GetConnection())
@@ -44,6 +53,68 @@ namespace HRModule
                     long maxNum = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt64(o);
                     int next = Convert.ToInt32(maxNum) + 1;
                     return "EMP" + next.ToString("D3");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Department-aware code generator. Looks up the department's
+        /// CodePrefix from HR_Department, finds the highest existing code
+        /// matching that prefix, returns the next sequential code.
+        ///
+        /// Throws InvalidOperationException if the department has no
+        /// CodePrefix configured — the caller must surface that error.
+        ///
+        /// Example: SALES dept has CodePrefix='EMPS'.
+        ///   - No existing employees with EMPS prefix -> 'EMPS001'
+        ///   - Last is 'EMPS057'                       -> 'EMPS058'
+        /// </summary>
+        public static string GenerateEmployeeCode(int deptId)
+        {
+            string prefix = GetDepartmentCodePrefix(deptId);
+            if (string.IsNullOrEmpty(prefix))
+                throw new InvalidOperationException(
+                    "Department (ID " + deptId + ") has no CodePrefix configured. " +
+                    "Set HR_Department.CodePrefix before generating employee codes for this department.");
+
+            using (MySqlConnection con = GetConnection())
+            {
+                con.Open();
+                // Match codes like EMPS001, EMPS002 — prefix + 1+ digits, nothing else.
+                // CONCAT('^', prefix, '[0-9]+$') keeps EMPS001 in but excludes EMPS01A
+                // and rejects any longer-prefix codes like EMPSAB001.
+                string sql =
+                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(EmployeeCode, @plen) AS UNSIGNED)), 0)
+                        FROM HR_Employee
+                       WHERE EmployeeCode REGEXP CONCAT('^', @prefix, '[0-9]+$')";
+                using (MySqlCommand cmd = new MySqlCommand(sql, con))
+                {
+                    cmd.Parameters.AddWithValue("@plen", prefix.Length + 1);  // SUBSTRING is 1-indexed
+                    cmd.Parameters.AddWithValue("@prefix", prefix);
+                    object o = cmd.ExecuteScalar();
+                    long maxNum = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt64(o);
+                    int next = Convert.ToInt32(maxNum) + 1;
+                    return prefix + next.ToString("D3");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns CodePrefix for the given department, or null if not set.
+        /// </summary>
+        public static string GetDepartmentCodePrefix(int deptId)
+        {
+            using (MySqlConnection con = GetConnection())
+            {
+                con.Open();
+                using (MySqlCommand cmd = new MySqlCommand(
+                    "SELECT CodePrefix FROM HR_Department WHERE DeptID = @id", con))
+                {
+                    cmd.Parameters.AddWithValue("@id", deptId);
+                    object o = cmd.ExecuteScalar();
+                    if (o == null || o == DBNull.Value) return null;
+                    string s = o.ToString().Trim();
+                    return s.Length == 0 ? null : s;
                 }
             }
         }
@@ -83,7 +154,7 @@ namespace HRModule
             using (MySqlConnection con = GetConnection())
             {
                 con.Open();
-                string sql = "SELECT DeptID, DeptCode, DeptName, IsActive, CreatedAt FROM HR_Department";
+                string sql = "SELECT DeptID, DeptCode, DeptName, CodePrefix, IsActive, CreatedAt FROM HR_Department";
                 if (activeOnly) sql += " WHERE IsActive = 1";
                 sql += " ORDER BY DeptName";
                 using (MySqlDataAdapter da = new MySqlDataAdapter(sql, con))
@@ -133,15 +204,22 @@ namespace HRModule
 
         public static int InsertDepartment(string code, string name, string createdBy)
         {
+            return InsertDepartment(code, name, null, createdBy);
+        }
+
+        public static int InsertDepartment(string code, string name, string codePrefix, string createdBy)
+        {
             using (MySqlConnection con = GetConnection())
             {
                 con.Open();
                 using (MySqlCommand cmd = new MySqlCommand(
-                    @"INSERT INTO HR_Department (DeptCode, DeptName, IsActive, CreatedBy)
-                      VALUES (@c, @n, 1, @u); SELECT LAST_INSERT_ID();", con))
+                    @"INSERT INTO HR_Department (DeptCode, DeptName, CodePrefix, IsActive, CreatedBy)
+                      VALUES (@c, @n, @p, 1, @u); SELECT LAST_INSERT_ID();", con))
                 {
                     cmd.Parameters.AddWithValue("@c", code);
                     cmd.Parameters.AddWithValue("@n", name);
+                    cmd.Parameters.AddWithValue("@p",
+                        string.IsNullOrWhiteSpace(codePrefix) ? (object)DBNull.Value : codePrefix.Trim().ToUpperInvariant());
                     cmd.Parameters.AddWithValue("@u", createdBy ?? "SYSTEM");
                     long id = Convert.ToInt64(cmd.ExecuteScalar());
                     return Convert.ToInt32(id);
@@ -151,17 +229,31 @@ namespace HRModule
 
         public static void UpdateDepartment(int deptId, string code, string name, bool isActive, string modifiedBy)
         {
+            UpdateDepartment(deptId, code, name, null, isActive, modifiedBy, /*updatePrefix*/ false);
+        }
+
+        public static void UpdateDepartment(int deptId, string code, string name, string codePrefix,
+                                            bool isActive, string modifiedBy, bool updatePrefix)
+        {
             using (MySqlConnection con = GetConnection())
             {
                 con.Open();
-                using (MySqlCommand cmd = new MySqlCommand(
-                    @"UPDATE HR_Department
-                         SET DeptCode = @c, DeptName = @n, IsActive = @a,
-                             ModifiedAt = NOW(), ModifiedBy = @u
-                       WHERE DeptID = @id", con))
+                string sql = updatePrefix
+                    ? @"UPDATE HR_Department
+                           SET DeptCode = @c, DeptName = @n, CodePrefix = @p, IsActive = @a,
+                               ModifiedAt = NOW(), ModifiedBy = @u
+                         WHERE DeptID = @id"
+                    : @"UPDATE HR_Department
+                           SET DeptCode = @c, DeptName = @n, IsActive = @a,
+                               ModifiedAt = NOW(), ModifiedBy = @u
+                         WHERE DeptID = @id";
+                using (MySqlCommand cmd = new MySqlCommand(sql, con))
                 {
                     cmd.Parameters.AddWithValue("@c", code);
                     cmd.Parameters.AddWithValue("@n", name);
+                    if (updatePrefix)
+                        cmd.Parameters.AddWithValue("@p",
+                            string.IsNullOrWhiteSpace(codePrefix) ? (object)DBNull.Value : codePrefix.Trim().ToUpperInvariant());
                     cmd.Parameters.AddWithValue("@a", isActive ? 1 : 0);
                     cmd.Parameters.AddWithValue("@u", modifiedBy ?? "SYSTEM");
                     cmd.Parameters.AddWithValue("@id", deptId);

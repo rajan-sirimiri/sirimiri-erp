@@ -47,6 +47,11 @@ namespace HRModule {
         protected global::System.Web.UI.WebControls.TextBox txtName;
 
         /// <summary>
+        /// txtCodePrefix control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtCodePrefix;
+
+        /// <summary>
         /// chkActive control.
         /// </summary>
         protected global::System.Web.UI.WebControls.CheckBox chkActive;

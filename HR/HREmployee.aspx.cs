@@ -81,7 +81,10 @@ namespace HRModule
         protected void btnNew_Click(object sender, EventArgs e)
         {
             ResetForm();
-            txtCode.Text = HR_DatabaseHelper.GenerateEmployeeCode();
+            // Code is auto-generated on save based on the chosen department's CodePrefix
+            // (e.g., Sales -> EMPS003). Leave the field as a placeholder until then.
+            txtCode.Text = "";
+            txtCode.Attributes["placeholder"] = "(auto-generated on save)";
             txtDOJ.Text = DateTime.Today.ToString("yyyy-MM-dd");
             litFormHeading.Text = "New Employee";
             pnlList.Visible = false;
@@ -103,9 +106,26 @@ namespace HRModule
                 EmployeeRecord r = CollectForm();
 
                 // --- Validations ---
-                if (string.IsNullOrWhiteSpace(r.EmployeeCode)) { ShowMsg("Employee Code required.", false); return; }
                 if (string.IsNullOrWhiteSpace(r.FullName))     { ShowMsg("Full Name required.", false); return; }
                 if (r.DeptID <= 0)                             { ShowMsg("Department required.", false); return; }
+
+                // Auto-generate EmployeeCode if blank (only for new records).
+                // Existing records keep their code — never auto-replace.
+                int existingId = int.Parse(hfEmployeeID.Value);
+                if (existingId == 0 && string.IsNullOrWhiteSpace(r.EmployeeCode))
+                {
+                    try
+                    {
+                        r.EmployeeCode = HR_DatabaseHelper.GenerateEmployeeCode(r.DeptID);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        ShowMsg(ex.Message, false);
+                        return;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(r.EmployeeCode)) { ShowMsg("Employee Code required.", false); return; }
 
                 if (!HR_DatabaseHelper.IsValidAadhaar(r.AadhaarNo))
                 { ShowMsg("Aadhaar must be 12 digits.", false); return; }
@@ -114,7 +134,6 @@ namespace HRModule
                 if (!HR_DatabaseHelper.IsValidIFSC(r.IFSCCode))
                 { ShowMsg("IFSC format invalid (4 letters + 0 + 6 chars).", false); return; }
 
-                int existingId = int.Parse(hfEmployeeID.Value);
                 if (HR_DatabaseHelper.EmployeeCodeExists(r.EmployeeCode,
                     existingId > 0 ? (int?)existingId : null))
                 { ShowMsg("Employee Code already exists.", false); return; }

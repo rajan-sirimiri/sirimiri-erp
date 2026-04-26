@@ -101,14 +101,26 @@ namespace HRModule
             {
                 try
                 {
-                    // Auto-generate code if blank, or if Excel gave us a row-number like "1", "2"
-                    // (S.No column resolves into EmployeeCode but is not a real code)
-                    if (!IsRealEmployeeCode(r.EmployeeCode))
-                        r.EmployeeCode = HR_DatabaseHelper.GenerateEmployeeCode();
-
                     // Resolve / create department
                     int deptId = HR_DatabaseHelper.GetOrCreateDepartment(r.Department, user);
                     if (deptId <= 0) { failed++; errors.Add("Row " + r.RowNum + ": department resolution failed"); continue; }
+
+                    // Auto-generate code if blank, or if Excel gave us a row-number like "1", "2"
+                    // (S.No column resolves into EmployeeCode but is not a real code).
+                    // Uses the department's CodePrefix (EMPS for Sales, etc.)
+                    if (!IsRealEmployeeCode(r.EmployeeCode))
+                    {
+                        try
+                        {
+                            r.EmployeeCode = HR_DatabaseHelper.GenerateEmployeeCode(deptId);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            failed++;
+                            errors.Add("Row " + r.RowNum + ": " + ex.Message);
+                            continue;
+                        }
+                    }
 
                     EmployeeRecord emp = new EmployeeRecord
                     {
