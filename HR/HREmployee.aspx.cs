@@ -9,13 +9,25 @@ namespace HRModule
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            // --- Role gate: Super / Admin only ---
-            string role = Session["UserRole"] as string;
-            if (role != "Super" && role != "Admin")
+            // --- Auth gate ---
+            if (Session["HR_UserID"] == null && Session["UserID"] == null)
             {
-                Response.Redirect("/Login.aspx", true);
+                Response.Redirect("HRLogin.aspx", true);
                 return;
             }
+
+            // --- Role gate: Super / Admin only ---
+            string role = (Session["HR_Role"] as string) ?? (Session["UserRole"] as string) ?? (Session["Role"] as string);
+            if (role != "Super" && role != "Admin")
+            {
+                Response.Redirect("HRLogin.aspx", true);
+                return;
+            }
+
+            // Show user name in top nav
+            string navName = (Session["HR_FullName"] as string) ?? (Session["FullName"] as string)
+                          ?? (Session["UserName"] as string) ?? "";
+            if (!string.IsNullOrEmpty(navName)) lblNavUser.Text = navName;
 
             if (!IsPostBack)
             {
@@ -59,7 +71,7 @@ namespace HRModule
         private void ShowMsg(string text, bool ok)
         {
             pnlMsg.Visible = true;
-            pnlMsg.CssClass = ok ? "msg msg-ok" : "msg msg-err";
+            pnlMsg.CssClass = ok ? "banner banner-success" : "banner banner-error";
             pnlMsg.Controls.Clear();
             pnlMsg.Controls.Add(new LiteralControl(Server.HtmlEncode(text)));
         }

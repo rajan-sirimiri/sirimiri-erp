@@ -21,13 +21,25 @@ namespace HRModule
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            // --- Role gate ---
-            string role = Session["UserRole"] as string;
-            if (role != "Super" && role != "Admin")
+            // --- Auth gate ---
+            if (Session["HR_UserID"] == null && Session["UserID"] == null)
             {
-                Response.Redirect("/Login.aspx", true);
+                Response.Redirect("HRLogin.aspx", true);
                 return;
             }
+
+            // --- Role gate: Super / Admin only ---
+            string role = (Session["HR_Role"] as string) ?? (Session["UserRole"] as string) ?? (Session["Role"] as string);
+            if (role != "Super" && role != "Admin")
+            {
+                Response.Redirect("HRLogin.aspx", true);
+                return;
+            }
+
+            // Show user name in top nav (only if the new control exists in markup)
+            string navName = (Session["HR_FullName"] as string) ?? (Session["FullName"] as string)
+                          ?? (Session["UserName"] as string) ?? "";
+            if (!string.IsNullOrEmpty(navName) && lblNavUser != null) lblNavUser.Text = navName;
 
             // --- Postback: if a file path is pinned, rebuild the preview panel ---
             // Otherwise controls inside pnlResults won't render on postback
@@ -364,7 +376,12 @@ namespace HRModule
         private void ShowMsg(string text, string kind)
         {
             pnlMsg.Visible = true;
-            pnlMsg.CssClass = "msg msg-" + kind;
+            // Map old keys to new banner classes
+            string css = "banner banner-info";
+            if (kind == "ok")   css = "banner banner-success";
+            if (kind == "err")  css = "banner banner-error";
+            if (kind == "warn") css = "banner banner-info";
+            pnlMsg.CssClass = css;
             pnlMsg.Controls.Clear();
             pnlMsg.Controls.Add(new LiteralControl(Server.HtmlEncode(text)));
         }
