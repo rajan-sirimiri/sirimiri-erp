@@ -175,7 +175,9 @@ namespace HRModule
                 Gender         = ddlGender.SelectedValue,
                 DOB            = ParseDate(txtDOB.Text),
                 DOJ            = ParseDate(txtDOJ.Text) ?? DateTime.Today,
-                DOL            = ParseDate(txtDOL.Text),
+                // DOL only makes sense when employee has left.
+                // If user saves with Active=true, ignore any DOL value.
+                DOL            = chkActive.Checked ? (DateTime?)null : ParseDate(txtDOL.Text),
                 DeptID         = int.Parse(ddlDept.SelectedValue),
                 Designation    = NullIfEmpty(txtDesignation.Text),
                 EmploymentType = ddlEmpType.SelectedValue,

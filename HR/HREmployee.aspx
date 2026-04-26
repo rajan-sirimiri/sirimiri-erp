@@ -229,12 +229,12 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                         <label>Date of Joining *</label>
                         <asp:TextBox ID="txtDOJ" runat="server" TextMode="Date" />
                     </div>
-                    <div class="form-field">
+                    <div class="form-field" id="dolFieldWrap" runat="server">
                         <label>Date of Leaving</label>
                         <asp:TextBox ID="txtDOL" runat="server" TextMode="Date" />
                     </div>
                     <div class="form-field-checkbox" style="align-self:end;padding-bottom:8px;">
-                        <asp:CheckBox ID="chkActive" runat="server" Checked="true" /> Active
+                        <asp:CheckBox ID="chkActive" runat="server" Checked="true" ClientIDMode="Static" /> Active
                     </div>
                 </div>
             </div>
@@ -258,6 +258,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
                             <asp:ListItem>Trainee</asp:ListItem>
                             <asp:ListItem>Apprentice</asp:ListItem>
                             <asp:ListItem>Temporary</asp:ListItem>
+                            <asp:ListItem>Director</asp:ListItem>
                         </asp:DropDownList>
                     </div>
                     <div></div>
@@ -384,5 +385,32 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 </div>
 </form>
 <script src="/StockApp/erp-keepalive.js"></script>
+<script>
+// Show "Date of Leaving" only when employee is marked Inactive (= has left).
+// Also stays visible if a DOL value is already filled (pre-existing leaver record).
+(function () {
+    function syncDOLVisibility() {
+        var wrap = document.getElementById('dolFieldWrap');
+        var chk  = document.getElementById('chkActive');
+        if (!wrap || !chk) return;
+        var dol  = wrap.querySelector('input[type="date"]');
+        var hasDOL = dol && dol.value && dol.value.length > 0;
+        var leftOrg = !chk.checked;
+        wrap.style.display = (leftOrg || hasDOL) ? '' : 'none';
+    }
+    // Run after DOM ready and on every postback (UpdatePanel-friendly)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            syncDOLVisibility();
+            var chk = document.getElementById('chkActive');
+            if (chk) chk.addEventListener('change', syncDOLVisibility);
+        });
+    } else {
+        syncDOLVisibility();
+        var chk = document.getElementById('chkActive');
+        if (chk) chk.addEventListener('change', syncDOLVisibility);
+    }
+})();
+</script>
 </body>
 </html>

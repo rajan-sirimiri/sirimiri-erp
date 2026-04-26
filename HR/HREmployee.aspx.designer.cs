@@ -107,6 +107,11 @@ namespace HRModule {
         protected global::System.Web.UI.WebControls.TextBox txtDOJ;
 
         /// <summary>
+        /// dolFieldWrap control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl dolFieldWrap;
+
+        /// <summary>
         /// txtDOL control.
         /// </summary>
         protected global::System.Web.UI.WebControls.TextBox txtDOL;
