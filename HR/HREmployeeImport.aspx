@@ -79,6 +79,11 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
 .badge-error{background:#fdecea;color:#c0392b;}
 
 .actions-row{display:flex;gap:10px;margin-top:18px;}
+
+/* Importing-overlay shown while the confirm postback is in flight, so a
+   distracted user can't double-click and the page-back doesn't replay. */
+#importingOverlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.65);z-index:9999;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:18px;color:var(--accent-dark);}
+#importingOverlay.on{display:flex;}
 </style>
 </head>
 <body>
@@ -114,7 +119,10 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         <div class="section-head">Step 1 &mdash; Upload Excel</div>
         <div class="upload-toolbar">
             <asp:FileUpload ID="fuFile" runat="server" />
-            <asp:Button ID="btnUpload" runat="server" Text="Preview" CssClass="btn btn-primary" OnClick="btnUpload_Click" />
+            <asp:Button ID="btnUpload" runat="server" Text="Preview" CssClass="btn btn-primary"
+                OnClick="btnUpload_Click"
+                UseSubmitBehavior="false"
+                OnClientClick="return hrLockUpload(this);" />
             <label><asp:CheckBox ID="chkAutoCreateDept" runat="server" Checked="true" /> Auto-create missing departments</label>
             <a href="HREmployeeImport.ashx?action=template" class="btn btn-ghost">&#x1F4C4; Template</a>
         </div>
@@ -180,7 +188,8 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             <div class="actions-row">
                 <asp:Button ID="btnConfirm" runat="server" Text="&#x2713; Import Ready Rows" CssClass="btn btn-success"
                     OnClick="btnConfirm_Click"
-                    OnClientClick="return confirm('Import the rows marked READY into HR_Employee?');" />
+                    UseSubmitBehavior="false"
+                    OnClientClick="return hrLockConfirm(this);" />
                 <asp:Button ID="btnReset" runat="server" Text="Cancel" CssClass="btn btn-ghost"
                     OnClick="btnReset_Click" CausesValidation="false" />
             </div>
@@ -188,7 +197,79 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
     </asp:Panel>
 
 </div>
+
+<!-- Full-screen overlay shown during import postback so user can't interact -->
+<div id="importingOverlay">Importing &mdash; please don&rsquo;t reload &hellip;</div>
+
 </form>
+
+<script>
+// ============================================================================
+// Double-click / refresh / back-button guard for the import buttons.
+//
+// The pattern is:
+//   1. UseSubmitBehavior="false" on the asp:Button -> ASP.NET emits a regular
+//      <input type=button> whose onclick runs __doPostBack(...). That means
+//      we can disable the button after click and the postback still fires
+//      (a true submit button would NOT submit if disabled).
+//   2. OnClientClick returns true to allow __doPostBack, false to abort.
+//   3. After the user confirms, we set a window flag so a second click in
+//      a quick double-click is rejected even before the disabled state takes
+//      effect.
+//   4. The overlay covers the page so accidental Enter / clicks elsewhere
+//      can't trigger anything during the in-flight postback.
+//   5. The server side has an additional double-submit token so even if
+//      somehow a second postback gets through (e.g. browser back-and-resubmit),
+//      it will be rejected with a clear "already submitted" message.
+// ============================================================================
+
+window.__hrImportInFlight = false;
+
+function hrLockUpload(btn) {
+    if (window.__hrImportInFlight) return false;
+    window.__hrImportInFlight = true;
+    try {
+        btn.value = 'Uploading...';
+        btn.disabled = true;
+    } catch (e) {}
+    document.getElementById('importingOverlay').classList.add('on');
+    document.getElementById('importingOverlay').textContent = 'Uploading & previewing — please wait …';
+    return true;
+}
+
+function hrLockConfirm(btn) {
+    if (window.__hrImportInFlight) return false;
+    if (!confirm('Import the rows marked READY into HR_Employee?\n\nThis will run as a single transaction. Please do NOT reload or close this tab.')) {
+        return false;
+    }
+    window.__hrImportInFlight = true;
+    try {
+        btn.value = 'Importing...';
+        btn.disabled = true;
+    } catch (e) {}
+    // Disable the Cancel button too so a fast double-click can't fire it.
+    var cancelBtn = document.getElementById('<%= btnReset.ClientID %>');
+    if (cancelBtn) {
+        try { cancelBtn.disabled = true; } catch (e) {}
+    }
+    document.getElementById('importingOverlay').textContent = 'Importing — please don\u2019t reload \u2026';
+    document.getElementById('importingOverlay').classList.add('on');
+    // Warn if user tries to navigate away while the import is in flight.
+    window.onbeforeunload = function () {
+        return 'Import is in progress. Leaving now may interrupt it.';
+    };
+    return true;
+}
+
+// Clear the in-flight flag when the page is fully loaded after a postback,
+// so the next operation can proceed normally.
+window.addEventListener('pageshow', function () {
+    window.__hrImportInFlight = false;
+    window.onbeforeunload = null;
+    document.getElementById('importingOverlay').classList.remove('on');
+});
+</script>
+
 <script src="/StockApp/erp-keepalive.js"></script>
 </body>
 </html>

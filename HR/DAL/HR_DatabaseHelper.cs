@@ -15,6 +15,12 @@ namespace HRModule
     ///     first, then Convert.ToInt32 (MySQL driver returns UInt64/Int64)
     ///   - GenerateEmployeeCode uses the same overflow-safe pattern
     ///     established in Session 9
+    ///
+    /// Session 13 additions (bulk import optimization):
+    ///   - GenerateEmployeeCodeBatch: single round-trip for many depts
+    ///   - InsertEmployee(MySqlConnection, MySqlTransaction, ...) overload
+    ///   - GetOrCreateDepartment(MySqlConnection, MySqlTransaction, ...) overload
+    /// These are additive — existing single-row callers are untouched.
     /// </summary>
     public static class HR_DatabaseHelper
     {
@@ -143,6 +149,211 @@ namespace HRModule
                     int next = Convert.ToInt32(cnt) + 1;
                     return prefix + next.ToString("D2");
                 }
+            }
+        }
+
+        // =================================================================
+        // SESSION 13 — BULK IMPORT OPTIMIZATION HELPERS
+        // =================================================================
+        // These are designed to be called once before a bulk-insert loop,
+        // then drive in-memory code allocation per row, with all inserts
+        // sharing one connection + one transaction.
+        // =================================================================
+
+        /// <summary>
+        /// Holds an in-memory next-suffix counter for one department.
+        /// Pre-loaded from the DB once per import so the per-row code
+        /// generation is a pure dictionary lookup (no DB round-trip).
+        /// </summary>
+        public class DeptCodeAllocator
+        {
+            public int DeptID { get; set; }
+            public string Prefix { get; set; }
+            public int NextSuffix { get; set; }
+            public string DeptName { get; set; }   // for error messages
+
+            public string Allocate()
+            {
+                string code = Prefix + NextSuffix.ToString("D3");
+                NextSuffix++;
+                return code;
+            }
+        }
+
+        /// <summary>
+        /// Single-query batch loader: for every department with a CodePrefix,
+        /// returns a DeptCodeAllocator pre-set to MAX(suffix)+1.
+        ///
+        /// Cost: 1 round-trip total (vs. 2 per dept in the per-row path).
+        ///
+        /// Returns a dict keyed by DeptID. Departments without a CodePrefix
+        /// are NOT in the dict — caller must handle missing keys.
+        /// </summary>
+        public static Dictionary<int, DeptCodeAllocator> GenerateEmployeeCodeBatch(
+            MySqlConnection con, MySqlTransaction tx)
+        {
+            Dictionary<int, DeptCodeAllocator> result = new Dictionary<int, DeptCodeAllocator>();
+
+            // Step 1: pull every dept that has a CodePrefix configured.
+            // Cheap (12 rows in prod today) and bounded — fine to do unfiltered.
+            using (MySqlCommand cmd = new MySqlCommand(
+                @"SELECT DeptID, DeptName, CodePrefix
+                    FROM HR_Department
+                   WHERE CodePrefix IS NOT NULL AND CodePrefix <> ''", con, tx))
+            {
+                using (MySqlDataReader rdr = cmd.ExecuteReader())
+                {
+                    while (rdr.Read())
+                    {
+                        int id = Convert.ToInt32(Convert.ToInt64(rdr["DeptID"]));
+                        string prefix = rdr["CodePrefix"].ToString().Trim();
+                        if (prefix.Length == 0) continue;
+                        result[id] = new DeptCodeAllocator
+                        {
+                            DeptID = id,
+                            DeptName = rdr["DeptName"].ToString(),
+                            Prefix = prefix,
+                            NextSuffix = 1
+                        };
+                    }
+                }
+            }
+
+            if (result.Count == 0) return result;
+
+            // Step 2: one grouped query to find MAX(suffix) per prefix in HR_Employee.
+            // We do it per-prefix using REGEXP — same shape as the single-row path,
+            // just unioned. UNION ALL is faster than building a dynamic IN list and
+            // keeps the per-prefix REGEXP local to its branch.
+            //
+            // Built dynamically because the prefix list is data-driven and short.
+            // Parameterized to keep it injection-safe.
+            List<string> unions = new List<string>();
+            using (MySqlCommand cmd = new MySqlCommand("", con, tx))
+            {
+                int i = 0;
+                foreach (var kvp in result)
+                {
+                    string p = "@p" + i;
+                    string l = "@l" + i;
+                    string d = "@d" + i;
+                    unions.Add(
+                        "SELECT " + d + " AS DeptID, " +
+                        "COALESCE(MAX(CAST(SUBSTRING(EmployeeCode, " + l + ") AS UNSIGNED)), 0) AS MaxSfx " +
+                        "FROM HR_Employee " +
+                        "WHERE EmployeeCode REGEXP CONCAT('^', " + p + ", '[0-9]+$')");
+                    cmd.Parameters.AddWithValue(p, kvp.Value.Prefix);
+                    cmd.Parameters.AddWithValue(l, kvp.Value.Prefix.Length + 1);
+                    cmd.Parameters.AddWithValue(d, kvp.Value.DeptID);
+                    i++;
+                }
+                cmd.CommandText = string.Join(" UNION ALL ", unions);
+
+                using (MySqlDataReader rdr = cmd.ExecuteReader())
+                {
+                    while (rdr.Read())
+                    {
+                        int deptId = Convert.ToInt32(Convert.ToInt64(rdr["DeptID"]));
+                        long max = (rdr["MaxSfx"] == DBNull.Value) ? 0 : Convert.ToInt64(rdr["MaxSfx"]);
+                        if (result.TryGetValue(deptId, out DeptCodeAllocator alloc))
+                            alloc.NextSuffix = Convert.ToInt32(max) + 1;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Transaction-aware GetOrCreateDepartment used during bulk import.
+        /// SELECTs by name (case-insensitive), INSERTs if missing.
+        ///
+        /// IMPORTANT: when this method creates a new dept, CodePrefix is
+        /// left NULL — same behaviour as the legacy single-arg overload.
+        /// The caller (import) must therefore handle "dept exists but no
+        /// prefix" by erroring out the row gracefully, since the
+        /// in-memory allocator dict won't have an entry for that DeptID.
+        /// </summary>
+        public static int GetOrCreateDepartment(string deptName, string createdBy,
+                                                MySqlConnection con, MySqlTransaction tx)
+        {
+            if (string.IsNullOrWhiteSpace(deptName)) return 0;
+            deptName = deptName.Trim();
+
+            using (MySqlCommand find = new MySqlCommand(
+                "SELECT DeptID FROM HR_Department WHERE DeptName = @n LIMIT 1", con, tx))
+            {
+                find.Parameters.AddWithValue("@n", deptName);
+                object o = find.ExecuteScalar();
+                if (o != null && o != DBNull.Value)
+                    return Convert.ToInt32(Convert.ToInt64(o));
+            }
+
+            // Not found -> create. Generate a 3-letter dept code by counting
+            // existing rows with that prefix WITHIN this transaction so
+            // concurrent inserts in this same import don't collide.
+            string prefix = "DPT";
+            string cleaned = deptName.Trim().ToUpperInvariant();
+            if (cleaned.Length >= 3) prefix = cleaned.Substring(0, 3);
+            else if (cleaned.Length > 0) prefix = cleaned.PadRight(3, 'X');
+
+            string code;
+            using (MySqlCommand cnt = new MySqlCommand(
+                "SELECT COUNT(*) FROM HR_Department WHERE DeptCode LIKE @p", con, tx))
+            {
+                cnt.Parameters.AddWithValue("@p", prefix + "%");
+                long c = Convert.ToInt64(cnt.ExecuteScalar());
+                code = prefix + (Convert.ToInt32(c) + 1).ToString("D2");
+            }
+
+            using (MySqlCommand ins = new MySqlCommand(
+                @"INSERT INTO HR_Department (DeptCode, DeptName, IsActive, CreatedBy)
+                  VALUES (@c, @n, 1, @u); SELECT LAST_INSERT_ID();", con, tx))
+            {
+                ins.Parameters.AddWithValue("@c", code);
+                ins.Parameters.AddWithValue("@n", deptName);
+                ins.Parameters.AddWithValue("@u", createdBy ?? "SYSTEM");
+                long id = Convert.ToInt64(ins.ExecuteScalar());
+                return Convert.ToInt32(id);
+            }
+        }
+
+        /// <summary>
+        /// Transaction-aware InsertEmployee for bulk paths. Same SQL as
+        /// the standalone InsertEmployee — just shares the caller's
+        /// connection + transaction so 57 inserts are 1 round-trip
+        /// per row instead of 1 connection-open per row.
+        /// </summary>
+        public static int InsertEmployee(EmployeeRecord e, string createdBy,
+                                         MySqlConnection con, MySqlTransaction tx)
+        {
+            string sql = @"
+                INSERT INTO HR_Employee
+                  (EmployeeCode, FullName, FatherName, Gender, DOB, DOJ, DOL,
+                   DeptID, Designation, ReportingManager, Zone, Region, Area, WorkLocation,
+                   EmploymentType,
+                   MobileNo, AltMobileNo, Email, AddressLine, City, StateName, Pincode,
+                   AadhaarNo, PANNo, UANNo, PFNo, ESINo,
+                   BankAccountNo, BankName, IFSCCode,
+                   BasicSalary, HRA, ConveyanceAllow, OtherAllow, GrossSalary,
+                   IsActive, CreatedBy)
+                VALUES
+                  (@EmployeeCode, @FullName, @FatherName, @Gender, @DOB, @DOJ, @DOL,
+                   @DeptID, @Designation, @ReportingManager, @Zone, @Region, @Area, @WorkLocation,
+                   @EmploymentType,
+                   @MobileNo, @AltMobileNo, @Email, @AddressLine, @City, @StateName, @Pincode,
+                   @AadhaarNo, @PANNo, @UANNo, @PFNo, @ESINo,
+                   @BankAccountNo, @BankName, @IFSCCode,
+                   @BasicSalary, @HRA, @ConveyanceAllow, @OtherAllow, @GrossSalary,
+                   @IsActive, @CreatedBy);
+                SELECT LAST_INSERT_ID();";
+
+            using (MySqlCommand cmd = new MySqlCommand(sql, con, tx))
+            {
+                BindEmployeeParams(cmd, e);
+                cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "SYSTEM");
+                long id = Convert.ToInt64(cmd.ExecuteScalar());
+                return Convert.ToInt32(id);
             }
         }
 
