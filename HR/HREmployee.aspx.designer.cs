@@ -132,6 +132,31 @@ namespace HRModule {
         protected global::System.Web.UI.WebControls.TextBox txtDesignation;
 
         /// <summary>
+        /// txtReportingManager control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtReportingManager;
+
+        /// <summary>
+        /// txtZone control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtZone;
+
+        /// <summary>
+        /// txtRegion control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtRegion;
+
+        /// <summary>
+        /// txtArea control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtArea;
+
+        /// <summary>
+        /// txtWorkLocation control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtWorkLocation;
+
+        /// <summary>
         /// ddlEmpType control.
         /// </summary>
         protected global::System.Web.UI.WebControls.DropDownList ddlEmpType;

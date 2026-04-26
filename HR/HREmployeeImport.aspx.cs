@@ -101,8 +101,9 @@ namespace HRModule
             {
                 try
                 {
-                    // Auto-generate code if blank
-                    if (string.IsNullOrWhiteSpace(r.EmployeeCode))
+                    // Auto-generate code if blank, or if Excel gave us a row-number like "1", "2"
+                    // (S.No column resolves into EmployeeCode but is not a real code)
+                    if (!IsRealEmployeeCode(r.EmployeeCode))
                         r.EmployeeCode = HR_DatabaseHelper.GenerateEmployeeCode();
 
                     // Resolve / create department
@@ -119,6 +120,11 @@ namespace HRModule
                         DOJ            = r.DOJ ?? DateTime.Today,
                         DeptID         = deptId,
                         Designation    = r.Designation,
+                        ReportingManager = r.ReportingManager,
+                        Zone           = r.Zone,
+                        Region         = r.Region,
+                        Area           = r.Area,
+                        WorkLocation   = r.WorkLocation,
                         EmploymentType = string.IsNullOrEmpty(r.EmploymentType) ? "Permanent" : r.EmploymentType,
                         MobileNo       = r.MobileNo,
                         AltMobileNo    = r.AltMobileNo,
@@ -183,8 +189,9 @@ namespace HRModule
             DataRowView drv = e.Row.DataItem as DataRowView;
             if (drv == null) return;
             string status = drv["Status"] as string;
+            string msg = drv["Message"] as string;
             if (status == "ERROR") e.Row.CssClass = "row-err";
-            else if (status == "WARN") e.Row.CssClass = "row-warn";
+            else if (!string.IsNullOrEmpty(msg)) e.Row.CssClass = "row-warn";
         }
 
         // =================================================================
@@ -233,6 +240,11 @@ namespace HRModule
                         DOJ           = GetDate(ws, r, col, "DOJ"),
                         Department    = GetStr(ws, r, col, "Department"),
                         Designation   = GetStr(ws, r, col, "Designation"),
+                        ReportingManager = GetStr(ws, r, col, "ReportingManager"),
+                        Zone          = GetStr(ws, r, col, "Zone"),
+                        Region        = GetStr(ws, r, col, "Region"),
+                        Area          = GetStr(ws, r, col, "Area"),
+                        WorkLocation  = GetStr(ws, r, col, "WorkLocation"),
                         EmploymentType= NormEmpType(GetStr(ws, r, col, "EmploymentType")),
                         MobileNo      = GetStr(ws, r, col, "Mobile"),
                         AltMobileNo   = GetStr(ws, r, col, "AltMobile"),
@@ -257,7 +269,7 @@ namespace HRModule
                     ir.GrossSalary = ir.BasicSalary + ir.HRA + ir.ConveyanceAllow + ir.OtherAllow;
 
                     // Skip fully-blank trailing rows
-                    if (string.IsNullOrWhiteSpace(ir.FullName) && string.IsNullOrWhiteSpace(ir.EmployeeCode))
+                    if (string.IsNullOrWhiteSpace(ir.FullName) && !IsRealEmployeeCode(ir.EmployeeCode))
                     { rowNum--; continue; }
 
                     rows.Add(ir);
@@ -296,12 +308,12 @@ namespace HRModule
                     else errs.Add("Department '" + r.Department + "' not found");
                 }
 
-                if (!string.IsNullOrWhiteSpace(r.EmployeeCode))
+                if (IsRealEmployeeCode(r.EmployeeCode))
                 {
                     if (existingCodes.Contains(r.EmployeeCode)) errs.Add("Code already exists in DB");
                     else if (!seenInFile.Add(r.EmployeeCode)) errs.Add("Duplicate code in file");
                 }
-                // blank code OK -> auto-generate at import time
+                // non-real (blank or numeric like "1") -> auto-generate at import time
 
                 if (!HR_DatabaseHelper.IsValidAadhaar(r.AadhaarNo)) errs.Add("Aadhaar not 12 digits");
                 if (!HR_DatabaseHelper.IsValidPAN(r.PANNo))         warns.Add("PAN format unusual");
@@ -335,6 +347,11 @@ namespace HRModule
             dt.Columns.Add("FullName", typeof(string));
             dt.Columns.Add("Department", typeof(string));
             dt.Columns.Add("Designation", typeof(string));
+            dt.Columns.Add("ReportingManager", typeof(string));
+            dt.Columns.Add("Zone", typeof(string));
+            dt.Columns.Add("Region", typeof(string));
+            dt.Columns.Add("Area", typeof(string));
+            dt.Columns.Add("WorkLocation", typeof(string));
             dt.Columns.Add("EmploymentType", typeof(string));
             dt.Columns.Add("DOJ", typeof(DateTime));
             dt.Columns.Add("MobileNo", typeof(string));
@@ -347,14 +364,19 @@ namespace HRModule
                 dr["RowNum"] = r.RowNum;
                 dr["Status"] = r.Status;
                 dr["Message"] = r.Message;
-                dr["EmployeeCode"] = r.EmployeeCode ?? "(auto)";
-                dr["FullName"] = r.FullName;
-                dr["Department"] = r.Department;
-                dr["Designation"] = r.Designation;
-                dr["EmploymentType"] = r.EmploymentType;
+                dr["EmployeeCode"] = IsRealEmployeeCode(r.EmployeeCode) ? r.EmployeeCode : "(auto)";
+                dr["FullName"] = r.FullName ?? "";
+                dr["Department"] = r.Department ?? "";
+                dr["Designation"] = r.Designation ?? "";
+                dr["ReportingManager"] = r.ReportingManager ?? "";
+                dr["Zone"] = r.Zone ?? "";
+                dr["Region"] = r.Region ?? "";
+                dr["Area"] = r.Area ?? "";
+                dr["WorkLocation"] = r.WorkLocation ?? "";
+                dr["EmploymentType"] = r.EmploymentType ?? "";
                 dr["DOJ"] = (object)r.DOJ ?? DBNull.Value;
-                dr["MobileNo"] = r.MobileNo;
-                dr["AadhaarNo"] = r.AadhaarNo;
+                dr["MobileNo"] = r.MobileNo ?? "";
+                dr["AadhaarNo"] = r.AadhaarNo ?? "";
                 dr["GrossSalary"] = r.GrossSalary;
                 dt.Rows.Add(dr);
             }
@@ -391,27 +413,56 @@ namespace HRModule
         // =================================================================
         private static readonly Dictionary<string, string[]> Aliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            { "EmployeeCode", new[]{ "EmployeeCode", "EmpCode", "Code" } },
-            { "FullName",     new[]{ "FullName", "Name", "Employee Name" } },
+            { "EmployeeCode", new[]{ "EmployeeCode", "EmpCode", "Code", "S.No", "SNo", "Sl No", "Sr No", "Serial No" } },
+            { "FullName",     new[]{ "FullName", "Name", "Employee Name", "Employee name" } },
             { "FatherName",   new[]{ "FatherName", "Father's Name", "Father" } },
-            { "DOB",          new[]{ "DOB", "Date of Birth", "Birth Date" } },
-            { "DOJ",          new[]{ "DOJ", "Date of Joining", "Joining Date" } },
+            { "Gender",       new[]{ "Gender", "Sex" } },
+            { "DOB",          new[]{ "DOB", "Date of Birth", "Birth Date", "Date Of Birth" } },
+            { "DOJ",          new[]{ "DOJ", "Date of Joining", "Joining Date", "Date Of Joining", "DOJ" } },
             { "Department",   new[]{ "Department", "Dept" } },
+            { "Designation",  new[]{ "Designation", "Position", "Role" } },
+            { "ReportingManager", new[]{ "ReportingManager", "Reporting Manager", "Manager", "Reports To" } },
+            { "Zone",         new[]{ "Zone", "State/Zone", "State Zone" } },
+            { "Region",       new[]{ "Region", "REGION" } },
+            { "Area",         new[]{ "Area", "AREA" } },
+            { "WorkLocation", new[]{ "WorkLocation", "Work Location", "Location", "LOCATION", "Branch" } },
             { "EmploymentType", new[]{ "EmploymentType", "Type", "Employment Type" } },
-            { "Mobile",       new[]{ "Mobile", "Phone", "MobileNo" } },
+            { "Mobile",       new[]{ "Mobile", "Phone", "MobileNo", "Contact", "Mobile No", "Mobile Number", "Contact No", "Contact Number" } },
             { "AltMobile",    new[]{ "AltMobile", "Alt Mobile", "Alternate Mobile" } },
-            { "Pincode",      new[]{ "Pincode", "Pin", "Zip" } },
-            { "Aadhaar",      new[]{ "Aadhaar", "Aadhar", "AadhaarNo", "UID" } },
-            { "PAN",          new[]{ "PAN", "PANNo" } },
-            { "BankAcNo",     new[]{ "BankAcNo", "Bank A/c", "Account Number" } },
+            { "Email",        new[]{ "Email", "Email ID", "Email Id", "EmailAddress" } },
+            { "Address",      new[]{ "Address", "Residential Address", "Permanent Address" } },
+            { "City",         new[]{ "City" } },
+            { "State",        new[]{ "State" } },
+            { "Pincode",      new[]{ "Pincode", "Pin", "Zip", "Pin Code" } },
+            { "Aadhaar",      new[]{ "Aadhaar", "Aadhar", "AadhaarNo", "Aadhar Number", "Aadhaar Number", "Aadhar No", "UID" } },
+            { "PAN",          new[]{ "PAN", "PANNo", "PAN Card", "PAN No", "PAN Number" } },
+            { "UAN",          new[]{ "UAN", "UANNo", "UAN No", "UAN NO", "UAN Number" } },
+            { "PFNo",         new[]{ "PFNo", "PF No", "PF Number" } },
+            { "ESINo",        new[]{ "ESINo", "ESI No", "ESI NO", "ESI Number" } },
+            { "BankAcNo",     new[]{ "BankAcNo", "Bank A/c", "Account Number", "A/c No", "Bank A/c No", "Account No", "Bank Account" } },
+            { "BankName",     new[]{ "BankName", "Bank Name", "Bank" } },
+            { "IFSC",         new[]{ "IFSC", "IFSC Code", "IFSCCode" } },
             { "Basic",        new[]{ "Basic", "Basic Salary" } },
+            { "HRA",          new[]{ "HRA" } },
+            { "Conveyance",   new[]{ "Conveyance", "Conveyance Allow", "ConveyanceAllow" } },
+            { "Other",        new[]{ "Other", "Other Allow", "OtherAllow", "Other Allowance" } },
         };
 
         private static string GetStr(IXLWorksheet ws, int row, Dictionary<string, int> col, string logical)
         {
             int c = ResolveCol(col, logical);
             if (c == 0) return "";
-            string s = ws.Cell(row, c).GetString();
+            IXLCell cell = ws.Cell(row, c);
+            if (cell.IsEmpty()) return "";
+            // For numeric cells, format without trailing zeros (mobile/aadhaar/account stored as int)
+            if (cell.DataType == XLDataType.Number)
+            {
+                double n = cell.GetDouble();
+                if (n == Math.Floor(n) && !double.IsInfinity(n))
+                    return ((long)n).ToString();
+                return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            string s = cell.GetString();
             return (s ?? "").Trim();
         }
 
@@ -424,13 +475,28 @@ namespace HRModule
             if (cell.DataType == XLDataType.DateTime) return cell.GetDateTime();
             string s = cell.GetString();
             if (string.IsNullOrWhiteSpace(s)) return null;
+            s = s.Trim();
+
             DateTime d;
-            // Try common Indian formats first
-            string[] fmts = { "dd-MM-yyyy", "dd/MM/yyyy", "d-M-yyyy", "d/M/yyyy",
-                              "yyyy-MM-dd", "dd-MMM-yyyy", "dd-MMM-yy" };
-            if (DateTime.TryParseExact(s, fmts, System.Globalization.CultureInfo.InvariantCulture,
+            // Indian/dot/slash formats first (DD-MM-YYYY assumed)
+            string[] fmts = {
+                "dd-MM-yyyy", "dd/MM/yyyy", "dd.MM.yyyy",
+                "d-M-yyyy",   "d/M/yyyy",   "d.M.yyyy",
+                "yyyy-MM-dd", "yyyy/MM/dd",
+                "dd-MMM-yyyy", "dd-MMM-yy", "dd MMM yyyy"
+            };
+            if (DateTime.TryParseExact(s, fmts,
+                    System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out d))
                 return d;
+
+            // US-style fallback (MM/DD/YYYY) — only if first part > 12 disambiguates against DD/MM
+            string[] usFmts = { "MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy" };
+            if (DateTime.TryParseExact(s, usFmts,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out d))
+                return d;
+
             if (DateTime.TryParse(s, out d)) return d;
             return null;
         }
@@ -463,7 +529,23 @@ namespace HRModule
         private static string CleanAadhaar(string a)
         {
             if (string.IsNullOrWhiteSpace(a)) return "";
-            return a.Replace(" ", "").Replace("-", "").Trim();
+            // Strip ALL whitespace (including double spaces in source data) plus dashes
+            return System.Text.RegularExpressions.Regex.Replace(a, @"\s+", "").Replace("-", "").Trim();
+        }
+
+        // Excel sometimes provides S.No (1, 2, 3) which would alias to EmployeeCode.
+        // We only treat the value as a real code if it looks like one (alpha-prefixed,
+        // not a pure integer row number).
+        private static bool IsRealEmployeeCode(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            string c = code.Trim();
+            // pure-digits = row number, not a real code -> auto-generate
+            int dummy;
+            if (int.TryParse(c, out dummy)) return false;
+            // requires at least one letter
+            foreach (char ch in c) if (char.IsLetter(ch)) return true;
+            return false;
         }
 
         private static string NormGender(string g)
@@ -503,6 +585,11 @@ namespace HRModule
             public DateTime? DOJ { get; set; }
             public string Department { get; set; }
             public string Designation { get; set; }
+            public string ReportingManager { get; set; }
+            public string Zone { get; set; }
+            public string Region { get; set; }
+            public string Area { get; set; }
+            public string WorkLocation { get; set; }
             public string EmploymentType { get; set; }
             public string MobileNo { get; set; }
             public string AltMobileNo { get; set; }

@@ -249,7 +249,8 @@ namespace HRModule
                 string sql = @"
                     INSERT INTO HR_Employee
                       (EmployeeCode, FullName, FatherName, Gender, DOB, DOJ, DOL,
-                       DeptID, Designation, EmploymentType,
+                       DeptID, Designation, ReportingManager, Zone, Region, Area, WorkLocation,
+                       EmploymentType,
                        MobileNo, AltMobileNo, Email, AddressLine, City, StateName, Pincode,
                        AadhaarNo, PANNo, UANNo, PFNo, ESINo,
                        BankAccountNo, BankName, IFSCCode,
@@ -257,7 +258,8 @@ namespace HRModule
                        IsActive, CreatedBy)
                     VALUES
                       (@EmployeeCode, @FullName, @FatherName, @Gender, @DOB, @DOJ, @DOL,
-                       @DeptID, @Designation, @EmploymentType,
+                       @DeptID, @Designation, @ReportingManager, @Zone, @Region, @Area, @WorkLocation,
+                       @EmploymentType,
                        @MobileNo, @AltMobileNo, @Email, @AddressLine, @City, @StateName, @Pincode,
                        @AadhaarNo, @PANNo, @UANNo, @PFNo, @ESINo,
                        @BankAccountNo, @BankName, @IFSCCode,
@@ -284,7 +286,10 @@ namespace HRModule
                     UPDATE HR_Employee SET
                        EmployeeCode = @EmployeeCode, FullName = @FullName, FatherName = @FatherName,
                        Gender = @Gender, DOB = @DOB, DOJ = @DOJ, DOL = @DOL,
-                       DeptID = @DeptID, Designation = @Designation, EmploymentType = @EmploymentType,
+                       DeptID = @DeptID, Designation = @Designation,
+                       ReportingManager = @ReportingManager, Zone = @Zone, Region = @Region,
+                       Area = @Area, WorkLocation = @WorkLocation,
+                       EmploymentType = @EmploymentType,
                        MobileNo = @MobileNo, AltMobileNo = @AltMobileNo, Email = @Email,
                        AddressLine = @AddressLine, City = @City, StateName = @StateName, Pincode = @Pincode,
                        AadhaarNo = @AadhaarNo, PANNo = @PANNo, UANNo = @UANNo, PFNo = @PFNo, ESINo = @ESINo,
@@ -316,6 +321,11 @@ namespace HRModule
             cmd.Parameters.AddWithValue("@DOL", (object)e.DOL ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@DeptID", e.DeptID);
             cmd.Parameters.AddWithValue("@Designation", (object)e.Designation ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@ReportingManager", (object)e.ReportingManager ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Zone", (object)e.Zone ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Region", (object)e.Region ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Area", (object)e.Area ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@WorkLocation", (object)e.WorkLocation ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@EmploymentType", e.EmploymentType ?? "Permanent");
             cmd.Parameters.AddWithValue("@MobileNo", (object)e.MobileNo ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@AltMobileNo", (object)e.AltMobileNo ?? DBNull.Value);
@@ -389,6 +399,12 @@ namespace HRModule
         public DateTime? DOL { get; set; }
         public int DeptID { get; set; }
         public string Designation { get; set; }
+        // Organization / Sales territory
+        public string ReportingManager { get; set; }
+        public string Zone { get; set; }
+        public string Region { get; set; }
+        public string Area { get; set; }
+        public string WorkLocation { get; set; }
         public string EmploymentType { get; set; } = "Permanent";
         public string MobileNo { get; set; }
         public string AltMobileNo { get; set; }

@@ -180,6 +180,11 @@ namespace HRModule
                 DOL            = chkActive.Checked ? (DateTime?)null : ParseDate(txtDOL.Text),
                 DeptID         = int.Parse(ddlDept.SelectedValue),
                 Designation    = NullIfEmpty(txtDesignation.Text),
+                ReportingManager = NullIfEmpty(txtReportingManager.Text),
+                Zone           = NullIfEmpty(txtZone.Text),
+                Region         = NullIfEmpty(txtRegion.Text),
+                Area           = NullIfEmpty(txtArea.Text),
+                WorkLocation   = NullIfEmpty(txtWorkLocation.Text),
                 EmploymentType = ddlEmpType.SelectedValue,
                 MobileNo       = NullIfEmpty(txtMobile.Text),
                 AltMobileNo    = NullIfEmpty(txtAltMobile.Text),
@@ -217,6 +222,11 @@ namespace HRModule
             txtDOL.Text = FormatDate(r["DOL"]);
             TrySetDropDown(ddlDept, r["DeptID"].ToString());
             txtDesignation.Text = NullToEmpty(r["Designation"]);
+            txtReportingManager.Text = NullToEmpty(r.Table.Columns.Contains("ReportingManager") ? r["ReportingManager"] : null);
+            txtZone.Text = NullToEmpty(r.Table.Columns.Contains("Zone") ? r["Zone"] : null);
+            txtRegion.Text = NullToEmpty(r.Table.Columns.Contains("Region") ? r["Region"] : null);
+            txtArea.Text = NullToEmpty(r.Table.Columns.Contains("Area") ? r["Area"] : null);
+            txtWorkLocation.Text = NullToEmpty(r.Table.Columns.Contains("WorkLocation") ? r["WorkLocation"] : null);
             TrySetDropDown(ddlEmpType, NullToEmpty(r["EmploymentType"], "Permanent"));
             txtMobile.Text = NullToEmpty(r["MobileNo"]);
             txtAltMobile.Text = NullToEmpty(r["AltMobileNo"]);
@@ -250,6 +260,7 @@ namespace HRModule
             txtDOB.Text = ""; txtDOJ.Text = ""; txtDOL.Text = "";
             if (ddlDept.Items.Count > 0) ddlDept.SelectedIndex = 0;
             txtDesignation.Text = "";
+            txtReportingManager.Text = ""; txtZone.Text = ""; txtRegion.Text = ""; txtArea.Text = ""; txtWorkLocation.Text = "";
             ddlEmpType.SelectedValue = "Permanent";
             txtMobile.Text = ""; txtAltMobile.Text = ""; txtEmail.Text = "";
             txtAddress.Text = ""; txtCity.Text = ""; txtState.Text = ""; txtPincode.Text = "";

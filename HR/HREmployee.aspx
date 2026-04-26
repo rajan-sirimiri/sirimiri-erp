@@ -266,6 +266,34 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
             </div>
 
             <div class="form-section">
+                <div class="form-section-title">Organization</div>
+                <div class="form-grid-4">
+                    <div class="form-field">
+                        <label>Reporting Manager</label>
+                        <asp:TextBox ID="txtReportingManager" runat="server" />
+                    </div>
+                    <div class="form-field">
+                        <label>State / Zone</label>
+                        <asp:TextBox ID="txtZone" runat="server" />
+                    </div>
+                    <div class="form-field">
+                        <label>Region</label>
+                        <asp:TextBox ID="txtRegion" runat="server" />
+                    </div>
+                    <div class="form-field">
+                        <label>Area</label>
+                        <asp:TextBox ID="txtArea" runat="server" />
+                    </div>
+                    <div class="form-field">
+                        <label>Work Location</label>
+                        <asp:TextBox ID="txtWorkLocation" runat="server" />
+                    </div>
+                    <div></div><div></div><div></div>
+                </div>
+                <div class="form-hint">Used primarily for Sales territory hierarchy. Optional for other departments.</div>
+            </div>
+
+            <div class="form-section">
                 <div class="form-section-title">Contact</div>
                 <div class="form-grid-4">
                     <div class="form-field">
