@@ -97,7 +97,6 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="HR_DatabaseHelper.cs" />
     <Compile Include="HRLogin.aspx.cs">
       <DependentUpon>HRLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -129,6 +128,7 @@
     <Compile Include="HREmployeeImport.ashx.cs">
       <DependentUpon>HREmployeeImport.ashx</DependentUpon>
     </Compile>
+    <Compile Include="HR_DatabaseHelper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />

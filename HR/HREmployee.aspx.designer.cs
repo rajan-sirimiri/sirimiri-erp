@@ -17,6 +17,11 @@ namespace HRModule {
         protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
         /// <summary>
+        /// lblNavUser control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Label lblNavUser;
+
+        /// <summary>
         /// btnNew control.
         /// </summary>
         protected global::System.Web.UI.WebControls.Button btnNew;
