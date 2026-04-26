@@ -98,7 +98,7 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="HR_DatabaseHelper.cs" />
+    <Compile Include="DAL\HR_DatabaseHelper.cs" />
     <Compile Include="HRLogin.aspx.cs">
       <DependentUpon>HRLogin.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
