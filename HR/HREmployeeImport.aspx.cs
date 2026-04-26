@@ -118,8 +118,9 @@ namespace HRModule
             // ---- Double-submit guard (atomic claim of the token) ----
             // Browser-timeout retries, refreshes, double-clicks, back-button
             // all hit this same handler. Only the first one through wins.
+            // HttpSessionState exposes SyncRoot via ICollection (not IDictionary).
             string claimedToken = null;
-            lock (((System.Collections.IDictionary)Session).SyncRoot)
+            lock (((System.Collections.ICollection)Session).SyncRoot)
             {
                 claimedToken = Session[SK_ImportToken] as string;
                 if (string.IsNullOrEmpty(claimedToken))
