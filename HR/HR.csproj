@@ -10,6 +10,10 @@
   Only DocumentFormat.OpenXml is in packages.config (NuGet-managed).
   ClosedXML and MySql.Data are pulled from PK\bin to avoid NuGet version
   conflicts with the existing module set.
+
+  Session 13 additions:
+    - HROrgChart.aspx (+ .aspx.cs + .aspx.designer.cs)
+    - HROrgChart.ashx (+ .ashx.cs)
 -->
 <Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
@@ -94,6 +98,8 @@
     <Content Include="HREmployee.aspx" />
     <Content Include="HREmployeeImport.aspx" />
     <Content Include="HREmployeeImport.ashx" />
+    <Content Include="HROrgChart.aspx" />
+    <Content Include="HROrgChart.ashx" />
     <Content Include="web.config" />
     <Content Include="packages.config" />
   </ItemGroup>
@@ -129,6 +135,16 @@
     </Compile>
     <Compile Include="HREmployeeImport.ashx.cs">
       <DependentUpon>HREmployeeImport.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="HROrgChart.aspx.cs">
+      <DependentUpon>HROrgChart.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="HROrgChart.aspx.designer.cs">
+      <DependentUpon>HROrgChart.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="HROrgChart.ashx.cs">
+      <DependentUpon>HROrgChart.ashx</DependentUpon>
     </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

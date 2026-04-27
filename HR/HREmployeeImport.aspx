@@ -99,6 +99,7 @@ nav{background:#1a1a1a;display:flex;align-items:center;padding:0 28px;height:52p
         <a href="HREmployee.aspx" class="nav-link">Employees</a>
         <a href="HRDepartment.aspx" class="nav-link">Departments</a>
         <a href="HREmployeeImport.aspx" class="nav-link active">Import</a>
+        <a href="HROrgChart.aspx" class="nav-link">Org Chart</a>
         <a href="/StockApp/ERPHome.aspx" class="nav-link">&#8592; ERP Home</a>
         <a href="HRLogout.aspx" class="nav-link">Sign Out</a>
     </div>
